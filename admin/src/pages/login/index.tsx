@@ -122,6 +122,7 @@ export default function LoginPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
+                { label: '🏢 Admin',       email: 'admin@wonghiran.com',  pw: 'Password123!', color: '#f97316', bg: '#fff7ed' },
                 { label: '🔐 Super Admin', email: 'admin@timeline.local', pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe' },
               ].map(d => (
                 <button key={d.email} onClick={() => fillDemo(d.email, d.pw)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1px solid ${d.color}25`, background: d.bg, cursor: 'pointer' }}>

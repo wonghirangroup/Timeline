@@ -17,6 +17,7 @@ import ShiftPage            from './pages/shift'
 import AnnouncementPage     from './pages/announcement'
 import HolidayPage          from './pages/holiday'
 import LeaveBalancePage      from './pages/leave-balance'
+import WeeklyOffPage        from './pages/weekly-off'
 import EmployeeDetailPage   from './pages/employee/detail'
 import SADashboard          from './pages/superadmin/dashboard'
 import SATenantsPage        from './pages/superadmin/tenants'
@@ -46,6 +47,7 @@ function AdminRoutes() {
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/holiday"        element={<HolidayPage />} />
         <Route path="/leave-balance"  element={<LeaveBalancePage />} />
+        <Route path="/weekly-off"     element={<WeeklyOffPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
         <Route path="/settings"      element={<SettingsPage />} />
         <Route path="*"              element={<Navigate to="/dashboard" replace />} />

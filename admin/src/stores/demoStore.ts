@@ -6,10 +6,11 @@ import {
   MOCK_EMPLOYEES, MOCK_BRANCHES, MOCK_DEPARTMENTS,
   MOCK_LEAVE_REQUESTS, MOCK_OT_REQUESTS, MOCK_SHIFTS,
   MOCK_ANNOUNCEMENTS, MOCK_LEAVE_BALANCES, MOCK_TODAY_ATTENDANCE,
+  MOCK_WEEKLY_OFF_BOOKINGS,
 } from '../lib/mock'
 import type {
   Employee, Branch, Department, LeaveRequest, OtRequest,
-  ShiftDef, AnnouncementItem, LeaveBalance, AttendanceRow,
+  ShiftDef, AnnouncementItem, LeaveBalance, AttendanceRow, WeeklyOffBooking,
 } from '../types'
 
 interface DemoState {
@@ -21,7 +22,13 @@ interface DemoState {
   shifts:         ShiftDef[]
   announcements:  AnnouncementItem[]
   leaveBalances:  LeaveBalance[]
-  attendance:     AttendanceRow[]
+  attendance:          AttendanceRow[]
+  weeklyOffBookings:   WeeklyOffBooking[]
+
+  // ── Weekly Off ───────────────────────────────────────
+  addWeeklyOff:        (w: WeeklyOffBooking) => void
+  updateWeeklyOff:     (id: string, patch: Partial<WeeklyOffBooking>) => void
+  deleteWeeklyOff:     (id: string) => void
 
   // ── Employee CRUD ────────────────────────────────────
   addEmployee:    (emp: Employee) => void
@@ -62,21 +69,30 @@ interface DemoState {
 }
 
 const initialState = {
-  employees:     MOCK_EMPLOYEES,
-  branches:      MOCK_BRANCHES,
-  departments:   MOCK_DEPARTMENTS,
-  leaveRequests: MOCK_LEAVE_REQUESTS,
-  otRequests:    MOCK_OT_REQUESTS,
-  shifts:        MOCK_SHIFTS,
-  announcements: MOCK_ANNOUNCEMENTS,
-  leaveBalances: MOCK_LEAVE_BALANCES,
-  attendance:    MOCK_TODAY_ATTENDANCE,
+  employees:          MOCK_EMPLOYEES,
+  branches:           MOCK_BRANCHES,
+  departments:        MOCK_DEPARTMENTS,
+  leaveRequests:      MOCK_LEAVE_REQUESTS,
+  otRequests:         MOCK_OT_REQUESTS,
+  shifts:             MOCK_SHIFTS,
+  announcements:      MOCK_ANNOUNCEMENTS,
+  leaveBalances:      MOCK_LEAVE_BALANCES,
+  attendance:         MOCK_TODAY_ATTENDANCE,
+  weeklyOffBookings:  MOCK_WEEKLY_OFF_BOOKINGS,
 }
 
 export const useDemoStore = create<DemoState>()(
   persist(
     (set) => ({
       ...initialState,
+
+      // ── Weekly Off ───────────────────────────────────
+      addWeeklyOff: (w) =>
+        set((s) => ({ weeklyOffBookings: [...s.weeklyOffBookings, w] })),
+      updateWeeklyOff: (id, patch) =>
+        set((s) => ({ weeklyOffBookings: s.weeklyOffBookings.map((w) => w.id === id ? { ...w, ...patch } : w) })),
+      deleteWeeklyOff: (id) =>
+        set((s) => ({ weeklyOffBookings: s.weeklyOffBookings.filter((w) => w.id !== id) })),
 
       // ── Employee ──────────────────────────────────────
       addEmployee: (emp) =>
