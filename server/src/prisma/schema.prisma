@@ -1,0 +1,344 @@
+// server/src/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TENANT
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id            String      @id @default(uuid())
+  name          String
+  plan          TenantPlan  @default(FREE)
+  max_employees Int         @default(5)
+  max_branches  Int         @default(1)
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  deleted_at    DateTime?
+
+  line_config   TenantLineConfig?
+  users         User[]
+  employees     Employee[]
+  branches      Branch[]
+  shifts        Shift[]
+  holidays      Holiday[]
+  announcements Announcement[]
+
+  @@map("tenants")
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+model TenantLineConfig {
+  id                  String   @id @default(uuid())
+  tenant_id           String   @unique
+  line_channel_id     String
+  line_channel_secret String   // encrypted
+  line_liff_id        String
+  rich_menu_id        String?
+  logo_url            String?  // white-label
+  primary_color       String?  // white-label
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@map("tenant_line_configs")
+}
+
+// ─────────────────────────────────────────────
+// USERS (Web App login: SUPER_ADMIN / ADMIN / MANAGER)
+// ─────────────────────────────────────────────
+
+model User {
+  id         String    @id @default(uuid())
+  tenant_id  String?   // null = SUPER_ADMIN
+  email      String    @unique
+  password   String    // bcrypt hashed
+  first_name String
+  last_name  String
+  role       UserRole
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  tenant           Tenant?         @relation(fields: [tenant_id], references: [id])
+  managed_branches BranchManager[]
+
+  @@index([tenant_id])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+}
+
+// ─────────────────────────────────────────────
+// EMPLOYEE (Line LIFF login)
+// ─────────────────────────────────────────────
+
+model Employee {
+  id            String    @id @default(uuid())
+  tenant_id     String
+  branch_id     String
+  employee_code String
+  first_name    String
+  last_name     String
+  phone         String?
+  line_user_id  String?   // mapped after Line verify
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  tenant             Tenant             @relation(fields: [tenant_id], references: [id])
+  branch             Branch             @relation(fields: [branch_id], references: [id])
+  attendance_records AttendanceRecord[]
+  leave_requests     LeaveRequest[]
+  leave_balances     LeaveBalance[]
+  ot_requests        OtRequest[]
+
+  @@unique([tenant_id, employee_code])
+  @@unique([tenant_id, line_user_id])
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@map("employees")
+}
+
+// ─────────────────────────────────────────────
+// BRANCH
+// ─────────────────────────────────────────────
+
+model Branch {
+  id         String    @id @default(uuid())
+  tenant_id  String
+  name       String
+  location   String?
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  tenant    Tenant          @relation(fields: [tenant_id], references: [id])
+  employees Employee[]
+  shifts    Shift[]
+  managers  BranchManager[]
+
+  @@index([tenant_id])
+  @@map("branches")
+}
+
+model BranchManager {
+  id        String @id @default(uuid())
+  branch_id String
+  user_id   String
+
+  branch Branch @relation(fields: [branch_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@unique([branch_id, user_id])
+  @@map("branch_managers")
+}
+
+// ─────────────────────────────────────────────
+// SHIFT
+// ─────────────────────────────────────────────
+
+model Shift {
+  id              String    @id @default(uuid())
+  tenant_id       String
+  branch_id       String
+  name            String
+  start_time      String    // "08:00"
+  end_time        String    // "17:00"
+  late_threshold  Int       @default(15) // minutes
+  allow_overlap   Boolean   @default(false) // Phase 2: overlapping shifts
+  day_off_quota   Int       @default(1)     // Phase 2: weekly day-off slots
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+
+  tenant             Tenant             @relation(fields: [tenant_id], references: [id])
+  branch             Branch             @relation(fields: [branch_id], references: [id])
+  attendance_records AttendanceRecord[]
+
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@map("shifts")
+}
+
+// ─────────────────────────────────────────────
+// ATTENDANCE
+// ─────────────────────────────────────────────
+
+model AttendanceRecord {
+  id               String              @id @default(uuid())
+  tenant_id        String
+  employee_id      String
+  shift_id         String
+  date             DateTime            @db.Date
+  check_in_at      DateTime?
+  check_out_at     DateTime?
+  check_in_method  CheckInMethod       @default(LIFF)
+  is_late          Boolean             @default(false)
+  late_minutes     Int                 @default(0)
+  gps_lat          Decimal?            @db.Decimal(10, 8) // Phase 4: off-site
+  gps_lng          Decimal?            @db.Decimal(11, 8)
+  attachment_url   String?             // Phase 4: selfie fallback
+  note             String?
+  created_at       DateTime            @default(now())
+  updated_at       DateTime            @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+  shift    Shift    @relation(fields: [shift_id], references: [id])
+
+  @@unique([employee_id, shift_id, date])
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("attendance_records")
+}
+
+enum CheckInMethod {
+  LIFF
+  WEB_FALLBACK  // Phase 4: Line ล่ม fallback
+  SELFIE        // Phase 4: offline selfie
+  OFFSITE       // Phase 4: GPS off-site
+}
+
+// ─────────────────────────────────────────────
+// LEAVE
+// ─────────────────────────────────────────────
+
+model LeaveRequest {
+  id             String      @id @default(uuid())
+  tenant_id      String
+  employee_id    String
+  leave_type     LeaveType
+  start_date     DateTime    @db.Date
+  end_date       DateTime    @db.Date
+  days           Int
+  reason         String?
+  attachment_url String?     // ใบรับรองแพทย์
+  status         LeaveStatus @default(PENDING)
+  reviewed_by    String?     // user_id
+  reviewed_at    DateTime?
+  reject_note    String?
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("leave_requests")
+}
+
+enum LeaveType {
+  SICK
+  PERSONAL
+  VACATION
+  MATERNITY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveBalance {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  leave_type  LeaveType
+  year        Int
+  total_days  Int
+  used_days   Int       @default(0)
+  updated_at  DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, leave_type, year])
+  @@index([tenant_id])
+  @@map("leave_balances")
+}
+
+// ─────────────────────────────────────────────
+// OT (Phase 2)
+// ─────────────────────────────────────────────
+
+model OtRequest {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  date        DateTime  @db.Date
+  start_time  String    // "18:00"
+  end_time    String    // "21:00"
+  hours       Decimal   @db.Decimal(4, 2)
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  reviewed_by String?
+  reviewed_at DateTime?
+  reject_note String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("ot_requests")
+}
+
+// ─────────────────────────────────────────────
+// HOLIDAY
+// ─────────────────────────────────────────────
+
+model Holiday {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  name       String
+  date       DateTime @db.Date
+  created_at DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("holidays")
+}
+
+// ─────────────────────────────────────────────
+// ANNOUNCEMENT (Phase 2)
+// ─────────────────────────────────────────────
+
+model Announcement {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  title       String
+  content     String   @db.Text
+  send_line   Boolean  @default(false) // broadcast ผ่าน Line ด้วย
+  created_by  String   // user_id
+  created_at  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("announcements")
+}

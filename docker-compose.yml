@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: timeline
+      MYSQL_USER: timeline_user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  server:
+    build: ./server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
+  admin:
+    build: ./admin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+
+  employee:
+    build: ./employee
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+
+  superadmin:
+    build: ./superadmin
+    restart: unless-stopped
+    ports:
+      - "8083:80"
+
+volumes:
+  db_data:

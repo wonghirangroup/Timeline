@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.env.local
+
+# Brain — ห้าม commit ขึ้น public repo
+brain/
+
+# Claude settings ที่มี key
+.claude/settings.local.json

@@ -1,0 +1,23 @@
+{
+  "name": "timeline-monorepo",
+  "private": true,
+  "workspaces": [
+    "server",
+    "admin",
+    "superadmin",
+    "employee",
+    "shared"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=server",
+    "dev:admin": "npm run dev --workspace=admin",
+    "dev:superadmin": "npm run dev --workspace=superadmin",
+    "dev:employee": "npm run dev --workspace=employee",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:admin\" \"npm run dev:superadmin\" \"npm run dev:employee\"",
+    "build:all": "npm run build --workspaces",
+    "test:all": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

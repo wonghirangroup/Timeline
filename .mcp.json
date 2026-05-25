@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "brain": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\User\\Downloads\\timeline\\timeline\\brain"
+      ]
+    }
+  }
+}
