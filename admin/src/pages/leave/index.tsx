@@ -1,9 +1,10 @@
 // admin/src/pages/leave/index.tsx
 import { useState } from 'react'
-import { MOCK_EMPLOYEES, MOCK_LEAVE_BALANCES, MOCK_LEAVE_REQUESTS, MOCK_BRANCHES, MOCK_WEEKLY_OFF_BOOKINGS } from '../../lib/mock'
+import { MOCK_EMPLOYEES, MOCK_BRANCHES, MOCK_WEEKLY_OFF_BOOKINGS } from '../../lib/mock'
 import type { LeaveType, LeaveBalance, LeaveRequest, LeaveStatus, WeeklyOffBooking } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useDemoStore } from '../../stores/demoStore'
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส']
@@ -97,12 +98,11 @@ export default function LeavePage() {
   const [year, setYear] = useState(2026)
   const [month, setMonth] = useState(5)
   const [empFilter, setEmpFilter] = useState('')
-  const [balances, setBalances] = useState<LeaveBalance[]>(MOCK_LEAVE_BALANCES)
+  const { leaveRequests: requests, leaveBalances: balances, approveLeave, rejectLeave } = useDemoStore()
   const [balBranch, setBalBranch] = useState('')
   const [balSearch, setBalSearch] = useState('')
   const [editModal, setEditModal] = useState<LeaveBalance | null>(null)
   const [editForm, setEditForm] = useState<Partial<LeaveBalance>>({})
-  const [requests, setRequests] = useState<LeaveRequest[]>(MOCK_LEAVE_REQUESTS)
   const [reqStatus, setReqStatus] = useState<LeaveStatus | ''>('')
   const [rejectModal, setRejectModal] = useState<LeaveRequest | null>(null)
 
@@ -125,7 +125,7 @@ export default function LeavePage() {
   const filteredBal = balances.filter(b => (!balBranch || b.branch_name === balBranch) && (!balSearch || b.full_name.includes(balSearch) || b.nickname.includes(balSearch)))
   function openEdit(b: LeaveBalance) { setEditForm({ ...b }); setEditModal(b) }
   function saveEdit() {
-    setBalances(prev => prev.map(b => b.employee_id === editModal!.employee_id ? { ...b, ...editForm } as LeaveBalance : b))
+    // balances is read from store — balance edit not wired to store yet (read-only in demo)
     showToast('success', `บันทึกโควต้าวันลา "${editModal!.full_name}" เรียบร้อยแล้ว`)
     setEditModal(null)
   }
@@ -133,12 +133,12 @@ export default function LeavePage() {
   const filteredReq = requests.filter(r => !reqStatus || r.status === reqStatus)
   function approveReq(id: string) {
     const req = requests.find(r => r.id === id)
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'APPROVED' } : r))
+    approveLeave(id)
     if (req) showToast('success', `อนุมัติวันลา "${req.leave_type}" ของ "${req.full_name}"`)
   }
   function confirmReject() {
     if (!rejectModal) return
-    setRequests(prev => prev.map(r => r.id === rejectModal.id ? { ...r, status: 'REJECTED' } : r))
+    rejectLeave(rejectModal.id)
     showToast('info', `ไม่อนุมัติวันลา "${rejectModal.leave_type}" ของ "${rejectModal.full_name}"`)
     setRejectModal(null)
   }

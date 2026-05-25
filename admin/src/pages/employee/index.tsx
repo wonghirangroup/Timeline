@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MOCK_EMPLOYEES, MOCK_BRANCHES, MOCK_DEPARTMENTS } from '../../lib/mock'
+import { MOCK_BRANCHES } from '../../lib/mock'
 import type { Employee, Department } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useDemoStore } from '../../stores/demoStore'
 
 type ModalMode = 'add' | 'edit' | null
 
@@ -43,8 +44,11 @@ export default function EmployeePage() {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
 
-  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES)
-  const [departments, setDepartments] = useState<Department[]>(MOCK_DEPARTMENTS)
+  // ── Demo store (ข้อมูลเก็บใน localStorage ไม่หายตอน refresh) ──────
+  const {
+    employees, addEmployee, updateEmployee, deleteEmployee,
+    departments, addDepartment, updateDepartment, deleteDepartment,
+  } = useDemoStore()
 
   const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
@@ -104,7 +108,7 @@ export default function EmployeePage() {
     const dept = departments.find(d => d.id === form.dept_id)
     if (modal === 'add') {
       const code = generateCode(employees, form.hire_date, dept?.code ?? '00')
-      setEmployees(prev => [...prev, {
+      addEmployee({
         id: `e${Date.now()}`,
         code,
         full_name: form.full_name,
@@ -115,25 +119,24 @@ export default function EmployeePage() {
         hire_date: form.hire_date,
         status: 'ACTIVE' as const,
         line_user_id: null,
-      }])
+      })
       showToast('success', `เพิ่มพนักงาน "${form.full_name}" รหัส ${code}`)
     } else if (editTarget) {
-      setEmployees(prev => prev.map(e => e.id === editTarget.id ? {
-        ...e,
+      updateEmployee(editTarget.id, {
         full_name: form.full_name,
         nickname: form.nickname,
-        department: dept?.name ?? e.department,
+        department: dept?.name ?? editTarget.department,
         phone: form.phone,
         branches: form.branches,
         hire_date: form.hire_date,
-      } : e))
+      })
       showToast('success', `บันทึกข้อมูล "${form.full_name}" เรียบร้อยแล้ว`)
     }
     setModal(null)
   }
   const handleDelete = () => {
     if (!deleteTarget) return
-    setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id))
+    deleteEmployee(deleteTarget.id)
     showToast('success', `ลบพนักงาน "${deleteTarget.full_name}" เรียบร้อยแล้ว`)
     setDeleteTarget(null)
   }
@@ -152,13 +155,14 @@ export default function EmployeePage() {
     const name = deptForm.name.trim()
     if (!name) return
     if (editDept) {
-      setDepartments(prev => prev.map(d => d.id === editDept.id ? { ...d, name } : d))
-      // sync employees
-      setEmployees(prev => prev.map(e => e.department === editDept.name ? { ...e, department: name } : e))
+      updateDepartment(editDept.id, { name })
+      // sync employees ที่อยู่ในแผนกนี้
+      employees.filter(e => e.department === editDept.name)
+               .forEach(e => updateEmployee(e.id, { department: name }))
       showToast('success', `เปลี่ยนชื่อแผนกเป็น "${name}" แล้ว`)
     } else {
       const code = nextDeptCode()
-      setDepartments(prev => [...prev, { id: `dep-${Date.now()}`, code, name }])
+      addDepartment({ id: `dep-${Date.now()}`, code, name })
       showToast('success', `เพิ่มแผนก "${name}" (รหัส ${code}) เรียบร้อยแล้ว`)
     }
     setEditDept(null)
@@ -172,7 +176,7 @@ export default function EmployeePage() {
       setDeleteDept(null)
       return
     }
-    setDepartments(prev => prev.filter(d => d.id !== deleteDept.id))
+    deleteDepartment(deleteDept.id)
     showToast('success', `ลบแผนก "${deleteDept.name}" เรียบร้อยแล้ว`)
     setDeleteDept(null)
   }

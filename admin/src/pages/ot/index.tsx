@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { MOCK_OT_REQUESTS, MOCK_BRANCHES } from '../../lib/mock'
+import { MOCK_BRANCHES } from '../../lib/mock'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useDemoStore } from '../../stores/demoStore'
 
 const STATUS_CFG: Record<OtStatus, { label: string; color: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา',  color: '#d97706', bg: '#fef3c7' },
@@ -18,7 +19,7 @@ const card: React.CSSProperties = { background: '#fff', borderRadius: 12, boxSha
 export default function OtPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
-  const [rows, setRows] = useState<OtRequest[]>(MOCK_OT_REQUESTS)
+  const { otRequests: rows, approveOt, rejectOt } = useDemoStore()
   const [statusFilter, setStatusFilter] = useState<OtStatus | ''>('')
   const [branchFilter, setBranchFilter] = useState('')
   const [rejectTarget, setRejectTarget] = useState<OtRequest | null>(null)
@@ -36,13 +37,13 @@ export default function OtPage() {
 
   const doApprove = () => {
     if (!approveTarget) return
-    setRows(prev => prev.map(r => r.id === approveTarget.id ? { ...r, status: 'APPROVED' } : r))
+    approveOt(approveTarget.id)
     showToast('success', `อนุมัติ OT ของ "${approveTarget.full_name}" เรียบร้อยแล้ว`)
     setApproveTarget(null)
   }
   const doReject = () => {
     if (!rejectTarget) return
-    setRows(prev => prev.map(r => r.id === rejectTarget.id ? { ...r, status: 'REJECTED' } : r))
+    rejectOt(rejectTarget.id)
     showToast('info', `ไม่อนุมัติ OT ของ "${rejectTarget.full_name}"`)
     setRejectTarget(null)
     setRejectNote('')
