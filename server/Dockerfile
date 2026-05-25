@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 
 # Install all deps (including dev)
-RUN npm ci --silent
+RUN npm install --silent
 
 # Copy source + prisma schema
 COPY src ./src
@@ -32,7 +32,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Install production deps only
-RUN npm ci --omit=dev --silent
+RUN npm install --omit=dev --silent
 
 EXPOSE 3000
 CMD ["node", "dist/app.js"]
