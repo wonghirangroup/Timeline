@@ -4,6 +4,9 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
+import formbody from '@fastify/formbody'
 
 import { authRoutes }       from './modules/auth/auth.route'
 import { tenantRoutes }     from './modules/tenant/tenant.route'
@@ -16,18 +19,79 @@ import { otRoutes }         from './modules/ot/ot.route'
 import { lineRoutes }       from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
 
-const app = Fastify({ logger: process.env.NODE_ENV === 'development' })
+const app = Fastify({
+  logger: process.env.NODE_ENV === 'development',
+  ajv: {
+    customOptions: {
+      strict: 'log',       // warn แทน error สำหรับ unknown keywords
+      keywords: ['example'], // รับ 'example' keyword จาก OpenAPI
+    },
+  },
+})
 
-// ── Plugins ──────────────────────────────────────────────────────
+// ── Swagger ───────────────────────────────────────────────────────
+app.register(swagger, {
+  openapi: {
+    openapi: '3.0.0',
+    info: {
+      title: 'TimeLine HR API',
+      description: 'HR Attendance & Leave Management System — Multi-tenant SaaS',
+      version: '1.0.0',
+    },
+    servers: [{ url: `http://localhost:${process.env.PORT || 3000}`, description: 'Local' }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+        oauth2: {
+          type: 'oauth2',
+          flows: {
+            password: {
+              tokenUrl: '/api/v1/auth/token',
+              scopes: {},
+            },
+          },
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }, { oauth2: [] }],
+    tags: [
+      { name: 'Auth',        description: 'Login / Refresh token / Me' },
+      { name: 'Super Admin', description: 'จัดการ Tenant (SUPER_ADMIN เท่านั้น)' },
+      { name: 'Admin',       description: 'Branch / Employee / Shift / Announcement (ADMIN)' },
+      { name: 'Manager',     description: 'Attendance / Leave approval (MANAGER)' },
+      { name: 'Employee',    description: 'Check-in / Leave request via LIFF (EMPLOYEE)' },
+      { name: 'Line',        description: 'Line Webhook' },
+    ],
+  },
+})
+
+app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: true,
+    persistAuthorization: true,
+  },
+})
+
+// ── Plugins ───────────────────────────────────────────────────────
+// Parse comma-separated origins from env or use defaults
+const corsOrigins = [
+  process.env.CORS_ADMIN_URL,
+  process.env.CORS_SUPERADMIN_URL,
+  process.env.CORS_EMPLOYEE_URL,
+].filter(Boolean) as string[]
+
 app.register(cors, {
-  origin: [
-    process.env.CORS_ADMIN_URL!,
-    process.env.CORS_SUPERADMIN_URL!,
-    process.env.CORS_EMPLOYEE_URL!,
-  ],
+  origin: corsOrigins.length > 0 ? corsOrigins : true,
   credentials: true,
 })
 
+app.register(formbody)   // รับ application/x-www-form-urlencoded (OAuth2 token endpoint)
 app.register(jwt, { secret: process.env.JWT_ACCESS_SECRET! })
 app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB
 

@@ -3,39 +3,75 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 
 const NAV_ITEMS = [
-  { path: '/superadmin/dashboard', label: 'ภาพรวมระบบ',     icon: '◎' },
-  { path: '/superadmin/tenants',   label: 'จัดการ Tenant',   icon: '🏗' },
-  { path: '/superadmin/packages',  label: 'Package & Plan',  icon: '📦' },
-  { path: '/superadmin/billing',    label: 'Billing & Payment',   icon: '💳' },
-  { path: '/superadmin/onboarding',    label: 'Onboarding Checklist', icon: '📋' },
-  { path: '/superadmin/announcement',  label: 'System Announcement',  icon: '📣' },
+  { path: '/superadmin/dashboard',    label: 'ภาพรวมระบบ',          icon: '◎' },
+  { path: '/superadmin/tenants',      label: 'จัดการ Tenant',        icon: '🏗' },
+  { path: '/superadmin/packages',     label: 'Package & Plan',       icon: '📦' },
+  { path: '/superadmin/billing',      label: 'Billing & Payment',    icon: '💳' },
+  { path: '/superadmin/onboarding',   label: 'Onboarding Checklist', icon: '📋' },
+  { path: '/superadmin/announcement', label: 'System Announcement',  icon: '📣' },
 ]
 
 const ACCENT = '#4f46e5'
 
-export default function SuperAdminSidebar() {
+interface SidebarProps {
+  isMobile:   boolean
+  drawerOpen: boolean
+  onClose:    () => void
+}
+
+export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: SidebarProps) {
   const navigate = useNavigate()
-  const clear = useAuthStore(s => s.clear)
+  const clear    = useAuthStore(s => s.clear)
 
   function handleLogout() {
     clear()
     navigate('/login', { replace: true })
   }
 
+  const sidebarStyle: React.CSSProperties = {
+    position:       'fixed',
+    left:           0, top: 0, bottom: 0,
+    width:          220,
+    background:     '#1e1b4b',
+    display:        'flex',
+    flexDirection:  'column',
+    zIndex:         100,
+    // Mobile: slide in/out
+    ...(isMobile ? {
+      transform:  drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+      boxShadow:  drawerOpen ? '4px 0 24px rgba(0,0,0,0.3)' : 'none',
+    } : {}),
+  }
+
   return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0, bottom: 0, width: 220,
-      background: '#1e1b4b',
-      display: 'flex', flexDirection: 'column', zIndex: 100,
-    }}>
+    <aside style={sidebarStyle}>
+      {/* Mobile close button */}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 12, right: 12,
+            background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
+            width: 28, height: 28, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#a5b4fc', zIndex: 1,
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+
       {/* Logo */}
       <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 10,
+            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
             background: 'linear-gradient(135deg,#818cf8,#4f46e5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', flexShrink: 0,
+            fontSize: '0.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
             boxShadow: '0 4px 12px rgba(79,70,229,0.4)',
           }}>SA</div>
           <div>
@@ -59,6 +95,7 @@ export default function SuperAdminSidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={isMobile ? onClose : undefined}
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 12px', borderRadius: 8, textDecoration: 'none',
@@ -82,18 +119,11 @@ export default function SuperAdminSidebar() {
           ))}
         </div>
 
-        {/* Divider */}
         <div style={{ margin: '20px 12px 8px', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
         <div style={{ fontSize: '0.65rem', color: '#6366f1', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', paddingLeft: 12, marginBottom: 6 }}>ลิงก์ด่วน</div>
-
-        {/* Switch to Admin view shortcut */}
         <a
           href="/dashboard"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '9px 12px', borderRadius: 8, textDecoration: 'none',
-            fontSize: '0.855rem', color: '#a5b4fc',
-          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, textDecoration: 'none', fontSize: '0.855rem', color: '#a5b4fc' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
@@ -106,12 +136,7 @@ export default function SuperAdminSidebar() {
       <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <button
           onClick={handleLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '9px 12px', borderRadius: 8, border: 'none',
-            cursor: 'pointer', width: '100%', fontSize: '0.855rem',
-            color: '#fca5a5', background: 'transparent', fontWeight: 500,
-          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', width: '100%', fontSize: '0.855rem', color: '#fca5a5', background: 'transparent', fontWeight: 500 }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >

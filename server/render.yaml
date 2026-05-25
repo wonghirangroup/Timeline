@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: timeline-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false   # set manually in Render dashboard
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES
+        value: 8h
+      - key: JWT_REFRESH_EXPIRES
+        value: 7d
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: LINE_CHANNEL_ID
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: CORS_ADMIN_URL
+        sync: false   # e.g. https://timeline-admin.vercel.app
+      - key: CORS_SUPERADMIN_URL
+        sync: false
+      - key: CORS_EMPLOYEE_URL
+        sync: false

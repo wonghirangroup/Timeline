@@ -29,7 +29,12 @@ function formatDateTime(d: Date) {
 
 type View = 'profile' | 'reset' | 'name'
 
-export default function SuperAdminTopbar() {
+interface TopbarProps {
+  isMobile:    boolean
+  onMenuClick: () => void
+}
+
+export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const now = useClock()
@@ -84,18 +89,29 @@ export default function SuperAdminTopbar() {
 
   return (
     <header style={{
-      position: 'fixed', left: 220, right: 0, top: 0, height: 56,
+      position: 'fixed', left: isMobile ? 0 : 220, right: 0, top: 0, height: 56,
       background: '#fff', borderBottom: '1px solid #e5e7eb',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 24px', zIndex: 99,
+      padding: isMobile ? '0 14px' : '0 24px', zIndex: 99,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ background: '#ede9fe', color: '#4f46e5', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>SUPER ADMIN</span>
-        <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h1>
+        {/* Hamburger — mobile only */}
+        {isMobile && (
+          <button
+            onClick={onMenuClick}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center', color: '#374151' }}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+        {!isMobile && <span style={{ background: '#ede9fe', color: '#4f46e5', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>SUPER ADMIN</span>}
+        <h1 style={{ fontSize: isMobile ? '0.95rem' : '1.05rem', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h1>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{formatDateTime(now)}</span>
+        {!isMobile && <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{formatDateTime(now)}</span>}
 
         {/* Avatar button */}
         <div style={{ position: 'relative' }} ref={panelRef}>
@@ -109,13 +125,17 @@ export default function SuperAdminTopbar() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.8rem', fontWeight: 700, color: '#fff',
             }}>{initials}</div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, lineHeight: 1.2 }}>{name}</div>
-              <div style={{ fontSize: '0.7rem', color: '#818cf8' }}>Super Admin</div>
-            </div>
-            <svg width="12" height="12" fill="none" stroke="#9ca3af" viewBox="0 0 24 24" style={{ transform: panelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            {!isMobile && (
+              <>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, lineHeight: 1.2 }}>{name}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#818cf8' }}>Super Admin</div>
+                </div>
+                <svg width="12" height="12" fill="none" stroke="#9ca3af" viewBox="0 0 24 24" style={{ transform: panelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </>
+            )}
           </button>
 
           {/* Dropdown panel */}

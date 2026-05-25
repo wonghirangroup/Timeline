@@ -11,7 +11,65 @@ import {
 } from './auth.service'
 
 export async function authRoutes(app: FastifyInstance) {
-  app.post('/login', async (request: any, reply) => {
+
+  // ── OAuth2 Password Flow (สำหรับ Swagger UI Authorize) ────────────
+  app.post('/token', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'OAuth2 Password Flow — ใช้กับปุ่ม Authorize ใน Swagger',
+      security: [],
+      consumes: ['application/x-www-form-urlencoded'],
+    },
+  }, async (request: any, reply) => {
+    const { username, password } = request.body
+    const user = await findUserByEmail(username)
+    if (!user || !user.is_active || !(await verifyPassword(password, user.password))) {
+      reply.code(401)
+      return { error: 'invalid_client', error_description: 'Invalid credentials' }
+    }
+    const access_token = createAccessToken(app, user)
+    return { access_token, token_type: 'bearer', expires_in: 900 }
+  })
+
+  app.post('/login', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Login ด้วย Email + Password',
+      security: [],
+      body: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email:    { type: 'string', format: 'email' },
+          password: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                accessToken:  { type: 'string' },
+                refreshToken: { type: 'string' },
+                user: {
+                  type: 'object',
+                  properties: {
+                    id:        { type: 'string' },
+                    email:     { type: 'string' },
+                    role:      { type: 'string' },
+                    tenant_id: { type: 'string', nullable: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (request: any, reply) => {
     const parsed = loginSchema.safeParse(request.body)
     if (!parsed.success) {
       reply.code(400)
@@ -51,7 +109,20 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-  app.post('/refresh', async (request: any, reply) => {
+  app.post('/refresh', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ขอ Access Token ใหม่ด้วย Refresh Token',
+      security: [],
+      body: {
+        type: 'object',
+        required: ['refreshToken'],
+        properties: {
+          refreshToken: { type: 'string' },
+        },
+      },
+    },
+  }, async (request: any, reply) => {
     const parsed = refreshSchema.safeParse(request.body)
     if (!parsed.success) {
       reply.code(400)
@@ -73,7 +144,12 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/me', async (request: any, reply) => {
+  app.get('/me', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ดูข้อมูล user ปัจจุบัน (ต้องมี Bearer Token)',
+    },
+  }, async (request: any, reply) => {
     try {
       await request.jwtVerify()
       return { success: true, data: request.user }

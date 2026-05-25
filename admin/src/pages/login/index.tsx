@@ -3,45 +3,52 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
+import axios from 'axios'
 
-// Mock credentials — in production these come from the server JWT
-const MOCK_USERS: Record<string, { password: string; role: Role; name: string; tenantId: string }> = {
-  'super@timeline.app':     { password: 'super1234',  role: 'SUPER_ADMIN', name: 'Admin ส่วนกลาง',      tenantId: 'platform' },
-  'admin@wonghiran.com':    { password: 'admin1234',  role: 'ADMIN',       name: 'จิรพงศ์ ศรีอำไพ',     tenantId: 'tn-01' },
-  'manager@wonghiran.com':  { password: 'mgr1234',    role: 'MANAGER',     name: 'สมหญิง รักงาน',       tenantId: 'tn-01' },
-}
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const setAuth  = useAuthStore(s => s.setAuth)
-  const [email, setEmail]     = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [showPwd, setShowPwd] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [showPwd, setShowPwd]   = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!email || !password) { setError('กรุณากรอกอีเมลและรหัสผ่าน'); return }
 
-    const user = MOCK_USERS[email.toLowerCase().trim()]
-    if (!user || user.password !== password) {
-      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
-      return
-    }
-
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setAuth('mock-token-' + Date.now(), user.role, user.tenantId, user.name)
+    try {
+      const res = await axios.post(`${API_URL}/api/v1/auth/login`, { email, password })
+      const { accessToken, user } = res.data.data
+
+      // store refresh token in localStorage for later use
+      if (res.data.data.refreshToken) {
+        localStorage.setItem('refresh_token', res.data.data.refreshToken)
+      }
+
+      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', user.full_name ?? user.email)
+
       if (user.role === 'SUPER_ADMIN') navigate('/superadmin/dashboard', { replace: true })
       else navigate('/dashboard', { replace: true })
-    }, 700)
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.error?.message
+        setError(msg ?? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง')
+      } else {
+        setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function fillDemo(email: string, password: string) {
-    setEmail(email); setPassword(password); setError('')
+  function fillDemo(demoEmail: string, demoPassword: string) {
+    setEmail(demoEmail); setPassword(demoPassword); setError('')
   }
 
   return (
@@ -115,9 +122,7 @@ export default function LoginPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { label: '🔐 Super Admin',  email: 'super@timeline.app',    pw: 'super1234',  color: '#4f46e5', bg: '#ede9fe' },
-                { label: '⚙ Admin',         email: 'admin@wonghiran.com',   pw: 'admin1234',  color: '#f97316', bg: '#fff7ed' },
-                { label: '👁 Manager',       email: 'manager@wonghiran.com', pw: 'mgr1234',    color: '#16a34a', bg: '#f0fdf4' },
+                { label: '🔐 Super Admin', email: 'admin@timeline.local', pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe' },
               ].map(d => (
                 <button key={d.email} onClick={() => fillDemo(d.email, d.pw)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1px solid ${d.color}25`, background: d.bg, cursor: 'pointer' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: d.color }}>{d.label}</span>
