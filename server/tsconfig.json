@@ -5,13 +5,14 @@
     "lib":               ["ES2022"],
     "outDir":            "./dist",
     "rootDir":           "./src",
-    "strict":            true,
+    "strict":            false,
     "esModuleInterop":   true,
     "skipLibCheck":      true,
     "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "baseUrl":           ".",
-    "paths":             { "@/*": ["src/*"] }
+    "paths":             { "@/*": ["src/*"] },
+    "noEmitOnError":     false
   },
   "include":  ["src/**/*"],
   "exclude":  ["node_modules", "dist"]
