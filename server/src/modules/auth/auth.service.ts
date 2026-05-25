@@ -1,5 +1,6 @@
 // server/src/modules/auth/auth.service.ts
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import type { FastifyInstance } from 'fastify'
 import type { User } from '@prisma/client'
 import { prisma } from '../../common/utils/prisma'
@@ -30,21 +31,24 @@ export function createAccessToken(app: FastifyInstance, user: User) {
   )
 }
 
-export function createRefreshToken(app: FastifyInstance, user: User) {
-  return app.jwt.sign(
+export function createRefreshToken(_app: FastifyInstance, user: User): string {
+  return jwt.sign(
     {
       id: user.id,
       email: user.email,
       role: user.role,
       tenant_id: user.tenant_id,
     },
-    {
-      secret: process.env.JWT_REFRESH_SECRET!,
-      expiresIn: process.env.JWT_REFRESH_EXPIRES || '7d',
-    },
+    process.env.JWT_REFRESH_SECRET!,
+    { expiresIn: (process.env.JWT_REFRESH_EXPIRES || '7d') as any },
   )
 }
 
-export async function verifyRefreshToken(app: FastifyInstance, token: string) {
-  return app.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET! }) as { id: string; email: string; role: string; tenant_id: string | null }
+export async function verifyRefreshToken(_app: FastifyInstance, token: string) {
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as {
+    id: string
+    email: string
+    role: string
+    tenant_id: string | null
+  }
 }
