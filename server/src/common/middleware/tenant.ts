@@ -13,13 +13,13 @@ declare module 'fastify' {
 export async function tenantMiddleware(req: FastifyRequest, reply: FastifyReply) {
   try {
     const payload = await req.jwtVerify<{
-      tenant_id:   string
-      user_id?:    string
-      role?:       string
+      id:           string
+      tenant_id:    string | null
+      role?:        string
       employee_id?: string
     }>()
     req.tenantId   = payload.tenant_id ?? ''
-    req.userId     = payload.user_id
+    req.userId     = payload.id
     req.userRole   = payload.role
     req.employeeId = payload.employee_id
   } catch {

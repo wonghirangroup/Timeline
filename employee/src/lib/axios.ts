@@ -13,10 +13,10 @@ api.interceptors.request.use(async (config) => {
     // initLiff may throw if not configured; ignore errors in dev
     await initLiff()
     const { lineUserId, idToken } = await getLiffProfile()
-    if (idToken) config.headers = { ...(config.headers || {}), 'x-liff-token': idToken }
-    if (lineUserId) config.headers = { ...(config.headers || {}), 'x-line-user-id': lineUserId }
+    if (idToken)    config.headers.set('x-liff-token',      idToken)
+    if (lineUserId) config.headers.set('x-line-user-id',   lineUserId)
     const channelId = getChannelId()
-    if (channelId) config.headers = { ...(config.headers || {}), 'x-line-channel-id': channelId }
+    if (channelId)  config.headers.set('x-line-channel-id', channelId)
   } catch (err) {
     // Not running inside LIFF or missing env — continue without LIFF headers
   }
