@@ -113,7 +113,8 @@ export default function EmployeePage() {
         phone: form.phone,
         branches: form.branches,
         hire_date: form.hire_date,
-        status: 'ACTIVE',
+        status: 'ACTIVE' as const,
+        line_user_id: null,
       }])
       showToast('success', `เพิ่มพนักงาน "${form.full_name}" รหัส ${code}`)
     } else if (editTarget) {
