@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Install openssl for Prisma
+RUN apk add --no-cache openssl
+
 # Copy package files
 COPY package*.json tsconfig.json ./
 
@@ -11,7 +14,7 @@ RUN npm install --silent
 # Copy source + prisma schema
 COPY src ./src
 
-# Generate Prisma client
+# Generate Prisma client (with linux-musl-openssl-3.0.x target)
 RUN npx prisma generate --schema=src/prisma/schema.prisma
 
 # Build TypeScript
@@ -22,6 +25,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# Install openssl for Prisma runtime
+RUN apk add --no-cache openssl
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
