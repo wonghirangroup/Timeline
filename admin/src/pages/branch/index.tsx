@@ -196,6 +196,32 @@ export default function BranchPage() {
                     lng: lat === 0 && lng === 0 ? '' : String(lng),
                   }))}
                 />
+                <div style={{ marginTop: 10, background: '#f8fafc', borderRadius: 10, padding: '10px 14px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>📍 หรือพิมพ์พิกัดโดยตรง</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <Field label="Latitude">
+                      <input value={form.lat} onChange={e => setForm(f => ({ ...f, lat: e.target.value }))} placeholder="เช่น 14.99953" style={inputStyle} />
+                    </Field>
+                    <Field label="Longitude">
+                      <input value={form.lng} onChange={e => setForm(f => ({ ...f, lng: e.target.value }))} placeholder="เช่น 102.11878" style={inputStyle} />
+                    </Field>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>วาง Lat,Lng พร้อมกัน</label>
+                    <input
+                      placeholder="เช่น 14.99953, 102.11878"
+                      style={inputStyle}
+                      onPaste={e => {
+                        const text = e.clipboardData.getData('text')
+                        const parts = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+                        if (parts.length >= 2) {
+                          e.preventDefault()
+                          setForm(f => ({ ...f, lat: parts[0], lng: parts[1] }))
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </Field>
               <Field label="รัศมีอนุญาต (เมตร)">
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

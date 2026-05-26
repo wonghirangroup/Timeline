@@ -1,7 +1,15 @@
 // admin/src/pages/leave-balance/index.tsx
 import { useState, useRef, useEffect } from 'react'
-import { MOCK_LEAVE_BALANCES, MOCK_BRANCHES } from '../../lib/mock'
+import { MOCK_LEAVE_BALANCES, MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { LeaveBalance } from '../../types'
+
+// ── Seniority Rule ────────────────────────────────────────────────────────────
+interface SeniorityRule {
+  id: string
+  min_years: number
+  max_years: number | null
+  vacation_days: number
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type LeaveKey = 'sick' | 'personal' | 'vacation' | 'compensate'
@@ -228,6 +236,15 @@ export default function LeaveBalancePage() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkQuotas, setBulkQuotas] = useState<Quotas>(DEFAULT_QUOTAS)
 
+  // Seniority rules
+  const [seniorityRules, setSeniorityRules] = useState<SeniorityRule[]>([
+    { id: 's1', min_years: 0,  max_years: 1,    vacation_days: 6  },
+    { id: 's2', min_years: 1,  max_years: 3,    vacation_days: 8  },
+    { id: 's3', min_years: 3,  max_years: 5,    vacation_days: 10 },
+    { id: 's4', min_years: 5,  max_years: null, vacation_days: 15 },
+  ])
+  const [showSeniority, setShowSeniority] = useState(false)
+
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 2800)
@@ -294,6 +311,26 @@ export default function LeaveBalancePage() {
     setTimeout(() => showToast(`ตั้งโควต้าให้พนักงานใหม่ ${count} คนแล้ว`), 100)
   }
 
+  // Apply seniority rules
+  function handleApplySeniority() {
+    const today = new Date()
+    let count = 0
+    setBalances(bs => bs.map(b => {
+      const emp = MOCK_EMPLOYEES.find(e => e.id === b.employee_id)
+      if (!emp) return b
+      const hireDate = new Date(emp.hire_date)
+      const yearsOfService = (today.getTime() - hireDate.getTime()) / (365.25 * 24 * 3600 * 1000)
+      const rule = seniorityRules
+        .slice()
+        .sort((a, r) => b.employee_id ? 0 : 0) // keep order
+        .find(r => yearsOfService >= r.min_years && (r.max_years === null || yearsOfService < r.max_years))
+      if (!rule) return b
+      count++
+      return { ...b, vacation_quota: rule.vacation_days }
+    }))
+    setTimeout(() => showToast(`อัปเดตวันพักร้อนตามอายุงานให้พนักงาน ${MOCK_EMPLOYEES.length} คนแล้ว`), 100)
+  }
+
   // Bulk edit selected
   function handleBulkSave() {
     setBalances(bs => bs.map(b =>
@@ -345,17 +382,30 @@ export default function LeaveBalancePage() {
               กำหนดจำนวนวันลาสูงสุดต่อปีของพนักงานแต่ละคน — พนักงานลาเกินโควต้าไม่ได้
             </p>
           </div>
-          <button
-            onClick={() => setShowDefault(s => !s)}
-            style={{
-              padding: '9px 16px', borderRadius: 9,
-              border: `1.5px solid ${showDefault ? '#c7d2fe' : '#e2e8f0'}`,
-              background: showDefault ? '#eef2ff' : '#fff',
-              fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer',
-              color: showDefault ? '#4f46e5' : '#374151',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >⚙️ โควต้า Default {showDefault ? '▲' : '▼'}</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setShowSeniority(s => !s)}
+              style={{
+                padding: '9px 16px', borderRadius: 9,
+                border: `1.5px solid ${showSeniority ? '#fcd34d' : '#e2e8f0'}`,
+                background: showSeniority ? '#fef3c7' : '#fff',
+                fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer',
+                color: showSeniority ? '#d97706' : '#374151',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >⏳ เงื่อนไขอายุงาน {showSeniority ? '▲' : '▼'}</button>
+            <button
+              onClick={() => setShowDefault(s => !s)}
+              style={{
+                padding: '9px 16px', borderRadius: 9,
+                border: `1.5px solid ${showDefault ? '#c7d2fe' : '#e2e8f0'}`,
+                background: showDefault ? '#eef2ff' : '#fff',
+                fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer',
+                color: showDefault ? '#4f46e5' : '#374151',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >⚙️ โควต้า Default {showDefault ? '▲' : '▼'}</button>
+          </div>
         </div>
 
         {/* Stat cards */}
@@ -376,6 +426,79 @@ export default function LeaveBalancePage() {
           ))}
         </div>
       </div>
+
+      {/* Seniority rules panel */}
+      {showSeniority && (
+        <div style={{ background: '#fff', border: '2px solid #fcd34d', borderRadius: 14, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(217,119,6,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>📅</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>เงื่อนไขวันพักร้อนตามอายุงาน</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>กำหนดจำนวนวันพักร้อนตามระยะเวลาทำงาน</div>
+            </div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 14, fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ background: '#fef3c7' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>อายุงาน</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>วันพักร้อน</th>
+                <th style={{ padding: '8px 12px', width: 40 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {seniorityRules.map((rule, idx) => (
+                <tr key={rule.id} style={{ borderBottom: '1px solid #fef3c7' }}>
+                  <td style={{ padding: '8px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="number" min={0} value={rule.min_years}
+                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, min_years: parseInt(e.target.value) || 0 } : r))}
+                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
+                      />
+                      <span style={{ color: '#6b7280' }}>–</span>
+                      <input
+                        type="number" min={0} value={rule.max_years ?? ''}
+                        placeholder="∞"
+                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, max_years: e.target.value === '' ? null : parseInt(e.target.value) || null } : r))}
+                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
+                      />
+                      <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>ปี</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="number" min={0} value={rule.vacation_days}
+                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, vacation_days: parseInt(e.target.value) || 0 } : r))}
+                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
+                      />
+                      <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>วัน</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <button
+                      onClick={() => setSeniorityRules(rs => rs.filter(r => r.id !== rule.id))}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setSeniorityRules(rs => [...rs, { id: `s${Date.now()}`, min_years: 0, max_years: null, vacation_days: 6 }])}
+              style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #fcd34d', background: '#fef3c7', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#d97706' }}
+            >+ เพิ่มเงื่อนไข</button>
+            <button
+              onClick={handleApplySeniority}
+              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff' }}
+            >🔄 คำนวณและนำไปใช้</button>
+          </div>
+        </div>
+      )}
 
       {/* Default quota panel */}
       {showDefault && (

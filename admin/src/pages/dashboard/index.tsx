@@ -27,20 +27,48 @@ const CARD_CONFIG = [
   { key: 'checkout', label: 'เช็คเอาท์',          icon: '—',  bg: '#f8fafc', color: '#334155' },
 ]
 
+const PERIOD_MULTIPLIER: Record<'day'|'week'|'month', number> = { day: 1, week: 6, month: 22 }
+
+function getPeriodLabel(period: 'day'|'week'|'month'): string {
+  const today = new Date()
+  const dd = today.getDate()
+  const mm = today.getMonth() // 0-based
+  const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+  const MONTHS_LONG  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+  const be = today.getFullYear() + 543
+  if (period === 'day') {
+    return `วันที่ ${dd} ${MONTHS_SHORT[mm]} ${be}`
+  }
+  if (period === 'week') {
+    const dow = today.getDay()
+    const mon = new Date(today); mon.setDate(dd - (dow === 0 ? 6 : dow - 1))
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+    return `สัปดาห์ที่ ${mon.getDate()}-${sun.getDate()} ${MONTHS_SHORT[mm]} ${be}`
+  }
+  return `${MONTHS_LONG[mm]} ${be}`
+}
+
 export default function DashboardPage() {
   const [branchFilter, setBranchFilter] = useState('all')
+  const [period, setPeriod] = useState<'day'|'week'|'month'>('day')
   const isMobile = useIsMobile()
 
   const all = MOCK_TODAY_ATTENDANCE
   const filtered = branchFilter === 'all' ? all : all.filter(r => r.branch_name === branchFilter)
 
+  const mult = PERIOD_MULTIPLIER[period]
+  const baseCheckin  = all.filter(r => r.check_in_time).length
+  const baseLate     = all.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length
+  const baseAbsent   = all.filter(r => !r.check_in_time && r.status !== 'MANAGER').length
+  const baseCheckout = all.filter(r => r.check_out_time).length
+
   const stats = {
     total:    all.length,
-    checkin:  all.filter(r => r.check_in_time).length,
-    late:     all.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length,
-    absent:   all.filter(r => !r.check_in_time && r.status !== 'MANAGER').length,
+    checkin:  baseCheckin  * mult,
+    late:     baseLate     * mult,
+    absent:   baseAbsent   * mult,
     offsite:  0,
-    checkout: all.filter(r => r.check_out_time).length,
+    checkout: baseCheckout * mult,
   }
 
   return (
@@ -56,13 +84,27 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Date Filter */}
+      {/* Period Tabs */}
       <div style={{ marginBottom: 16 }}>
-        <select style={{ padding: '8px 32px 8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', background: '#fff', cursor: 'pointer' }}>
-          <option>วันนี้</option>
-          <option>เมื่อวาน</option>
-          <option>สัปดาห์นี้</option>
-        </select>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          {(['day', 'week', 'month'] as const).map(p => {
+            const labels: Record<string, string> = { day: 'วัน', week: 'สัปดาห์', month: 'เดือน' }
+            const isActive = period === p
+            return (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  padding: '7px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.875rem', fontWeight: isActive ? 700 : 500,
+                  background: isActive ? '#f97316' : '#f3f4f6',
+                  color: isActive ? '#fff' : '#6b7280',
+                  transition: 'all 0.12s',
+                }}
+              >{labels[p]}</button>
+            )
+          })}
+        </div>
+        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{getPeriodLabel(period)}</div>
       </div>
 
       {/* Stat Cards — 3×2 on mobile, 6×1 on desktop */}

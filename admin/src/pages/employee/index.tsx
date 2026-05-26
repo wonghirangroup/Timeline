@@ -54,6 +54,7 @@ export default function EmployeePage() {
   const [branchFilter, setBranchFilter] = useState('')
   const [deptFilter, setDeptFilter] = useState('')
   const [lineFilter, setLineFilter] = useState<'' | 'linked' | 'unlinked'>('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'ACTIVE' | 'INACTIVE'>('')
 
   const [modal, setModal] = useState<ModalMode>(null)
   const [editTarget, setEditTarget] = useState<Employee | null>(null)
@@ -88,7 +89,8 @@ export default function EmployeePage() {
     const matchBranch = !branchFilter || e.branches.includes(branchFilter)
     const matchDept = !deptFilter || e.department === deptFilter
     const matchLine = lineFilter === '' || (lineFilter === 'linked' ? !!e.line_user_id : !e.line_user_id)
-    return matchQ && matchBranch && matchDept && matchLine
+    const matchStatus = statusFilter === '' || e.status === statusFilter
+    return matchQ && matchBranch && matchDept && matchLine && matchStatus
   })
 
   // ── Employee CRUD ─────────────────────────────────────────────────────────
@@ -258,6 +260,28 @@ export default function EmployeePage() {
         )}
       </div>
 
+      {/* Status filter pills */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {(['', 'ACTIVE', 'INACTIVE'] as const).map(f => {
+          const labels: Record<string, string> = {
+            '': `ทั้งหมด`,
+            'ACTIVE': `🟢 ทำงานอยู่`,
+            'INACTIVE': `🔴 พักงาน`,
+          }
+          const isActive = statusFilter === f
+          return (
+            <button key={f} onClick={() => setStatusFilter(f)}
+              style={{
+                padding: '5px 13px', borderRadius: 99, fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer',
+                border: isActive ? `1.5px solid ${f === 'ACTIVE' ? '#10b981' : f === 'INACTIVE' ? '#dc2626' : '#f97316'}` : '1.5px solid #e5e7eb',
+                background: isActive ? (f === 'ACTIVE' ? '#d1fae5' : f === 'INACTIVE' ? '#fee2e2' : '#fff7ed') : '#fff',
+                color: isActive ? (f === 'ACTIVE' ? '#065f46' : f === 'INACTIVE' ? '#991b1b' : '#ea580c') : '#6b7280',
+              }}
+            >{labels[f]}</button>
+          )
+        })}
+      </div>
+
       {/* Table (desktop) / Cards (mobile) */}
       {isMobile ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden' }}>
@@ -270,6 +294,9 @@ export default function EmployeePage() {
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{e.full_name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2, fontFamily: 'monospace' }}>{e.code}</div>
                 <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 1 }}>{e.department}</div>
+                <span style={{ display: 'inline-block', marginTop: 4, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: e.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2', color: e.status === 'ACTIVE' ? '#059669' : '#dc2626' }}>
+                  {e.status === 'ACTIVE' ? '🟢 ทำงาน' : '🔴 พักงาน'}
+                </span>
                 <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                   {e.branches.map(b => (
                     <span key={b} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 99, background: '#fff7ed', color: '#c2410c' }}>{b}</span>
@@ -286,6 +313,7 @@ export default function EmployeePage() {
                   <button onClick={() => navigate(`/employee/${e.id}`)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #10b98120', background: '#10b98110', color: '#059669', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>ดู</button>
                   <button onClick={() => openEdit(e)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #3b82f620', background: '#3b82f610', color: '#3b82f6', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>แก้ไข</button>
                   <button onClick={() => setDeleteTarget(e)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ef444420', background: '#ef444410', color: '#ef4444', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
+                  <button onClick={() => updateEmployee(e.id, { status: e.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #6b728020', background: '#6b728010', color: '#374151', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>เปิด/ปิด</button>
                 </div>
               </div>
             </div>
@@ -300,7 +328,7 @@ export default function EmployeePage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#fafafa', borderBottom: '1px solid #f1f5f9' }}>
-                  {['รหัส','ชื่อ – สกุล','แผนก','สาขา','โทร','วันเข้างาน','Line','จัดการ'].map(h => (
+                  {['รหัส','ชื่อ – สกุล','แผนก','สาขา','โทร','วันเข้างาน','Line','สถานะ','จัดการ'].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -346,17 +374,24 @@ export default function EmployeePage() {
                         <button onClick={() => handleSendInvite(e)} style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer', whiteSpace: 'nowrap' }}>⚠ ส่งลิงก์</button>
                       )}
                     </td>
+                    {/* Status badge */}
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: e.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2', color: e.status === 'ACTIVE' ? '#059669' : '#dc2626', whiteSpace: 'nowrap' }}>
+                        {e.status === 'ACTIVE' ? '🟢 ทำงาน' : '🔴 พักงาน'}
+                      </span>
+                    </td>
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => navigate(`/employee/${e.id}`)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #10b98130', background: '#10b98110', color: '#059669', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>ดู</button>
                         <button onClick={() => openEdit(e)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #3b82f630', background: '#3b82f610', color: '#3b82f6', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>แก้ไข</button>
                         <button onClick={() => setDeleteTarget(e)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef444430', background: '#ef444410', color: '#ef4444', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
+                        <button onClick={() => updateEmployee(e.id, { status: e.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #6b728030', background: '#6b728010', color: '#374151', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>เปิด/ปิด</button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบพนักงาน</td></tr>
+                  <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบพนักงาน</td></tr>
                 )}
               </tbody>
             </table>

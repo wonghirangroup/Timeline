@@ -23,10 +23,6 @@ const NAV_ITEMS: { path: string; label: string; icon: JSX.Element; feature?: key
     icon: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   },
   {
-    path: '/holiday', label: 'วันหยุดประจำปี',
-    icon: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 14l2 2 4-4" /></svg>,
-  },
-  {
     path: '/attendance', label: 'เช็คอินพนักงาน',
     icon: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
   },
@@ -282,9 +278,9 @@ export function MobileBottomNav({ currentPath }: { currentPath: string }) {
   // Mobile nav: dashboard, attendance, leave, report, settings — กรองตาม feature
   const MOBILE_CANDIDATES = [
     NAV_ITEMS[0],    // ภาพรวม
-    NAV_ITEMS[4],    // เช็คอิน
+    NAV_ITEMS[4],    // เช็คอิน (index shifted after removing holiday)
     NAV_ITEMS[5],    // วันลา
-    NAV_ITEMS[7],    // รายงาน
+    NAV_ITEMS[9],    // รายงาน
     BOTTOM_ITEMS[0], // ตั้งค่า
   ]
   const mobileNav = MOBILE_CANDIDATES.filter(item =>

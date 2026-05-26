@@ -24,6 +24,14 @@ const LV_STATUS: Record<string,{label:string;color:string;bg:string;border:strin
 const BRANCH_COLORS = ['#f97316','#6366f1','#0891b2','#16a34a','#a21caf','#d97706','#dc2626']
 
 // ── Date utils ───────────────────────────────────────────────────────────────
+function formatWeekRange(weekStart: string): string {
+  const [y, m, d] = weekStart.split('-').map(Number)
+  const start = new Date(y, m-1, d)
+  const end   = new Date(y, m-1, d+6)
+  const mn = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+  return `${start.getDate()} ${mn[start.getMonth()]} – ${end.getDate()} ${mn[end.getMonth()]} ${end.getFullYear()+543}`
+}
+
 function getMondayOf(date: Date): Date {
   const d = new Date(date), day = d.getDay()
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
@@ -44,7 +52,7 @@ function inRange(dateStr: string, start: string, end: string): boolean {
 }
 
 type ModalMode = 'add' | 'edit' | null
-const defaultForm = { employee_id:'', full_name:'', nickname:'', branch_name:'', day_of_week:1 }
+const defaultForm = { employee_id:'', full_name:'', nickname:'', branch_name:'', day_of_week:1, specific_date:'' }
 
 // ── Day Detail state ─────────────────────────────────────────────────────────
 interface DayInfo { date: Date; dateStr: string; dow: number }
@@ -127,19 +135,35 @@ export default function WeeklyOffPage() {
   const [form, setForm]               = useState({ ...defaultForm })
   const [deleteTarget, setDeleteTarget] = useState<WeeklyOffBooking | null>(null)
 
+  // today/max date helpers for date picker
+  const todayStr = fmt(new Date())
+  const maxDateStr = fmt(addDays(new Date(), 30))
+
   function openAdd(dow?: number) {
-    setForm({ ...defaultForm, day_of_week: dow ?? dayDetail?.dow ?? 1 })
+    setForm({ ...defaultForm, day_of_week: dow ?? dayDetail?.dow ?? 1, specific_date: '' })
     setEditTarget(null); setModal('add')
   }
   function openEdit(w: WeeklyOffBooking) {
-    setForm({ employee_id:w.employee_id, full_name:w.full_name, nickname:w.nickname, branch_name:w.branch_name, day_of_week:w.day_of_week })
+    setForm({ employee_id:w.employee_id, full_name:w.full_name, nickname:w.nickname, branch_name:w.branch_name, day_of_week:w.day_of_week, specific_date: '' })
     setEditTarget(w); setModal('edit')
   }
   function handleSave() {
     if (!form.full_name && !form.employee_id) { showToast('error','กรุณาเลือกพนักงาน'); return }
     if (modal === 'add') {
-      addWeeklyOff({ id:`wo-${Date.now()}`, employee_id:form.employee_id, full_name:form.full_name, nickname:form.nickname, branch_name:form.branch_name, week_start:weekStartStr, day_of_week:form.day_of_week, status:'APPROVED', created_at:new Date().toISOString() })
-      showToast('success',`เพิ่มวันหยุด ${form.nickname||form.full_name} วัน${DAYS_FULL[form.day_of_week]}`)
+      let saveWeekStart = weekStartStr
+      let saveDow = form.day_of_week
+      if (form.specific_date) {
+        const d = new Date(form.specific_date + 'T00:00:00')
+        saveDow = d.getDay()
+        saveWeekStart = fmt(getMondayOf(d))
+      }
+      addWeeklyOff({ id:`wo-${Date.now()}`, employee_id:form.employee_id, full_name:form.full_name, nickname:form.nickname, branch_name:form.branch_name, week_start:saveWeekStart, day_of_week:saveDow, status:'APPROVED', created_at:new Date().toISOString() })
+      showToast('success',`เพิ่มวันหยุด ${form.nickname||form.full_name} วัน${DAYS_FULL[saveDow]}`)
+      // navigate to the week of booked date
+      if (form.specific_date) {
+        const d = new Date(form.specific_date + 'T00:00:00')
+        setWeekStart(getMondayOf(d))
+      }
     } else if (editTarget) {
       updateWeeklyOff(editTarget.id, { full_name:form.full_name, nickname:form.nickname, branch_name:form.branch_name, day_of_week:form.day_of_week })
       showToast('success',`ย้ายวันหยุด ${form.nickname} → ${DAYS_FULL[form.day_of_week]}`)
@@ -479,19 +503,48 @@ export default function WeeklyOffPage() {
                   {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:8, display:'block' }}>วันหยุด</label>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>
-                  {DAYS_TH.map((d,i) => (
-                    <button key={i} type="button" onClick={() => setForm(f => ({ ...f, day_of_week:i }))}
-                      style={{ padding:isMobile ? '10px 4px':'8px 4px', borderRadius:8, border:'1.5px solid', borderColor:form.day_of_week===i ? '#f97316':'#e5e7eb', background:form.day_of_week===i ? '#fff7ed':'#fff', color:form.day_of_week===i ? '#f97316':i===0 ? '#dc2626':i===6 ? '#2563eb':'#374151', fontWeight:form.day_of_week===i ? 700:500, fontSize:isMobile ? '0.82rem':'0.8rem', cursor:'pointer', fontFamily:'inherit' }}>
-                      {d}
-                    </button>
-                  ))}
+              {modal === 'add' && (
+                <div>
+                  <label style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6, display:'block' }}>วันที่จอง</label>
+                  <input
+                    type="date"
+                    value={form.specific_date}
+                    min={todayStr}
+                    max={maxDateStr}
+                    onChange={e => {
+                      const val = e.target.value
+                      if (val) {
+                        const d = new Date(val + 'T00:00:00')
+                        setForm(f => ({ ...f, specific_date: val, day_of_week: d.getDay() }))
+                      } else {
+                        setForm(f => ({ ...f, specific_date: '', day_of_week: 1 }))
+                      }
+                    }}
+                    style={{ ...inputS }}
+                  />
+                  {form.specific_date && (
+                    <div style={{ marginTop: 6, padding:'6px 10px', borderRadius:8, background:'#fff7ed', fontSize:'0.78rem', color:'#ea580c', fontWeight:600 }}>
+                      📅 วัน{DAYS_FULL[form.day_of_week]} · สัปดาห์: {formatWeekRange(fmt(getMondayOf(new Date(form.specific_date + 'T00:00:00'))))}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#9ca3af' }}>📅 จองล่วงหน้าได้สูงสุด 1 เดือน</div>
                 </div>
-              </div>
+              )}
+              {modal === 'edit' && (
+                <div>
+                  <label style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:8, display:'block' }}>วันหยุด</label>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>
+                    {DAYS_TH.map((d,i) => (
+                      <button key={i} type="button" onClick={() => setForm(f => ({ ...f, day_of_week:i }))}
+                        style={{ padding:isMobile ? '10px 4px':'8px 4px', borderRadius:8, border:'1.5px solid', borderColor:form.day_of_week===i ? '#f97316':'#e5e7eb', background:form.day_of_week===i ? '#fff7ed':'#fff', color:form.day_of_week===i ? '#f97316':i===0 ? '#dc2626':i===6 ? '#2563eb':'#374151', fontWeight:form.day_of_week===i ? 700:500, fontSize:isMobile ? '0.82rem':'0.8rem', cursor:'pointer', fontFamily:'inherit' }}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ padding:'8px 12px', borderRadius:8, background:'#f9fafb', fontSize:'0.8rem', color:'#6b7280' }}>
-                📅 สัปดาห์: <strong style={{ color:'#374151' }}>{weekLabel}</strong>
+                📅 สัปดาห์ปัจจุบัน: <strong style={{ color:'#374151' }}>{weekLabel}</strong>
               </div>
             </div>
             <div style={{ display:'flex', gap:10, marginTop:20, flexDirection:isMobile ? 'column-reverse':'row', justifyContent:'flex-end' }}>

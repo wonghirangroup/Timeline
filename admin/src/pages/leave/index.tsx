@@ -6,6 +6,30 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useDemoStore } from '../../stores/demoStore'
 
+// ── Holiday types ─────────────────────────────────────────────────────────────
+type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
+interface HolidayItem {
+  id: string; date: string; name: string; type: HolidayType; recurring: boolean; branch_id: string
+}
+const HOLIDAY_TYPE_CFG: Record<HolidayType, { label: string; color: string; bg: string }> = {
+  NATIONAL:  { label: 'นักขัตฤกษ์', color: '#dc2626', bg: '#fee2e2' },
+  RELIGIOUS: { label: 'ศาสนา',      color: '#d97706', bg: '#fef3c7' },
+  COMPANY:   { label: 'บริษัท',     color: '#2563eb', bg: '#dbeafe' },
+}
+let _hid = 100
+const INIT_HOLIDAY_DATA: HolidayItem[] = [
+  { id: `h${_hid++}`, date: '2026-01-01', name: 'วันขึ้นปีใหม่',         type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-05-01', name: 'วันแรงงานแห่งชาติ',    type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-07-28', name: 'วันเฉลิมพระชนมพรรษา ร.10', type: 'NATIONAL', recurring: true, branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-08-12', name: 'วันแม่แห่งชาติ',        type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-12-05', name: 'วันพ่อแห่งชาติ',        type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-12-31', name: 'วันสิ้นปี',              type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-04-13', name: 'วันสงกรานต์',           type: 'NATIONAL',  recurring: true,  branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-04-14', name: 'วันสงกรานต์ (วันครอบครัว)', type: 'NATIONAL', recurring: true, branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-04-15', name: 'วันสงกรานต์ (วันผู้สูงอายุ)', type: 'NATIONAL', recurring: true, branch_id: 'ALL' },
+  { id: `h${_hid++}`, date: '2026-01-02', name: 'หยุดชดเชยวันขึ้นปีใหม่', type: 'COMPANY',  recurring: false, branch_id: 'ALL' },
+]
+
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
@@ -94,7 +118,15 @@ function BalanceBar({ used, quota, color }: { used: number; quota: number; color
 export default function LeavePage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
-  const [mainTab, setMainTab] = useState<'calendar'|'balance'|'requests'|'weekly'>('calendar')
+  const [mainTab, setMainTab] = useState<'calendar'|'balance'|'requests'|'weekly'|'holiday'>('calendar')
+
+  // Holiday state
+  const [holidays, setHolidays] = useState<HolidayItem[]>(INIT_HOLIDAY_DATA)
+  const [holYear, setHolYear] = useState(2026)
+  const [holBranch, setHolBranch] = useState('ALL')
+  const [holTypeFilter, setHolTypeFilter] = useState<HolidayType|'ALL'>('ALL')
+  const [holModal, setHolModal] = useState<{mode:'add'|'edit'; item?: HolidayItem} | null>(null)
+  const [holForm, setHolForm] = useState({ date:'', name:'', type:'NATIONAL' as HolidayType, recurring:false, branch_id:'ALL' })
   const [year, setYear] = useState(2026)
   const [month, setMonth] = useState(5)
   const [empFilter, setEmpFilter] = useState('')
@@ -204,8 +236,9 @@ export default function LeavePage() {
           ['balance', `📋 โควต้า${overQuotaCount > 0 ? ` 🚨${overQuotaCount}` : ''}`],
           ['requests', `📝 คำขอ${pendingCount > 0 ? ` (${pendingCount})` : ''}`],
           ['weekly',   `🗓 จองวันหยุด${weeklyPendingCount > 0 ? ` (${weeklyPendingCount})` : ''}`],
-        ] as const).map(([tab, label]) => (
-          <button key={tab} onClick={() => setMainTab(tab)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: isMobile ? '0.82rem' : '0.875rem', fontWeight: mainTab === tab ? 700 : 400, background: mainTab === tab ? '#f97316' : '#f3f4f6', color: mainTab === tab ? '#fff' : '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          ['holiday',  '🗓 วันหยุดประจำปี'],
+        ] as [string, string][]).map(([tab, label]) => (
+          <button key={tab} onClick={() => setMainTab(tab as typeof mainTab)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: isMobile ? '0.82rem' : '0.875rem', fontWeight: mainTab === tab ? 700 : 400, background: mainTab === tab ? '#f97316' : '#f3f4f6', color: mainTab === tab ? '#fff' : '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {label}
           </button>
         ))}
@@ -765,6 +798,169 @@ export default function LeavePage() {
           </div>
         </div>
       )}
+
+      {/* ── Holiday Tab ── */}
+      {mainTab === 'holiday' && (() => {
+        const filteredHol = holidays.filter(h => {
+          const hYear = parseInt(h.date.split('-')[0])
+          if (hYear !== holYear) return false
+          if (holBranch !== 'ALL' && h.branch_id !== 'ALL' && h.branch_id !== holBranch) return false
+          if (holTypeFilter !== 'ALL' && h.type !== holTypeFilter) return false
+          return true
+        }).sort((a, b) => a.date.localeCompare(b.date))
+
+        const MONTHS_SHORT_HOL = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+        function fmtHolDate(dateStr: string): string {
+          const d = new Date(dateStr + 'T00:00:00')
+          return `${d.getDate()} ${MONTHS_SHORT_HOL[d.getMonth()]} ${d.getFullYear()+543}`
+        }
+        function getBranchLabel(bid: string): string {
+          if (bid === 'ALL') return 'ทุกสาขา'
+          return MOCK_BRANCHES.find(b => b.id === bid)?.name ?? bid
+        }
+        function openAddHol() {
+          setHolForm({ date: '', name: '', type: 'NATIONAL', recurring: false, branch_id: 'ALL' })
+          setHolModal({ mode: 'add' })
+        }
+        function openEditHol(item: HolidayItem) {
+          setHolForm({ date: item.date, name: item.name, type: item.type, recurring: item.recurring, branch_id: item.branch_id })
+          setHolModal({ mode: 'edit', item })
+        }
+        function saveHol() {
+          if (!holForm.date || !holForm.name.trim()) return
+          if (holModal?.mode === 'add') {
+            setHolidays(hs => [...hs, { id: `h${Date.now()}`, ...holForm }])
+            showToast('success', `เพิ่มวันหยุด "${holForm.name}" แล้ว`)
+          } else if (holModal?.item) {
+            setHolidays(hs => hs.map(h => h.id === holModal.item!.id ? { ...h, ...holForm } : h))
+            showToast('success', `แก้ไขวันหยุด "${holForm.name}" แล้ว`)
+          }
+          setHolModal(null)
+        }
+        function deleteHol(id: string) {
+          setHolidays(hs => hs.filter(h => h.id !== id))
+          showToast('info', 'ลบวันหยุดแล้ว')
+        }
+
+        return (
+          <div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+              <select value={holYear} onChange={e => setHolYear(Number(e.target.value))} style={{ ...inputSt }}>
+                {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y+543}</option>)}
+              </select>
+              <select value={holBranch} onChange={e => setHolBranch(e.target.value)} style={{ ...inputSt }}>
+                <option value="ALL">ทุกสาขา</option>
+                {MOCK_BRANCHES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <div style={{ marginLeft: 'auto' }}>
+                <button onClick={openAddHol} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 600, fontSize: '13px' }}>
+                  + เพิ่มวันหยุด
+                </button>
+              </div>
+            </div>
+
+            {/* Type filter pills */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              {(['ALL', 'NATIONAL', 'COMPANY', 'RELIGIOUS'] as const).map(t => {
+                const isActive = holTypeFilter === t
+                const cfg = t !== 'ALL' ? HOLIDAY_TYPE_CFG[t] : null
+                return (
+                  <button key={t} onClick={() => setHolTypeFilter(t)}
+                    style={{
+                      padding: '5px 13px', borderRadius: 99, fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer',
+                      border: isActive ? `1.5px solid ${cfg?.color ?? '#f97316'}` : '1.5px solid #e5e7eb',
+                      background: isActive ? (cfg?.bg ?? '#fff7ed') : '#fff',
+                      color: isActive ? (cfg?.color ?? '#ea580c') : '#6b7280',
+                    }}
+                  >
+                    {t === 'ALL' ? 'ทั้งหมด' : HOLIDAY_TYPE_CFG[t].label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Holiday list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filteredHol.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>ไม่มีวันหยุดในปีนี้</div>
+              )}
+              {filteredHol.map(h => {
+                const cfg = HOLIDAY_TYPE_CFG[h.type]
+                return (
+                  <div key={h.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    {/* Date badge */}
+                    <div style={{ minWidth: 90, textAlign: 'center', background: '#f8fafc', borderRadius: 8, padding: '6px 10px', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{fmtHolDate(h.date)}</div>
+                    </div>
+                    {/* Name */}
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{h.name}</div>
+                    </div>
+                    {/* Type badge */}
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: cfg.bg, color: cfg.color, whiteSpace: 'nowrap' }}>{cfg.label}</span>
+                    {/* Branch badge */}
+                    <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f1f5f9', color: '#475569', whiteSpace: 'nowrap' }}>{getBranchLabel(h.branch_id)}</span>
+                    {/* Recurring badge */}
+                    {h.recurring && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 99, background: '#f0fdf4', color: '#16a34a', fontWeight: 600 }}>🔁 ทุกปี</span>}
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => openEditHol(h)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>แก้ไข</button>
+                      <button onClick={() => deleteHol(h.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Add/Edit Holiday Modal */}
+            {holModal && (
+              <div style={bottomSheetStyle} onClick={() => setHolModal(null)}>
+                <div style={sheetBox(460)} onClick={e => e.stopPropagation()}>
+                  <h3 style={{ margin: '0 0 16px', fontWeight: 700 }}>
+                    {holModal.mode === 'add' ? '+ เพิ่มวันหยุด' : '✏ แก้ไขวันหยุด'}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>วันที่</label>
+                      <input type="date" value={holForm.date} onChange={e => setHolForm(f => ({ ...f, date: e.target.value }))} style={{ ...inputSt, width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>ชื่อวันหยุด</label>
+                      <input value={holForm.name} onChange={e => setHolForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น วันขึ้นปีใหม่" style={{ ...inputSt, width: '100%', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>ประเภท</label>
+                      <select value={holForm.type} onChange={e => setHolForm(f => ({ ...f, type: e.target.value as HolidayType }))} style={{ ...inputSt, width: '100%', boxSizing: 'border-box' }}>
+                        <option value="NATIONAL">นักขัตฤกษ์</option>
+                        <option value="RELIGIOUS">ศาสนา</option>
+                        <option value="COMPANY">บริษัท</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>สาขา</label>
+                      <select value={holForm.branch_id} onChange={e => setHolForm(f => ({ ...f, branch_id: e.target.value }))} style={{ ...inputSt, width: '100%', boxSizing: 'border-box' }}>
+                        <option value="ALL">ทุกสาขา</option>
+                        {MOCK_BRANCHES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <input type="checkbox" id="hol-recurring" checked={holForm.recurring} onChange={e => setHolForm(f => ({ ...f, recurring: e.target.checked }))} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                      <label htmlFor="hol-recurring" style={{ fontSize: '13px', color: '#374151', cursor: 'pointer' }}>🔁 หยุดทุกปี (recurring)</label>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                    <button onClick={() => setHolModal(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
+                    <button onClick={saveHol} disabled={!holForm.date || !holForm.name.trim()} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', cursor: holForm.date && holForm.name.trim() ? 'pointer' : 'not-allowed', background: holForm.date && holForm.name.trim() ? '#f97316' : '#f3f4f6', color: holForm.date && holForm.name.trim() ? '#fff' : '#9ca3af', fontWeight: 600 }}>
+                      {holModal.mode === 'add' ? 'เพิ่มวันหยุด' : 'บันทึก'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
