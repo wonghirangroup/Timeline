@@ -1,5 +1,5 @@
 // admin/src/lib/mock.ts
-import type { Branch, Department, Employee, AttendanceRow, ReportRow, CalendarEvent, BranchSettings, GlobalSettings, OtRequest, ShiftDef, AnnouncementItem, FeedbackItem, LeaveRequest, LeaveBalance, Tenant, TenantLineConfig, FineRule, AttendanceLogRow, AttendanceStatus, PlanConfig, Invoice, WeeklyOffBooking } from '../types'
+import type { Branch, Department, Employee, AttendanceRow, ReportRow, CalendarEvent, BranchSettings, GlobalSettings, OtRequest, ShiftDef, AnnouncementItem, FeedbackItem, LeaveRequest, LeaveBalance, Tenant, TenantLineConfig, FineRule, AttendanceLogRow, AttendanceStatus, PlanConfig, Invoice, WeeklyOffBooking, ShiftAssignment, ShiftAssignmentType } from '../types'
 
 // ── Departments ───────────────────────────────────────────────────────────────
 export const MOCK_DEPARTMENTS: Department[] = [
@@ -21,19 +21,19 @@ export const MOCK_BRANCHES: Branch[] = [
 
 // ── Employees ─────────────────────────────────────────────────────────────────
 export const MOCK_EMPLOYEES: Employee[] = [
-  { id: 'e01', code: '58-01-001', full_name: 'ชาตรี วงษ์วิบูลย์สิน',   nickname: 'ตอง',      department: 'แผนกผู้บริหาร / กรรมการ', branches: ['วงษ์หิรัญ'],                                             phone: '0891234561', hire_date: '2015-01-01', status: 'ACTIVE',   line_user_id: 'Ua1b2c3d4e5f6789012345678901234ab' },
-  { id: 'e02', code: '58-01-002', full_name: 'เกาไพรรา หิรัญประทีป',   nickname: 'ที่จิ๋ว',   department: 'แผนกผู้บริหาร / กรรมการ', branches: ['วงษ์หิรัญ'],                                             phone: '0891234562', hire_date: '2015-01-01', status: 'ACTIVE',   line_user_id: 'Ub2c3d4e5f6789012345678901234abcd' },
-  { id: 'e03', code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',      nickname: 'พิม',       department: 'พนักงานขาย',              branches: ['วงษ์หิรัญ', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],                  phone: '0891234563', hire_date: '2016-07-01', status: 'ACTIVE',   line_user_id: 'Uc3d4e5f6789012345678901234abcde' },
-  { id: 'e04', code: '60-03-001', full_name: 'นวลละออ โพธิ์สูงเนิน',   nickname: 'ปุ้ย',      department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234564', hire_date: '2017-01-04', status: 'ACTIVE',   line_user_id: 'Ud4e5f6789012345678901234abcdef1' },
-  { id: 'e05', code: '63-03-001', full_name: 'มณเฑียร สว่างเมฆ',       nickname: 'เฟิร์ส',   department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ แม่กิมเฮง', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],          phone: '0891234565', hire_date: '2020-11-01', status: 'ACTIVE',   line_user_id: null },
-  { id: 'e06', code: '63-04-001', full_name: 'สิรีธร จึงอนุวัตร',      nickname: 'กุล',       department: 'พนักงานขนส่ง',            branches: ['วงษ์หิรัญ', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],                  phone: '0891234566', hire_date: '2020-02-17', status: 'ACTIVE',   line_user_id: 'Uf6789012345678901234abcdef12345' },
-  { id: 'e07', code: '64-02-001', full_name: 'อมรรัตน์ โชติมณี',       nickname: 'ปิ๊ว',      department: 'Office',                  branches: ['วงษ์หิรัญ'],                                             phone: '0891234567', hire_date: '2021-09-01', status: 'ACTIVE',   line_user_id: null },
-  { id: 'e08', code: '65-03-001', full_name: 'สนธิญา เลื่อนกระโทก',   nickname: 'มิลส์',    department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ แม่กิมเฮง', 'ฟุ๊ดโรห์ ไนท์สวนหมาก', 'วงษ์หิรัญ'], phone: '0891234568', hire_date: '2022-01-11', status: 'ACTIVE',   line_user_id: 'Ug789012345678901234abcdef123456' },
-  { id: 'e09', code: '66-03-001', full_name: 'ปัทมา ปลั่งกลาง',        nickname: 'แพร',       department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ตลาดย่าโม'],                                   phone: '0891234569', hire_date: '2023-03-01', status: 'ACTIVE',   line_user_id: null },
-  { id: 'e10', code: '67-03-002', full_name: 'ลัดดาวัลย์ ปอกระโทก',   nickname: 'แป้ว',      department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ เทิดไท'],                                      phone: '0891234570', hire_date: '2024-01-01', status: 'ACTIVE',   line_user_id: null },
-  { id: 'e11', code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',      nickname: 'พิม',       department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234571', hire_date: '2016-07-01', status: 'ACTIVE',   line_user_id: 'Uh89012345678901234abcdef1234567' },
-  { id: 'e12', code: '68-03-004', full_name: 'ณัฐธิชา พิมพ์สระเกตุ',  nickname: 'สมาย',     department: 'พนักงานขาย',              branches: ['วงษ์หิรัญ'],                                             phone: '0891234572', hire_date: '2025-01-01', status: 'ACTIVE',   line_user_id: null },
-  { id: 'e13', code: '68-03-006', full_name: 'ศรัญญา ถาวิชัย',         nickname: 'น้ำ สาขา', department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234573', hire_date: '2025-03-01', status: 'ACTIVE',   line_user_id: null },
+  { id: 'e01', code: '58-01-001', full_name: 'ชาตรี วงษ์วิบูลย์สิน',   nickname: 'ตอง',      department: 'แผนกผู้บริหาร / กรรมการ', branches: ['วงษ์หิรัญ'],                                             phone: '0891234561', hire_date: '2015-01-01', status: 'ACTIVE',   line_user_id: 'Ua1b2c3d4e5f6789012345678901234ab', employment_type: 'FULL_TIME' },
+  { id: 'e02', code: '58-01-002', full_name: 'เกาไพรรา หิรัญประทีป',   nickname: 'ที่จิ๋ว',   department: 'แผนกผู้บริหาร / กรรมการ', branches: ['วงษ์หิรัญ'],                                             phone: '0891234562', hire_date: '2015-01-01', status: 'ACTIVE',   line_user_id: 'Ub2c3d4e5f6789012345678901234abcd', employment_type: 'FULL_TIME' },
+  { id: 'e03', code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',      nickname: 'พิม',       department: 'พนักงานขาย',              branches: ['วงษ์หิรัญ', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],                  phone: '0891234563', hire_date: '2016-07-01', status: 'ACTIVE',   line_user_id: 'Uc3d4e5f6789012345678901234abcde', employment_type: 'FULL_TIME' },
+  { id: 'e04', code: '60-03-001', full_name: 'นวลละออ โพธิ์สูงเนิน',   nickname: 'ปุ้ย',      department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234564', hire_date: '2017-01-04', status: 'ACTIVE',   line_user_id: 'Ud4e5f6789012345678901234abcdef1', employment_type: 'FULL_TIME' },
+  { id: 'e05', code: '63-03-001', full_name: 'มณเฑียร สว่างเมฆ',       nickname: 'เฟิร์ส',   department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ แม่กิมเฮง', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],          phone: '0891234565', hire_date: '2020-11-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'PART_TIME', hourly_rate: 65 },
+  { id: 'e06', code: '63-04-001', full_name: 'สิรีธร จึงอนุวัตร',      nickname: 'กุล',       department: 'พนักงานขนส่ง',            branches: ['วงษ์หิรัญ', 'ฟุ๊ดโรห์ ไนท์สวนหมาก'],                  phone: '0891234566', hire_date: '2020-02-17', status: 'ACTIVE',   line_user_id: 'Uf6789012345678901234abcdef12345', employment_type: 'FULL_TIME' },
+  { id: 'e07', code: '64-02-001', full_name: 'อมรรัตน์ โชติมณี',       nickname: 'ปิ๊ว',      department: 'Office',                  branches: ['วงษ์หิรัญ'],                                             phone: '0891234567', hire_date: '2021-09-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'FULL_TIME' },
+  { id: 'e08', code: '65-03-001', full_name: 'สนธิญา เลื่อนกระโทก',   nickname: 'มิลส์',    department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ แม่กิมเฮง', 'ฟุ๊ดโรห์ ไนท์สวนหมาก', 'วงษ์หิรัญ'], phone: '0891234568', hire_date: '2022-01-11', status: 'ACTIVE',   line_user_id: 'Ug789012345678901234abcdef123456', employment_type: 'FULL_TIME' },
+  { id: 'e09', code: '66-03-001', full_name: 'ปัทมา ปลั่งกลาง',        nickname: 'แพร',       department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ตลาดย่าโม'],                                   phone: '0891234569', hire_date: '2023-03-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'FULL_TIME' },
+  { id: 'e10', code: '67-03-002', full_name: 'ลัดดาวัลย์ ปอกระโทก',   nickname: 'แป้ว',      department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ เทิดไท'],                                      phone: '0891234570', hire_date: '2024-01-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'FULL_TIME' },
+  { id: 'e11', code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',      nickname: 'พิม',       department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234571', hire_date: '2016-07-01', status: 'ACTIVE',   line_user_id: 'Uh89012345678901234abcdef1234567', employment_type: 'FULL_TIME' },
+  { id: 'e12', code: '68-03-004', full_name: 'ณัฐธิชา พิมพ์สระเกตุ',  nickname: 'สมาย',     department: 'พนักงานขาย',              branches: ['วงษ์หิรัญ'],                                             phone: '0891234572', hire_date: '2025-01-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'FULL_TIME' },
+  { id: 'e13', code: '68-03-006', full_name: 'ศรัญญา ถาวิชัย',         nickname: 'น้ำ สาขา', department: 'พนักงานขาย',              branches: ['ฟุ๊ดโรห์ ไนท์สวนหมาก'],                                 phone: '0891234573', hire_date: '2025-03-01', status: 'ACTIVE',   line_user_id: null, employment_type: 'PART_TIME', hourly_rate: 60 },
 ]
 
 // ── Today Attendance ──────────────────────────────────────────────────────────
@@ -342,6 +342,60 @@ export const MOCK_FEEDBACKS: FeedbackItem[] = [
   { id: 'fb-03', category: 'การบริหาร',   message: 'อยากให้มีการประชุมทีมสม่ำเสมอเพื่อรับทราบนโยบายและแผนงานของบริษัท',                        created_at: '2026-05-15T09:30:00', branch_hint: null },
   { id: 'fb-04', category: 'เงินเดือน',   message: 'ค่า OT ยังไม่ได้รับเป็นเวลา 2 เดือนแล้ว รบกวนตรวจสอบด้วยครับ',                              created_at: '2026-05-14T16:00:00', branch_hint: 'แม่กิมเฮง' },
   { id: 'fb-05', category: 'อื่น ๆ',      message: 'ขอบคุณผู้บริหารที่ดูแลพนักงานเป็นอย่างดีตลอดมา ขอให้บริษัทเจริญก้าวหน้ายิ่งๆ ขึ้นไป', created_at: '2026-05-13T10:00:00', branch_hint: null },
+]
+
+// ── Shift Assignments (Option B — Individual Day Assignment) ─────────────────
+// week_start ใช้วันจันทร์ที่ 2026-05-25 และ 2026-06-01
+function _addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+function _genWeekAssignments(weekStart: string, weeklyOffOverride?: Record<string, number>): ShiftAssignment[] {
+  // primary shift per employee
+  const empShift: Record<string, string> = {
+    e01: 'sh-01', e02: 'sh-01', e03: 'sh-01', e04: 'sh-05',
+    e05: 'sh-03', e06: 'sh-01', e07: 'sh-02', e08: 'sh-01',
+    e09: 'sh-04', e10: 'sh-06', e11: 'sh-05', e12: 'sh-01', e13: 'sh-05',
+  }
+  // weekly off day-of-week (0=Sun 1=Mon … 6=Sat), default from week1 bookings
+  const defaultOffDay: Record<string, number> = {
+    e01: 6, e02: 2, e03: 3, e04: 3, e05: 0, e06: 1,
+    e07: 1, e08: 3, e09: 4, e10: 5, e11: 5, e12: 3, e13: 0,
+  }
+  const offDay = weeklyOffOverride ?? defaultOffDay
+  const empIds = Object.keys(empShift)
+  const out: ShiftAssignment[] = []
+  empIds.forEach(empId => {
+    for (let i = 0; i < 7; i++) {
+      const date = _addDays(weekStart, i)
+      const dow = new Date(date).getDay()
+      let type: ShiftAssignmentType
+      let shift_id: string | null = null
+      if (dow === 0) {               // อาทิตย์ = DAY_OFF ทุกคน
+        type = 'DAY_OFF'
+      } else if (offDay[empId] === dow) {
+        type = 'WEEKLY_OFF'
+      } else {
+        type = 'WORK'
+        shift_id = empShift[empId]
+      }
+      out.push({ id: `sa-${empId}-${date}`, employee_id: empId, date, shift_id, type })
+    }
+  })
+  return out
+}
+
+// week2 (01 Jun 2026) – ปรับ weekly-off ตาม MOCK_WEEKLY_OFF_BOOKINGS
+const _week2OffDay: Record<string, number> = {
+  e01: 6, e02: 2, e03: 5, e04: 1, e05: 0, e06: 1,
+  e07: 1, e08: 2, e09: 4, e10: 5, e11: 5, e12: 3, e13: 0,
+}
+
+export const MOCK_SHIFT_ASSIGNMENTS: ShiftAssignment[] = [
+  ..._genWeekAssignments('2026-05-25'),
+  ..._genWeekAssignments('2026-06-01', _week2OffDay),
 ]
 
 // ── Weekly Off Bookings ───────────────────────────────────────────────────────

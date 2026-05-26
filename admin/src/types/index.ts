@@ -24,6 +24,20 @@ export interface Employee {
   hire_date: string
   status: 'ACTIVE' | 'INACTIVE'
   line_user_id: string | null   // null = ยังไม่ผูก Line account → เช็คอิน LIFF ไม่ได้
+  employment_type: 'FULL_TIME' | 'PART_TIME'
+  hourly_rate?: number          // บาท/ชั่วโมง (เฉพาะ PART_TIME)
+}
+
+// ── Shift Assignment (Option B: Individual Day Assignment) ─────────────────────
+export type ShiftAssignmentType = 'WORK' | 'DAY_OFF' | 'WEEKLY_OFF' | 'HOLIDAY'
+
+export interface ShiftAssignment {
+  id: string
+  employee_id: string
+  date: string                  // YYYY-MM-DD
+  shift_id: string | null       // null เมื่อ type ≠ WORK
+  type: ShiftAssignmentType
+  note?: string
 }
 
 export interface AttendanceRow {

@@ -121,6 +121,7 @@ export default function EmployeePage() {
         hire_date: form.hire_date,
         status: 'ACTIVE' as const,
         line_user_id: null,
+        employment_type: 'FULL_TIME',
       })
       showToast('success', `เพิ่มพนักงาน "${form.full_name}" รหัส ${code}`)
     } else if (editTarget) {

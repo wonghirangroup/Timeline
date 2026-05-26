@@ -6,29 +6,35 @@ import {
   MOCK_EMPLOYEES, MOCK_BRANCHES, MOCK_DEPARTMENTS,
   MOCK_LEAVE_REQUESTS, MOCK_OT_REQUESTS, MOCK_SHIFTS,
   MOCK_ANNOUNCEMENTS, MOCK_LEAVE_BALANCES, MOCK_TODAY_ATTENDANCE,
-  MOCK_WEEKLY_OFF_BOOKINGS,
+  MOCK_WEEKLY_OFF_BOOKINGS, MOCK_SHIFT_ASSIGNMENTS,
 } from '../lib/mock'
 import type {
   Employee, Branch, Department, LeaveRequest, OtRequest,
   ShiftDef, AnnouncementItem, LeaveBalance, AttendanceRow, WeeklyOffBooking,
+  ShiftAssignment,
 } from '../types'
 
 interface DemoState {
-  employees:      Employee[]
-  branches:       Branch[]
-  departments:    Department[]
-  leaveRequests:  LeaveRequest[]
-  otRequests:     OtRequest[]
-  shifts:         ShiftDef[]
-  announcements:  AnnouncementItem[]
-  leaveBalances:  LeaveBalance[]
+  employees:           Employee[]
+  branches:            Branch[]
+  departments:         Department[]
+  leaveRequests:       LeaveRequest[]
+  otRequests:          OtRequest[]
+  shifts:              ShiftDef[]
+  announcements:       AnnouncementItem[]
+  leaveBalances:       LeaveBalance[]
   attendance:          AttendanceRow[]
   weeklyOffBookings:   WeeklyOffBooking[]
+  shiftAssignments:    ShiftAssignment[]
 
   // ── Weekly Off ───────────────────────────────────────
   addWeeklyOff:        (w: WeeklyOffBooking) => void
   updateWeeklyOff:     (id: string, patch: Partial<WeeklyOffBooking>) => void
   deleteWeeklyOff:     (id: string) => void
+
+  // ── Shift Assignments ────────────────────────────────
+  upsertShiftAssignment: (a: ShiftAssignment) => void
+  deleteShiftAssignment: (id: string) => void
 
   // ── Employee CRUD ────────────────────────────────────
   addEmployee:    (emp: Employee) => void
@@ -79,6 +85,7 @@ const initialState = {
   leaveBalances:      MOCK_LEAVE_BALANCES,
   attendance:         MOCK_TODAY_ATTENDANCE,
   weeklyOffBookings:  MOCK_WEEKLY_OFF_BOOKINGS,
+  shiftAssignments:   MOCK_SHIFT_ASSIGNMENTS,
 }
 
 export const useDemoStore = create<DemoState>()(
@@ -93,6 +100,18 @@ export const useDemoStore = create<DemoState>()(
         set((s) => ({ weeklyOffBookings: s.weeklyOffBookings.map((w) => w.id === id ? { ...w, ...patch } : w) })),
       deleteWeeklyOff: (id) =>
         set((s) => ({ weeklyOffBookings: s.weeklyOffBookings.filter((w) => w.id !== id) })),
+
+      // ── Shift Assignments ────────────────────────────
+      upsertShiftAssignment: (a) =>
+        set((s) => {
+          const exists = s.shiftAssignments.find(x => x.employee_id === a.employee_id && x.date === a.date)
+          if (exists) {
+            return { shiftAssignments: s.shiftAssignments.map(x => x.employee_id === a.employee_id && x.date === a.date ? { ...x, ...a } : x) }
+          }
+          return { shiftAssignments: [...s.shiftAssignments, a] }
+        }),
+      deleteShiftAssignment: (id) =>
+        set((s) => ({ shiftAssignments: s.shiftAssignments.filter(x => x.id !== id) })),
 
       // ── Employee ──────────────────────────────────────
       addEmployee: (emp) =>
@@ -153,7 +172,7 @@ export const useDemoStore = create<DemoState>()(
     }),
     {
       name: 'timeline-demo-db',   // key ใน localStorage
-      version: 1,
+      version: 2,                 // bump: added shiftAssignments + Employee.employment_type
     },
   ),
 )
