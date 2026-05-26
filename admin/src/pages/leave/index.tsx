@@ -330,9 +330,11 @@ export default function LeavePage() {
             {/* ── Day Detail Panel ── */}
             {selectedDate && (
               <div style={{
-                background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
+                background: '#fff', border: '1px solid #e5e7eb',
                 overflow: 'hidden', position: isMobile ? 'fixed' : 'sticky',
-                ...(isMobile ? { inset: 'auto 0 0 0', zIndex: 300, borderRadius: '16px 16px 0 0', maxHeight: '75vh', overflowY: 'auto' } : { top: 80 }),
+                ...(isMobile
+                  ? { inset: 'auto 0 0 0', zIndex: 300, borderRadius: '16px 16px 0 0', maxHeight: '75vh', overflowY: 'auto' }
+                  : { top: 80, borderRadius: 12 }),
                 boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
               }}>
                 {/* Panel header */}
