@@ -24,8 +24,8 @@ export interface Employee {
   hire_date: string
   status: 'ACTIVE' | 'INACTIVE'
   line_user_id: string | null   // null = ยังไม่ผูก Line account → เช็คอิน LIFF ไม่ได้
-  employment_type: 'FULL_TIME' | 'PART_TIME'
-  hourly_rate?: number          // บาท/ชั่วโมง (เฉพาะ PART_TIME)
+  pay_type: 'MONTHLY' | 'DAILY' | 'HOURLY'
+  hourly_rate?: number          // บาท/ชั่วโมง (เฉพาะ HOURLY — เก็บไว้อ้างอิง, ไม่คำนวณในระบบ)
 }
 
 // ── Shift Assignment (Option B: Individual Day Assignment) ─────────────────────

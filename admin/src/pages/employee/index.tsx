@@ -59,7 +59,7 @@ export default function EmployeePage() {
   const [modal, setModal] = useState<ModalMode>(null)
   const [editTarget, setEditTarget] = useState<Employee | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
-  const [form, setForm] = useState({ full_name: '', nickname: '', dept_id: '', phone: '', branches: [] as string[], hire_date: '' })
+  const [form, setForm] = useState({ full_name: '', nickname: '', dept_id: '', phone: '', branches: [] as string[], hire_date: '', pay_type: 'MONTHLY' as 'MONTHLY'|'DAILY'|'HOURLY', hourly_rate: '' })
 
   // Department management modal
   const [deptModal, setDeptModal] = useState(false)
@@ -95,13 +95,13 @@ export default function EmployeePage() {
 
   // ── Employee CRUD ─────────────────────────────────────────────────────────
   const openAdd = () => {
-    setForm({ full_name: '', nickname: '', dept_id: departments[0]?.id ?? '', phone: '', branches: [], hire_date: '' })
+    setForm({ full_name: '', nickname: '', dept_id: departments[0]?.id ?? '', phone: '', branches: [], hire_date: '', pay_type: 'MONTHLY', hourly_rate: '' })
     setEditTarget(null)
     setModal('add')
   }
   const openEdit = (e: Employee) => {
     const dept = departments.find(d => d.name === e.department) ?? departments[0]
-    setForm({ full_name: e.full_name, nickname: e.nickname, dept_id: dept?.id ?? '', phone: e.phone, branches: [...e.branches], hire_date: e.hire_date })
+    setForm({ full_name: e.full_name, nickname: e.nickname, dept_id: dept?.id ?? '', phone: e.phone, branches: [...e.branches], hire_date: e.hire_date, pay_type: e.pay_type, hourly_rate: e.hourly_rate ? String(e.hourly_rate) : '' })
     setEditTarget(e)
     setModal('edit')
   }
@@ -121,7 +121,8 @@ export default function EmployeePage() {
         hire_date: form.hire_date,
         status: 'ACTIVE' as const,
         line_user_id: null,
-        employment_type: 'FULL_TIME',
+        pay_type: form.pay_type,
+        hourly_rate: form.pay_type === 'HOURLY' && form.hourly_rate ? Number(form.hourly_rate) : undefined,
       })
       showToast('success', `เพิ่มพนักงาน "${form.full_name}" รหัส ${code}`)
     } else if (editTarget) {
@@ -132,6 +133,8 @@ export default function EmployeePage() {
         phone: form.phone,
         branches: form.branches,
         hire_date: form.hire_date,
+        pay_type: form.pay_type,
+        hourly_rate: form.pay_type === 'HOURLY' && form.hourly_rate ? Number(form.hourly_rate) : undefined,
       })
       showToast('success', `บันทึกข้อมูล "${form.full_name}" เรียบร้อยแล้ว`)
     }
@@ -295,9 +298,15 @@ export default function EmployeePage() {
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{e.full_name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2, fontFamily: 'monospace' }}>{e.code}</div>
                 <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 1 }}>{e.department}</div>
-                <span style={{ display: 'inline-block', marginTop: 4, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: e.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2', color: e.status === 'ACTIVE' ? '#059669' : '#dc2626' }}>
-                  {e.status === 'ACTIVE' ? '🟢 ทำงาน' : '🔴 พักงาน'}
-                </span>
+                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: e.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2', color: e.status === 'ACTIVE' ? '#059669' : '#dc2626' }}>
+                    {e.status === 'ACTIVE' ? '🟢 ทำงาน' : '🔴 พักงาน'}
+                  </span>
+                  {(() => {
+                    const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชม.', bg: '#fef3c7', color: '#92400e' } }[e.pay_type]
+                    return <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                  })()}
+                </div>
                 <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                   {e.branches.map(b => (
                     <span key={b} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: 99, background: '#fff7ed', color: '#c2410c' }}>{b}</span>
@@ -329,7 +338,7 @@ export default function EmployeePage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#fafafa', borderBottom: '1px solid #f1f5f9' }}>
-                  {['รหัส','ชื่อ – สกุล','แผนก','สาขา','โทร','วันเข้างาน','Line','สถานะ','จัดการ'].map(h => (
+                  {['รหัส','ชื่อ – สกุล','แผนก','สาขา','โทร','วันเข้างาน','ประเภท','Line','สถานะ','จัดการ'].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -367,6 +376,13 @@ export default function EmployeePage() {
                     </td>
                     <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '12px' }}>{e.phone}</td>
                     <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>{e.hire_date.split('-').reverse().join('/')}</td>
+                    {/* Pay type badge */}
+                    <td style={{ padding: '11px 14px' }}>
+                      {(() => {
+                        const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชั่วโมง', bg: '#fef3c7', color: '#92400e' } }[e.pay_type]
+                        return <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: cfg.bg, color: cfg.color, whiteSpace: 'nowrap' }}>{cfg.label}</span>
+                      })()}
+                    </td>
                     {/* Line status */}
                     <td style={{ padding: '11px 14px' }}>
                       {e.line_user_id ? (
@@ -392,7 +408,7 @@ export default function EmployeePage() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบพนักงาน</td></tr>
+                  <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบพนักงาน</td></tr>
                 )}
               </tbody>
             </table>
@@ -481,6 +497,39 @@ export default function EmployeePage() {
                   })}
                 </div>
               </Field>
+
+              {/* ── ประเภทพนักงาน ── */}
+              <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 14 }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: 10 }}>ประเภทพนักงาน</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {([
+                    { value: 'MONTHLY', label: '📅 รายเดือน',    desc: 'เงินเดือนประจำ',    bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+                    { value: 'DAILY',   label: '📆 รายวัน',      desc: 'คิดตามวันที่มา',   bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+                    { value: 'HOURLY',  label: '⏱ รายชั่วโมง',  desc: 'บันทึกชม.จริง',    bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+                  ] as const).map(opt => {
+                    const sel = form.pay_type === opt.value
+                    return (
+                      <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, pay_type: opt.value }))}
+                        style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: `2px solid ${sel ? opt.border : '#e5e7eb'}`, background: sel ? opt.bg : '#fafafa', textAlign: 'left', transition: 'all .15s' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: sel ? opt.color : '#374151' }}>{opt.label}</div>
+                        <div style={{ fontSize: '10px', color: sel ? opt.color : '#9ca3af', marginTop: 2 }}>{opt.desc}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {form.pay_type === 'HOURLY' && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>
+                      อัตราค่าจ้าง (บาท/ชั่วโมง) <span style={{ fontWeight: 400, color: '#9ca3af' }}>— เก็บไว้อ้างอิง ไม่คำนวณในระบบ</span>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="number" min="0" value={form.hourly_rate} onChange={e => setForm(f => ({ ...f, hourly_rate: e.target.value }))} placeholder="เช่น 65" style={{ ...inputStyle, width: 120 }} />
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>฿/ชม.</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff', paddingBottom: isMobile ? 'max(16px, env(safe-area-inset-bottom))' : 16 }}>

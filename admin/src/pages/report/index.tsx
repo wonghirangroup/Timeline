@@ -1,6 +1,6 @@
 // admin/src/pages/report/index.tsx
 import { useState } from 'react'
-import { MOCK_REPORT, MOCK_BRANCHES, genEmployeeLog, MOCK_LEAVE_BALANCES, MOCK_TENANTS } from '../../lib/mock'
+import { MOCK_REPORT, MOCK_BRANCHES, genEmployeeLog, MOCK_LEAVE_BALANCES, MOCK_TENANTS, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { ReportRow, AttendanceLogRow, AttendanceStatus } from '../../types'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useAuthStore } from '../../stores/authStore'
@@ -198,16 +198,32 @@ export default function ReportPage() {
                 {filtered.map((row, i) => (
                   <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: i%2===0?'#fff':'#fafafa' }}>
                     <td style={{ padding: '11px 14px', color: '#6b7280' }}>{row.code}</td>
-                    <td style={{ padding: '11px 14px', fontWeight: 500 }}>{row.full_name}</td>
+                    <td style={{ padding: '11px 14px', fontWeight: 500 }}>
+                      <div>{row.full_name}</div>
+                      {(() => {
+                        const emp = MOCK_EMPLOYEES.find(e => e.id === row.id)
+                        if (!emp || emp.pay_type === 'MONTHLY') return null
+                        const cfg = { DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชั่วโมง', bg: '#fef3c7', color: '#92400e' } }[emp.pay_type]
+                        return <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: cfg.bg, color: cfg.color, marginTop: 2, display: 'inline-block' }}>{cfg.label}{emp.hourly_rate ? ` ฿${emp.hourly_rate}/ชม.` : ''}</span>
+                      })()}
+                    </td>
                     <td style={{ padding: '11px 14px', color: '#374151' }}>{row.nickname}</td>
                     <td style={{ padding: '11px 14px', color: '#374151' }}>{row.branch_name}</td>
                     <td style={{ padding: '11px 14px' }}>
-                      <div style={{ fontSize: '0.78rem', lineHeight: 1.8 }}>
-                        <span style={{ color: '#374151' }}>ทำงาน: {row.work_days}</span><br />
-                        <span style={{ color: '#d97706' }}>สาย: {row.late_days}</span><br />
-                        <span style={{ color: '#dc2626' }}>ขาด: {row.absent_days}</span><br />
-                        <span style={{ color: '#7c3aed' }}>ลา: {row.leave_days}</span>
-                      </div>
+                      {(() => {
+                        const emp = MOCK_EMPLOYEES.find(e => e.id === row.id)
+                        const isHourly = emp?.pay_type === 'HOURLY'
+                        return (
+                          <div style={{ fontSize: '0.78rem', lineHeight: 1.8 }}>
+                            <span style={{ color: '#374151' }}>ทำงาน: {row.work_days} วัน</span><br />
+                            {isHourly && <span style={{ color: '#92400e' }}>ชม.รวม: ~{row.work_days * 6} ชม. <span style={{ color: '#9ca3af', fontSize: '10px' }}>(ดู Log)</span></span>}
+                            {isHourly && <br />}
+                            <span style={{ color: '#d97706' }}>สาย: {row.late_days}</span><br />
+                            <span style={{ color: '#dc2626' }}>ขาด: {row.absent_days}</span><br />
+                            <span style={{ color: '#7c3aed' }}>ลา: {row.leave_days}</span>
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td style={{ padding: '11px 14px', color: row.fine_late > 0 ? '#d97706' : '#9ca3af' }}>{row.fine_late > 0 ? `${row.fine_late} ฿` : '-'}</td>
                     <td style={{ padding: '11px 14px', color: row.fine_absent > 0 ? '#dc2626' : '#9ca3af' }}>{row.fine_absent > 0 ? `${row.fine_absent} ฿` : '-'}</td>

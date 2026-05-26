@@ -321,8 +321,8 @@ export default function ShiftSchedulePage() {
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap' }}>
                         {emp.nickname}
-                        {emp.employment_type === 'PART_TIME' && (
-                          <span style={{ marginLeft: 4, padding: '0 4px', fontSize: 10, background: '#fef3c7', color: '#92400e', borderRadius: 4, fontWeight: 700 }}>PT</span>
+                        {emp.pay_type !== 'MONTHLY' && (
+                          <span style={{ marginLeft: 4, padding: '0 4px', fontSize: 10, background: emp.pay_type === 'HOURLY' ? '#fef3c7' : '#f0fdf4', color: emp.pay_type === 'HOURLY' ? '#92400e' : '#15803d', borderRadius: 4, fontWeight: 700 }}>{emp.pay_type === 'HOURLY' ? 'ชม.' : 'วัน'}</span>
                         )}
                       </div>
                       <div style={{ fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap' }}>
@@ -363,15 +363,15 @@ export default function ShiftSchedulePage() {
         ))}
         <span style={{ color: '#9ca3af' }}>—</span>
         <span style={{ color: '#9ca3af', fontSize: 12 }}>ยังไม่ได้กำหนด (คลิกเพื่อเพิ่ม)</span>
-        <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 11 }}>PT = พนักงาน Part-Time</span>
+        <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 11 }}>ชม. = รายชั่วโมง · วัน = รายวัน</span>
       </div>
 
       {/* Part-time info panel */}
-      {filteredEmps.some(e => e.employment_type === 'PART_TIME') && (
+      {filteredEmps.some(e => e.pay_type === 'HOURLY' || e.pay_type === 'DAILY') && (
         <div style={{ marginTop: 16, padding: '12px 16px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, fontSize: 13 }}>
-          <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 6 }}>⏰ พนักงาน Part-Time ในสัปดาห์นี้</div>
+          <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 6 }}>⏰ พนักงานรายวัน / รายชั่วโมง ในสัปดาห์นี้</div>
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            {filteredEmps.filter(e => e.employment_type === 'PART_TIME').map(emp => {
+            {filteredEmps.filter(e => e.pay_type === 'HOURLY' || e.pay_type === 'DAILY').map(emp => {
               const worked = weekDates.filter(d => {
                 const a = getAssignment(emp.id, d)
                 return a?.type === 'WORK'
