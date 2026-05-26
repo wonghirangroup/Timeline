@@ -98,6 +98,7 @@ export default function LeavePage() {
   const [year, setYear] = useState(2026)
   const [month, setMonth] = useState(5)
   const [empFilter, setEmpFilter] = useState('')
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { leaveRequests: requests, leaveBalances: balances, approveLeave, rejectLeave } = useDemoStore()
   const [balBranch, setBalBranch] = useState('')
   const [balSearch, setBalSearch] = useState('')
@@ -211,68 +212,227 @@ export default function LeavePage() {
       </div>
 
       {/* ── Calendar Tab ── */}
-      {mainTab === 'calendar' && (
+      {mainTab === 'calendar' && (() => {
+        // รวม events จาก leaveRequests store (source of truth) + static events (holidays etc.)
+        const staticEvents = EVENTS.filter(e => e.type !== 'WEEKLY_OFF' && e.type !== 'SICK' && e.type !== 'PERSONAL' && e.type !== 'VACATION' && e.type !== 'HALF_DAY' && e.type !== 'COMPENSATE')
+        function getDayLeaves(dateStr: string): LeaveRequest[] {
+          return requests.filter(r =>
+            r.status !== 'REJECTED' &&
+            r.start_date <= dateStr && r.end_date >= dateStr &&
+            (!empFilter || r.full_name.includes(empFilter) || r.nickname.includes(empFilter))
+          )
+        }
+        function getDayStaticEvents(d: number) {
+          const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+          return staticEvents.filter(e => e.date === dateStr)
+        }
+        function handleDayClick(d: number) {
+          const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+          setSelectedDate(prev => prev === dateStr ? null : dateStr)
+        }
+        // selected day detail
+        const selLeaves = selectedDate ? getDayLeaves(selectedDate) : []
+        const selStatic = selectedDate ? staticEvents.filter(e => e.date === selectedDate) : []
+        const selTotal  = selLeaves.length + selStatic.length
+        const selDateObj = selectedDate ? new Date(selectedDate + 'T00:00:00') : null
+        const selLabel   = selDateObj
+          ? `${selDateObj.getDate()} ${MONTHS_TH[selDateObj.getMonth()]} ${selDateObj.getFullYear()+543}`
+          : ''
+
+        return (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <button onClick={prevMonth} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '1rem' }}>‹</button>
             <button onClick={nextMonth} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '1rem' }}>›</button>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{MONTHS_TH[month-1]} {year+543}</h3>
-            <button onClick={() => { setYear(2026); setMonth(5) }} style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.82rem', marginLeft: 'auto' }}>วันนี้</button>
+            <button onClick={() => { setYear(2026); setMonth(5); setSelectedDate(null) }} style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.82rem', marginLeft: 'auto' }}>วันนี้</button>
           </div>
           {!isMobile && (
             <div style={{ marginBottom: 10 }}>
               <input value={empFilter} onChange={e => setEmpFilter(e.target.value)} placeholder="🔍 ค้นหาพนักงาน..." style={{ ...inputSt, width: 220 }} />
             </div>
           )}
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: '1px solid #e5e7eb' }}>
-              {DAYS_TH.map((d, i) => (
-                <div key={d} style={{ padding: isMobile ? '8px 4px' : '10px 8px', textAlign: 'center', fontSize: isMobile ? '0.75rem' : '0.82rem', fontWeight: 600, color: i === 0 || i === 6 ? '#dc2626' : '#2563eb', background: '#f8fafc' }}>{d}</div>
-              ))}
+
+          <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: selectedDate ? '1fr 320px' : '1fr', gap: 14, alignItems: 'start' }}>
+            {/* Calendar grid */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderBottom: '1px solid #e5e7eb' }}>
+                {DAYS_TH.map((d, i) => (
+                  <div key={d} style={{ padding: isMobile ? '8px 4px' : '10px 8px', textAlign: 'center', fontSize: isMobile ? '0.75rem' : '0.82rem', fontWeight: 600, color: i === 0 || i === 6 ? '#dc2626' : '#2563eb', background: '#f8fafc' }}>{d}</div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
+                {Array.from({ length: firstDay }, (_, i) => (
+                  <div key={`e${i}`} style={{ minHeight: isMobile ? 48 : 90, borderRight: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', background: '#fafafa' }} />
+                ))}
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const d = i + 1
+                  const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+                  const dayLeaves  = getDayLeaves(dateStr)
+                  const dayStatic  = getDayStaticEvents(d)
+                  const allEvents  = dayLeaves.length + dayStatic.length
+                  const isToday    = year === 2026 && month === 5 && d === 20
+                  const isSelected = selectedDate === dateStr
+                  const dow        = (firstDay + i) % 7
+                  const isWeekend  = dow === 0 || dow === 6
+                  const hasPending = dayLeaves.some(r => r.status === 'PENDING')
+                  return (
+                    <div key={d}
+                      onClick={() => handleDayClick(d)}
+                      style={{
+                        minHeight: isMobile ? 52 : 90,
+                        borderRight: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6',
+                        padding: isMobile ? '4px' : '6px',
+                        background: isSelected ? '#fff7ed' : isWeekend ? '#fafafa' : '#fff',
+                        cursor: allEvents > 0 ? 'pointer' : 'default',
+                        borderLeft: isSelected ? '2px solid #f97316' : '2px solid transparent',
+                        transition: 'background .12s',
+                      }}
+                      onMouseEnter={e => { if (!isSelected && allEvents > 0) (e.currentTarget as HTMLDivElement).style.background = '#fef9f5' }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = isWeekend ? '#fafafa' : '#fff' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <div style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: isToday ? 700 : 400, color: isToday ? '#fff' : isSelected ? '#f97316' : isWeekend ? '#9ca3af' : '#374151', width: isMobile ? 20 : 24, height: isMobile ? 20 : 24, borderRadius: '50%', background: isToday ? '#f97316' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{d}</div>
+                        {hasPending && !isMobile && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} title="มีรอพิจารณา" />}
+                      </div>
+                      {!isMobile && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {dayStatic.slice(0,1).map((ev, ei) => (
+                            <div key={`s${ei}`} style={{ fontSize: '0.65rem', fontWeight: 700, color: ev.color, background: ev.bg, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              🎌 {ev.nickname}
+                            </div>
+                          ))}
+                          {dayLeaves.slice(0, 2 - dayStatic.length).map((lv, li) => {
+                            const sc = STATUS_CFG[lv.status]
+                            return (
+                              <div key={`l${li}`} style={{ fontSize: '0.65rem', fontWeight: 600, color: lv.leave_type_color, background: lv.leave_type_color+'15', borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                {lv.status === 'PENDING' && <span style={{ width:5, height:5, borderRadius:'50%', background:'#f59e0b', flexShrink:0, display:'inline-block' }} />}
+                                {lv.nickname}
+                              </div>
+                            )
+                          })}
+                          {allEvents > 2 && <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>+{allEvents - 2} อีก</div>}
+                        </div>
+                      )}
+                      {isMobile && allEvents > 0 && (
+                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 2 }}>
+                          {dayLeaves.slice(0,4).map((lv, li) => (
+                            <div key={li} style={{ width: 7, height: 7, borderRadius: '50%', background: lv.status === 'PENDING' ? '#f59e0b' : lv.leave_type_color }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
-              {Array.from({ length: firstDay }, (_, i) => (
-                <div key={`e${i}`} style={{ minHeight: isMobile ? 48 : 90, borderRight: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', background: '#fafafa' }} />
-              ))}
-              {Array.from({ length: daysInMonth }, (_, i) => {
-                const d = i + 1
-                const dayEvents = getEventsForDay(d)
-                const isToday = year === 2026 && month === 5 && d === 20
-                const dow = (firstDay + i) % 7
-                const isWeekend = dow === 0 || dow === 6
-                return (
-                  <div key={d} style={{ minHeight: isMobile ? 48 : 90, borderRight: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', padding: isMobile ? '4px' : '6px', background: isWeekend ? '#fafafa' : '#fff' }}>
-                    <div style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: isToday ? 700 : 400, color: isToday ? '#fff' : isWeekend ? '#9ca3af' : '#374151', width: isMobile ? 20 : 24, height: isMobile ? 20 : 24, borderRadius: '50%', background: isToday ? '#f97316' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>{d}</div>
-                    {!isMobile && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {dayEvents.slice(0, 2).map((ev, ei) => (
-                          <div key={ei} style={{ fontSize: '0.68rem', fontWeight: 600, color: ev.color, background: ev.bg, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {ev.nickname}
-                          </div>
-                        ))}
-                        {dayEvents.length > 2 && <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>+{dayEvents.length - 2}</div>}
-                      </div>
-                    )}
-                    {isMobile && dayEvents.length > 0 && (
-                      <div style={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {dayEvents.slice(0, 3).map((ev, ei) => (
-                          <div key={ei} style={{ width: 6, height: 6, borderRadius: '50%', background: ev.color }} />
-                        ))}
-                      </div>
-                    )}
+
+            {/* ── Day Detail Panel ── */}
+            {selectedDate && (
+              <div style={{
+                background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
+                overflow: 'hidden', position: isMobile ? 'fixed' : 'sticky',
+                ...(isMobile ? { inset: 'auto 0 0 0', zIndex: 300, borderRadius: '16px 16px 0 0', maxHeight: '75vh', overflowY: 'auto' } : { top: 80 }),
+                boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+              }}>
+                {/* Panel header */}
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {isMobile && <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e7eb', position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)' }} />}
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>{selLabel}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 1 }}>
+                      {selTotal === 0 ? 'ไม่มีรายการ' : `${selTotal} รายการ`}
+                      {selLeaves.filter(r => r.status === 'PENDING').length > 0 && (
+                        <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 10, background: '#fef3c7', color: '#d97706', fontWeight: 700 }}>
+                          ⏳ {selLeaves.filter(r => r.status === 'PENDING').length} รอพิจารณา
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )
-              })}
-            </div>
+                  <button onClick={() => setSelectedDate(null)} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 13 }}>✕</button>
+                </div>
+
+                {/* Holiday events */}
+                {selStatic.length > 0 && (
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6' }}>
+                    {selStatic.map((ev, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🎌</div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#dc2626' }}>{ev.nickname}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>วันหยุดนักขัตฤกษ์</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Leave requests */}
+                <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: isMobile ? '50vh' : 480, overflowY: 'auto' }}>
+                  {selLeaves.length === 0 && selStatic.length === 0 && (
+                    <div style={{ textAlign: 'center', color: '#d1d5db', fontSize: '0.82rem', padding: '20px 0' }}>ไม่มีรายการวันลา</div>
+                  )}
+                  {selLeaves.map(lv => {
+                    const sc = STATUS_CFG[lv.status]
+                    const isMulti = lv.start_date !== lv.end_date
+                    return (
+                      <div key={lv.id} style={{ background: '#fafafa', borderRadius: 10, border: `1.5px solid ${lv.status === 'PENDING' ? '#fcd34d' : lv.status === 'APPROVED' ? '#86efac' : '#fca5a5'}`, padding: '10px 12px' }}>
+                        {/* Name + status */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: lv.leave_type_color+'20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: lv.leave_type_color, flexShrink: 0 }}>
+                            {lv.nickname.slice(0,2)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#111827' }}>{lv.nickname}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{lv.full_name} · {lv.branch_name}</div>
+                          </div>
+                          <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, background: sc.bg, color: sc.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            {sc.label}
+                          </span>
+                        </div>
+                        {/* Leave info */}
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: lv.status === 'PENDING' ? 8 : 0 }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: lv.leave_type_color+'18', color: lv.leave_type_color }}>
+                            {lv.leave_type}{lv.half_day_period ? ` (${lv.half_day_period})` : ''}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
+                            {isMulti ? `${lv.start_date} – ${lv.end_date} (${lv.days} วัน)` : `${lv.days} วัน`}
+                          </span>
+                        </div>
+                        {lv.reason && (
+                          <div style={{ fontSize: '0.72rem', color: '#6b7280', marginBottom: lv.status === 'PENDING' ? 8 : 0, fontStyle: 'italic' }}>"{lv.reason}"</div>
+                        )}
+                        {/* Actions for PENDING */}
+                        {lv.status === 'PENDING' && (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => { approveReq(lv.id) }}
+                              style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+                              ✓ อนุมัติ
+                            </button>
+                            <button onClick={() => setRejectModal(lv)}
+                              style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+                              ✗ ปฏิเสธ
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+
           {/* Legend */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>จุดสีเหลือง = รอพิจารณา · </span>
             {Object.entries(TYPE_CONFIG).filter(([k]) => k !== 'WEEKLY_OFF').map(([k, v]) => (
               <span key={k} style={{ fontSize: '0.7rem', fontWeight: 600, color: v.color, background: v.bg, borderRadius: 99, padding: '2px 8px' }}>{v.label}</span>
             ))}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* ── Balance Tab ── */}
       {mainTab === 'balance' && (
