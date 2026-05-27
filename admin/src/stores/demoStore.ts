@@ -60,6 +60,8 @@ interface DemoState {
   addOtRequest:  (ot: OtRequest) => void
   approveOt:     (id: string) => void
   rejectOt:      (id: string) => void
+  payOt:         (id: string, amount?: number) => void
+  bulkPayOt:     (ids: string[], amount?: number) => void
 
   // ── Shift CRUD ───────────────────────────────────────
   addShift:    (s: ShiftDef) => void
@@ -152,6 +154,12 @@ export const useDemoStore = create<DemoState>()(
         set((s) => ({ otRequests: s.otRequests.map((r) => r.id === id ? { ...r, status: 'APPROVED' as const } : r) })),
       rejectOt: (id) =>
         set((s) => ({ otRequests: s.otRequests.map((r) => r.id === id ? { ...r, status: 'REJECTED' as const } : r) })),
+      payOt: (id, amount) =>
+        set((s) => ({ otRequests: s.otRequests.map((r) => r.id === id ? { ...r, status: 'PAID' as const, paid_at: new Date().toISOString(), payment_amount: amount } : r) })),
+      bulkPayOt: (ids, amount) => {
+        const paid_at = new Date().toISOString()
+        set((s) => ({ otRequests: s.otRequests.map((r) => ids.includes(r.id) ? { ...r, status: 'PAID' as const, paid_at, payment_amount: amount } : r) }))
+      },
 
       // ── Shift ────────────────────────────────────────
       addShift: (s_) =>

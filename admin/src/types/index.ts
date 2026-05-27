@@ -116,7 +116,7 @@ export interface FineRule {
   per_minute_max: number     // ค่าปรับสูงสุด บาท (0 = ไม่จำกัด)
 }
 
-export type OtStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type OtStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
 export interface OtRequest {
@@ -132,7 +132,10 @@ export interface OtRequest {
   multiplier: number
   amount: number
   note: string
+  bank_account?: string   // เลขบัญชีสำหรับโอน OT
   status: OtStatus
+  paid_at?: string        // ISO timestamp เมื่อจ่ายแล้ว
+  payment_amount?: number // ยอดที่จ่ายจริง (daily_rate × multiplier)
 }
 
 export interface ShiftDef {
