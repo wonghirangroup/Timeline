@@ -303,7 +303,7 @@ export default function EmployeePage() {
                     {e.status === 'ACTIVE' ? '🟢 ทำงาน' : '🔴 พักงาน'}
                   </span>
                   {(() => {
-                    const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชม.', bg: '#fef3c7', color: '#92400e' } }[e.pay_type]
+                    const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชม.', bg: '#fef3c7', color: '#92400e' } }[e.pay_type] ?? { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }
                     return <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                   })()}
                 </div>
@@ -379,7 +379,7 @@ export default function EmployeePage() {
                     {/* Pay type badge */}
                     <td style={{ padding: '11px 14px' }}>
                       {(() => {
-                        const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชั่วโมง', bg: '#fef3c7', color: '#92400e' } }[e.pay_type]
+                        const cfg = { MONTHLY: { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }, DAILY: { label: 'รายวัน', bg: '#f0fdf4', color: '#15803d' }, HOURLY: { label: 'รายชั่วโมง', bg: '#fef3c7', color: '#92400e' } }[e.pay_type] ?? { label: 'รายเดือน', bg: '#eff6ff', color: '#1d4ed8' }
                         return <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: cfg.bg, color: cfg.color, whiteSpace: 'nowrap' }}>{cfg.label}</span>
                       })()}
                     </td>

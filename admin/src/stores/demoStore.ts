@@ -180,7 +180,7 @@ export const useDemoStore = create<DemoState>()(
     }),
     {
       name: 'timeline-demo-db',   // key ใน localStorage
-      version: 2,                 // bump: added shiftAssignments + Employee.employment_type
+      version: 3,                 // bump: pay_type (MONTHLY/DAILY/HOURLY) replaces employment_type + OT PAID status
     },
   ),
 )
