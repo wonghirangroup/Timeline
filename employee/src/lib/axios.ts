@@ -5,6 +5,7 @@ import liff from '@line/liff'
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   timeout: 15000,
+  headers: { 'ngrok-skip-browser-warning': 'true' },
 })
 
 // JWT เก็บใน memory (ไม่ใส่ localStorage เพราะ LIFF มีอายุสั้น)
@@ -34,6 +35,7 @@ export async function liffLogin(): Promise<{ employeeId: string; tenantId: strin
   const res = await axios.post(
     `${apiUrl}/employee/auth/liff`,
     { liff_token: idToken, line_user_id: profile.userId, line_channel_id: channelId },
+    { headers: { 'ngrok-skip-browser-warning': 'true' } },
   )
 
   const { token } = res.data.data
