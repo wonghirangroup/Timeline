@@ -1,5 +1,7 @@
 // admin/src/pages/holiday/index.tsx
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { api } from '../../lib/axios'
+import { useToast } from '../../components/ui/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
@@ -267,19 +269,34 @@ function HolidayModal({ initial, onSave, onClose }: ModalProps) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function HolidayPage() {
-  const [year, setYear] = useState(2026)
-  const [holidays, setHolidays] = useState<Holiday[]>(INIT_HOLIDAYS)
+  const { showToast } = useToast()
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [saving,  setSaving]    = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [modal, setModal] = useState<{ mode: 'add'; date?: string } | { mode: 'edit'; holiday: Holiday } | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Holiday | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [filterType, setFilterType] = useState<HolidayType | 'ALL'>('ALL')
   const [importConfirm, setImportConfirm] = useState(false)
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 2800)
-  }
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/api/v1/super-admin/holidays', { params: { year } })
+      const data: Holiday[] = (res.data.data ?? []).map((h: any) => ({
+        id:        h.id,
+        date:      h.date.slice(0, 10),
+        name:      h.name,
+        type:      h.type ?? 'NATIONAL',
+        recurring: h.recurring ?? false,
+      }))
+      setHolidays(data)
+    } catch { showToast('error', 'โหลดข้อมูลไม่สำเร็จ') }
+    finally { setLoading(false) }
+  }, [year])
+
+  useEffect(() => { load() }, [load])
 
   // กรองเฉพาะปีที่เลือก
   const yearHolidays = holidays.filter(h => h.date.startsWith(`${year}-`))
@@ -300,34 +317,53 @@ export default function HolidayPage() {
   // Selected day's holidays
   const selectedHols = selectedDate ? (holidayMap.get(selectedDate) ?? []) : []
 
-  function handleAdd(data: Omit<Holiday, 'id'>) {
-    setHolidays(hs => [...hs, { ...data, id: makeId() }])
-    setModal(null)
-    showToast(`เพิ่ม "${data.name}" เรียบร้อยแล้ว`)
+  async function handleAdd(data: Omit<Holiday, 'id'>) {
+    setSaving(true)
+    try {
+      await api.post('/api/v1/super-admin/holidays', data)
+      showToast('success', `เพิ่ม "${data.name}" เรียบร้อยแล้ว`)
+      setModal(null)
+      await load()
+    } catch { showToast('error', 'เพิ่มไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
-  function handleEdit(data: Omit<Holiday, 'id'>) {
+  async function handleEdit(data: Omit<Holiday, 'id'>) {
     if (modal?.mode !== 'edit') return
-    const id = modal.holiday.id
-    setHolidays(hs => hs.map(h => h.id === id ? { ...data, id } : h))
-    setModal(null)
-    showToast(`แก้ไข "${data.name}" เรียบร้อยแล้ว`)
+    setSaving(true)
+    try {
+      await api.patch(`/api/v1/super-admin/holidays/${modal.holiday.id}`, data)
+      showToast('success', `แก้ไข "${data.name}" เรียบร้อยแล้ว`)
+      setModal(null)
+      await load()
+    } catch { showToast('error', 'แก้ไขไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const h = holidays.find(x => x.id === id)
-    setHolidays(hs => hs.filter(x => x.id !== id))
-    setDeleteConfirm(null)
-    setSelectedDate(null)
-    showToast(`ลบ "${h?.name}" เรียบร้อยแล้ว`)
+    setSaving(true)
+    try {
+      await api.delete(`/api/v1/super-admin/holidays/${id}`)
+      showToast('success', `ลบ "${h?.name}" เรียบร้อยแล้ว`)
+      setDeleteConfirm(null)
+      setSelectedDate(null)
+      await load()
+    } catch { showToast('error', 'ลบไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
-  function handleImport() {
-    const existing = new Set(yearHolidays.map(h => h.date))
-    const toAdd = THAI_NATIONAL_2026.filter(h => !existing.has(h.date))
-    setHolidays(hs => [...hs, ...toAdd.map(h => ({ ...h, id: makeId() }))])
-    setImportConfirm(false)
-    showToast(`นำเข้าวันหยุดนักขัตฤกษ์ ${toAdd.length} รายการ`)
+  async function handleImport() {
+    setSaving(true)
+    try {
+      const items = THAI_NATIONAL_2026.map(h => ({ ...h }))
+      const res = await api.post('/api/v1/super-admin/holidays/batch', { items })
+      const count = res.data.data?.count ?? 0
+      showToast('success', count > 0 ? `นำเข้าวันหยุดนักขัตฤกษ์ ${count} รายการ` : 'ไม่มีวันหยุดใหม่ (มีครบแล้ว)')
+      setImportConfirm(false)
+      await load()
+    } catch { showToast('error', 'นำเข้าไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
   function thDate(d: string) {
@@ -347,15 +383,6 @@ export default function HolidayPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: 'fixed', top: 20, right: 20, zIndex: 999,
-          padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: '0.875rem',
-          background: '#d1fae5', color: '#059669', border: '1px solid #a7f3d0',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        }}>✅ {toast}</div>
-      )}
 
       {/* Header */}
       <div style={{ padding: '24px 28px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

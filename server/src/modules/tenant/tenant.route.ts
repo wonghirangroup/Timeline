@@ -5,7 +5,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listTenants, getTenant, createTenant, updateTenant, deleteTenant } from './tenant.service'
 import { listUsers, createUser, updateUser, deleteUser } from './user.service'
-import { listHolidays, createHoliday, deleteHoliday }   from './holiday.service'
+import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
 
 const TAG = 'Super Admin'
@@ -225,14 +225,72 @@ export async function tenantRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['name', 'date'],
         properties: {
-          name: { type: 'string' },
-          date: { type: 'string', description: 'YYYY-MM-DD' },
+          name:      { type: 'string' },
+          date:      { type: 'string', description: 'YYYY-MM-DD' },
+          type:      { type: 'string', enum: ['NATIONAL', 'RELIGIOUS', 'COMPANY'] },
+          recurring: { type: 'boolean' },
         },
       },
     },
   }, async (req: any, reply) => {
     const holiday = await createHoliday(req.tenantId, req.body)
     return reply.code(201).send(ok(holiday, 'เพิ่มวันหยุดสำเร็จ'))
+  })
+
+  // PATCH /api/v1/super-admin/holidays/:id
+  app.patch('/holidays/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'แก้ไขวันหยุด',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          name:      { type: 'string' },
+          date:      { type: 'string' },
+          type:      { type: 'string', enum: ['NATIONAL', 'RELIGIOUS', 'COMPANY'] },
+          recurring: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const ok_ = await updateHoliday(req.tenantId, req.params.id, req.body)
+    if (!ok_) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบวันหยุด'))
+    return ok(null, 'แก้ไขวันหยุดสำเร็จ')
+  })
+
+  // POST /api/v1/super-admin/holidays/batch — import หลายวันพร้อมกัน
+  app.post('/holidays/batch', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'Import วันหยุดหลายวันพร้อมกัน (ข้ามวันซ้ำอัตโนมัติ)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['items'],
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'date'],
+              properties: {
+                name:      { type: 'string' },
+                date:      { type: 'string' },
+                type:      { type: 'string', enum: ['NATIONAL', 'RELIGIOUS', 'COMPANY'] },
+                recurring: { type: 'boolean' },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const result = await batchCreateHolidays(req.tenantId, req.body.items)
+    return reply.code(201).send(ok(result, `นำเข้าวันหยุด ${result.count} วันสำเร็จ`))
   })
 
   // DELETE /api/v1/super-admin/holidays/:id

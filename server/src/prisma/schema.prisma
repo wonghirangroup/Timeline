@@ -340,16 +340,24 @@ model OtRequest {
 // ─────────────────────────────────────────────
 
 model Holiday {
-  id         String   @id @default(uuid())
+  id         String      @id @default(uuid())
   tenant_id  String
   name       String
-  date       DateTime @db.Date
-  created_at DateTime @default(now())
+  date       DateTime    @db.Date
+  type       HolidayType @default(NATIONAL)
+  recurring  Boolean     @default(false)
+  created_at DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
   @@index([tenant_id])
   @@map("holidays")
+}
+
+enum HolidayType {
+  NATIONAL   // นักขัตฤกษ์
+  RELIGIOUS  // ศาสนา
+  COMPANY    // บริษัท
 }
 
 // ─────────────────────────────────────────────
