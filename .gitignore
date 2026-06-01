@@ -8,3 +8,6 @@ brain/
 
 # Claude settings ที่มี key
 .claude/settings.local.json
+
+.vercel
+.env*.local
