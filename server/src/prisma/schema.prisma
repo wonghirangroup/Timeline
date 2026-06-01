@@ -282,6 +282,7 @@ enum LeaveType {
   PERSONAL
   VACATION
   MATERNITY
+  COMPENSATE
 }
 
 enum LeaveStatus {

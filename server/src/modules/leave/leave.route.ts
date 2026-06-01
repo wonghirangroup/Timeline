@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from './leave.service'
-import { listLeaveBalances, upsertLeaveBalance } from './leave-balance.service'
+import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEmployeesWithBalances } from './leave-balance.service'
 
 export async function leaveRoutes(app: FastifyInstance) {
 
@@ -192,6 +192,57 @@ export async function leaveRoutes(app: FastifyInstance) {
   })
 
   // ── Admin: Leave Balance ──────────────────────────────────────────
+
+  // GET /api/v1/admin/leave-balances/employees — พนักงานทุกคนพร้อม balance รวม
+  app.get('/admin/leave-balances/employees', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ดูพนักงานทุกคนพร้อม leave balance ทุกประเภท (สำหรับหน้า leave-balance)',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', properties: { year: { type: 'integer' } } },
+    },
+  }, async (req: any) => {
+    const year = req.query.year ? Number(req.query.year) : new Date().getFullYear()
+    const data = await listEmployeesWithBalances(req.tenantId, year)
+    return ok(data)
+  })
+
+  // POST /api/v1/admin/leave-balances/batch — batch upsert
+  app.post('/admin/leave-balances/batch', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'Batch upsert leave balances (apply default / seniority)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['year', 'items'],
+        properties: {
+          year:  { type: 'integer' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['employee_id', 'leave_type', 'total_days'],
+              properties: {
+                employee_id: { type: 'string' },
+                leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
+                total_days:  { type: 'integer' },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const { year, items } = req.body
+    const result = await batchUpsertLeaveBalances(
+      req.tenantId,
+      items.map((i: any) => ({ ...i, year })),
+    )
+    return ok(result, `บันทึก ${result.count} รายการสำเร็จ`)
+  })
 
   // GET /api/v1/admin/leave-balances
   app.get('/admin/leave-balances', {

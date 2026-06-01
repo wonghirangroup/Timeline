@@ -1,7 +1,20 @@
 // admin/src/pages/leave-balance/index.tsx
-import { useState, useRef, useEffect } from 'react'
-import { MOCK_LEAVE_BALANCES, MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
-import type { LeaveBalance } from '../../types'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { api } from '../../lib/axios'
+import { useToast } from '../../components/ui/Toast'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface LeaveBalance {
+  employee_id: string; employee_code: string
+  full_name: string; nickname: string
+  branch_id: string; branch_name: string
+  hired_at: string | null
+  sick:       { total: number; used: number }
+  personal:   { total: number; used: number }
+  vacation:   { total: number; used: number }
+  maternity:  { total: number; used: number }
+  compensate: { total: number; used: number }
+}
 
 // ── Seniority Rule ────────────────────────────────────────────────────────────
 interface SeniorityRule {
@@ -11,9 +24,7 @@ interface SeniorityRule {
   vacation_days: number
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type LeaveKey = 'sick' | 'personal' | 'vacation' | 'compensate'
-
 interface Quotas { sick: number; personal: number; vacation: number; compensate: number }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -27,8 +38,8 @@ const LEAVE_TYPES: { key: LeaveKey; label: string; short: string; icon: string; 
 const DEFAULT_QUOTAS: Quotas = { sick: 30, personal: 3, vacation: 6, compensate: 0 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function usedOf(b: LeaveBalance, key: LeaveKey) { return b[`${key}_used`] }
-function quotaOf(b: LeaveBalance, key: LeaveKey) { return b[`${key}_quota`] }
+function usedOf(b: LeaveBalance, key: LeaveKey): number { return b[key]?.used ?? 0 }
+function quotaOf(b: LeaveBalance, key: LeaveKey): number { return b[key]?.total ?? 0 }
 
 function statusColor(used: number, quota: number): string {
   if (quota === 0) return '#94a3b8'
@@ -51,16 +62,16 @@ function MiniBar({ used, quota, color }: { used: number; quota: number; color: s
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 interface EditModalProps {
   balance: LeaveBalance
-  onSave: (id: string, quotas: Quotas) => void
+  onSave: (id: string, quotas: Quotas) => Promise<void>
   onClose: () => void
 }
 
 function EditModal({ balance, onSave, onClose }: EditModalProps) {
   const [quotas, setQuotas] = useState<Quotas>({
-    sick:       balance.sick_quota,
-    personal:   balance.personal_quota,
-    vacation:   balance.vacation_quota,
-    compensate: balance.compensate_quota,
+    sick:       balance.sick?.total ?? 0,
+    personal:   balance.personal?.total ?? 0,
+    vacation:   balance.vacation?.total ?? 0,
+    compensate: balance.compensate?.total ?? 0,
   })
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -225,18 +236,20 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LeaveBalancePage() {
-  const [balances, setBalances] = useState<LeaveBalance[]>(MOCK_LEAVE_BALANCES)
-  const [defaults, setDefaults] = useState<Quotas>(DEFAULT_QUOTAS)
-  const [editTarget, setEditTarget] = useState<LeaveBalance | null>(null)
-  const [search, setSearch] = useState('')
+  const { showToast } = useToast()
+  const [balances,    setBalances]    = useState<LeaveBalance[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [year,        setYear]        = useState(new Date().getFullYear())
+  const [defaults,    setDefaults]    = useState<Quotas>(DEFAULT_QUOTAS)
+  const [editTarget,  setEditTarget]  = useState<LeaveBalance | null>(null)
+  const [search,      setSearch]      = useState('')
   const [branchFilter, setBranchFilter] = useState('ALL')
   const [showDefault, setShowDefault] = useState(true)
-  const [toast, setToast] = useState<{ msg: string; ok?: boolean } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
-  const [bulkQuotas, setBulkQuotas] = useState<Quotas>(DEFAULT_QUOTAS)
+  const [bulkQuotas,  setBulkQuotas]  = useState<Quotas>(DEFAULT_QUOTAS)
+  const [saving,      setSaving]      = useState(false)
 
-  // Seniority rules
   const [seniorityRules, setSeniorityRules] = useState<SeniorityRule[]>([
     { id: 's1', min_years: 0,  max_years: 1,    vacation_days: 6  },
     { id: 's2', min_years: 1,  max_years: 3,    vacation_days: 8  },
@@ -245,13 +258,27 @@ export default function LeaveBalancePage() {
   ])
   const [showSeniority, setShowSeniority] = useState(false)
 
-  function showToast(msg: string, ok = true) {
-    setToast({ msg, ok })
-    setTimeout(() => setToast(null), 2800)
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/api/v1/admin/leave-balances/employees', { params: { year } })
+      setBalances(res.data.data ?? [])
+    } catch { showToast('error', 'โหลดข้อมูลไม่สำเร็จ') }
+    finally { setLoading(false) }
+  }, [year])
+
+  useEffect(() => { load() }, [load])
+
+  // batch save ไป API
+  async function saveBatch(items: { employee_id: string; leave_type: string; total_days: number }[]) {
+    if (items.length === 0) return
+    await api.post('/api/v1/admin/leave-balances/batch', { year, items })
+    await load()
   }
 
   // Filters
   const branches = ['ALL', ...Array.from(new Set(balances.map(b => b.branch_name)))]
+  const currentYear = new Date().getFullYear()
 
   const filtered = balances.filter(b => {
     if (branchFilter !== 'ALL' && b.branch_name !== branchFilter) return false
@@ -274,77 +301,88 @@ export default function LeaveBalancePage() {
   ).length
 
   // Save single employee quota
-  function handleSave(employeeId: string, quotas: Quotas) {
-    setBalances(bs => bs.map(b =>
-      b.employee_id === employeeId ? {
-        ...b,
-        sick_quota: quotas.sick,
-        personal_quota: quotas.personal,
-        vacation_quota: quotas.vacation,
-        compensate_quota: quotas.compensate,
-      } : b
-    ))
-    setEditTarget(null)
-    showToast('บันทึกโควต้าเรียบร้อยแล้ว')
+  async function handleSave(employeeId: string, quotas: Quotas) {
+    setSaving(true)
+    try {
+      await saveBatch([
+        { employee_id: employeeId, leave_type: 'SICK',       total_days: quotas.sick },
+        { employee_id: employeeId, leave_type: 'PERSONAL',   total_days: quotas.personal },
+        { employee_id: employeeId, leave_type: 'VACATION',   total_days: quotas.vacation },
+        { employee_id: employeeId, leave_type: 'COMPENSATE', total_days: quotas.compensate },
+      ])
+      setEditTarget(null)
+      showToast('success', 'บันทึกโควต้าเรียบร้อยแล้ว')
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
   // Apply default to all
-  function handleApplyAll() {
-    setBalances(bs => bs.map(b => ({
-      ...b,
-      sick_quota: defaults.sick,
-      personal_quota: defaults.personal,
-      vacation_quota: defaults.vacation,
-      compensate_quota: defaults.compensate,
-    })))
-    showToast(`ตั้งโควต้า Default ให้พนักงานทั้งหมด ${totalEmployees} คนแล้ว`)
+  async function handleApplyAll() {
+    setSaving(true)
+    try {
+      const items = balances.flatMap(b => [
+        { employee_id: b.employee_id, leave_type: 'SICK',       total_days: defaults.sick },
+        { employee_id: b.employee_id, leave_type: 'PERSONAL',   total_days: defaults.personal },
+        { employee_id: b.employee_id, leave_type: 'VACATION',   total_days: defaults.vacation },
+        { employee_id: b.employee_id, leave_type: 'COMPENSATE', total_days: defaults.compensate },
+      ])
+      await saveBatch(items)
+      showToast('success', `ตั้งโควต้า Default ให้พนักงานทั้งหมด ${totalEmployees} คนแล้ว`)
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
   // Apply default to employees with zero quotas
-  function handleApplyNew() {
-    let count = 0
-    setBalances(bs => bs.map(b => {
-      const isNew = b.sick_quota === 0 && b.personal_quota === 0 && b.vacation_quota === 0
-      if (isNew) { count++; return { ...b, sick_quota: defaults.sick, personal_quota: defaults.personal, vacation_quota: defaults.vacation, compensate_quota: defaults.compensate } }
-      return b
-    }))
-    setTimeout(() => showToast(`ตั้งโควต้าให้พนักงานใหม่ ${count} คนแล้ว`), 100)
+  async function handleApplyNew() {
+    setSaving(true)
+    try {
+      const newEmps = balances.filter(b => b.sick.total === 0 && b.personal.total === 0 && b.vacation.total === 0)
+      const items = newEmps.flatMap(b => [
+        { employee_id: b.employee_id, leave_type: 'SICK',       total_days: defaults.sick },
+        { employee_id: b.employee_id, leave_type: 'PERSONAL',   total_days: defaults.personal },
+        { employee_id: b.employee_id, leave_type: 'VACATION',   total_days: defaults.vacation },
+        { employee_id: b.employee_id, leave_type: 'COMPENSATE', total_days: defaults.compensate },
+      ])
+      await saveBatch(items)
+      showToast('success', `ตั้งโควต้าให้พนักงานใหม่ ${newEmps.length} คนแล้ว`)
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
-  // Apply seniority rules
-  function handleApplySeniority() {
+  // Apply seniority rules (vacation days by years of service)
+  async function handleApplySeniority() {
+    setSaving(true)
     const today = new Date()
-    let count = 0
-    setBalances(bs => bs.map(b => {
-      const emp = MOCK_EMPLOYEES.find(e => e.id === b.employee_id)
-      if (!emp) return b
-      const hireDate = new Date(emp.hire_date)
-      const yearsOfService = (today.getTime() - hireDate.getTime()) / (365.25 * 24 * 3600 * 1000)
-      const rule = seniorityRules
-        .slice()
-        .sort((a, r) => b.employee_id ? 0 : 0) // keep order
-        .find(r => yearsOfService >= r.min_years && (r.max_years === null || yearsOfService < r.max_years))
-      if (!rule) return b
-      count++
-      return { ...b, vacation_quota: rule.vacation_days }
-    }))
-    setTimeout(() => showToast(`อัปเดตวันพักร้อนตามอายุงานให้พนักงาน ${MOCK_EMPLOYEES.length} คนแล้ว`), 100)
+    try {
+      const items = balances.flatMap(b => {
+        if (!b.hired_at) return []
+        const years = (today.getTime() - new Date(b.hired_at).getTime()) / (365.25 * 24 * 3600 * 1000)
+        const rule  = seniorityRules.find(r => years >= r.min_years && (r.max_years === null || years < r.max_years))
+        if (!rule) return []
+        return [{ employee_id: b.employee_id, leave_type: 'VACATION', total_days: rule.vacation_days }]
+      })
+      await saveBatch(items)
+      showToast('success', `อัปเดตวันพักร้อนตามอายุงานให้ ${items.length} คนแล้ว`)
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
   // Bulk edit selected
-  function handleBulkSave() {
-    setBalances(bs => bs.map(b =>
-      selectedIds.has(b.employee_id) ? {
-        ...b,
-        sick_quota: bulkQuotas.sick,
-        personal_quota: bulkQuotas.personal,
-        vacation_quota: bulkQuotas.vacation,
-        compensate_quota: bulkQuotas.compensate,
-      } : b
-    ))
-    showToast(`แก้ไขโควต้าพนักงาน ${selectedIds.size} คนเรียบร้อยแล้ว`)
-    setSelectedIds(new Set())
-    setBulkEditOpen(false)
+  async function handleBulkSave() {
+    setSaving(true)
+    try {
+      const items = [...selectedIds].flatMap(empId => [
+        { employee_id: empId, leave_type: 'SICK',       total_days: bulkQuotas.sick },
+        { employee_id: empId, leave_type: 'PERSONAL',   total_days: bulkQuotas.personal },
+        { employee_id: empId, leave_type: 'VACATION',   total_days: bulkQuotas.vacation },
+        { employee_id: empId, leave_type: 'COMPENSATE', total_days: bulkQuotas.compensate },
+      ])
+      await saveBatch(items)
+      showToast('success', `แก้ไขโควต้าพนักงาน ${selectedIds.size} คนเรียบร้อยแล้ว`)
+      setSelectedIds(new Set())
+      setBulkEditOpen(false)
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
 
   function toggleSelect(id: string) {
@@ -358,20 +396,9 @@ export default function LeaveBalancePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {loading && <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>กำลังโหลด...</div>}
+      {!loading && saving && <div style={{ textAlign: 'center', padding: '8px 0', color: '#4f46e5', fontSize: '0.82rem' }}>⏳ กำลังบันทึก...</div>}
 
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: 'fixed', top: 20, right: 20, zIndex: 999,
-          padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: '0.875rem',
-          background: toast.ok !== false ? '#d1fae5' : '#fee2e2',
-          color: toast.ok !== false ? '#059669' : '#dc2626',
-          border: `1px solid ${toast.ok !== false ? '#a7f3d0' : '#fecaca'}`,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        }}>
-          {toast.ok !== false ? '✅' : '❌'} {toast.msg}
-        </div>
-      )}
 
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
@@ -382,7 +409,13 @@ export default function LeaveBalancePage() {
               กำหนดจำนวนวันลาสูงสุดต่อปีของพนักงานแต่ละคน — พนักงานลาเกินโควต้าไม่ได้
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select value={year} onChange={e => setYear(Number(e.target.value))}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', cursor: 'pointer' }}>
+              {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+                <option key={y} value={y}>ปี {y + 543}</option>
+              ))}
+            </select>
             <button
               onClick={() => setShowSeniority(s => !s)}
               style={{
