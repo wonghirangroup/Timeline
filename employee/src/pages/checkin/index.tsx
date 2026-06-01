@@ -1,7 +1,7 @@
 // employee/src/pages/checkin/index.tsx
 import { useEffect, useState, useCallback } from 'react'
 import { api, liffLogin } from '../../lib/axios'
-import { initLiff }        from '../../lib/liff'
+import { initLiff, getLiffProfile } from '../../lib/liff'
 
 type ButtonState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -97,9 +97,36 @@ export default function CheckinPage() {
     ;(async () => {
       try {
         await initLiff()
-        const result = await liffLogin()
-        if (!result) { setInitError('ไม่สามารถยืนยันตัวตนได้ กรุณาเปิดผ่าน LINE'); setBooting(false); return }
+      } catch (e: any) {
+        setInitError(`LIFF init ล้มเหลว: ${e?.message ?? e}`)
+        setBooting(false)
+        return
+      }
 
+      try {
+        await liffLogin()
+      } catch (e: any) {
+        const msg = e?.response?.data?.error?.message ?? e?.message ?? String(e)
+        const code = e?.response?.data?.error?.code ?? e?.message
+
+        if (code === 'EMPLOYEE_NOT_FOUND') {
+          try {
+            const { lineUserId } = await getLiffProfile()
+            setLineUid(lineUserId)
+          } catch {}
+          setInitError('NOT_FOUND')
+        } else if (code === 'INVALID_CHANNEL') {
+          setInitError('ไม่พบการตั้งค่า Line สำหรับ tenant นี้')
+        } else if (code === 'NOT_LOGGED_IN') {
+          setInitError('กรุณาเปิดผ่าน LINE app เท่านั้น')
+        } else {
+          setInitError(`ยืนยันตัวตนไม่สำเร็จ: ${msg}`)
+        }
+        setBooting(false)
+        return
+      }
+
+      try {
         const meRes = await api.get('/employee/me')
         const { employee: emp, shifts: sh } = meRes.data.data
         setEmployee(emp)
@@ -108,14 +135,10 @@ export default function CheckinPage() {
       } catch (e: any) {
         const code = e?.response?.data?.error?.code
         if (code === 'EMPLOYEE_NOT_FOUND') {
-          // ดึง Line UID มาแสดงให้ admin copy
-          try {
-            const { lineUserId } = await import('../../lib/liff').then(m => m.getLiffProfile())
-            setLineUid(lineUserId)
-          } catch {}
+          try { const { lineUserId } = await getLiffProfile(); setLineUid(lineUserId) } catch {}
           setInitError('NOT_FOUND')
         } else {
-          setInitError('LIFF ไม่พร้อม — กรุณาเปิดผ่าน LINE')
+          setInitError(`โหลดข้อมูลไม่สำเร็จ: ${e?.response?.data?.error?.message ?? e?.message}`)
         }
       } finally { setBooting(false) }
     })()

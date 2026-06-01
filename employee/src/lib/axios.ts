@@ -20,24 +20,23 @@ api.interceptors.request.use(config => {
 })
 
 // Exchange LIFF token → JWT (เรียกครั้งเดียวตอน boot)
-export async function liffLogin(): Promise<{ employeeId: string; tenantId: string } | null> {
-  try {
-    if (!liff.isLoggedIn()) return null
-    const profile  = await liff.getProfile()
-    const idToken  = liff.getIDToken()
-    if (!idToken) return null
+// คืนค่า null = ยังไม่ login, throw Error = มีปัญหาจริง
+export async function liffLogin(): Promise<{ employeeId: string; tenantId: string }> {
+  if (!liff.isLoggedIn()) throw new Error('NOT_LOGGED_IN')
 
-    const channelId = import.meta.env.VITE_LINE_CHANNEL_ID as string
+  const profile = await liff.getProfile()
+  const idToken = liff.getIDToken()
+  if (!idToken) throw new Error('NO_ID_TOKEN')
 
-    const res = await axios.post(
-      `${import.meta.env.VITE_API_URL}/employee/auth/liff`,
-      { liff_token: idToken, line_user_id: profile.userId, line_channel_id: channelId },
-    )
+  const channelId = import.meta.env.VITE_LINE_CHANNEL_ID as string
+  const apiUrl    = import.meta.env.VITE_API_URL as string
 
-    const { token } = res.data.data
-    setJwt(token)
-    return { employeeId: res.data.data.employee.id, tenantId: '' }
-  } catch {
-    return null
-  }
+  const res = await axios.post(
+    `${apiUrl}/employee/auth/liff`,
+    { liff_token: idToken, line_user_id: profile.userId, line_channel_id: channelId },
+  )
+
+  const { token } = res.data.data
+  setJwt(token)
+  return { employeeId: res.data.data.employee.id, tenantId: '' }
 }
