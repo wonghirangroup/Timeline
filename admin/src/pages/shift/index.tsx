@@ -17,6 +17,9 @@ interface ApiShift {
   late_threshold: number
   late_threshold_1: string | null
   late_threshold_2: string | null
+  late_fine_1: string | null
+  late_fine_2: string | null
+  shift_type: 'REGULAR' | 'SPECIAL'
   is_active: boolean
   branch: { id: string; name: string }
 }
@@ -28,7 +31,10 @@ const EMPTY_FORM = {
   end_time: '18:00',
   min_checkout: '17:55',
   late_threshold_1: '08:05',
-  late_threshold_2: '08:20',
+  late_threshold_2: '08:30',
+  late_fine_1: '',
+  late_fine_2: '',
+  shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
 }
 
 const inputStyle: React.CSSProperties = {
@@ -116,13 +122,16 @@ export default function ShiftPage() {
 
   function openEdit(s: ApiShift) {
     setForm({
-      branch_id:       s.branch_id,
-      name:            s.name,
-      start_time:      s.start_time,
-      end_time:        s.end_time,
-      min_checkout:    s.min_checkout ?? '',
+      branch_id:        s.branch_id,
+      name:             s.name,
+      start_time:       s.start_time,
+      end_time:         s.end_time,
+      min_checkout:     s.min_checkout ?? '',
       late_threshold_1: s.late_threshold_1 ?? '',
       late_threshold_2: s.late_threshold_2 ?? '',
+      late_fine_1:      s.late_fine_1 ?? '',
+      late_fine_2:      s.late_fine_2 ?? '',
+      shift_type:       s.shift_type ?? 'REGULAR',
     })
     setModal({ mode: 'edit', data: s })
   }
@@ -141,6 +150,9 @@ export default function ShiftPage() {
         min_checkout:     form.min_checkout || null,
         late_threshold_1: form.late_threshold_1 || null,
         late_threshold_2: form.late_threshold_2 || null,
+        late_fine_1:      form.late_fine_1 ? parseFloat(form.late_fine_1) : null,
+        late_fine_2:      form.late_fine_2 ? parseFloat(form.late_fine_2) : null,
+        shift_type:       form.shift_type,
       }
       if (modal?.mode === 'add') {
         await api.post('/api/v1/admin/shifts', { branch_id: form.branch_id, ...payload })
@@ -297,25 +309,47 @@ export default function ShiftPage() {
                 </div>
               </div>
 
+              {/* ประเภทกะ */}
+              <div>
+                <label style={labelStyle}>ประเภทกะ</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['REGULAR', 'SPECIAL'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setForm(f => ({ ...f, shift_type: t }))}
+                      style={{ flex: 1, padding: '9px', borderRadius: 8, border: `2px solid ${form.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: form.shift_type === t ? '#ede9fe' : '#fff', color: form.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                      {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 6 }}>
+                  {form.shift_type === 'REGULAR' ? 'Auto-detect จากเวลาสแกน — ไม่ทับซ้อนกับกะอื่น' : 'เงื่อนไขพิเศษ เช่น OT หรืองานนอกสถานที่'}
+                </div>
+              </div>
+
               {/* เกณฑ์การสาย */}
               <div>
-                <p style={sectionLabel}>เกณฑ์การสาย</p>
+                <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                  ⚠️ ระดับ 1 = สาย (หักค่าปรับ) · ระดับ 2 = สายมาก / นับว่าขาดงาน
+                  ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong> (หลังจากนี้ถือว่าขาด)
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <TimeInput
-                    label="สายระดับ 1 (นับหลังจาก)"
-                    value={form.late_threshold_1}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
-                    sublabel="เช่น 08:05"
-                  />
-                  <TimeInput
-                    label="สายระดับ 2 / นับว่าขาด"
-                    value={form.late_threshold_2}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
-                    sublabel="เช่น 08:20"
-                  />
+                  <TimeInput label="สายระดับ 1 (หลังจาก)" value={form.late_threshold_1}
+                    onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))} sublabel="เช่น 08:05" />
+                  <TimeInput label="ปิดรับเช็คอิน / ขาด" value={form.late_threshold_2}
+                    onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))} sublabel="เช่น 08:30" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                  <div>
+                    <label style={labelStyle}>ค่าปรับสายระดับ 1 (บาท)</label>
+                    <input type="number" min="0" step="50" value={form.late_fine_1}
+                      onChange={e => setForm(f => ({ ...f, late_fine_1: e.target.value }))}
+                      placeholder="เช่น 50" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>ค่าปรับสายระดับ 2 (บาท)</label>
+                    <input type="number" min="0" step="50" value={form.late_fine_2}
+                      onChange={e => setForm(f => ({ ...f, late_fine_2: e.target.value }))}
+                      placeholder="เช่น 200" style={inputStyle} />
+                  </div>
                 </div>
               </div>
 

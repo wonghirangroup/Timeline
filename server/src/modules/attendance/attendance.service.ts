@@ -131,6 +131,130 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
   })
 }
 
+function toMins(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+function getNowBangkokMins(): number {
+  const now = new Date()
+  const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes()
+  return (utcMins + 7 * 60) % (24 * 60)
+}
+
+async function autoDetectShift(tenantId: string, branchId: string, employeeId: string) {
+  const nowMins = getNowBangkokMins()
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const shifts = await prisma.shift.findMany({
+    where: { tenant_id: tenantId, branch_id: branchId, is_active: true, deleted_at: null },
+    orderBy: { start_time: 'asc' },
+  })
+
+  for (const shift of shifts) {
+    const startMins  = toMins(shift.start_time)
+    const earlyMins  = startMins - 60                              // เช็คอินได้ก่อน 60 นาที
+    const closeMins  = shift.late_threshold_2
+      ? toMins(shift.late_threshold_2)
+      : startMins + 4 * 60                                         // fallback 4 ชั่วโมง
+
+    if (nowMins < earlyMins || nowMins > closeMins) continue
+
+    const existing = await prisma.attendanceRecord.findUnique({
+      where: { employee_id_shift_id_date: { employee_id: employeeId, shift_id: shift.id, date: today } },
+    })
+    if (existing) continue
+
+    return shift
+  }
+  return null
+}
+
+export async function checkInAuto(tenantId: string, data: {
+  employee_id: string
+  branch_id: string
+  gps_lat?: number
+  gps_lng?: number
+}) {
+  const branch = await prisma.branch.findFirst({
+    where: { id: data.branch_id, tenant_id: tenantId, deleted_at: null },
+  })
+  if (!branch) throw new Error('BRANCH_NOT_FOUND')
+
+  // ตรวจ GPS
+  let is_outside_area = false
+  if (branch.lat && branch.lng && data.gps_lat != null && data.gps_lng != null) {
+    const dist = Math.round(haversineMeters(
+      data.gps_lat, data.gps_lng,
+      Number(branch.lat), Number(branch.lng),
+    ))
+    if (dist > branch.gps_radius) {
+      if (branch.geo_mode === 'BLOCK') throw new Error('OUTSIDE_GEOFENCE')
+      is_outside_area = true
+    }
+  }
+
+  const shift = await autoDetectShift(tenantId, data.branch_id, data.employee_id)
+  if (!shift) throw new Error('NO_SHIFT_AVAILABLE')
+
+  const nowMins   = getNowBangkokMins()
+  const startMins = toMins(shift.start_time)
+  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
+  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+
+  let is_late    = false
+  let late_level = 0
+  let late_minutes = 0
+  let fine = 0
+
+  if (nowMins > startMins) {
+    late_minutes = nowMins - startMins
+    if (late2Mins && nowMins >= late2Mins) {
+      is_late = true; late_level = 2
+      fine = shift.late_fine_2 ? Number(shift.late_fine_2) : 0
+    } else if (late1Mins && nowMins >= late1Mins) {
+      is_late = true; late_level = 1
+      fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
+    }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const record = await prisma.attendanceRecord.create({
+    data: {
+      tenant_id:       tenantId,
+      employee_id:     data.employee_id,
+      shift_id:        shift.id,
+      date:            today,
+      check_in_at:     new Date(),
+      check_in_method: 'QR',
+      is_late,
+      late_minutes,
+      gps_lat:         data.gps_lat,
+      gps_lng:         data.gps_lng,
+      is_outside_area,
+    },
+  })
+
+  return {
+    record,
+    shift: {
+      id:         shift.id,
+      name:       shift.name,
+      start_time: shift.start_time,
+      end_time:   shift.end_time,
+    },
+    branch: { id: branch.id, name: branch.name },
+    late_level,
+    late_minutes,
+    fine,
+    is_outside_area,
+  }
+}
+
 function buildDateTime(dateStr: string, timeStr?: string): Date | null {
   if (!timeStr) return null
   const [y, mo, d]  = dateStr.split('-').map(Number)

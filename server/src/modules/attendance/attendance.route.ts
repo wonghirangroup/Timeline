@@ -5,7 +5,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
-  checkIn, checkInQR, checkOut, getEmployeeHistory,
+  checkIn, checkInQR, checkInAuto, checkOut, getEmployeeHistory,
 } from './attendance.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
@@ -117,6 +117,36 @@ export async function attendanceRoutes(app: FastifyInstance) {
     } catch (e: any) {
       if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ สาขานี้บล็อคการเช็คอินนอกพื้นที่'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): Auto check-in จาก QR (branchId เท่านั้น) ───
+  app.post('/employee/attendance/check-in-auto', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'Auto check-in — ระบบ detect กะจากเวลาปัจจุบัน (QR scan)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'branch_id'],
+        properties: {
+          employee_id: { type: 'string' },
+          branch_id:   { type: 'string' },
+          gps_lat:     { type: 'number' },
+          gps_lng:     { type: 'number' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await checkInAuto(req.tenantId, req.body)
+      return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(400).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะที่เปิดรับเช็คอินในเวลานี้ — อาจเลยเวลาที่กำหนดแล้ว'))
+      if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
+      if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
       throw e
     }
   })

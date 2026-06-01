@@ -183,9 +183,12 @@ model Shift {
   min_checkout     String?   // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
   late_threshold   Int       @default(15) // minutes — เก็บไว้ backward compat
   late_threshold_1 String?   // "08:05" — สายระดับ 1
-  late_threshold_2 String?   // "08:20" — สายระดับ 2 / นับว่าขาด
-  allow_overlap    Boolean   @default(false) // Phase 2: overlapping shifts
-  day_off_quota   Int       @default(1)     // Phase 2: weekly day-off slots
+  late_threshold_2 String?   // "08:30" — ปิดรับเช็คอิน / นับว่าขาด
+  late_fine_1      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 1 (บาท)
+  late_fine_2      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 2 (บาท)
+  shift_type       ShiftType @default(REGULAR)
+  allow_overlap    Boolean   @default(false)
+  day_off_quota   Int       @default(1)
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -230,6 +233,11 @@ model AttendanceRecord {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("attendance_records")
+}
+
+enum ShiftType {
+  REGULAR  // กะทั่วไป auto-detect จากเวลา
+  SPECIAL  // กะพิเศษ เงื่อนไขเฉพาะ
 }
 
 enum CheckInMethod {

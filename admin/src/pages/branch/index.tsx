@@ -83,18 +83,13 @@ export default function BranchPage() {
     setModal('edit')
   }
 
-  const openQr = (b: ApiBranch) => {
+  const openQr = async (b: ApiBranch) => {
     setQrTarget(b)
-    setQrShiftId('')
     setQrUrl(null)
     setModal('qr')
-  }
-
-  const loadQrUrl = async (branchId: string, shiftId: string) => {
     setQrLoading(true)
-    setQrUrl(null)
     try {
-      const res = await api.get(`/api/v1/admin/branches/${branchId}/qr`, { params: { shiftId } })
+      const res = await api.get(`/api/v1/admin/branches/${b.id}/qr`)
       setQrUrl(res.data.data.url)
     } catch {
       showToast('error', 'ดึง QR URL ไม่สำเร็จ')
@@ -392,32 +387,16 @@ export default function BranchPage() {
               </button>
             </div>
 
-            {/* เลือกกะ */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>เลือกกะ *</label>
-              <select value={qrShiftId}
-                onChange={e => {
-                  setQrShiftId(e.target.value)
-                  if (e.target.value) loadQrUrl(qrTarget.id, e.target.value)
-                  else setQrUrl(null)
-                }}
-                style={inputStyle}>
-                <option value="">— เลือกกะที่ต้องการสร้าง QR —</option>
-                {shifts.filter(s => (s as any).branch_id === qrTarget.id || true).map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                ))}
-              </select>
-            </div>
+            <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 16px', lineHeight: 1.5 }}>
+              1 QR ต่อ 1 สาขา — ระบบจะ detect กะโดยอัตโนมัติจากเวลาที่สแกน
+            </p>
 
             {/* QR Image */}
             <div style={{ textAlign: 'center', minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
-              {!qrShiftId && (
-                <p style={{ color: '#9ca3af', fontSize: '13px' }}>เลือกกะเพื่อสร้าง QR</p>
-              )}
-              {qrShiftId && qrLoading && (
+              {qrLoading && (
                 <p style={{ color: '#9ca3af', fontSize: '13px' }}>⏳ กำลังสร้าง QR...</p>
               )}
-              {qrShiftId && !qrLoading && qrUrl && (
+              {!qrLoading && qrUrl && (
                 <>
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`}
@@ -440,8 +419,8 @@ export default function BranchPage() {
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ปิด</button>
               {qrUrl && (
-                <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}`}
-                  download={`qr-${qrTarget.name}.png`} target="_blank" rel="noreferrer"
+                <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}&format=png`}
+                  download={`qr-checkin-${qrTarget.name}.png`} target="_blank" rel="noreferrer"
                   style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   ดาวน์โหลด QR
                 </a>

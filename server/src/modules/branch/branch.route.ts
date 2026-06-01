@@ -88,23 +88,18 @@ export async function branchRoutes(app: FastifyInstance) {
     return ok(branch, 'อัปเดตสาขาสำเร็จ')
   })
 
-  // GET /api/v1/admin/branches/:id/qr?shiftId=xxx
+  // GET /api/v1/admin/branches/:id/qr
   app.get('/branches/:id/qr', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
-      summary: 'ดึง URL สำหรับสร้าง QR เช็คอิน (BLOCK mode)',
+      summary: 'ดึง URL สำหรับสร้าง QR เช็คอิน (1 QR ต่อ 1 สาขา)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      querystring: {
-        type: 'object',
-        required: ['shiftId'],
-        properties: { shiftId: { type: 'string' } },
-      },
     },
   }, async (req: any, reply) => {
-    const result = await getBranchQrUrl(req.tenantId, req.params.id, req.query.shiftId)
-    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขาหรือกะนี้'))
+    const result = await getBranchQrUrl(req.tenantId, req.params.id)
+    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
     return ok(result)
   })
 
