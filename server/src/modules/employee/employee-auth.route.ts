@@ -90,6 +90,52 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     return ok(employees)
   })
 
+  // POST /api/v1/employee/link
+  // พนักงานเลือกชื่อตัวเองจากรายการ → ผูก line_user_id ทันที (ไม่ต้องกรอกรหัส)
+  app.post('/employee/link', {
+    schema: {
+      tags: ['Employee'],
+      summary: 'ผูก Line UID กับพนักงานที่เลือก',
+      body: {
+        type: 'object',
+        required: ['liff_token', 'line_user_id', 'line_channel_id', 'employee_id'],
+        properties: {
+          liff_token:      { type: 'string' },
+          line_user_id:    { type: 'string' },
+          line_channel_id: { type: 'string' },
+          employee_id:     { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const { liff_token, line_user_id, line_channel_id, employee_id } = req.body
+
+    const config = await getTenantByChannelId(line_channel_id)
+    if (!config) return reply.code(401).send(fail('INVALID_CHANNEL', 'ไม่พบ tenant'))
+
+    const verifiedUid = await verifyLiffIdToken(liff_token, line_channel_id)
+    if (!verifiedUid || verifiedUid !== line_user_id) {
+      return reply.code(401).send(fail('INVALID_TOKEN', 'LIFF token ไม่ถูกต้อง'))
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employee_id, tenant_id: config.tenant.id, deleted_at: null, is_active: true },
+    })
+    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+
+    if (employee.line_user_id && employee.line_user_id !== line_user_id) {
+      return reply.code(409).send(fail('ALREADY_LINKED', 'พนักงานนี้ผูก Line อื่นไปแล้ว'))
+    }
+
+    await prisma.employee.update({ where: { id: employee.id }, data: { line_user_id } })
+
+    const token = await (app as any).jwt.sign({
+      id: employee.id, tenant_id: config.tenant.id, role: 'EMPLOYEE', employee_id: employee.id,
+    }, { expiresIn: '12h' })
+
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name } }, 'ผูกบัญชีสำเร็จ')
+  })
+
   // POST /api/v1/employee/verify
   // พนักงานยืนยันตัวตนครั้งแรก — ผูก line_user_id กับ employee_code
   app.post('/employee/verify', {
