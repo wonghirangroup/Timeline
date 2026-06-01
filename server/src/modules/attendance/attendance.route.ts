@@ -6,7 +6,7 @@ import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
-  checkIn, checkInQR, checkInAuto, checkOut, getEmployeeHistory,
+  checkIn, checkInQR, checkInAuto, checkOut, checkOutAuto, getTodayAttendance, getEmployeeHistory,
 } from './attendance.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
@@ -197,6 +197,44 @@ export async function attendanceRoutes(app: FastifyInstance) {
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ — QR นี้ใช้ได้เฉพาะในสาขา'))
       if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): บันทึกวันนี้ ───────────────────────────────────
+  app.get('/employee/attendance/today', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูบันทึกเช็คชื่อวันนี้ของตัวเอง (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
+    },
+  }, async (req: any) => {
+    const records = await getTodayAttendance(req.tenantId, req.query.employeeId)
+    return ok(records)
+  })
+
+  // ── Employee (LIFF): Check-out Auto ──────────────────────────────
+  app.post('/employee/attendance/check-out-auto', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'เช็คเอาต์อัตโนมัติ — หากะที่ยังไม่เช็คเอาต์วันนี้ (LIFF)',
+      security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await checkOutAuto(req.tenantId, req.body.employee_id)
+      return ok(result, 'เช็คเอาต์สำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'NOT_CHECKED_IN')      return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินวันนี้'))
+      if (e.message === 'ALREADY_CHECKED_OUT') return reply.code(409).send(fail('ALREADY_CHECKED_OUT', 'เช็คเอาต์แล้ว'))
+      if (e.message?.startsWith('TOO_EARLY:')) {
+        const time = e.message.split(':')[1]
+        return reply.code(400).send(fail('TOO_EARLY', `ยังเช็คเอาต์ไม่ได้ — เช็คเอาต์ได้หลัง ${time} น.`))
+      }
       throw e
     }
   })

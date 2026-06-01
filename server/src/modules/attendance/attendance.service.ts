@@ -414,21 +414,64 @@ export async function checkOut(tenantId: string, data: {
   today.setHours(0, 0, 0, 0)
 
   const record = await prisma.attendanceRecord.findUnique({
-    where: {
-      employee_id_shift_id_date: {
-        employee_id: data.employee_id,
-        shift_id: data.shift_id,
-        date: today,
-      },
-    },
+    where: { employee_id_shift_id_date: { employee_id: data.employee_id, shift_id: data.shift_id, date: today } },
   })
-
   if (!record) throw new Error('NOT_CHECKED_IN')
   if (record.check_out_at) throw new Error('ALREADY_CHECKED_OUT')
 
   return prisma.attendanceRecord.update({
     where: { id: record.id },
     data: { check_out_at: new Date() },
+  })
+}
+
+export async function checkOutAuto(tenantId: string, employeeId: string) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const records = await prisma.attendanceRecord.findMany({
+    where: {
+      tenant_id:    tenantId,
+      employee_id:  employeeId,
+      date:         today,
+      check_in_at:  { not: null },
+      check_out_at: null,
+    },
+    include: { shift: true },
+    orderBy: { check_in_at: 'asc' },
+  })
+
+  if (records.length === 0) throw new Error('NOT_CHECKED_IN')
+
+  const record = records[records.length - 1]
+
+  if (record.shift.min_checkout) {
+    const nowMins  = getNowBangkokMins()
+    const minMins  = toMins(record.shift.min_checkout)
+    if (nowMins < minMins) throw new Error(`TOO_EARLY:${record.shift.min_checkout}`)
+  }
+
+  const updated = await prisma.attendanceRecord.update({
+    where: { id: record.id },
+    data:  { check_out_at: new Date() },
+    include: { shift: { select: { id: true, name: true, start_time: true, end_time: true } } },
+  })
+
+  const checkInMs  = new Date(record.check_in_at!).getTime()
+  const checkOutMs = new Date(updated.check_out_at!).getTime()
+  const workMinutes = Math.round((checkOutMs - checkInMs) / 60000)
+
+  return { record: updated, workMinutes }
+}
+
+export async function getTodayAttendance(tenantId: string, employeeId: string) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  return prisma.attendanceRecord.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId, date: today },
+    include: { shift: { select: { id: true, name: true, start_time: true, end_time: true, min_checkout: true } } },
+    orderBy: { check_in_at: 'asc' },
   })
 }
 
