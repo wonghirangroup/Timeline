@@ -86,7 +86,9 @@ const corsOrigins = [
   process.env.CORS_ADMIN_URL,
   process.env.CORS_SUPERADMIN_URL,
   process.env.CORS_EMPLOYEE_URL,
-].filter(Boolean) as string[]
+]
+  .filter(Boolean)
+  .flatMap(v => v!.split(',').map(s => s.trim()))
 
 app.register(cors, {
   origin: corsOrigins.length > 0 ? corsOrigins : true,
