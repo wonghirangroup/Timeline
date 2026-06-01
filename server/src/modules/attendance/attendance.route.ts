@@ -5,7 +5,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
-  checkIn, checkOut, getEmployeeHistory,
+  checkIn, checkInQR, checkOut, getEmployeeHistory,
 } from './attendance.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
@@ -103,6 +103,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
         properties: {
           employee_id: { type: 'string' },
           shift_id:    { type: 'string' },
+          branch_id:   { type: 'string' },
+          gps_lat:     { type: 'number' },
+          gps_lng:     { type: 'number' },
           note:        { type: 'string' },
         },
       },
@@ -112,9 +115,39 @@ export async function attendanceRoutes(app: FastifyInstance) {
       const record = await checkIn(req.tenantId, req.body)
       return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
-      if (e.message === 'ALREADY_CHECKED_IN') {
-        return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
-      }
+      if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
+      if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ สาขานี้บล็อคการเช็คอินนอกพื้นที่'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): Check-in ด้วย QR (BLOCK mode) ──────────────
+  app.post('/employee/attendance/check-in-qr', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'เช็คอินด้วย QR scan — ต้องอยู่ในพื้นที่เท่านั้น',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'shift_id', 'branch_id', 'gps_lat', 'gps_lng'],
+        properties: {
+          employee_id: { type: 'string' },
+          shift_id:    { type: 'string' },
+          branch_id:   { type: 'string' },
+          gps_lat:     { type: 'number' },
+          gps_lng:     { type: 'number' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const record = await checkInQR(req.tenantId, req.body)
+      return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ — QR นี้ใช้ได้เฉพาะในสาขา'))
+      if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
+      if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
       throw e
     }
   })

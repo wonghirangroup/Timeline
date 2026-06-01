@@ -10,10 +10,14 @@ interface ApiBranch {
   location: string | null
   lat: string | null
   lng: string | null
+  gps_radius: number
+  geo_mode: 'WARN' | 'BLOCK'
   is_active: boolean
   created_at: string
   _count: { employees: number; shifts: number }
 }
+
+interface ApiShift { id: string; name: string; start_time: string; end_time: string }
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -40,9 +44,15 @@ export default function BranchPage() {
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
-  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '' })
+  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK' })
   const [saving, setSaving]       = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
+
+  // QR state
+  const [shifts, setShifts]         = useState<ApiShift[]>([])
+  const [qrShiftId, setQrShiftId]   = useState('')
+  const [qrUrl, setQrUrl]           = useState<string | null>(null)
+  const [qrLoading, setQrLoading]   = useState(false)
 
   async function load() {
     try {
@@ -56,18 +66,41 @@ export default function BranchPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.get('/api/v1/admin/shifts').then(r => setShifts(r.data.data ?? [])).catch(() => {})
+  }, [])
 
   const openAdd = () => {
-    setForm({ name: '', location: '', lat: '', lng: '' })
+    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' })
     setEditTarget(null)
     setModal('add')
   }
 
   const openEdit = (b: ApiBranch) => {
-    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '' })
+    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN' })
     setEditTarget(b)
     setModal('edit')
+  }
+
+  const openQr = (b: ApiBranch) => {
+    setQrTarget(b)
+    setQrShiftId('')
+    setQrUrl(null)
+    setModal('qr')
+  }
+
+  const loadQrUrl = async (branchId: string, shiftId: string) => {
+    setQrLoading(true)
+    setQrUrl(null)
+    try {
+      const res = await api.get(`/api/v1/admin/branches/${branchId}/qr`, { params: { shiftId } })
+      setQrUrl(res.data.data.url)
+    } catch {
+      showToast('error', 'ดึง QR URL ไม่สำเร็จ')
+    } finally {
+      setQrLoading(false)
+    }
   }
 
   const getGPS = () => {
@@ -89,9 +122,12 @@ export default function BranchPage() {
     setSaving(true)
     const latNum = parseFloat(form.lat)
     const lngNum = parseFloat(form.lng)
+    const radiusNum = parseInt(form.gps_radius)
     const geoPayload = {
-      lat: !isNaN(latNum) && form.lat ? latNum : undefined,
-      lng: !isNaN(lngNum) && form.lng ? lngNum : undefined,
+      lat:        !isNaN(latNum) && form.lat ? latNum : undefined,
+      lng:        !isNaN(lngNum) && form.lng ? lngNum : undefined,
+      gps_radius: !isNaN(radiusNum) ? radiusNum : 200,
+      geo_mode:   form.geo_mode,
     }
     try {
       if (modal === 'add') {
@@ -192,13 +228,20 @@ export default function BranchPage() {
                 </p>
               )}
               {b.lat && b.lng && (
-                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 12px', fontFamily: 'monospace' }}>
-                  🌐 {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)}
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 4px', fontFamily: 'monospace' }}>
+                  🌐 {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)} · {b.gps_radius}m
+                </p>
+              )}
+              {b.lat && b.lng && (
+                <p style={{ fontSize: '11px', margin: '0 0 12px' }}>
+                  <span style={{ padding: '2px 7px', borderRadius: 99, fontWeight: 600, fontSize: '11px', background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
+                    {b.geo_mode === 'BLOCK' ? '🚫 BLOCK' : '⚠️ WARN'}
+                  </span>
                 </p>
               )}
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => { setQrTarget(b); setModal('qr') }}
+                <button onClick={() => openQr(b)}
                   style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -298,6 +341,31 @@ export default function BranchPage() {
                   </div>
                 )}
               </div>
+
+              {/* Geofencing settings */}
+              <div style={{ paddingTop: 4, borderTop: '1px solid #f1f5f9' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 10 }}>ตั้งค่า Geofencing</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: 4 }}>รัศมี (เมตร)</label>
+                    <input type="number" min="50" max="5000" value={form.gps_radius}
+                      onChange={e => setForm(f => ({ ...f, gps_radius: e.target.value }))}
+                      style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: 4 }}>โหมดนอกพื้นที่</label>
+                    <select value={form.geo_mode} onChange={e => setForm(f => ({ ...f, geo_mode: e.target.value as 'WARN' | 'BLOCK' }))} style={inputStyle}>
+                      <option value="WARN">⚠️ แจ้งเตือน (WARN)</option>
+                      <option value="BLOCK">🚫 บล็อค (BLOCK)</option>
+                    </select>
+                  </div>
+                </div>
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '8px 0 0', lineHeight: 1.5 }}>
+                  {form.geo_mode === 'BLOCK'
+                    ? 'BLOCK: พนักงานต้องสแกน QR ที่สาขาเท่านั้น ถ้าอยู่นอกพื้นที่จะเช็คอินไม่ได้'
+                    : 'WARN: เช็คอินได้แต่บันทึกว่า "นอกพื้นที่" ไว้ในรายงาน'}
+                </p>
+              </div>
             </div>
             <div style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
@@ -313,15 +381,71 @@ export default function BranchPage() {
       {/* QR Modal */}
       {modal === 'qr' && qrTarget && (
         <div style={sheetOverlay} onClick={() => setModal(null)}>
-          <div style={{ ...sheetBox(300), padding: '28px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 4px' }}>QR Code เช็คอิน</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 18px' }}>{qrTarget.name}</p>
-            <img src={QR_SVG} alt="QR" style={{ width: 160, height: 160, margin: '0 auto 14px', display: 'block', borderRadius: 8 }} />
-            <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 20px' }}>พนักงานสแกน QR นี้เพื่อเช็คอิน</p>
-            <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ ...sheetBox(360), padding: '24px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>QR Code เช็คอิน</p>
+                <p style={{ fontSize: '12px', color: '#9ca3af', margin: '2px 0 0' }}>{qrTarget.name}</p>
+              </div>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* เลือกกะ */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5 }}>เลือกกะ *</label>
+              <select value={qrShiftId}
+                onChange={e => {
+                  setQrShiftId(e.target.value)
+                  if (e.target.value) loadQrUrl(qrTarget.id, e.target.value)
+                  else setQrUrl(null)
+                }}
+                style={inputStyle}>
+                <option value="">— เลือกกะที่ต้องการสร้าง QR —</option>
+                {shifts.filter(s => (s as any).branch_id === qrTarget.id || true).map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* QR Image */}
+            <div style={{ textAlign: 'center', minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
+              {!qrShiftId && (
+                <p style={{ color: '#9ca3af', fontSize: '13px' }}>เลือกกะเพื่อสร้าง QR</p>
+              )}
+              {qrShiftId && qrLoading && (
+                <p style={{ color: '#9ca3af', fontSize: '13px' }}>⏳ กำลังสร้าง QR...</p>
+              )}
+              {qrShiftId && !qrLoading && qrUrl && (
+                <>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`}
+                    alt="QR Check-in"
+                    style={{ width: 180, height: 180, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                  />
+                  <div style={{ width: '100%', background: '#f9fafb', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span style={{ flex: 1, fontSize: '10px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{qrUrl}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(qrUrl); showToast('success', 'คัดลอก URL แล้ว') }}
+                      style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151', fontWeight: 600 }}>
+                      คัดลอก
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>พนักงานสแกน QR นี้เพื่อเช็คอินผ่าน LINE</p>
+                </>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ปิด</button>
-              <button onClick={() => { showToast('info', 'ฟีเจอร์ดาวน์โหลด QR จะพร้อมเร็วๆ นี้'); setModal(null) }}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>ดาวน์โหลด</button>
+              {qrUrl && (
+                <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}`}
+                  download={`qr-${qrTarget.name}.png`} target="_blank" rel="noreferrer"
+                  style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  ดาวน์โหลด QR
+                </a>
+              )}
             </div>
           </div>
         </div>

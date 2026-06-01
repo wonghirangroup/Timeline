@@ -77,7 +77,7 @@ export async function createManualAttendance(tenantId: string, data: {
       date:            dateObj,
       check_in_at:     checkInAt ?? undefined,
       check_out_at:    buildDateTime(data.date, data.check_out_at) ?? undefined,
-      check_in_method: 'WEB_FALLBACK',
+      check_in_method: 'ADMIN',
       is_late,
       late_minutes,
       note:            data.note,
@@ -139,9 +139,20 @@ function buildDateTime(dateStr: string, timeStr?: string): Date | null {
   return new Date(Date.UTC(y, mo - 1, d, h - 7, m, 0, 0))
 }
 
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000
+  const toRad = (d: number) => d * Math.PI / 180
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export async function checkIn(tenantId: string, data: {
   employee_id: string
   shift_id: string
+  branch_id?: string
+  gps_lat?: number
+  gps_lng?: number
   note?: string
 }) {
   const today = new Date()
@@ -173,17 +184,100 @@ export async function checkIn(tenantId: string, data: {
     }
   }
 
+  // ตรวจสอบ GPS vs geo_mode ของสาขา
+  let is_outside_area = false
+
+  if (data.branch_id && data.gps_lat != null && data.gps_lng != null) {
+    const branch = await prisma.branch.findFirst({ where: { id: data.branch_id } })
+    if (branch?.lat && branch?.lng) {
+      const dist = Math.round(haversineMeters(
+        data.gps_lat, data.gps_lng,
+        Number(branch.lat), Number(branch.lng),
+      ))
+      if (dist > branch.gps_radius) {
+        if (branch.geo_mode === 'BLOCK') throw new Error('OUTSIDE_GEOFENCE')
+        is_outside_area = true
+      }
+    }
+  }
+
   return prisma.attendanceRecord.create({
     data: {
-      tenant_id:        tenantId,
-      employee_id:      data.employee_id,
-      shift_id:         data.shift_id,
-      date:             today,
-      check_in_at:      new Date(),
-      check_in_method:  'LIFF',
+      tenant_id:       tenantId,
+      employee_id:     data.employee_id,
+      shift_id:        data.shift_id,
+      date:            today,
+      check_in_at:     new Date(),
+      check_in_method: 'LIFF',
       is_late,
       late_minutes,
-      note:             data.note,
+      gps_lat:         data.gps_lat,
+      gps_lng:         data.gps_lng,
+      is_outside_area,
+      note:            data.note ?? null,
+    },
+  })
+}
+
+export async function checkInQR(tenantId: string, data: {
+  employee_id: string
+  shift_id: string
+  branch_id: string
+  gps_lat: number
+  gps_lng: number
+}) {
+  const branch = await prisma.branch.findFirst({
+    where: { id: data.branch_id, tenant_id: tenantId, deleted_at: null },
+  })
+  if (!branch) throw new Error('BRANCH_NOT_FOUND')
+
+  if (branch.lat && branch.lng) {
+    const dist = Math.round(haversineMeters(
+      data.gps_lat, data.gps_lng,
+      Number(branch.lat), Number(branch.lng),
+    ))
+    if (dist > branch.gps_radius) throw new Error('OUTSIDE_GEOFENCE')
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const existing = await prisma.attendanceRecord.findUnique({
+    where: {
+      employee_id_shift_id_date: {
+        employee_id: data.employee_id,
+        shift_id: data.shift_id,
+        date: today,
+      },
+    },
+  })
+  if (existing) throw new Error('ALREADY_CHECKED_IN')
+
+  const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
+  let is_late = false
+  let late_minutes = 0
+
+  if (shift) {
+    const [h, m] = shift.start_time.split(':').map(Number)
+    const shiftStartMs = new Date().setHours(h, m, 0, 0)
+    const thresholdMs = shiftStartMs + shift.late_threshold * 60 * 1000
+    is_late = Date.now() > thresholdMs
+    if (is_late) late_minutes = Math.floor((Date.now() - shiftStartMs) / 60000)
+  }
+
+  return prisma.attendanceRecord.create({
+    data: {
+      tenant_id:       tenantId,
+      employee_id:     data.employee_id,
+      shift_id:        data.shift_id,
+      date:            today,
+      check_in_at:     new Date(),
+      check_in_method: 'QR',
+      is_late,
+      late_minutes,
+      gps_lat:         data.gps_lat,
+      gps_lng:         data.gps_lng,
+      is_outside_area: false,
     },
   })
 }

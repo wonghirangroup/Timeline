@@ -43,6 +43,11 @@ enum TenantPlan {
   ENTERPRISE
 }
 
+enum GeoMode {
+  WARN   // เช็คอินได้แต่ flag is_outside_area
+  BLOCK  // บล็อค — ต้องสแกน QR ในพื้นที่เท่านั้น
+}
+
 model TenantLineConfig {
   id                  String   @id @default(uuid())
   tenant_id           String   @unique
@@ -136,6 +141,8 @@ model Branch {
   location   String?
   lat        Decimal?  @db.Decimal(10, 8)
   lng        Decimal?  @db.Decimal(11, 8)
+  gps_radius Int       @default(200)   // รัศมียอมรับ (เมตร)
+  geo_mode   GeoMode   @default(WARN)  // WARN=แจ้งเตือน, BLOCK=บล็อค
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
@@ -208,8 +215,9 @@ model AttendanceRecord {
   check_in_method  CheckInMethod       @default(LIFF)
   is_late          Boolean             @default(false)
   late_minutes     Int                 @default(0)
-  gps_lat          Decimal?            @db.Decimal(10, 8) // Phase 4: off-site
+  gps_lat          Decimal?            @db.Decimal(10, 8)
   gps_lng          Decimal?            @db.Decimal(11, 8)
+  is_outside_area  Boolean             @default(false)   // true = เช็คอินนอกรัศมี (WARN mode)
   attachment_url   String?             // Phase 4: selfie fallback
   note             String?
   created_at       DateTime            @default(now())
@@ -225,7 +233,9 @@ model AttendanceRecord {
 }
 
 enum CheckInMethod {
-  LIFF
+  LIFF          // ปกติผ่าน LIFF
+  QR            // สแกน QR ที่สาขา (BLOCK mode)
+  ADMIN         // Admin ลงให้ด้วยตนเอง
   WEB_FALLBACK  // Phase 4: Line ล่ม fallback
   SELFIE        // Phase 4: offline selfie
   OFFSITE       // Phase 4: GPS off-site

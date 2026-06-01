@@ -13,10 +13,12 @@ interface ApiRecord {
   employee_id: string
   shift_id: string
   date: string
-  check_in_at:  string | null
-  check_out_at: string | null
-  is_late: boolean
-  late_minutes: number
+  check_in_at:    string | null
+  check_out_at:   string | null
+  check_in_method: 'LIFF' | 'QR' | 'ADMIN' | 'WEB_FALLBACK' | 'SELFIE' | 'OFFSITE'
+  is_late:         boolean
+  late_minutes:    number
+  is_outside_area: boolean
   note: string | null
   employee: {
     id: string; first_name: string; last_name: string
@@ -63,6 +65,15 @@ function timeToStr(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const METHOD_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  LIFF:         { label: 'LIFF',    color: '#2563eb', bg: '#dbeafe' },
+  QR:           { label: 'QR',      color: '#7c3aed', bg: '#ede9fe' },
+  ADMIN:        { label: 'Admin',   color: '#0891b2', bg: '#cffafe' },
+  WEB_FALLBACK: { label: 'Web',     color: '#64748b', bg: '#f1f5f9' },
+  SELFIE:       { label: 'Selfie',  color: '#be185d', bg: '#fce7f3' },
+  OFFSITE:      { label: 'Offsite', color: '#b45309', bg: '#fef3c7' },
 }
 
 function toMins(hhmm: string): number {
@@ -320,9 +331,16 @@ export default function AttendancePage() {
                       </div>
                       <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{s.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
                       <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>ออก: {fmtTime(row.record?.check_out_at ?? null)}</span>
+                      {row.record?.check_in_method && (() => {
+                        const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
+                        return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
+                      })()}
+                      {row.record?.is_outside_area && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706' }}>⚠️ นอกพื้นที่</span>
+                      )}
                       <div style={{ marginLeft: 'auto' }}>
                         {row.record
                           ? <button onClick={() => openEdit(row)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}>✏ แก้ไข</button>
@@ -339,14 +357,14 @@ export default function AttendancePage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ background: '#dbeafe' }}>
-                    {['รหัส', 'ชื่อ-สกุล', 'สาขา', 'กะ', 'เวลาเข้า', 'เวลาออก', 'สาย', 'สถานะ', 'จัดการ'].map(h => (
+                    {['รหัส', 'ชื่อ-สกุล', 'สาขา', 'กะ', 'เวลาเข้า', 'เวลาออก', 'วิธี', 'สาย', 'สถานะ', 'จัดการ'].map(h => (
                       <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#1e40af', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 && (
-                    <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</td></tr>
+                    <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</td></tr>
                   )}
                   {filtered.map((row, i) => {
                     const s = STATUS_CFG[row.status]
@@ -365,11 +383,22 @@ export default function AttendancePage() {
                             : <span style={{ color: '#d1d5db' }}>—</span>}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          {row.record?.check_in_at
-                            ? <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>{fmtTime(row.record.check_in_at)}</span>
-                            : <span style={{ color: '#d1d5db' }}>—</span>}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {row.record?.check_in_at
+                              ? <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '2px 10px', fontWeight: 700, width: 'fit-content' }}>{fmtTime(row.record.check_in_at)}</span>
+                              : <span style={{ color: '#d1d5db' }}>—</span>}
+                            {row.record?.is_outside_area && (
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#fef3c7', color: '#d97706', width: 'fit-content' }}>⚠️ นอกพื้นที่</span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '11px 14px', color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null)}</td>
+                        <td style={{ padding: '11px 14px' }}>
+                          {row.record?.check_in_method ? (() => {
+                            const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
+                            return <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
+                          })() : <span style={{ color: '#d1d5db' }}>—</span>}
+                        </td>
                         <td style={{ padding: '11px 14px', fontSize: '0.78rem' }}>
                           {row.record?.is_late
                             ? <span style={{ color: '#d97706', fontWeight: 600 }}>{row.record.late_minutes} นาที</span>

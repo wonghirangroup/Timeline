@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listBranches, getBranch, createBranch, updateBranch, deleteBranch } from './branch.service'
+import { listBranches, getBranch, createBranch, updateBranch, deleteBranch, getBranchQrUrl } from './branch.service'
 
 const TAG = 'Admin'
 
@@ -47,10 +47,12 @@ export async function branchRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['name'],
         properties: {
-          name:     { type: 'string' },
-          location: { type: 'string' },
-          lat:      { type: 'number' },
-          lng:      { type: 'number' },
+          name:       { type: 'string' },
+          location:   { type: 'string' },
+          lat:        { type: 'number' },
+          lng:        { type: 'number' },
+          gps_radius: { type: 'number', description: 'รัศมียอมรับ (เมตร) default 200' },
+          geo_mode:   { type: 'string', enum: ['WARN', 'BLOCK'], description: 'WARN=แจ้งเตือน, BLOCK=บล็อค' },
         },
       },
     },
@@ -70,11 +72,13 @@ export async function branchRoutes(app: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          name:      { type: 'string' },
-          location:  { type: 'string' },
-          lat:       { type: 'number' },
-          lng:       { type: 'number' },
-          is_active: { type: 'boolean' },
+          name:       { type: 'string' },
+          location:   { type: 'string' },
+          lat:        { type: 'number' },
+          lng:        { type: 'number' },
+          gps_radius: { type: 'number' },
+          geo_mode:   { type: 'string', enum: ['WARN', 'BLOCK'] },
+          is_active:  { type: 'boolean' },
         },
       },
     },
@@ -82,6 +86,26 @@ export async function branchRoutes(app: FastifyInstance) {
     const branch = await updateBranch(req.tenantId, req.params.id, req.body)
     if (!branch) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
     return ok(branch, 'อัปเดตสาขาสำเร็จ')
+  })
+
+  // GET /api/v1/admin/branches/:id/qr?shiftId=xxx
+  app.get('/branches/:id/qr', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: [TAG],
+      summary: 'ดึง URL สำหรับสร้าง QR เช็คอิน (BLOCK mode)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      querystring: {
+        type: 'object',
+        required: ['shiftId'],
+        properties: { shiftId: { type: 'string' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    const result = await getBranchQrUrl(req.tenantId, req.params.id, req.query.shiftId)
+    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขาหรือกะนี้'))
+    return ok(result)
   })
 
   // DELETE /api/v1/admin/branches/:id
