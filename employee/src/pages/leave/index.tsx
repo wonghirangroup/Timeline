@@ -11,6 +11,10 @@ interface LeaveRequest {
   days: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   reviewed_at: string | null; reject_note: string | null
 }
+interface WeeklyOffRequest {
+  id: string; week_start: string; day_of_week: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'; reject_note: string | null
+}
 
 const STATUS_CFG = {
   PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
@@ -43,7 +47,32 @@ function countDays(start: string, end: string): number {
   return count
 }
 
-type Tab = 'history' | 'request'
+const DAYS_FULL = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+const WO_STATUS_CFG = {
+  PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+  APPROVED: { label: 'อนุมัติแล้ว', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+  REJECTED: { label: 'ไม่อนุมัติ', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
+}
+
+function getMondayStr(date: Date): string {
+  const d = new Date(date), day = d.getDay()
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+  return d.toISOString().slice(0, 10)
+}
+function addWeeks(baseMonday: string, n: number): string {
+  const d = new Date(baseMonday + 'T00:00:00')
+  d.setDate(d.getDate() + n * 7)
+  return d.toISOString().slice(0, 10)
+}
+function fmtWeekRange(monday: string): string {
+  const start = new Date(monday + 'T00:00:00')
+  const end   = new Date(monday + 'T00:00:00')
+  end.setDate(end.getDate() + 6)
+  const m = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+  return `${start.getDate()} ${m[start.getMonth()]} – ${end.getDate()} ${m[end.getMonth()]} ${end.getFullYear()+543}`
+}
+
+type Tab = 'history' | 'request' | 'weekly'
 
 export default function LeavePage() {
   const navigate    = useNavigate()
@@ -51,19 +80,28 @@ export default function LeavePage() {
   const [balances,  setBalances]  = useState<LeaveBalance[]>([])
   const [requests,  setRequests]  = useState<LeaveRequest[]>([])
   const [booting,   setBooting]   = useState(true)
-  const [tab,       setTab]       = useState<Tab>('history')
-  const [form,      setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
+  const [tab,        setTab]        = useState<Tab>('history')
+  const [form,       setForm]       = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
-  const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
+  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
+
+  // weekly off
+  const [woRequests,   setWoRequests]   = useState<WeeklyOffRequest[]>([])
+  const [woWeek,       setWoWeek]       = useState(() => getMondayStr(new Date()))
+  const [woSelectedDay, setWoDay]       = useState<number | null>(null)
+  const [woSubmitting, setWoSubmitting] = useState(false)
+  const [woDone,       setWoDone]       = useState(false)
 
   const load = useCallback(async (empId: string) => {
-    const [reqRes, balRes] = await Promise.all([
+    const [reqRes, balRes, woRes] = await Promise.all([
       api.get('/employee/leave-requests', { params: { employeeId: empId } }),
       api.get('/employee/leave-balances',  { params: { employeeId: empId, year: new Date().getFullYear() } }),
+      api.get('/employee/weekly-off',      { params: { employeeId: empId } }),
     ])
     setRequests((reqRes.data.data ?? []).sort((a: LeaveRequest, b: LeaveRequest) => b.start_date.localeCompare(a.start_date)))
     setBalances(balRes.data.data ?? [])
+    setWoRequests(woRes.data.data ?? [])
   }, [])
 
   useEffect(() => {
@@ -108,6 +146,26 @@ export default function LeavePage() {
       else setErrorMsg(err?.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด')
     } finally { setSubmitting(false) }
   }, [employee, form, load])
+
+  const handleWeeklyOff = useCallback(async () => {
+    if (!employee || woSelectedDay === null) return
+    setWoSubmitting(true)
+    setErrorMsg(null)
+    try {
+      await api.post('/employee/weekly-off', {
+        employee_id: employee.id,
+        week_start:  woWeek,
+        day_of_week: woSelectedDay,
+      })
+      await load(employee.id)
+      setWoDone(true)
+      setWoDay(null)
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code
+      if (code === 'ALREADY_REQUESTED') setErrorMsg('มีการขอวันหยุดสัปดาห์นี้แล้ว')
+      else setErrorMsg(err?.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด')
+    } finally { setWoSubmitting(false) }
+  }, [employee, woSelectedDay, woWeek, load])
 
   if (booting) {
     return (
@@ -156,10 +214,10 @@ export default function LeavePage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 5, margin: '16px 16px 0', background: 'rgba(0,0,0,0.04)', borderRadius: 14, padding: 4 }}>
-        {(['history', 'request'] as Tab[]).map(t => (
-          <button key={t} onClick={() => { setTab(t); setSubmitDone(false); setErrorMsg(null) }}
-            style={{ flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', borderRadius: 10, fontWeight: 600, fontSize: '0.78rem', background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--accent-start)' : 'var(--text-secondary)', boxShadow: tab === t ? '0 2px 8px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
-            {t === 'history' ? '📋 ประวัติ' : '✏️ ขอลา'}
+        {(['history', 'request', 'weekly'] as Tab[]).map(t => (
+          <button key={t} onClick={() => { setTab(t); setSubmitDone(false); setWoDone(false); setErrorMsg(null) }}
+            style={{ flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', borderRadius: 10, fontWeight: 600, fontSize: '0.72rem', background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--accent-start)' : 'var(--text-secondary)', boxShadow: tab === t ? '0 2px 8px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
+            {t === 'history' ? '📋 ประวัติ' : t === 'request' ? '✏️ ขอลา' : '📅 หยุดสัปดาห์'}
           </button>
         ))}
       </div>
@@ -266,6 +324,90 @@ export default function LeavePage() {
                 style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: canSubmit && !submitting ? 'pointer' : 'not-allowed', background: canSubmit ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))' : 'rgba(0,0,0,0.08)', color: canSubmit ? '#fff' : 'var(--text-muted)', fontSize: '1rem', fontWeight: 700, transition: 'all 0.2s' }}>
                 {submitting ? 'กำลังส่ง...' : '📤 ส่งคำขอลา'}
               </button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Weekly Off tab */}
+      {tab === 'weekly' && (
+        <div style={{ margin: '14px 16px 0' }}>
+          {woDone ? (
+            <div className="glass-card animate-slide-up" style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <div className="animate-success-pop" style={{ fontSize: '3.5rem', marginBottom: 14 }}>📅</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>ส่งคำขอแล้ว!</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา</div>
+              <button onClick={() => setWoDone(false)} style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>ขอสัปดาห์ถัดไป</button>
+            </div>
+          ) : (
+            <div className="glass-card animate-slide-up" style={{ padding: '20px 18px' }}>
+              {/* Week selector */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <button onClick={() => setWoWeek(addWeeks(woWeek, -1))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{fmtWeekRange(woWeek)}</div>
+                </div>
+                <button onClick={() => setWoWeek(addWeeks(woWeek, 1))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>›</button>
+              </div>
+
+              {/* สถานะสัปดาห์นี้ */}
+              {(() => {
+                const existing = woRequests.find(w => w.week_start.slice(0,10) === woWeek)
+                if (existing) {
+                  const cfg = WO_STATUS_CFG[existing.status]
+                  return (
+                    <div style={{ padding: '14px', borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.color}33`, marginBottom: 14 }}>
+                      <div style={{ fontWeight: 700, color: cfg.color, fontSize: '0.9rem' }}>{cfg.label}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                        วัน{DAYS_FULL[existing.day_of_week]} — {fmtWeekRange(woWeek)}
+                      </div>
+                      {existing.reject_note && <div style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: 4 }}>เหตุผล: {existing.reject_note}</div>}
+                    </div>
+                  )
+                }
+                return null
+              })()}
+
+              {!woRequests.find(w => w.week_start.slice(0,10) === woWeek) && (
+                <>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>เลือกวันหยุด (1 วัน)</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 16 }}>
+                    {DAYS_FULL.map((d, i) => (
+                      <button key={i} onClick={() => setWoDay(woSelectedDay === i ? null : i)}
+                        style={{ padding: '10px 4px', borderRadius: 10, border: `2px solid ${woSelectedDay === i ? 'var(--accent-start)' : 'rgba(0,0,0,0.08)'}`, background: woSelectedDay === i ? 'rgba(255,107,53,0.08)' : '#fff', color: woSelectedDay === i ? 'var(--accent-start)' : i === 0 ? '#dc2626' : i === 6 ? '#2563eb' : 'var(--text-primary)', fontWeight: woSelectedDay === i ? 700 : 500, fontSize: '0.72rem', cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {d.slice(0, 2)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {errorMsg && (
+                    <div style={{ marginBottom: 12, padding: '10px', borderRadius: 10, background: 'var(--error-bg)', color: 'var(--error)', fontSize: '0.82rem' }}>⚠️ {errorMsg}</div>
+                  )}
+
+                  <button onClick={handleWeeklyOff} disabled={woSelectedDay === null || woSubmitting}
+                    style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: woSelectedDay !== null ? 'pointer' : 'not-allowed', background: woSelectedDay !== null ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))' : 'rgba(0,0,0,0.08)', color: woSelectedDay !== null ? '#fff' : 'var(--text-muted)', fontSize: '1rem', fontWeight: 700, transition: 'all 0.2s' }}>
+                    {woSubmitting ? 'กำลังส่ง...' : woSelectedDay !== null ? `📅 ขอหยุดวัน${DAYS_FULL[woSelectedDay]}` : 'เลือกวันก่อน'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ประวัติ Weekly Off */}
+          {woRequests.length > 0 && (
+            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', paddingLeft: 4 }}>ประวัติ</div>
+              {woRequests.slice().sort((a, b) => b.week_start.localeCompare(a.week_start)).slice(0, 8).map(w => {
+                const cfg = WO_STATUS_CFG[w.status]
+                return (
+                  <div key={w.id} className="glass-card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>วัน{DAYS_FULL[w.day_of_week]}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtWeekRange(w.week_start.slice(0,10))}</div>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: cfg.color, background: cfg.bg, borderRadius: 99, padding: '3px 10px' }}>{cfg.label}</span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

@@ -20,6 +20,7 @@ import { leaveRoutes }        from './modules/leave/leave.route'
 import { otRoutes }           from './modules/ot/ot.route'
 import { lineRoutes }         from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
+import { weeklyOffRoutes }    from './modules/weekly-off/weekly-off.route'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -114,6 +115,7 @@ app.register(attendanceRoutes,   { prefix: '/api/v1' })              // MANAGER 
 app.register(leaveRoutes,        { prefix: '/api/v1' })              // MANAGER approve + EMPLOYEE request (LIFF)
 app.register(otRoutes,           { prefix: '/api/v1' })              // MANAGER approve + EMPLOYEE request (LIFF)
 app.register(announcementRoutes, { prefix: '/api/v1/admin' })        // ADMIN broadcast
+app.register(weeklyOffRoutes,   { prefix: '/api/v1' })               // ADMIN manage + EMPLOYEE request
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 
 // ── Start ─────────────────────────────────────────────────────────

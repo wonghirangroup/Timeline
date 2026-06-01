@@ -116,12 +116,13 @@ model Employee {
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
 
-  tenant             Tenant             @relation(fields: [tenant_id], references: [id])
-  branch             Branch             @relation(fields: [branch_id], references: [id])
-  attendance_records AttendanceRecord[]
-  leave_requests     LeaveRequest[]
-  leave_balances     LeaveBalance[]
-  ot_requests        OtRequest[]
+  tenant              Tenant              @relation(fields: [tenant_id], references: [id])
+  branch              Branch              @relation(fields: [branch_id], references: [id])
+  attendance_records  AttendanceRecord[]
+  leave_requests      LeaveRequest[]
+  leave_balances      LeaveBalance[]
+  ot_requests         OtRequest[]
+  weekly_off_requests WeeklyOffRequest[]
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
@@ -291,6 +292,12 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum WeeklyOffStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model LeaveBalance {
   id          String    @id @default(uuid())
   tenant_id   String
@@ -333,6 +340,31 @@ model OtRequest {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("ot_requests")
+}
+
+// ─────────────────────────────────────────────
+// WEEKLY OFF REQUEST
+// ─────────────────────────────────────────────
+
+model WeeklyOffRequest {
+  id          String          @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  week_start  DateTime        @db.Date           // วันจันทร์ของสัปดาห์นั้น
+  day_of_week Int                                // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
+  status      WeeklyOffStatus @default(PENDING)
+  reviewed_by String?                            // user_id ของ admin/manager
+  reviewed_at DateTime?
+  reject_note String?
+  created_at  DateTime        @default(now())
+  updated_at  DateTime        @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, week_start])            // 1 คน = 1 วันหยุดต่อสัปดาห์
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("weekly_off_requests")
 }
 
 // ─────────────────────────────────────────────

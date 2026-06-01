@@ -1,10 +1,23 @@
 // admin/src/pages/weekly-off/index.tsx
 // ปฏิทินวันหยุด + วันลา — กดวันเพื่อดูรายละเอียด
-import { useState, useMemo } from 'react'
-import { useDemoStore } from '../../stores/demoStore'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import type { WeeklyOffBooking, WeeklyOffStatus, LeaveRequest } from '../../types'
+
+type WeeklyOffStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+interface WeeklyOffBooking {
+  id: string; employee_id: string; week_start: string; day_of_week: number; status: WeeklyOffStatus
+  reject_note?: string | null
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
+}
+interface ApiBranch  { id: string; name: string }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
+interface LeaveRequest {
+  id: string; employee_id: string; leave_type: string; start_date: string; end_date: string
+  days: number; status: string; reason: string | null
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; branch: { id: string; name: string } }
+}
 
 const DAYS_TH   = ['อา','จ','อ','พ','พฤ','ศ','ส']
 const DAYS_FULL = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์']
@@ -60,11 +73,12 @@ interface DayInfo { date: Date; dateStr: string; dow: number }
 export default function WeeklyOffPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
-  const {
-    weeklyOffBookings, addWeeklyOff, updateWeeklyOff, deleteWeeklyOff,
-    leaveRequests, approveLeave, rejectLeave,
-    employees, branches,
-  } = useDemoStore()
+
+  const [weeklyOffBookings, setWeeklyOffBookings] = useState<WeeklyOffBooking[]>([])
+  const [leaveRequests,     setLeaveRequests]     = useState<LeaveRequest[]>([])
+  const [employees,         setEmployees]         = useState<ApiEmployee[]>([])
+  const [branches,          setBranches]          = useState<ApiBranch[]>([])
+  const [saving,            setSaving]            = useState(false)
 
   // ── Week nav ──────────────────────────────────────────────────────────────
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOf(new Date()))
@@ -76,6 +90,34 @@ export default function WeeklyOffPage() {
   const nextWeek   = () => setWeekStart(d => addDays(d, 7))
   const toThisWeek = () => setWeekStart(getMondayOf(new Date()))
   const weekLabel  = `${fmtTH(weekStart)} – ${fmtTH(addDays(weekStart,6))}`
+
+  const loadWeeklyOff = useCallback(async () => {
+    try {
+      const res = await api.get('/api/v1/admin/weekly-off', { params: { weekStart: fmt(weekStart) } })
+      setWeeklyOffBookings(res.data.data ?? [])
+    } catch { showToast('error', 'โหลดข้อมูลไม่สำเร็จ') }
+  }, [weekStart])
+
+  const loadLeaveRequests = useCallback(async () => {
+    try {
+      const weekEnd = fmt(addDays(weekStart, 6))
+      const res = await api.get('/api/v1/admin/leave-requests', { params: { status: 'PENDING' } })
+      const all: LeaveRequest[] = res.data.data ?? []
+      setLeaveRequests(all.filter((lv: LeaveRequest) => lv.start_date <= weekEnd && lv.end_date >= fmt(weekStart)))
+    } catch { /* ignore */ }
+  }, [weekStart])
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/api/v1/admin/employees').then(r => setEmployees(r.data.data ?? [])).catch(() => {}),
+      api.get('/api/v1/admin/branches').then(r => setBranches(r.data.data ?? [])).catch(() => {}),
+    ])
+  }, [])
+
+  useEffect(() => {
+    loadWeeklyOff()
+    loadLeaveRequests()
+  }, [loadWeeklyOff, loadLeaveRequests])
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [branchFilter, setBranchFilter] = useState('')
@@ -90,13 +132,12 @@ export default function WeeklyOffPage() {
   const weekStartStr = fmt(weekStart)
   const weekBookings = useMemo(() =>
     weeklyOffBookings.filter(w => {
-      const wMon = fmt(getMondayOf(new Date(w.week_start)))
-      if (wMon !== weekStartStr) return false
-      if (branchFilter && w.branch_name !== branchFilter) return false
+      if (branchFilter && w.employee.branch.id !== branchFilter) return false
       if (statusFilter && w.status !== statusFilter) return false
-      if (search && !w.full_name.includes(search) && !w.nickname.includes(search)) return false
+      const name = `${w.employee.first_name} ${w.employee.last_name} ${w.employee.nickname ?? ''}`
+      if (search && !name.toLowerCase().includes(search.toLowerCase())) return false
       return true
-    }), [weeklyOffBookings, weekStartStr, branchFilter, statusFilter, search])
+    }), [weeklyOffBookings, branchFilter, statusFilter, search])
 
   const byDay = useMemo(() => {
     const map: Record<number, WeeklyOffBooking[]> = {}
@@ -105,15 +146,17 @@ export default function WeeklyOffPage() {
     return map
   }, [weekBookings])
 
+  // helper ชื่อ
+  const empName = (w: WeeklyOffBooking) => w.employee.nickname ?? w.employee.first_name
+  const empFull = (w: WeeklyOffBooking) => `${w.employee.first_name} ${w.employee.last_name}`
+  const empBranch = (w: WeeklyOffBooking) => w.employee.branch.name
+
   // ── Leave requests overlapping this week ──────────────────────────────────
   const weekEndStr = fmt(addDays(weekStart, 6))
   const weekLeaves = useMemo(() =>
-    leaveRequests.filter(lv =>
-      lv.status !== 'REJECTED' &&
-      lv.start_date <= weekEndStr && lv.end_date >= weekStartStr
-    ), [leaveRequests, weekStartStr, weekEndStr])
+    leaveRequests.filter(lv => lv.status !== 'REJECTED'),
+  [leaveRequests])
 
-  // leaves per dateStr
   const leaveByDate = useMemo(() => {
     const map: Record<string, LeaveRequest[]> = {}
     weekCols.forEach(({ dateStr }) => {
@@ -123,7 +166,7 @@ export default function WeeklyOffPage() {
   }, [weekLeaves, weekCols])
 
   // branch color
-  const branchList  = [...new Set(weeklyOffBookings.map(w => w.branch_name))]
+  const branchList  = [...new Set(weeklyOffBookings.map(w => w.employee.branch.name))]
   const branchColor = (name: string) => BRANCH_COLORS[branchList.indexOf(name) % BRANCH_COLORS.length]
 
   const pendingCount = weekBookings.filter(w => w.status === 'PENDING').length
@@ -144,42 +187,86 @@ export default function WeeklyOffPage() {
     setEditTarget(null); setModal('add')
   }
   function openEdit(w: WeeklyOffBooking) {
-    setForm({ employee_id:w.employee_id, full_name:w.full_name, nickname:w.nickname, branch_name:w.branch_name, day_of_week:w.day_of_week, specific_date: '' })
+    setForm({ employee_id: w.employee_id, full_name: empFull(w), nickname: empName(w), branch_name: empBranch(w), day_of_week: w.day_of_week, specific_date: '' })
     setEditTarget(w); setModal('edit')
   }
-  function handleSave() {
-    if (!form.full_name && !form.employee_id) { showToast('error','กรุณาเลือกพนักงาน'); return }
-    if (modal === 'add') {
-      let saveWeekStart = weekStartStr
-      let saveDow = form.day_of_week
-      if (form.specific_date) {
-        const d = new Date(form.specific_date + 'T00:00:00')
-        saveDow = d.getDay()
-        saveWeekStart = fmt(getMondayOf(d))
+  async function handleSave() {
+    if (!form.employee_id) { showToast('error','กรุณาเลือกพนักงาน'); return }
+    setSaving(true)
+    try {
+      if (modal === 'add') {
+        const dateRef = form.specific_date || fmt(weekStart)
+        const saveDow = form.specific_date ? new Date(form.specific_date + 'T00:00:00').getDay() : form.day_of_week
+        await api.post('/api/v1/admin/weekly-off', { employee_id: form.employee_id, week_start: dateRef, day_of_week: saveDow })
+        showToast('success', `เพิ่มวันหยุด วัน${DAYS_FULL[saveDow]}`)
+        if (form.specific_date) setWeekStart(getMondayOf(new Date(form.specific_date + 'T00:00:00')))
+      } else if (editTarget) {
+        await api.patch(`/api/v1/admin/weekly-off/${editTarget.id}`, { day_of_week: form.day_of_week })
+        showToast('success', `ย้ายวันหยุด → วัน${DAYS_FULL[form.day_of_week]}`)
       }
-      addWeeklyOff({ id:`wo-${Date.now()}`, employee_id:form.employee_id, full_name:form.full_name, nickname:form.nickname, branch_name:form.branch_name, week_start:saveWeekStart, day_of_week:saveDow, status:'APPROVED', created_at:new Date().toISOString() })
-      showToast('success',`เพิ่มวันหยุด ${form.nickname||form.full_name} วัน${DAYS_FULL[saveDow]}`)
-      // navigate to the week of booked date
-      if (form.specific_date) {
-        const d = new Date(form.specific_date + 'T00:00:00')
-        setWeekStart(getMondayOf(d))
-      }
-    } else if (editTarget) {
-      updateWeeklyOff(editTarget.id, { full_name:form.full_name, nickname:form.nickname, branch_name:form.branch_name, day_of_week:form.day_of_week })
-      showToast('success',`ย้ายวันหยุด ${form.nickname} → ${DAYS_FULL[form.day_of_week]}`)
-    }
-    setModal(null)
+      setModal(null)
+      await loadWeeklyOff()
+    } catch (e: any) {
+      const code = e?.response?.data?.error?.code
+      if (code === 'ALREADY_REQUESTED') showToast('error', 'พนักงานนี้มีวันหยุดสัปดาห์นี้แล้ว')
+      else showToast('error', 'บันทึกไม่สำเร็จ')
+    } finally { setSaving(false) }
   }
-  function handleApproveWO(w: WeeklyOffBooking) { updateWeeklyOff(w.id,{status:'APPROVED'}); showToast('success',`อนุมัติวันหยุด ${w.nickname}`) }
-  function handleRejectWO(w: WeeklyOffBooking)  { updateWeeklyOff(w.id,{status:'REJECTED'}); showToast('info',`ไม่อนุมัติวันหยุด ${w.nickname}`) }
-  function handleDelete() {
+
+  async function handleApproveWO(w: WeeklyOffBooking) {
+    setSaving(true)
+    try {
+      await api.post(`/api/v1/admin/weekly-off/${w.id}/approve`)
+      showToast('success', `อนุมัติวันหยุด ${empName(w)}`)
+      await loadWeeklyOff()
+    } catch { showToast('error', 'ไม่สำเร็จ') }
+    finally { setSaving(false) }
+  }
+
+  async function handleRejectWO(w: WeeklyOffBooking) {
+    setSaving(true)
+    try {
+      await api.post(`/api/v1/admin/weekly-off/${w.id}/reject`)
+      showToast('info', `ไม่อนุมัติวันหยุด ${empName(w)}`)
+      await loadWeeklyOff()
+    } catch { showToast('error', 'ไม่สำเร็จ') }
+    finally { setSaving(false) }
+  }
+
+  async function handleDelete() {
     if (!deleteTarget) return
-    deleteWeeklyOff(deleteTarget.id); showToast('success',`ลบวันหยุด ${deleteTarget.nickname}`); setDeleteTarget(null)
+    setSaving(true)
+    try {
+      await api.delete(`/api/v1/admin/weekly-off/${deleteTarget.id}`)
+      showToast('success', `ลบวันหยุด ${empName(deleteTarget)}`)
+      setDeleteTarget(null)
+      await loadWeeklyOff()
+    } catch { showToast('error', 'ลบไม่สำเร็จ') }
+    finally { setSaving(false) }
   }
+
+  async function handleApproveLeave(id: string) {
+    setSaving(true)
+    try {
+      await api.post(`/api/v1/admin/leave-requests/${id}/approve`)
+      showToast('success', 'อนุมัติวันลาแล้ว')
+      await loadLeaveRequests()
+    } catch { showToast('error', 'ไม่สำเร็จ') }
+    finally { setSaving(false) }
+  }
+
+  async function handleRejectLeave(id: string) {
+    setSaving(true)
+    try {
+      await api.post(`/api/v1/admin/leave-requests/${id}/reject`)
+      showToast('info', 'ปฏิเสธวันลา')
+      await loadLeaveRequests()
+    } catch { showToast('error', 'ไม่สำเร็จ') }
+    finally { setSaving(false) }
+  }
+
   function pickEmployee(empId: string) {
-    const emp = employees.find(e => e.id === empId)
-    if (!emp) return
-    setForm(f => ({ ...f, employee_id:emp.id, full_name:emp.full_name, nickname:emp.nickname, branch_name:emp.branches[0]??'' }))
+    setForm(f => ({ ...f, employee_id: empId }))
   }
 
   // ── Day cell click → open detail ─────────────────────────────────────────
@@ -237,7 +324,7 @@ export default function WeeklyOffPage() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ/ชื่อเล่น..." style={{ ...inputS, gridColumn:isMobile ? 'span 2':undefined }} />
             <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} style={inputS}>
               <option value="">ทุกสาขา</option>
-              {[...new Set(weeklyOffBookings.map(w => w.branch_name))].map(b => <option key={b} value={b}>{b}</option>)}
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} style={inputS}>
               <option value="">ทุกสถานะ</option>
@@ -290,8 +377,8 @@ export default function WeeklyOffPage() {
           {weekCols.map(({ dateStr, dow }, idx) => {
             const woCount  = (byDay[dow] ?? []).length
             const lvCount  = (leaveByDate[dateStr] ?? []).length
-            const woPend   = (byDay[dow] ?? []).filter(w => w.status === 'PENDING').length
-            const lvPend   = (leaveByDate[dateStr] ?? []).filter(lv => lv.status === 'PENDING').length
+            const woPend   = (byDay[dow] ?? []).filter((w: WeeklyOffBooking) => w.status === 'PENDING').length
+            const lvPend   = (leaveByDate[dateStr] ?? []).filter((lv: LeaveRequest) => lv.status === 'PENDING').length
             const isSelected = dayDetail?.dateStr === dateStr
             return (
               <div key={idx} onClick={() => handleCellClick({ date: weekCols[idx].date, dateStr, dow })}
@@ -334,25 +421,25 @@ export default function WeeklyOffPage() {
                   onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background='#fff7ed' }}
                   onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background=isSun||isSat ? '#fafafa':'#fff' }}>
                   <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                    {dayWO.slice(0,2).map(w => {
-                      const cfg = WO_STATUS[w.status]; const bc = branchColor(w.branch_name)
+                    {dayWO.slice(0,2).map((w: WeeklyOffBooking) => {
+                      const cfg = WO_STATUS[w.status]; const bc = branchColor(empBranch(w))
                       return (
                         <div key={w.id} onClick={e => { e.stopPropagation(); openEdit(w) }}
                           style={{ padding:'2px 5px', borderRadius:5, background:cfg.bg, border:`1px solid ${cfg.border}`, cursor:'pointer' }}
-                          title={`${w.full_name} — ${cfg.label}`}>
+                          title={`${empFull(w)} — ${cfg.label}`}>
                           <div style={{ display:'flex', alignItems:'center', gap:3 }}>
                             <div style={{ width:5, height:5, borderRadius:'50%', background:bc, flexShrink:0 }} />
                             <span style={{ fontSize:'0.68rem', fontWeight:700, color:cfg.color, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:55 }}>
-                              {w.nickname}
+                              {empName(w)}
                             </span>
                           </div>
                         </div>
                       )
                     })}
-                    {dayLV.slice(0,1).map(lv => (
-                      <div key={lv.id} style={{ padding:'2px 5px', borderRadius:5, background:'#f5f3ff', border:'1px solid #ddd6fe' }} title={`${lv.full_name} — ${lv.leave_type}`}>
+                    {dayLV.slice(0,1).map((lv: LeaveRequest) => (
+                      <div key={lv.id} style={{ padding:'2px 5px', borderRadius:5, background:'#f5f3ff', border:'1px solid #ddd6fe' }} title={`${lv.employee.first_name} — ${lv.leave_type}`}>
                         <span style={{ fontSize:'0.67rem', fontWeight:600, color:'#7c3aed', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', display:'block', maxWidth:60 }}>
-                          🏖️ {lv.nickname}
+                          🏖️ {lv.employee.nickname ?? lv.employee.first_name}
                         </span>
                       </div>
                     ))}
@@ -385,8 +472,8 @@ export default function WeeklyOffPage() {
             onDeleteWO={setDeleteTarget}
             onApproveWO={handleApproveWO}
             onRejectWO={handleRejectWO}
-            onApproveLeave={id => { approveLeave(id); showToast('success','อนุมัติวันลาแล้ว') }}
-            onRejectLeave={id => { rejectLeave(id); showToast('info','ปฏิเสธวันลา') }}
+            onApproveLeave={handleApproveLeave}
+            onRejectLeave={handleRejectLeave}
           />
         )}
       </div>
@@ -402,20 +489,20 @@ export default function WeeklyOffPage() {
           <div style={{ padding:32, textAlign:'center', color:'#9ca3af', fontSize:'0.875rem' }}>ไม่มีรายการวันหยุดในสัปดาห์นี้</div>
         ) : isMobile ? (
           <div style={{ display:'flex', flexDirection:'column' }}>
-            {weekBookings.map((w,i) => {
-              const cfg = WO_STATUS[w.status]; const bc = branchColor(w.branch_name)
+            {weekBookings.map((w: WeeklyOffBooking, i: number) => {
+              const cfg = WO_STATUS[w.status]; const bc = branchColor(empBranch(w))
               return (
                 <div key={w.id} style={{ padding:'12px 14px', borderTop: i > 0 ? '1px solid #f3f4f6':'none' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-                    <div style={{ width:36, height:36, borderRadius:'50%', background:bc+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.8rem', fontWeight:700, color:bc, flexShrink:0 }}>{w.nickname.slice(0,2)}</div>
+                    <div style={{ width:36, height:36, borderRadius:'50%', background:bc+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.8rem', fontWeight:700, color:bc, flexShrink:0 }}>{empName(w).slice(0,2)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:'0.875rem', color:'#111827' }}>{w.nickname}</div>
-                      <div style={{ fontSize:'0.72rem', color:'#9ca3af' }}>{w.full_name}</div>
+                      <div style={{ fontWeight:700, fontSize:'0.875rem', color:'#111827' }}>{empName(w)}</div>
+                      <div style={{ fontSize:'0.72rem', color:'#9ca3af' }}>{empFull(w)}</div>
                     </div>
                     <span style={{ padding:'3px 10px', borderRadius:20, fontSize:'0.72rem', fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}`, flexShrink:0 }}>{cfg.label}</span>
                   </div>
                   <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center' }}>
-                    <span style={{ fontSize:'0.75rem', padding:'2px 8px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{w.branch_name}</span>
+                    <span style={{ fontSize:'0.75rem', padding:'2px 8px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{empBranch(w)}</span>
                     <span style={{ fontSize:'0.78rem', color: w.day_of_week===0?'#dc2626':w.day_of_week===6?'#2563eb':'#374151', fontWeight:600 }}>วัน{DAYS_FULL[w.day_of_week]}</span>
                   </div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -443,20 +530,20 @@ export default function WeeklyOffPage() {
                 </tr>
               </thead>
               <tbody>
-                {weekBookings.map(w => {
-                  const cfg = WO_STATUS[w.status]; const bc = branchColor(w.branch_name)
+                {weekBookings.map((w: WeeklyOffBooking) => {
+                  const cfg = WO_STATUS[w.status]; const bc = branchColor(empBranch(w))
                   return (
                     <tr key={w.id} style={{ borderTop:'1px solid #f3f4f6' }}>
                       <td style={{ padding:'10px 14px' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <div style={{ width:30, height:30, borderRadius:'50%', background:bc+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:700, color:bc, flexShrink:0 }}>{w.nickname.slice(0,2)}</div>
+                          <div style={{ width:30, height:30, borderRadius:'50%', background:bc+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:700, color:bc, flexShrink:0 }}>{empName(w).slice(0,2)}</div>
                           <div>
-                            <div style={{ fontWeight:600, color:'#111827' }}>{w.nickname}</div>
-                            <div style={{ fontSize:'0.75rem', color:'#9ca3af' }}>{w.full_name}</div>
+                            <div style={{ fontWeight:600, color:'#111827' }}>{empName(w)}</div>
+                            <div style={{ fontSize:'0.75rem', color:'#9ca3af' }}>{empFull(w)}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding:'10px 14px' }}><span style={{ fontSize:'0.75rem', padding:'2px 8px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{w.branch_name}</span></td>
+                      <td style={{ padding:'10px 14px' }}><span style={{ fontSize:'0.75rem', padding:'2px 8px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{empBranch(w)}</span></td>
                       <td style={{ padding:'10px 14px', fontWeight:600, color: w.day_of_week===0?'#dc2626':w.day_of_week===6?'#2563eb':'#374151' }}>วัน{DAYS_FULL[w.day_of_week]}</td>
                       <td style={{ padding:'10px 14px' }}><span style={{ padding:'3px 10px', borderRadius:20, fontSize:'0.75rem', fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}` }}>{cfg.label}</span></td>
                       <td style={{ padding:'10px 14px' }}>
@@ -493,14 +580,14 @@ export default function WeeklyOffPage() {
                 <label style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6, display:'block' }}>พนักงาน</label>
                 <select value={form.employee_id} onChange={e => pickEmployee(e.target.value)} style={inputS}>
                   <option value="">— เลือกพนักงาน —</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.nickname} ({e.full_name})</option>)}
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.nickname ?? e.first_name} ({e.first_name} {e.last_name})</option>)}
                 </select>
               </div>
               <div>
                 <label style={{ fontSize:'0.82rem', fontWeight:600, color:'#374151', marginBottom:6, display:'block' }}>สาขา</label>
                 <select value={form.branch_name} onChange={e => setForm(f => ({ ...f, branch_name:e.target.value }))} style={inputS}>
                   <option value="">— เลือกสาขา —</option>
-                  {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               {modal === 'add' && (
@@ -565,7 +652,7 @@ export default function WeeklyOffPage() {
             <div style={{ fontSize:'2.5rem', marginBottom:10 }}>🗑️</div>
             <h3 style={{ margin:'0 0 8px', color:'#111827' }}>ยืนยันการลบ</h3>
             <p style={{ color:'#6b7280', fontSize:'0.875rem', marginBottom:20 }}>
-              ลบวันหยุดของ <strong>{deleteTarget.nickname}</strong> วัน{DAYS_FULL[deleteTarget.day_of_week]}?
+              ลบวันหยุดของ <strong>{empName(deleteTarget)}</strong> วัน{DAYS_FULL[deleteTarget.day_of_week]}?
             </p>
             <div style={{ display:'flex', gap:10, justifyContent:'center', flexDirection:isMobile ? 'column-reverse':'row' }}>
               <button onClick={() => setDeleteTarget(null)} style={{ ...btnSecondary, flex:isMobile ? 1:undefined }}>ยกเลิก</button>
@@ -598,6 +685,10 @@ interface DayDetailPanelProps {
 }
 const MONTHS_TH2 = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const DAYS_FULL2 = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์']
+
+const empN = (w: WeeklyOffBooking) => w.employee.nickname ?? w.employee.first_name
+const empF = (w: WeeklyOffBooking) => `${w.employee.first_name} ${w.employee.last_name}`
+const empB = (w: WeeklyOffBooking) => w.employee.branch.name
 
 function DayDetailPanel({ dayInfo, woList, leaveList, isMobile, branchColor, onClose, onAddWO, onEditWO, onDeleteWO, onApproveWO, onRejectWO, onApproveLeave, onRejectLeave }: DayDetailPanelProps) {
   const { date, dow } = dayInfo
@@ -648,19 +739,19 @@ function DayDetailPanel({ dayInfo, woList, leaveList, isMobile, branchColor, onC
             <div style={{ padding:'10px 12px', borderRadius:9, background:'rgba(0,0,0,0.03)', textAlign:'center', color:'#d1d5db', fontSize:'0.78rem' }}>ไม่มีรายการ</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-              {woList.map(w => {
-                const cfg = WO_STATUS[w.status]; const bc = branchColor(w.branch_name)
+              {woList.map((w: WeeklyOffBooking) => {
+                const cfg = WO_STATUS[w.status]; const bc = branchColor(empB(w))
                 return (
                   <div key={w.id} style={{ background:'#fff', borderRadius:10, border:`1px solid ${cfg.border}`, padding:'10px 12px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:w.status === 'PENDING' ? 8:0 }}>
                       <div style={{ width:32, height:32, borderRadius:'50%', background:bc+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', fontWeight:700, color:bc, flexShrink:0 }}>
-                        {w.nickname.slice(0,2)}
+                        {empN(w).slice(0,2)}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontWeight:700, fontSize:'0.85rem', color:'#111827' }}>{w.nickname}</div>
+                        <div style={{ fontWeight:700, fontSize:'0.85rem', color:'#111827' }}>{empN(w)}</div>
                         <div style={{ fontSize:'0.72rem', color:'#9ca3af', display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
-                          <span>{w.full_name}</span>
-                          <span style={{ fontSize:'0.68rem', padding:'1px 7px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{w.branch_name}</span>
+                          <span>{empF(w)}</span>
+                          <span style={{ fontSize:'0.68rem', padding:'1px 7px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{empB(w)}</span>
                         </div>
                       </div>
                       <span style={{ padding:'3px 8px', borderRadius:20, fontSize:'0.68rem', fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}`, flexShrink:0 }}>{cfg.label}</span>
@@ -696,25 +787,25 @@ function DayDetailPanel({ dayInfo, woList, leaveList, isMobile, branchColor, onC
             <div style={{ padding:'10px 12px', borderRadius:9, background:'rgba(0,0,0,0.03)', textAlign:'center', color:'#d1d5db', fontSize:'0.78rem' }}>ไม่มีวันลา</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-              {leaveList.map(lv => {
+              {leaveList.map((lv: LeaveRequest) => {
                 const cfg = LV_STATUS[lv.status]
-                const bc  = branchColor(lv.branch_name)
+                const bc  = branchColor(lv.employee.branch.name)
                 const isMulti = lv.start_date !== lv.end_date
+                const lvNick = lv.employee.nickname ?? lv.employee.first_name
                 return (
                   <div key={lv.id} style={{ background:'#fff', borderRadius:10, border:'1px solid #e9d5ff', padding:'10px 12px' }}>
                     <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
                       <div style={{ width:32, height:32, borderRadius:'50%', background:'#f5f3ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', fontWeight:700, color:'#7c3aed', flexShrink:0 }}>
-                        {lv.nickname.slice(0,2)}
+                        {lvNick.slice(0,2)}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontWeight:700, fontSize:'0.85rem', color:'#111827' }}>{lv.nickname}</div>
-                        <div style={{ fontSize:'0.72rem', color:'#9ca3af' }}>{lv.full_name}</div>
+                        <div style={{ fontWeight:700, fontSize:'0.85rem', color:'#111827' }}>{lvNick}</div>
+                        <div style={{ fontSize:'0.72rem', color:'#9ca3af' }}>{lv.employee.first_name} {lv.employee.last_name}</div>
                         <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:4 }}>
-                          <span style={{ fontSize:'0.68rem', padding:'2px 7px', borderRadius:6, background:lv.leave_type_color+'22'||'#f3f4f6', color:lv.leave_type_color||'#374151', fontWeight:700, border:`1px solid ${lv.leave_type_color}44` }}>
+                          <span style={{ fontSize:'0.68rem', padding:'2px 7px', borderRadius:6, background:'#f3f4f6', color:'#374151', fontWeight:700 }}>
                             {lv.leave_type}
-                            {lv.half_day_period && ` (${lv.half_day_period})`}
                           </span>
-                          <span style={{ fontSize:'0.68rem', padding:'2px 7px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{lv.branch_name}</span>
+                          <span style={{ fontSize:'0.68rem', padding:'2px 7px', borderRadius:6, background:bc+'18', color:bc, fontWeight:600 }}>{lv.employee.branch.name}</span>
                           {isMulti && (
                             <span style={{ fontSize:'0.68rem', color:'#9ca3af' }}>
                               {lv.start_date.slice(5)} – {lv.end_date.slice(5)} ({lv.days} วัน)
