@@ -56,6 +56,40 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
+  // GET /api/v1/employee/list?line_channel_id=xxx
+  // ดึงรายชื่อพนักงานที่ยังไม่ผูก Line (สำหรับหน้า verify)
+  app.get('/employee/list', {
+    schema: {
+      tags: ['Employee'],
+      summary: 'รายชื่อพนักงานที่ยังไม่ผูก Line (ใช้ตอน verify)',
+      querystring: {
+        type: 'object',
+        required: ['line_channel_id'],
+        properties: { line_channel_id: { type: 'string' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    const config = await getTenantByChannelId(req.query.line_channel_id)
+    if (!config) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ tenant'))
+
+    const employees = await prisma.employee.findMany({
+      where: {
+        tenant_id:    config.tenant.id,
+        line_user_id: null,            // เฉพาะที่ยังไม่ผูก
+        deleted_at:   null,
+        is_active:    true,
+      },
+      select: {
+        id: true, first_name: true, last_name: true,
+        nickname: true, department: true, employee_code: true,
+        branch: { select: { id: true, name: true } },
+      },
+      orderBy: [{ branch_id: 'asc' }, { first_name: 'asc' }],
+    })
+
+    return ok(employees)
+  })
+
   // POST /api/v1/employee/verify
   // พนักงานยืนยันตัวตนครั้งแรก — ผูก line_user_id กับ employee_code
   app.post('/employee/verify', {
