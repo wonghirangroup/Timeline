@@ -27,7 +27,10 @@ export async function createShift(
     name: string
     start_time: string
     end_time: string
+    min_checkout?: string
     late_threshold?: number
+    late_threshold_1?: string
+    late_threshold_2?: string
   },
 ) {
   return prisma.shift.create({
@@ -42,7 +45,10 @@ export async function updateShift(
     name?: string
     start_time?: string
     end_time?: string
+    min_checkout?: string | null
     late_threshold?: number
+    late_threshold_1?: string | null
+    late_threshold_2?: string | null
     is_active?: boolean
   },
 ) {

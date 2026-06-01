@@ -1,8 +1,9 @@
 // admin/src/lib/axios.ts
+// ถ้า VITE_API_URL ว่าง → ใช้ '' (relative path) → Vite proxy forward ไป backend
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 10000,
 })
 

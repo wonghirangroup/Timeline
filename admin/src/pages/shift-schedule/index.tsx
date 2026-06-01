@@ -1,175 +1,242 @@
 // admin/src/pages/shift-schedule/index.tsx
-// ตารางกะพนักงานรายสัปดาห์ — Option B: Individual Day Assignment
+// ตารางกะ — Default Shift + Override เฉพาะวัน
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useDemoStore } from '../../stores/demoStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import type { ShiftAssignment, ShiftAssignmentType, Employee, ShiftDef } from '../../types'
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
-function getMondayOf(dateStr: string): string {
-  const d = new Date(dateStr)
-  const dow = d.getDay()
-  const diff = dow === 0 ? -6 : 1 - dow
-  const mon = new Date(d.getTime() + diff * 86400000)
-  return mon.toISOString().slice(0, 10)
+// ── Date helpers ───────────────────────────────────────────────────────────────
+function getMondayOf(d: string) {
+  const dt = new Date(d), dow = dt.getDay()
+  dt.setDate(dt.getDate() + (dow === 0 ? -6 : 1 - dow))
+  return dt.toISOString().slice(0, 10)
+}
+function addDays(d: string, n: number) {
+  const dt = new Date(d); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0, 10)
+}
+function fmt(d: string, opts?: Intl.DateTimeFormatOptions) {
+  return new Date(d).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opts })
+}
+function getDaysInMonth(y: number, m: number) {
+  return Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) =>
+    `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`)
 }
 
-function addDays(dateStr: string, n: number): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+const DAY_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
+const MONTH_FULL = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+
+const TYPE_CFG: Record<ShiftAssignmentType, { label: string; short: string; bg: string; color: string; border: string }> = {
+  WORK:       { label: 'ทำงาน',            short: 'W',   bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  DAY_OFF:    { label: 'หยุดพัก',          short: '–',   bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
+  WEEKLY_OFF: { label: 'หยุดประจำสัปดาห์', short: 'OFF', bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  HOLIDAY:    { label: 'หยุดนักขัตฤกษ์',  short: 'H',   bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
 }
 
-function formatDate(dateStr: string, opts?: Intl.DateTimeFormatOptions): string {
-  return new Date(dateStr).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opts })
+// ── Effective assignment (default fallback) ────────────────────────────────────
+type EffectiveResult = {
+  assignment: Omit<ShiftAssignment, 'id'> & { id: string }
+  isDefault: boolean   // true = ใช้กะประจำ (ไม่มี override)
+  isOff: boolean       // true = วันหยุด (ตาม default_work_days)
+} | null
+
+function getEffective(
+  empId: string, date: string,
+  shiftAssignments: ShiftAssignment[],
+  employees: Employee[],
+): EffectiveResult {
+  // 1. มี override เฉพาะวันนี้ → ใช้เลย
+  const specific = shiftAssignments.find(a => a.employee_id === empId && a.date === date)
+  if (specific) return { assignment: specific, isDefault: false, isOff: specific.type !== 'WORK' }
+
+  // 2. ดู default shift ของพนักงาน
+  const emp = employees.find(e => e.id === empId)
+  if (!emp?.default_shift_id) return null
+
+  const dow      = new Date(date).getDay()
+  const workDays = emp.default_work_days ?? [1,2,3,4,5]
+
+  if (!workDays.includes(dow)) {
+    // วันนอก work_days → หยุดตามปกติ (default off)
+    return {
+      assignment: { id: `def-off-${empId}-${date}`, employee_id: empId, date, shift_id: null, type: 'DAY_OFF' },
+      isDefault: true, isOff: true,
+    }
+  }
+
+  // วันทำงาน → กะประจำ
+  return {
+    assignment: { id: `def-${empId}-${date}`, employee_id: empId, date, shift_id: emp.default_shift_id, type: 'WORK' },
+    isDefault: true, isOff: false,
+  }
 }
 
-const DAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
-
-// ── Assignment type config ────────────────────────────────────────────────────
-const TYPE_CFG: Record<ShiftAssignmentType, { label: string; bg: string; color: string; border: string }> = {
-  WORK:       { label: 'ทำงาน',            bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-  DAY_OFF:    { label: 'หยุด',             bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
-  WEEKLY_OFF: { label: 'หยุดประจำสัปดาห์', bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
-  HOLIDAY:    { label: 'หยุดนักขัตฤกษ์',  bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function ShiftSchedulePage() {
   const isMobile = useIsMobile()
-  const store = useDemoStore()
-  const { employees, branches, shifts, shiftAssignments, upsertShiftAssignment, deleteShiftAssignment } = store
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { employees, branches, shifts, shiftAssignments, upsertShiftAssignment, deleteShiftAssignment } = useDemoStore()
 
-  const TODAY = '2026-05-26'
+  const TODAY = '2026-05-27'
+  const [viewMode, setViewMode]   = useState<'week'|'month'>('week')
   const [weekStart, setWeekStart] = useState(() => getMondayOf(TODAY))
+  const [selMonth, setSelMonth]   = useState(() => { const d = new Date(TODAY); return { y: d.getFullYear(), m: d.getMonth()+1 } })
   const [filterBranch, setFilterBranch] = useState('ALL')
-  const [editCell, setEditCell] = useState<{ empId: string; date: string } | null>(null)
-  const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
-  const popupRef = useRef<HTMLDivElement>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
+  const [editCell, setEditCell]   = useState<{ empId: string; date: string }|null>(null)
+  const [popupPos, setPopupPos]   = useState({ top: 0, left: 0 })
+  const [highlightEmp, setHighlightEmp] = useState<string|null>(null)
+  const popupRef  = useRef<HTMLDivElement>(null)
+  const tableRef  = useRef<HTMLDivElement>(null)
+  const empRowRef = useRef<HTMLDivElement|null>(null)
 
-  // week dates: Mon … Sun
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const weekDates  = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const monthDates = getDaysInMonth(selMonth.y, selMonth.m)
+  const displayDates = viewMode === 'week' ? weekDates : monthDates
 
-  // filtered employees
   const filteredEmps = filterBranch === 'ALL'
     ? employees.filter(e => e.status === 'ACTIVE')
-    : employees.filter(e => e.status === 'ACTIVE' && e.branches.some(b => b === filterBranch))
-
-  // lookup helpers
-  function getAssignment(empId: string, date: string): ShiftAssignment | undefined {
-    return shiftAssignments.find(a => a.employee_id === empId && a.date === date)
-  }
+    : employees.filter(e => e.status === 'ACTIVE' && e.branches.includes(filterBranch))
 
   function getShiftsForEmp(emp: Employee): ShiftDef[] {
     return shifts.filter(s => emp.branches.includes(s.branch_name))
   }
 
-  // week nav
-  function prevWeek() { setWeekStart(addDays(weekStart, -7)) }
-  function nextWeek() { setWeekStart(addDays(weekStart, 7)) }
-  function goToday()  { setWeekStart(getMondayOf(TODAY)) }
+  // nav
+  const weekEnd   = addDays(weekStart, 6)
+  const weekLabel = `${fmt(weekStart, { day:'numeric', month:'short' })} – ${fmt(weekEnd, { day:'numeric', month:'short', year:'numeric' })}`
+  const periodLabel = viewMode === 'week' ? weekLabel : `${MONTH_FULL[selMonth.m]} ${selMonth.y + 543}`
 
-  const weekEnd = addDays(weekStart, 6)
-  const weekLabel = `${formatDate(weekStart, { day: 'numeric', month: 'short' })} – ${formatDate(weekEnd, { day: 'numeric', month: 'short', year: 'numeric' })}`
+  function prevPeriod() { viewMode==='week' ? setWeekStart(addDays(weekStart,-7)) : setSelMonth(({y,m})=>m===1?{y:y-1,m:12}:{y,m:m-1}) }
+  function nextPeriod() { viewMode==='week' ? setWeekStart(addDays(weekStart, 7)) : setSelMonth(({y,m})=>m===12?{y:y+1,m:1}:{y,m:m+1}) }
+  function goToday()    { setWeekStart(getMondayOf(TODAY)); const d=new Date(TODAY); setSelMonth({y:d.getFullYear(),m:d.getMonth()+1}) }
 
-  // close popup on outside click
   useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setEditCell(null)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const h = (e: MouseEvent) => { if (popupRef.current && !popupRef.current.contains(e.target as Node)) setEditCell(null) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  // ── รับ ?emp= จาก Employee page → highlight + scroll ──────────────────────
+  useEffect(() => {
+    const empId = searchParams.get('emp')
+    if (!empId) return
+    setHighlightEmp(empId)
+    // ล้าง param ออกจาก URL ไม่ให้ค้าง
+    setSearchParams({}, { replace: true })
+    // scroll หา row หลังจาก render
+    const t = setTimeout(() => {
+      empRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
+    // หยุด highlight หลัง 3 วินาที
+    const t2 = setTimeout(() => setHighlightEmp(null), 3500)
+    return () => { clearTimeout(t); clearTimeout(t2) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function openEdit(e: React.MouseEvent<HTMLButtonElement>, empId: string, date: string) {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const tableRect = tableRef.current?.getBoundingClientRect()
-    const scrollTop = tableRef.current?.scrollTop ?? 0
-    const scrollLeft = tableRef.current?.scrollLeft ?? 0
-    const top = rect.bottom + window.scrollY - (tableRect?.top ?? 0) + scrollTop + 4
-    const left = rect.left - (tableRect?.left ?? 0) + scrollLeft
-    setPopupPos({ top, left })
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const t = tableRef.current?.getBoundingClientRect()
+    setPopupPos({ top: r.bottom + window.scrollY - (t?.top??0) + (tableRef.current?.scrollTop??0) + 4, left: r.left - (t?.left??0) + (tableRef.current?.scrollLeft??0) })
     setEditCell({ empId, date })
   }
 
-  function handleSave(empId: string, date: string, type: ShiftAssignmentType, shiftId: string | null) {
-    const id = `sa-${empId}-${date}`
-    upsertShiftAssignment({ id, employee_id: empId, date, shift_id: shiftId, type })
+  function handleSave(empId: string, date: string, type: ShiftAssignmentType, shiftId: string|null) {
+    // ตรวจว่า override ตรงกับ default หรือเปล่า → ถ้าตรง ไม่ต้องบันทึก (ล้างออก)
+    upsertShiftAssignment({ id: `sa-${empId}-${date}`, employee_id: empId, date, shift_id: shiftId, type })
     setEditCell(null)
   }
 
-  function handleClear(empId: string, date: string) {
-    const id = `sa-${empId}-${date}`
-    deleteShiftAssignment(id)
+  // ล้าง override → กลับใช้กะประจำ
+  function handleResetToDefault(empId: string, date: string) {
+    deleteShiftAssignment(`sa-${empId}-${date}`)
     setEditCell(null)
   }
 
-  // ── Popup content ─────────────────────────────────────────────────────────
+  // ── Edit Popup ────────────────────────────────────────────────────────────
   function EditPopup({ empId, date }: { empId: string; date: string }) {
-    const emp = employees.find(e => e.id === empId)
+    const emp       = employees.find(e => e.id === empId)
     const empShifts = emp ? getShiftsForEmp(emp) : []
-    const current = getAssignment(empId, date)
+    const effective = getEffective(empId, date, shiftAssignments, employees)
+    const hasOverride = shiftAssignments.some(a => a.employee_id === empId && a.date === date)
+    const defaultShift = emp?.default_shift_id ? shifts.find(s => s.id === emp.default_shift_id) : null
 
     return (
       <div ref={popupRef} style={{
-        position: 'absolute', top: popupPos.top, left: popupPos.left,
-        zIndex: 999, background: '#fff', border: '1px solid #e5e7eb',
-        borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-        minWidth: 220, padding: '10px 0', fontSize: 13,
+        position:'absolute', top:popupPos.top, left:popupPos.left, zIndex:999,
+        background:'#fff', border:'1px solid #e5e7eb', borderRadius:10,
+        boxShadow:'0 8px 24px rgba(0,0,0,0.12)', minWidth:240, padding:'10px 0', fontSize:13,
       }}>
-        <div style={{ padding: '4px 14px 8px', fontWeight: 600, color: '#374151', borderBottom: '1px solid #f3f4f6' }}>
-          {emp?.nickname} · {formatDate(date, { day: 'numeric', month: 'short', weekday: 'short' })}
+        {/* Header */}
+        <div style={{ padding:'4px 14px 8px', borderBottom:'1px solid #f3f4f6' }}>
+          <div style={{ fontWeight:600, color:'#374151' }}>
+            {emp?.nickname} · {fmt(date, { day:'numeric', month:'short', weekday:'short' })}
+          </div>
+          {/* แสดงสถานะปัจจุบัน */}
+          {effective?.isDefault && !effective.isOff && (
+            <div style={{ fontSize:11, color:'#6366f1', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+              <span>◌</span>
+              <span>กะประจำ: {defaultShift?.name} {defaultShift?.start_time}</span>
+            </div>
+          )}
+          {hasOverride && (
+            <div style={{ fontSize:11, color:'#f97316', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+              <span>✏️</span>
+              <span>มีการเปลี่ยนแปลงเฉพาะวันนี้</span>
+            </div>
+          )}
         </div>
 
-        {/* Shifts */}
+        {/* กะทำงาน */}
         {empShifts.length > 0 && (
           <>
-            <div style={{ padding: '6px 14px 2px', fontSize: 11, color: '#9ca3af', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>กะทำงาน</div>
-            {empShifts.map(sh => (
-              <button key={sh.id} onClick={() => handleSave(empId, date, 'WORK', sh.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  width: '100%', padding: '6px 14px', border: 'none',
-                  background: current?.shift_id === sh.id ? '#f0fdf4' : 'transparent',
-                  cursor: 'pointer', textAlign: 'left',
+            <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>กะทำงาน</div>
+            {empShifts.map(sh => {
+              const isActive = effective?.assignment.shift_id === sh.id
+              const isDefault = isActive && effective?.isDefault
+              return (
+                <button key={sh.id} onClick={() => handleSave(empId, date, 'WORK', sh.id)} style={{
+                  display:'flex', alignItems:'center', gap:8, width:'100%',
+                  padding:'7px 14px', border:'none',
+                  background: isActive ? '#f0fdf4' : 'transparent',
+                  cursor:'pointer', textAlign:'left',
                 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-                <span style={{ color: '#374151' }}>{sh.name}</span>
-                <span style={{ color: '#9ca3af', fontSize: 11, marginLeft: 'auto' }}>{sh.start_time}–{sh.end_time}</span>
-              </button>
-            ))}
+                  <span style={{ width:8, height:8, borderRadius:'50%', background: isActive ? '#22c55e' : '#d1d5db', flexShrink:0 }} />
+                  <span style={{ color:'#374151', fontWeight: isActive ? 600 : 400 }}>{sh.name}</span>
+                  <span style={{ color:'#9ca3af', fontSize:11, marginLeft:'auto' }}>{sh.start_time}–{sh.end_time}</span>
+                  {isDefault && <span style={{ fontSize:10, color:'#6366f1', background:'#e0e7ff', borderRadius:4, padding:'0 5px' }}>ประจำ</span>}
+                </button>
+              )
+            })}
           </>
         )}
 
-        {/* Day types */}
-        <div style={{ padding: '6px 14px 2px', fontSize: 11, color: '#9ca3af', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>ประเภทวัน</div>
-        {(['DAY_OFF', 'WEEKLY_OFF', 'HOLIDAY'] as ShiftAssignmentType[]).map(t => {
+        {/* ประเภทวัน */}
+        <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>ตั้งเป็นวันหยุด</div>
+        {(['DAY_OFF','WEEKLY_OFF','HOLIDAY'] as ShiftAssignmentType[]).map(t => {
           const cfg = TYPE_CFG[t]
+          const isActive = effective?.assignment.type === t && !effective.assignment.shift_id
           return (
-            <button key={t} onClick={() => handleSave(empId, date, t, null)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                width: '100%', padding: '6px 14px', border: 'none',
-                background: current?.type === t && current?.shift_id === null ? '#f9fafb' : 'transparent',
-                cursor: 'pointer', textAlign: 'left',
-              }}>
-              <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 11, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-                {cfg.label}
-              </span>
+            <button key={t} onClick={() => handleSave(empId, date, t, null)} style={{
+              display:'flex', alignItems:'center', gap:8, width:'100%',
+              padding:'6px 14px', border:'none', background: isActive ? '#f9fafb' : 'transparent', cursor:'pointer', textAlign:'left',
+            }}>
+              <span style={{ padding:'1px 6px', borderRadius:4, fontSize:11, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}` }}>{cfg.label}</span>
+              {isActive && <span style={{ fontSize:10, color:'#9ca3af', marginLeft:'auto' }}>✓</span>}
             </button>
           )
         })}
 
-        {/* Clear */}
-        {current && (
+        {/* ↩ กลับกะประจำ (แสดงเฉพาะเมื่อมี override) */}
+        {hasOverride && (
           <>
-            <div style={{ borderTop: '1px solid #f3f4f6', margin: '4px 0' }} />
-            <button onClick={() => handleClear(empId, date)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', fontSize: 13 }}>
-              ✕ ล้างการกำหนด
+            <div style={{ borderTop:'1px solid #f3f4f6', margin:'4px 0' }} />
+            <button onClick={() => handleResetToDefault(empId, date)} style={{
+              display:'flex', alignItems:'center', gap:8, width:'100%',
+              padding:'7px 14px', border:'none', background:'transparent', cursor:'pointer',
+              color:'#6366f1', fontSize:13, fontWeight:600,
+            }}>
+              ↩ กลับกะประจำ
+              {defaultShift && <span style={{ fontSize:11, color:'#9ca3af', fontWeight:400, marginLeft:4 }}>({defaultShift.name} {defaultShift.start_time})</span>}
             </button>
           </>
         )}
@@ -177,217 +244,228 @@ export default function ShiftSchedulePage() {
     )
   }
 
-  // ── Cell renderer ─────────────────────────────────────────────────────────
-  function Cell({ emp, date }: { emp: Employee; date: string }) {
-    const a = getAssignment(emp.id, date)
-    const isToday = date === TODAY
+  // ── Week Cell ─────────────────────────────────────────────────────────────
+  function WeekCell({ emp, date }: { emp: Employee; date: string }) {
+    const eff = getEffective(emp.id, date, shiftAssignments, employees)
+    const isToday    = date === TODAY
     const isEditOpen = editCell?.empId === emp.id && editCell?.date === date
 
     let content: React.ReactNode
-    if (!a) {
-      content = <span style={{ color: '#d1d5db', fontSize: 12 }}>—</span>
-    } else if (a.type === 'WORK' && a.shift_id) {
-      const sh = shifts.find(s => s.id === a.shift_id)
+    if (!eff) {
+      content = <span style={{ color:'#e5e7eb', fontSize:11 }}>—</span>
+    } else if (eff.isOff && eff.isDefault) {
+      // วันหยุดตาม default (ไม่แสดงอะไร)
+      content = <span style={{ color:'#e5e7eb', fontSize:11 }}>—</span>
+    } else if (eff.assignment.type === 'WORK' && eff.assignment.shift_id) {
+      const sh  = shifts.find(s => s.id === eff.assignment.shift_id)
+      const bg  = eff.isDefault ? '#f0fdf4' : '#dcfce7'
+      const brd = eff.isDefault ? '1px dashed #86efac' : '1px solid #86efac'
       content = (
-        <span style={{ padding: '2px 6px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', whiteSpace: 'nowrap' }}>
-          {sh?.name ?? 'กะ'}
-        </span>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+          <span style={{ padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:'#15803d', border:brd, whiteSpace:'nowrap' }}>
+            {sh?.name ?? 'กะ'}
+          </span>
+          {eff.isDefault
+            ? <span style={{ fontSize:9, color:'#a5b4fc' }}>ประจำ</span>
+            : <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
+        </div>
       )
     } else {
-      const cfg = TYPE_CFG[a.type]
+      const cfg = TYPE_CFG[eff.assignment.type]
       content = (
-        <span style={{ padding: '2px 5px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap' }}>
-          {a.type === 'DAY_OFF' ? 'หยุด' : a.type === 'WEEKLY_OFF' ? 'OFF' : 'หยุดฯ'}
-        </span>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+          <span style={{ padding:'2px 5px', borderRadius:5, fontSize:11, fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}`, whiteSpace:'nowrap' }}>
+            {eff.assignment.type==='DAY_OFF'?'หยุด':eff.assignment.type==='WEEKLY_OFF'?'OFF':'หยุดฯ'}
+          </span>
+          {!eff.isDefault && <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
+        </div>
       )
     }
 
     return (
-      <td style={{
-        padding: 4, textAlign: 'center', verticalAlign: 'middle',
-        background: isToday ? '#fefce8' : isEditOpen ? '#f9fafb' : undefined,
-        borderRight: '1px solid #f3f4f6',
-        minWidth: isMobile ? 56 : 76,
-      }}>
-        <button onClick={e => openEdit(e, emp.id, date)} style={{
-          border: 'none', background: 'transparent', cursor: 'pointer',
-          borderRadius: 6, padding: '4px 2px', width: '100%',
-          minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+      <td style={{ padding:4, textAlign:'center', verticalAlign:'middle', background:isToday?'#fefce8':isEditOpen?'#f5f3ff':undefined, borderRight:'1px solid #f3f4f6', minWidth: isMobile ? 60 : 84 }}>
+        <button onClick={e => openEdit(e, emp.id, date)} style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:6, padding:'4px 2px', width:'100%', minHeight:40, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {content}
         </button>
       </td>
     )
   }
 
-  // ── Stats bar ──────────────────────────────────────────────────────────────
-  const weekAssignments = shiftAssignments.filter(a => weekDates.includes(a.date))
-  const workCount = weekAssignments.filter(a => a.type === 'WORK').length
-  const offCount  = weekAssignments.filter(a => a.type === 'WEEKLY_OFF' || a.type === 'DAY_OFF').length
-  const totalCells = filteredEmps.length * 7
+  // ── Month Cell (compact) ─────────────────────────────────────────────────
+  function MonthCell({ emp, date }: { emp: Employee; date: string }) {
+    const eff     = getEffective(emp.id, date, shiftAssignments, employees)
+    const hasOver = shiftAssignments.some(a => a.employee_id === emp.id && a.date === date)
+    const isToday = date === TODAY
+    const dow     = new Date(date).getDay()
+
+    let inner: React.ReactNode
+    if (!eff || (eff.isOff && eff.isDefault)) {
+      inner = <span style={{ color:'#e5e7eb', fontSize:9 }}>·</span>
+    } else if (eff.assignment.type === 'WORK') {
+      const sh = shifts.find(s => s.id === eff.assignment.shift_id)
+      inner = (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
+          <span style={{ width:6, height:6, borderRadius:'50%', background: eff.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
+          <span style={{ fontSize:9, color: eff.isDefault ? '#6b7280' : '#15803d', fontWeight: eff.isDefault ? 400 : 700, lineHeight:1 }}>
+            {sh?.name?.slice(0,3) ?? 'W'}
+          </span>
+          {hasOver && <span style={{ fontSize:8, color:'#f97316' }}>✏</span>}
+        </div>
+      )
+    } else {
+      const cfg = TYPE_CFG[eff.assignment.type]
+      inner = <span style={{ fontSize:10, fontWeight:700, color:cfg.color }}>{TYPE_CFG[eff.assignment.type].short}</span>
+    }
+
+    return (
+      <td style={{
+        padding:2, textAlign:'center', verticalAlign:'middle', minWidth:40,
+        background: isToday ? '#fefce8' : dow===0 ? '#fef9f9' : undefined,
+        borderRight:'1px solid #f3f4f6',
+        borderLeft: dow===1 ? '2px solid #e5e7eb' : undefined,
+      }}>
+        <button onClick={e => openEdit(e, emp.id, date)}
+          title={`${emp.nickname} · ${fmt(date, { day:'numeric', month:'short', weekday:'short' })}`}
+          style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:4, padding:'3px 1px', width:'100%', minHeight:28, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {inner}
+        </button>
+      </td>
+    )
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────────
+  // นับจาก effective (รวมทั้ง default และ override)
+  const workCount = filteredEmps.reduce((sum, emp) =>
+    sum + displayDates.filter(d => { const e=getEffective(emp.id,d,shiftAssignments,employees); return e?.assignment.type==='WORK' }).length, 0)
+  const offCount  = filteredEmps.reduce((sum, emp) =>
+    sum + displayDates.filter(d => { const e=getEffective(emp.id,d,shiftAssignments,employees); return e && e.assignment.type!=='WORK' }).length, 0)
+  const overrideCount = shiftAssignments.filter(a => displayDates.includes(a.date) && filteredEmps.some(e=>e.id===a.employee_id)).length
 
   return (
-    <div style={{ padding: isMobile ? '16px 12px' : '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: isMobile?'16px 12px':'24px 28px', maxWidth: viewMode==='month'?1400:1100, margin:'0 auto' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 20 }}>
+      <div style={{ display:'flex', alignItems: isMobile?'flex-start':'center', flexDirection: isMobile?'column':'row', gap:12, marginBottom:16 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#111827' }}>
-            📅 ตารางกะพนักงาน
-          </h1>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>
-            กำหนดกะทำงาน / วันหยุดรายคนรายวัน
-          </p>
+          <h1 style={{ margin:0, fontSize: isMobile?18:22, fontWeight:700, color:'#111827' }}>📅 ตารางกะพนักงาน</h1>
+          <p style={{ margin:'2px 0 0', fontSize:13, color:'#6b7280' }}>กะประจำแสดงอัตโนมัติ — แก้เฉพาะวันที่เปลี่ยน</p>
         </div>
-
-        {/* Branch filter */}
-        <div style={{ marginLeft: isMobile ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)}
-            style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer' }}>
+        <div style={{ marginLeft: isMobile?0:'auto', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+          {/* View toggle */}
+          <div style={{ display:'flex', border:'1px solid #e5e7eb', borderRadius:8, overflow:'hidden' }}>
+            {(['week','month'] as const).map(m => (
+              <button key={m} onClick={()=>setViewMode(m)} style={{ padding:'6px 14px', border:'none', cursor:'pointer', fontSize:13, fontWeight:600, background: viewMode===m?'#f97316':'#fff', color: viewMode===m?'#fff':'#6b7280' }}>
+                {m==='week'?'รายสัปดาห์':'รายเดือน'}
+              </button>
+            ))}
+          </div>
+          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)}
+            style={{ padding:'6px 10px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:13, background:'#fff', cursor:'pointer' }}>
             <option value="ALL">ทุกสาขา</option>
-            {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+            {branches.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Week nav */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button onClick={prevWeek} style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
-          ‹ ก่อนหน้า
-        </button>
-        <span style={{ fontWeight: 600, color: '#374151', fontSize: 14, minWidth: 180, textAlign: 'center' }}>
-          {weekLabel}
-        </span>
-        <button onClick={nextWeek} style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
-          ถัดไป ›
-        </button>
-        <button onClick={goToday} style={{ padding: '6px 12px', border: '1px solid #6366f1', borderRadius: 8, background: '#f5f3ff', cursor: 'pointer', fontSize: 13, color: '#6366f1', fontWeight: 600 }}>
-          วันนี้
-        </button>
-
-        {/* Stats */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, fontSize: 12 }}>
-          <span style={{ padding: '4px 10px', background: '#dcfce7', color: '#15803d', borderRadius: 6, fontWeight: 600 }}>
-            ✅ ทำงาน {workCount}
-          </span>
-          <span style={{ padding: '4px 10px', background: '#fff7ed', color: '#c2410c', borderRadius: 6, fontWeight: 600 }}>
-            🏖 หยุด {offCount}
-          </span>
-          <span style={{ padding: '4px 10px', background: '#f3f4f6', color: '#6b7280', borderRadius: 6, fontWeight: 600 }}>
-            ว่าง {totalCells - workCount - offCount}
-          </span>
+      {/* Period nav + Stats */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        <button onClick={prevPeriod} style={{ padding:'6px 12px', border:'1px solid #e5e7eb', borderRadius:8, background:'#fff', cursor:'pointer', fontSize:14, color:'#374151' }}>‹ ก่อนหน้า</button>
+        <span style={{ fontWeight:700, color:'#111827', fontSize:15, minWidth:160, textAlign:'center' }}>{periodLabel}</span>
+        <button onClick={nextPeriod} style={{ padding:'6px 12px', border:'1px solid #e5e7eb', borderRadius:8, background:'#fff', cursor:'pointer', fontSize:14, color:'#374151' }}>ถัดไป ›</button>
+        <button onClick={goToday} style={{ padding:'6px 12px', border:'1px solid #6366f1', borderRadius:8, background:'#f5f3ff', cursor:'pointer', fontSize:13, color:'#6366f1', fontWeight:600 }}>วันนี้</button>
+        <div style={{ marginLeft:'auto', display:'flex', gap:8, fontSize:12, flexWrap:'wrap' }}>
+          <span style={{ padding:'4px 10px', background:'#dcfce7', color:'#15803d', borderRadius:6, fontWeight:600 }}>✅ ทำงาน {workCount}</span>
+          <span style={{ padding:'4px 10px', background:'#fff7ed', color:'#c2410c', borderRadius:6, fontWeight:600 }}>🏖 หยุด {offCount}</span>
+          {overrideCount > 0 && <span style={{ padding:'4px 10px', background:'#fff7ed', color:'#ea580c', borderRadius:6, fontWeight:600 }}>✏️ เปลี่ยน {overrideCount}</span>}
         </div>
       </div>
 
-      {/* Table container */}
-      <div ref={tableRef} style={{ overflowX: 'auto', position: 'relative', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff' }}>
-        <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 600 }}>
+      {/* Table */}
+      <div ref={tableRef} style={{ overflowX:'auto', position:'relative', borderRadius:12, border:'1px solid #e5e7eb', background:'#fff' }}>
+        <table style={{ borderCollapse:'collapse', width:'100%', minWidth: viewMode==='week'?600:900 }}>
           <thead>
-            <tr style={{ background: '#f9fafb' }}>
-              {/* Employee col */}
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, color: '#6b7280', fontWeight: 600, borderRight: '1px solid #e5e7eb', whiteSpace: 'nowrap', minWidth: 140, position: 'sticky', left: 0, background: '#f9fafb', zIndex: 2 }}>
-                พนักงาน
+            <tr style={{ background:'#f9fafb' }}>
+              <th style={{ padding:'10px 14px', textAlign:'left', fontSize:12, color:'#6b7280', fontWeight:600, borderRight:'2px solid #e5e7eb', whiteSpace:'nowrap', minWidth:130, position:'sticky', left:0, background:'#f9fafb', zIndex:2 }}>
+                พนักงาน ({filteredEmps.length})
               </th>
-              {weekDates.map(date => {
-                const dow = new Date(date).getDay()
-                const isToday = date === TODAY
-                return (
-                  <th key={date} style={{
-                    padding: '8px 4px', textAlign: 'center', fontSize: 12,
-                    color: isToday ? '#6366f1' : dow === 0 ? '#ef4444' : '#6b7280',
-                    fontWeight: isToday ? 700 : 600,
-                    borderRight: '1px solid #f3f4f6',
-                    minWidth: isMobile ? 56 : 76,
-                    background: isToday ? '#fefce8' : undefined,
-                  }}>
-                    <div style={{ fontWeight: 700 }}>{DAY_SHORT[dow]}</div>
-                    <div style={{ fontSize: 11, marginTop: 1 }}>
-                      {new Date(date).getDate()}
-                    </div>
-                  </th>
-                )
+              {viewMode==='week' ? weekDates.map(date => {
+                const dow=new Date(date).getDay(), isToday=date===TODAY
+                return <th key={date} style={{ padding:'8px 4px', textAlign:'center', fontSize:12, color: isToday?'#6366f1':dow===0?'#ef4444':'#6b7280', fontWeight: isToday?700:600, borderRight:'1px solid #f3f4f6', minWidth: isMobile?60:84, background: isToday?'#fefce8':undefined }}>
+                  <div style={{ fontWeight:700 }}>{DAY_SHORT[dow]}</div>
+                  <div style={{ fontSize:11, marginTop:1 }}>{new Date(date).getDate()}</div>
+                </th>
+              }) : monthDates.map(date => {
+                const d=new Date(date), dow=d.getDay(), isToday=date===TODAY
+                return <th key={date} style={{ padding:'5px 2px', textAlign:'center', fontSize:11, color: isToday?'#6366f1':dow===0?'#ef4444':dow===6?'#f97316':'#6b7280', fontWeight: isToday?700:500, borderRight:'1px solid #f3f4f6', borderLeft: dow===1?'2px solid #e5e7eb':undefined, minWidth:40, background: isToday?'#fefce8':dow===0?'#fef9f9':undefined }}>
+                  <div style={{ fontSize:12, fontWeight:700 }}>{d.getDate()}</div>
+                  <div style={{ fontSize:9, marginTop:1 }}>{DAY_SHORT[dow]}</div>
+                </th>
               })}
             </tr>
           </thead>
           <tbody>
-            {filteredEmps.map((emp, idx) => (
-              <tr key={emp.id} style={{ borderTop: '1px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                {/* Employee name — sticky left */}
-                <td style={{ padding: '8px 14px', borderRight: '1px solid #e5e7eb', position: 'sticky', left: 0, background: idx % 2 === 0 ? '#fff' : '#fafafa', zIndex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#6366f1', flexShrink: 0 }}>
-                      {emp.nickname.slice(0, 1)}
+            {filteredEmps.map((emp, idx) => {
+              const isHighlighted = highlightEmp === emp.id
+              return (
+              <tr
+                key={emp.id}
+                ref={isHighlighted ? (el: HTMLTableRowElement | null) => { empRowRef.current = el as unknown as HTMLDivElement } : undefined}
+                style={{
+                  borderTop:'1px solid #f3f4f6',
+                  background: isHighlighted ? '#faf5ff' : (idx%2===0?'#fff':'#fafafa'),
+                  outline: isHighlighted ? '2px solid #a78bfa' : 'none',
+                  outlineOffset: '-2px',
+                  transition: 'background 0.5s, outline 0.5s',
+                }}
+              >
+                <td style={{ padding:'8px 14px', borderRight:'2px solid #e5e7eb', position:'sticky', left:0, background: isHighlighted ? '#faf5ff' : (idx%2===0?'#fff':'#fafafa'), zIndex:1, transition:'background 0.5s' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <div style={{ width:28, height:28, borderRadius:'50%', background: isHighlighted?'#ede9fe':'#e0e7ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color: isHighlighted?'#7c3aed':'#6366f1', flexShrink:0, boxShadow: isHighlighted?'0 0 0 2px #a78bfa':undefined }}>
+                      {emp.nickname.slice(0,1)}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: isHighlighted?'#6d28d9':'#111827', whiteSpace:'nowrap' }}>
                         {emp.nickname}
-                        {emp.pay_type !== 'MONTHLY' && (
-                          <span style={{ marginLeft: 4, padding: '0 4px', fontSize: 10, background: emp.pay_type === 'HOURLY' ? '#fef3c7' : '#f0fdf4', color: emp.pay_type === 'HOURLY' ? '#92400e' : '#15803d', borderRadius: 4, fontWeight: 700 }}>{emp.pay_type === 'HOURLY' ? 'ชม.' : 'วัน'}</span>
-                        )}
+                        {isHighlighted && <span style={{ marginLeft:6, fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'1px 5px', borderRadius:4, fontWeight:700 }}>◀ จากพนักงาน</span>}
+                        {emp.pay_type!=='MONTHLY' && <span style={{ marginLeft:4, padding:'0 4px', fontSize:10, background: emp.pay_type==='HOURLY'?'#fef3c7':'#f0fdf4', color: emp.pay_type==='HOURLY'?'#92400e':'#15803d', borderRadius:4, fontWeight:700 }}>{emp.pay_type==='HOURLY'?'ชม.':'วัน'}</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap' }}>
-                        {emp.branches[0]}
-                      </div>
+                      {/* แสดงกะประจำ */}
+                      {emp.default_shift_id && (() => {
+                        const s = shifts.find(sh=>sh.id===emp.default_shift_id)
+                        return <div style={{ fontSize:10, color: isHighlighted?'#8b5cf6':'#a5b4fc', whiteSpace:'nowrap' }}>◌ {s?.name} {s?.start_time}</div>
+                      })()}
                     </div>
                   </div>
                 </td>
-                {/* Day cells */}
-                {weekDates.map(date => (
-                  <Cell key={date} emp={emp} date={date} />
-                ))}
+                {displayDates.map(date =>
+                  viewMode==='week'
+                    ? <WeekCell key={date} emp={emp} date={date} />
+                    : <MonthCell key={date} emp={emp} date={date} />
+                )}
               </tr>
-            ))}
-            {filteredEmps.length === 0 && (
-              <tr>
-                <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
-                  ไม่พบพนักงานในสาขาที่เลือก
-                </td>
-              </tr>
+            )})}
+            {filteredEmps.length===0 && (
+              <tr><td colSpan={displayDates.length+1} style={{ padding:40, textAlign:'center', color:'#9ca3af', fontSize:14 }}>ไม่พบพนักงาน</td></tr>
             )}
           </tbody>
         </table>
-
-        {/* Edit popup */}
         {editCell && <EditPopup empId={editCell.empId} date={editCell.date} />}
       </div>
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap', fontSize: 12 }}>
-        <span style={{ color: '#6b7280' }}>คลิกที่ช่องเพื่อกำหนด:</span>
-        {Object.entries(TYPE_CFG).map(([t, cfg]) => (
-          <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ padding: '2px 6px', borderRadius: 4, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontSize: 11, fontWeight: 600 }}>
-              {cfg.label}
-            </span>
-          </span>
-        ))}
-        <span style={{ color: '#9ca3af' }}>—</span>
-        <span style={{ color: '#9ca3af', fontSize: 12 }}>ยังไม่ได้กำหนด (คลิกเพื่อเพิ่ม)</span>
-        <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 11 }}>ชม. = รายชั่วโมง · วัน = รายวัน</span>
+      <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>
+        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+          <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#f0fdf4', color:'#15803d', border:'1px dashed #86efac', fontWeight:600 }}>กะเช้า</span>
+          <span style={{ color:'#6b7280' }}>= กะประจำ (ไม่ได้ตั้ง)</span>
+        </span>
+        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+          <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
+          <span style={{ color:'#f97316', fontSize:11 }}>✏ เปลี่ยน</span>
+          <span style={{ color:'#6b7280' }}>= มี override วันนี้</span>
+        </span>
+        <span style={{ color:'#9ca3af' }}>· คลิกเพื่อแก้</span>
+        <span style={{ color:'#9ca3af' }}>· "↩ กลับกะประจำ" เพื่อยกเลิก override</span>
       </div>
-
-      {/* Part-time info panel */}
-      {filteredEmps.some(e => e.pay_type === 'HOURLY' || e.pay_type === 'DAILY') && (
-        <div style={{ marginTop: 16, padding: '12px 16px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, fontSize: 13 }}>
-          <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 6 }}>⏰ พนักงานรายวัน / รายชั่วโมง ในสัปดาห์นี้</div>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            {filteredEmps.filter(e => e.pay_type === 'HOURLY' || e.pay_type === 'DAILY').map(emp => {
-              const worked = weekDates.filter(d => {
-                const a = getAssignment(emp.id, d)
-                return a?.type === 'WORK'
-              }).length
-              return (
-                <div key={emp.id} style={{ color: '#78350f' }}>
-                  <span style={{ fontWeight: 600 }}>{emp.nickname}</span>
-                  {' '}· วันทำงาน {worked} วัน
-                  {emp.hourly_rate && <span style={{ color: '#92400e' }}> · ฿{emp.hourly_rate}/ชม.</span>}
-                  <span style={{ color: '#b45309' }}> (บันทึกชั่วโมงจริงตอนเช็คอิน/เอาต์)</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

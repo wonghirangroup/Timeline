@@ -8,15 +8,17 @@ import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import formbody from '@fastify/formbody'
 
-import { authRoutes }       from './modules/auth/auth.route'
-import { tenantRoutes }     from './modules/tenant/tenant.route'
-import { branchRoutes }     from './modules/branch/branch.route'
-import { employeeRoutes }   from './modules/employee/employee.route'
-import { shiftRoutes }      from './modules/shift/shift.route'
-import { attendanceRoutes } from './modules/attendance/attendance.route'
-import { leaveRoutes }      from './modules/leave/leave.route'
-import { otRoutes }         from './modules/ot/ot.route'
-import { lineRoutes }       from './modules/line/line.route'
+import { authRoutes }         from './modules/auth/auth.route'
+import { tenantRoutes }       from './modules/tenant/tenant.route'
+import { branchRoutes }       from './modules/branch/branch.route'
+import { employeeRoutes }     from './modules/employee/employee.route'
+import { employeeAuthRoutes } from './modules/employee/employee-auth.route'
+import { employeeMeRoutes }   from './modules/employee/employee-me.route'
+import { shiftRoutes }        from './modules/shift/shift.route'
+import { attendanceRoutes }   from './modules/attendance/attendance.route'
+import { leaveRoutes }        from './modules/leave/leave.route'
+import { otRoutes }           from './modules/ot/ot.route'
+import { lineRoutes }         from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
 
 const app = Fastify({
@@ -104,6 +106,8 @@ app.register(tenantRoutes,       { prefix: '/api/v1/super-admin' })  // SUPER_AD
 app.register(branchRoutes,       { prefix: '/api/v1/admin' })        // ADMIN
 app.register(employeeRoutes,     { prefix: '/api/v1/admin' })        // ADMIN
 app.register(shiftRoutes,        { prefix: '/api/v1/admin' })        // ADMIN
+app.register(employeeAuthRoutes,  { prefix: '/api/v1' })              // LIFF auth (no JWT required)
+app.register(employeeMeRoutes,   { prefix: '/api/v1' })              // LIFF: employee profile + shifts
 app.register(attendanceRoutes,   { prefix: '/api/v1' })              // MANAGER read + EMPLOYEE write (LIFF)
 app.register(leaveRoutes,        { prefix: '/api/v1' })              // MANAGER approve + EMPLOYEE request (LIFF)
 app.register(otRoutes,           { prefix: '/api/v1' })              // MANAGER approve + EMPLOYEE request (LIFF)

@@ -101,7 +101,10 @@ model Employee {
   employee_code String
   first_name    String
   last_name     String
+  nickname      String?
+  department    String?
   phone         String?
+  hired_at      DateTime? @db.Date
   line_user_id  String?   // mapped after Line verify
   is_active     Boolean   @default(true)
   created_at    DateTime  @default(now())
@@ -131,6 +134,8 @@ model Branch {
   tenant_id  String
   name       String
   location   String?
+  lat        Decimal?  @db.Decimal(10, 8)
+  lng        Decimal?  @db.Decimal(11, 8)
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
@@ -166,10 +171,13 @@ model Shift {
   tenant_id       String
   branch_id       String
   name            String
-  start_time      String    // "08:00"
-  end_time        String    // "17:00"
-  late_threshold  Int       @default(15) // minutes
-  allow_overlap   Boolean   @default(false) // Phase 2: overlapping shifts
+  start_time       String    // "08:00"
+  end_time         String    // "17:00"
+  min_checkout     String?   // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
+  late_threshold   Int       @default(15) // minutes — เก็บไว้ backward compat
+  late_threshold_1 String?   // "08:05" — สายระดับ 1
+  late_threshold_2 String?   // "08:20" — สายระดับ 2 / นับว่าขาด
+  allow_overlap    Boolean   @default(false) // Phase 2: overlapping shifts
   day_off_quota   Int       @default(1)     // Phase 2: weekly day-off slots
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())

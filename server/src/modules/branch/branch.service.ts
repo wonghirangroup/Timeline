@@ -5,8 +5,10 @@ export async function listBranches(tenantId: string) {
   return prisma.branch.findMany({
     where: {
       deleted_at: null,
-      // SUPER_ADMIN (tenantId = '') ดูได้ทุก tenant
       ...(tenantId ? { tenant_id: tenantId } : {}),
+    },
+    include: {
+      _count: { select: { employees: true, shifts: true } },
     },
     orderBy: { created_at: 'asc' },
   })
@@ -18,16 +20,16 @@ export async function getBranch(tenantId: string, id: string) {
   })
 }
 
-export async function createBranch(tenantId: string, data: { name: string; location?: string }) {
+export async function createBranch(tenantId: string, data: { name: string; location?: string; lat?: number; lng?: number }) {
   return prisma.branch.create({
-    data: { tenant_id: tenantId, name: data.name, location: data.location },
+    data: { tenant_id: tenantId, name: data.name, location: data.location, lat: data.lat, lng: data.lng },
   })
 }
 
 export async function updateBranch(
   tenantId: string,
   id: string,
-  data: { name?: string; location?: string; is_active?: boolean },
+  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; is_active?: boolean },
 ) {
   const count = await prisma.branch.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },

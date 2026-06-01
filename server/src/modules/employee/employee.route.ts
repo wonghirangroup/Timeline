@@ -45,28 +45,25 @@ export async function employeeRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
     schema: {
       tags: [TAG],
-      summary: 'เพิ่มพนักงานใหม่',
+      summary: 'เพิ่มพนักงานใหม่ (รหัสพนักงานถูกสร้างอัตโนมัติ)',
       security: [{ oauth2: [] }],
       body: {
         type: 'object',
-        required: ['branch_id', 'employee_code', 'first_name', 'last_name'],
+        required: ['branch_id', 'first_name', 'last_name'],
         properties: {
-          branch_id:     { type: 'string' },
-          employee_code: { type: 'string' },
-          first_name:    { type: 'string' },
-          last_name:     { type: 'string' },
-          phone:         { type: 'string' },
+          branch_id:   { type: 'string' },
+          first_name:  { type: 'string' },
+          last_name:   { type: 'string' },
+          nickname:    { type: 'string' },
+          department:  { type: 'string' },
+          phone:       { type: 'string' },
+          hired_at:    { type: 'string', description: 'YYYY-MM-DD' },
         },
       },
     },
   }, async (req: any, reply) => {
-    try {
-      const employee = await createEmployee(req.tenantId, req.body)
-      return reply.code(201).send(ok(employee, 'เพิ่มพนักงานสำเร็จ'))
-    } catch (e: any) {
-      if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE', 'รหัสพนักงานซ้ำ'))
-      throw e
-    }
+    const employee = await createEmployee(req.tenantId, req.body)
+    return reply.code(201).send(ok(employee, 'เพิ่มพนักงานสำเร็จ'))
   })
 
   // PATCH /api/v1/admin/employees/:id
@@ -83,7 +80,10 @@ export async function employeeRoutes(app: FastifyInstance) {
           branch_id:    { type: 'string' },
           first_name:   { type: 'string' },
           last_name:    { type: 'string' },
+          nickname:     { type: 'string' },
+          department:   { type: 'string' },
           phone:        { type: 'string' },
+          hired_at:     { type: 'string', description: 'YYYY-MM-DD' },
           line_user_id: { type: 'string' },
           is_active:    { type: 'boolean' },
         },

@@ -6,6 +6,7 @@ import { ok, fail }         from '../../common/utils/response'
 import { listTenants, getTenant, createTenant, updateTenant, deleteTenant } from './tenant.service'
 import { listUsers, createUser, updateUser, deleteUser } from './user.service'
 import { listHolidays, createHoliday, deleteHoliday }   from './holiday.service'
+import { upsertLineConfig } from '../line/line.service'
 
 const TAG = 'Super Admin'
 
@@ -247,5 +248,28 @@ export async function tenantRoutes(app: FastifyInstance) {
     const deleted = await deleteHoliday(req.tenantId, req.params.id)
     if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบวันหยุด'))
     return ok(null, 'ลบวันหยุดสำเร็จ')
+  })
+
+  // PUT /api/v1/super-admin/tenants/:id/line-config
+  app.put('/tenants/:id/line-config', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ตั้งค่า Line OA ให้ Tenant',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['line_channel_id', 'line_channel_secret', 'line_liff_id'],
+        properties: {
+          line_channel_id:     { type: 'string' },
+          line_channel_secret: { type: 'string' },
+          line_liff_id:        { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const config = await upsertLineConfig(req.params.id, req.body)
+    return ok(config, 'ตั้งค่า Line สำเร็จ')
   })
 }

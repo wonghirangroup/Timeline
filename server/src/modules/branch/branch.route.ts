@@ -49,6 +49,8 @@ export async function branchRoutes(app: FastifyInstance) {
         properties: {
           name:     { type: 'string' },
           location: { type: 'string' },
+          lat:      { type: 'number' },
+          lng:      { type: 'number' },
         },
       },
     },
@@ -70,6 +72,8 @@ export async function branchRoutes(app: FastifyInstance) {
         properties: {
           name:      { type: 'string' },
           location:  { type: 'string' },
+          lat:       { type: 'number' },
+          lng:       { type: 'number' },
           is_active: { type: 'boolean' },
         },
       },

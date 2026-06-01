@@ -26,6 +26,10 @@ export interface Employee {
   line_user_id: string | null   // null = ยังไม่ผูก Line account → เช็คอิน LIFF ไม่ได้
   pay_type: 'MONTHLY' | 'DAILY' | 'HOURLY'
   hourly_rate?: number          // บาท/ชั่วโมง (เฉพาะ HOURLY — เก็บไว้อ้างอิง, ไม่คำนวณในระบบ)
+  // ── กะประจำ ──────────────────────────────────────────────────────────────
+  default_shift_id?: string     // กะที่ใช้โดย default — ระบบ fallback มาหาถ้าไม่มี override
+  default_work_days?: number[]  // วันทำงานปกติ [1-6] = จ-ส, [1-5] = จ-ศ (0=อา)
+                                // ถ้าไม่ตั้ง → ถือว่าทำงาน จ-ศ (1,2,3,4,5)
 }
 
 // ── Shift Assignment (Option B: Individual Day Assignment) ─────────────────────

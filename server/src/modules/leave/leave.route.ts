@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listLeaveRequests, getLeaveRequest, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from './leave.service'
+import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from './leave.service'
 import { listLeaveBalances, upsertLeaveBalance } from './leave-balance.service'
 
 export async function leaveRoutes(app: FastifyInstance) {
@@ -67,6 +67,82 @@ export async function leaveRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธวันลาแล้ว')
   })
 
+  // ── Admin: สร้างวันลาแทนพนักงาน ──────────────────────────────────
+  app.post('/admin/leave-requests', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'Admin สร้างคำขอวันลาแทนพนักงาน',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'leave_type', 'start_date', 'end_date', 'days'],
+        properties: {
+          employee_id: { type: 'string' },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          start_date:  { type: 'string', description: 'YYYY-MM-DD' },
+          end_date:    { type: 'string', description: 'YYYY-MM-DD' },
+          days:        { type: 'integer' },
+          reason:      { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const request = await createLeaveRequest(req.tenantId, req.body)
+      return reply.code(201).send(ok(request, 'สร้างคำขอวันลาสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
+      if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
+      throw e
+    }
+  })
+
+  // ── Admin: แก้ไขคำขอวันลา ────────────────────────────────────────
+  app.patch('/admin/leave-requests/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'แก้ไขคำขอวันลา',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          start_date:  { type: 'string', description: 'YYYY-MM-DD' },
+          end_date:    { type: 'string', description: 'YYYY-MM-DD' },
+          days:        { type: 'integer' },
+          reason:      { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await updateLeaveRequest(req.tenantId, req.params.id, req.body)
+      if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ'))
+      return ok(result, 'แก้ไขสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'LEAVE_OVERLAP') return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
+      throw e
+    }
+  })
+
+  // ── Admin: ลบคำขอวันลา ───────────────────────────────────────────
+  app.delete('/admin/leave-requests/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ลบคำขอวันลา (ถ้า APPROVED จะคืนวันลากลับ)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const result = await deleteLeaveRequest(req.tenantId, req.params.id)
+    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ'))
+    return ok(null, 'ลบคำขอวันลาสำเร็จ')
+  })
+
   // ── Employee (LIFF): ขอวันลา ──────────────────────────────────────
   app.post('/employee/leave-requests', {
     preHandler: [tenantMiddleware],
@@ -92,9 +168,8 @@ export async function leaveRoutes(app: FastifyInstance) {
       const request = await createLeaveRequest(req.tenantId, req.body)
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
-      if (e.message === 'INSUFFICIENT_BALANCE') {
-        return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
-      }
+      if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
+      if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
       throw e
     }
   })

@@ -6,7 +6,13 @@ export async function listTenants() {
   return prisma.tenant.findMany({
     where: { deleted_at: null },
     include: {
-      _count: { select: { employees: true, branches: true, users: true } },
+      _count: { select: { employees: true, branches: true } },
+      line_config: { select: { line_channel_id: true, line_liff_id: true } },
+      users: {
+        where: { role: 'ADMIN', deleted_at: null },
+        select: { email: true, first_name: true, last_name: true },
+        take: 1,
+      },
     },
     orderBy: { created_at: 'desc' },
   })

@@ -3,11 +3,14 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { getAttendanceReport, checkIn, checkOut, getEmployeeHistory } from './attendance.service'
+import {
+  getAttendanceReport, createManualAttendance, updateAttendanceTime,
+  checkIn, checkOut, getEmployeeHistory,
+} from './attendance.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
 
-  // ── Admin/Manager: รายงานเช็คชื่อ ────────────────────────────────
+  // ── Admin: รายงานเช็คชื่อ ─────────────────────────────────────────
   app.get('/admin/attendance', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
@@ -30,6 +33,61 @@ export async function attendanceRoutes(app: FastifyInstance) {
       employeeId: req.query.employeeId,
     })
     return ok(records)
+  })
+
+  // ── Admin: ลงเวลาแทนพนักงาน (manual) ────────────────────────────
+  app.post('/admin/attendance', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'Admin ลงเวลาแทนพนักงาน',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'shift_id', 'date'],
+        properties: {
+          employee_id:  { type: 'string' },
+          shift_id:     { type: 'string' },
+          date:         { type: 'string', description: 'YYYY-MM-DD' },
+          check_in_at:  { type: 'string', description: 'HH:mm' },
+          check_out_at: { type: 'string', description: 'HH:mm' },
+          note:         { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const record = await createManualAttendance(req.tenantId, req.body)
+      return reply.code(201).send(ok(record, 'ลงเวลาสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'ALREADY_CHECKED_IN' || e.code === 'P2002') {
+        return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'พนักงานนี้มีบันทึกในกะนี้แล้ว'))
+      }
+      throw e
+    }
+  })
+
+  // ── Admin: แก้ไขเวลาเช็คอิน/เช็คเอาต์ ───────────────────────────
+  app.patch('/admin/attendance/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'แก้ไขเวลาเช็คอิน/เช็คเอาต์',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          check_in_at:  { type: 'string', description: 'HH:mm' },
+          check_out_at: { type: 'string', description: 'HH:mm' },
+          note:         { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const record = await updateAttendanceTime(req.tenantId, req.params.id, req.body)
+    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
+    return ok(record, 'แก้ไขเวลาสำเร็จ')
   })
 
   // ── Employee (LIFF): Check-in ─────────────────────────────────────
@@ -82,7 +140,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       const record = await checkOut(req.tenantId, req.body)
       return ok(record, 'เช็คเอาต์สำเร็จ')
     } catch (e: any) {
-      if (e.message === 'NOT_CHECKED_IN')     return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินในกะนี้'))
+      if (e.message === 'NOT_CHECKED_IN')      return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินในกะนี้'))
       if (e.message === 'ALREADY_CHECKED_OUT') return reply.code(409).send(fail('ALREADY_CHECKED_OUT', 'เช็คเอาต์แล้ว'))
       throw e
     }

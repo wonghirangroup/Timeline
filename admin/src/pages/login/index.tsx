@@ -5,7 +5,8 @@ import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+// ถ้า VITE_API_URL ว่าง ใช้ '' (relative) → Vite proxy จะ forward ไป Render
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 export default function LoginPage() {
   const navigate = useNavigate()
