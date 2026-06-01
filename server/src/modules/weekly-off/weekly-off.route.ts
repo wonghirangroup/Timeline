@@ -4,6 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff } from './weekly-off.service'
+import { prisma } from '../../common/utils/prisma'
 
 export async function weeklyOffRoutes(app: FastifyInstance) {
 
@@ -17,7 +18,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       querystring: {
         type: 'object',
         properties: {
-          weekStart:  { type: 'string', description: 'YYYY-MM-DD (วันใดก็ได้ในสัปดาห์นั้น)' },
+          month:      { type: 'string', description: 'YYYY-MM (ทั้งเดือน)' },
+          weekStart:  { type: 'string', description: 'YYYY-MM-DD (สัปดาห์เดียว)' },
           branchId:   { type: 'string' },
           employeeId: { type: 'string' },
           status:     { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
@@ -26,6 +28,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     },
   }, async (req: any) => {
     const list = await listWeeklyOff(req.tenantId, {
+      month:      req.query.month,
       weekStart:  req.query.weekStart,
       branchId:   req.query.branchId,
       employeeId: req.query.employeeId,
@@ -121,6 +124,39 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     const deleted = await deleteWeeklyOff(req.tenantId, req.params.id)
     if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
     return ok(null, 'ลบสำเร็จ')
+  })
+
+  // ── Admin: Approve ทั้งหมดในเดือน ───────────────────────────────────
+  app.post('/admin/weekly-off/approve-all', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'อนุมัติ Weekly Off ทุกรายการที่ PENDING ในเดือนที่กำหนด',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['month'],
+        properties: {
+          month: { type: 'string', description: 'YYYY-MM' },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const { month } = req.body
+    const [y, m] = month.split('-').map(Number)
+    const start = new Date(Date.UTC(y, m - 1, 1))
+    const end   = new Date(Date.UTC(y, m, 0))
+
+    const pending = await prisma.weeklyOffRequest.findMany({
+      where: { tenant_id: req.tenantId, status: 'PENDING', week_start: { gte: start, lte: end } },
+    })
+
+    await prisma.weeklyOffRequest.updateMany({
+      where: { tenant_id: req.tenantId, status: 'PENDING', week_start: { gte: start, lte: end } },
+      data:  { status: 'APPROVED', reviewed_by: req.userId, reviewed_at: new Date() },
+    })
+
+    return ok({ count: pending.length }, `อนุมัติ ${pending.length} รายการสำเร็จ`)
   })
 
   // ── Employee (LIFF): ขอวันหยุดสัปดาห์ ──────────────────────────────

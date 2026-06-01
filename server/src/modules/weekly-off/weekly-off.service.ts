@@ -10,14 +10,21 @@ function getMondayOf(dateStr: string): Date {
 }
 
 export async function listWeeklyOff(tenantId: string, filters: {
-  weekStart?: string   // YYYY-MM-DD → คำนวณ Monday
+  weekStart?: string   // YYYY-MM-DD → สัปดาห์เดียว
+  month?: string       // YYYY-MM → ทั้งเดือน
   branchId?: string
   employeeId?: string
   status?: string
 }) {
   const where: any = { tenant_id: tenantId }
 
-  if (filters.weekStart) {
+  if (filters.month) {
+    const [y, m] = filters.month.split('-').map(Number)
+    where.week_start = {
+      gte: new Date(Date.UTC(y, m - 1, 1)),
+      lte: new Date(Date.UTC(y, m, 0)),
+    }
+  } else if (filters.weekStart) {
     const monday = getMondayOf(filters.weekStart)
     const sunday = new Date(monday)
     sunday.setUTCDate(sunday.getUTCDate() + 6)
