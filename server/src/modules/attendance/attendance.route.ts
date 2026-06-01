@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
+import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
   checkIn, checkInQR, checkInAuto, checkOut, getEmployeeHistory,
@@ -88,6 +89,24 @@ export async function attendanceRoutes(app: FastifyInstance) {
     const record = await updateAttendanceTime(req.tenantId, req.params.id, req.body)
     if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
     return ok(record, 'แก้ไขเวลาสำเร็จ')
+  })
+
+  // ── Admin: Reset (ลบ) บันทึกเช็คชื่อ ────────────────────────────────
+  app.delete('/admin/attendance/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ลบบันทึกเช็คชื่อ (reset เป็นค่าว่าง)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const record = await prisma.attendanceRecord.findFirst({
+      where: { id: req.params.id, tenant_id: req.tenantId },
+    })
+    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
+    await prisma.attendanceRecord.delete({ where: { id: req.params.id } })
+    return ok(null, 'ลบบันทึกสำเร็จ')
   })
 
   // ── Employee (LIFF): Check-in ─────────────────────────────────────

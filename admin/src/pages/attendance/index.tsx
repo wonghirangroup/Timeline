@@ -122,9 +122,10 @@ export default function AttendancePage() {
   const [shifts, setShifts]       = useState<ApiShift[]>([])
 
   // modal state
-  const [editTarget, setEditTarget]   = useState<Row | null>(null)       // แก้ไขเวลา
-  const [manualTarget, setManualTarget] = useState<ApiEmployee | null>(null) // ลงเวลาแทน
-  const [editForm, setEditForm]       = useState({ check_in_at: '', check_out_at: '', note: '' })
+  const [editTarget, setEditTarget]     = useState<Row | null>(null)
+  const [manualTarget, setManualTarget] = useState<ApiEmployee | null>(null)
+  const [resetTarget, setResetTarget]   = useState<Row | null>(null)
+  const [editForm, setEditForm]         = useState({ check_in_at: '', check_out_at: '', note: '' })
   const [manualForm, setManualForm]   = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
   const [saving, setSaving]           = useState(false)
 
@@ -203,6 +204,20 @@ export default function AttendancePage() {
     absent:  rows.filter(r => r.status === 'ABSENT').length,
     pending: rows.filter(r => r.status === 'PENDING').length,
   }), [rows, employees])
+
+  // ── Reset (ลบ) record ────────────────────────────────────────────────
+  async function handleReset() {
+    if (!resetTarget?.record) return
+    setSaving(true)
+    try {
+      await api.delete(`/api/v1/admin/attendance/${resetTarget.record.id}`)
+      showToast('success', `รีเซ็ตเวลา ${resetTarget.employee.first_name} สำเร็จ`)
+      setResetTarget(null)
+      await loadData()
+    } catch {
+      showToast('error', 'รีเซ็ตไม่สำเร็จ')
+    } finally { setSaving(false) }
+  }
 
   // ── Edit existing record ─────────────────────────────────────────────
   function openEdit(row: Row) {
@@ -341,11 +356,15 @@ export default function AttendancePage() {
                       {row.record?.is_outside_area && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706' }}>⚠️ นอกพื้นที่</span>
                       )}
-                      <div style={{ marginLeft: 'auto' }}>
-                        {row.record
-                          ? <button onClick={() => openEdit(row)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}>✏ แก้ไข</button>
-                          : <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงเวลา</button>
-                        }
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                        {row.record ? (
+                          <>
+                            <button onClick={() => openEdit(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}>✏</button>
+                            <button onClick={() => setResetTarget(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}>🗑</button>
+                          </>
+                        ) : (
+                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงเวลา</button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -408,10 +427,14 @@ export default function AttendancePage() {
                           <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</span>
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          {row.record
-                            ? <button onClick={() => openEdit(row)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#374151' }}>✏ แก้ไข</button>
-                            : <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงเวลา</button>
-                          }
+                          {row.record ? (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => openEdit(row)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#374151' }}>✏ แก้ไข</button>
+                              <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต">🗑</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงเวลา</button>
+                          )}
                         </td>
                       </tr>
                     )
@@ -494,6 +517,34 @@ export default function AttendancePage() {
               <button onClick={() => setManualTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : 'ลงเวลา'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirm */}
+      {resetTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+          onClick={() => setResetTarget(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: '24px', width: 360, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2rem', textAlign: 'center', marginBottom: 12 }}>🗑️</div>
+            <h3 style={{ margin: '0 0 8px', fontWeight: 700, textAlign: 'center' }}>รีเซ็ตบันทึกเช็คชื่อ?</h3>
+            <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: '#6b7280', textAlign: 'center' }}>
+              {resetTarget.employee.first_name} {resetTarget.employee.last_name}
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280', textAlign: 'center' }}>
+              กะ: {resetTarget.record?.shift.name} · เวลาเข้า: {fmtTime(resetTarget.record?.check_in_at ?? null)}
+            </p>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626', marginBottom: 20 }}>
+              ⚠️ บันทึกนี้จะถูกลบออก พนักงานสามารถเช็คอินใหม่ได้อีกครั้ง
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setResetTarget(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>ยกเลิก</button>
+              <button onClick={handleReset} disabled={saving}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'กำลังลบ...' : 'รีเซ็ต'}
               </button>
             </div>
           </div>
