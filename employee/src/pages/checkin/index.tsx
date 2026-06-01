@@ -90,6 +90,8 @@ export default function CheckinPage() {
   const [errorMsg,    setErrorMsg]    = useState<string | null>(null)
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
   const [booting,     setBooting]     = useState(true)
+  const [lineUid,     setLineUid]     = useState<string | null>(null)
+  const [uidCopied,   setUidCopied]   = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -105,11 +107,24 @@ export default function CheckinPage() {
         if (sh.length === 1) setSelected(sh[0])
       } catch (e: any) {
         const code = e?.response?.data?.error?.code
-        if (code === 'EMPLOYEE_NOT_FOUND') setInitError('ไม่พบพนักงาน กรุณาแจ้ง HR เพื่อลงทะเบียน')
-        else setInitError('LIFF ไม่พร้อม — กรุณาเปิดผ่าน LINE')
+        if (code === 'EMPLOYEE_NOT_FOUND') {
+          // ดึง Line UID มาแสดงให้ admin copy
+          try {
+            const { lineUserId } = await import('../../lib/liff').then(m => m.getLiffProfile())
+            setLineUid(lineUserId)
+          } catch {}
+          setInitError('NOT_FOUND')
+        } else {
+          setInitError('LIFF ไม่พร้อม — กรุณาเปิดผ่าน LINE')
+        }
       } finally { setBooting(false) }
     })()
   }, [])
+
+  function copyUid() {
+    if (!lineUid) return
+    navigator.clipboard.writeText(lineUid).then(() => { setUidCopied(true); setTimeout(() => setUidCopied(false), 2000) })
+  }
 
   const handleCheckIn = useCallback(async () => {
     if (!employee || !selectedShift || btnState === 'loading') return
@@ -170,6 +185,24 @@ export default function CheckinPage() {
                 <span className="animate-dot-blink" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />พร้อม
               </span>
             </div>
+          </div>
+        ) : initError === 'NOT_FOUND' ? (
+          <div className="glass-card" style={{ padding: 18, background: '#fff9f0' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#c2410c', marginBottom: 8 }}>⚠️ ยังไม่ได้ลงทะเบียน</div>
+            <div style={{ fontSize: '0.82rem', color: '#78350f', marginBottom: 14, lineHeight: 1.6 }}>
+              กรุณาแจ้ง Line UID ของคุณให้ HR เพื่อผูกบัญชี
+            </div>
+            {lineUid && (
+              <div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 4 }}>Line UID ของคุณ</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <code style={{ flex: 1, background: '#f3f4f6', padding: '8px 10px', borderRadius: 8, fontSize: '0.78rem', wordBreak: 'break-all', color: '#374151' }}>{lineUid}</code>
+                  <button onClick={copyUid} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: uidCopied ? '#dcfce7' : '#fff7ed', color: uidCopied ? '#16a34a' : '#ea580c', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                    {uidCopied ? '✓ คัดลอก' : 'คัดลอก'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="glass-card" style={{ padding: 16 }}>

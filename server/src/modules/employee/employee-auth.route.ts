@@ -55,4 +55,57 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
 
     return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch } }, 'เข้าสู่ระบบสำเร็จ')
   })
+
+  // POST /api/v1/employee/verify
+  // พนักงานยืนยันตัวตนครั้งแรก — ผูก line_user_id กับ employee_code
+  app.post('/employee/verify', {
+    schema: {
+      tags: ['Employee'],
+      summary: 'ยืนยันตัวตนครั้งแรก — ผูก Line กับรหัสพนักงาน',
+      body: {
+        type: 'object',
+        required: ['liff_token', 'line_user_id', 'line_channel_id', 'employee_code'],
+        properties: {
+          liff_token:      { type: 'string' },
+          line_user_id:    { type: 'string' },
+          line_channel_id: { type: 'string' },
+          employee_code:   { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const { liff_token, line_user_id, line_channel_id, employee_code } = req.body
+
+    const config = await getTenantByChannelId(line_channel_id)
+    if (!config) return reply.code(401).send(fail('INVALID_CHANNEL', 'ไม่พบ tenant'))
+
+    const verifiedUid = await verifyLiffIdToken(liff_token, line_channel_id)
+    if (!verifiedUid || verifiedUid !== line_user_id) {
+      return reply.code(401).send(fail('INVALID_TOKEN', 'LIFF token ไม่ถูกต้อง'))
+    }
+
+    // หาพนักงานจากรหัส
+    const employee = await prisma.employee.findFirst({
+      where: { employee_code, tenant_id: config.tenant.id, deleted_at: null },
+    })
+    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงานที่มีรหัสนี้'))
+
+    // เช็คว่า line_user_id ถูกใช้แล้วหรือยัง
+    if (employee.line_user_id && employee.line_user_id !== line_user_id) {
+      return reply.code(409).send(fail('ALREADY_LINKED', 'รหัสนี้ผูกกับ Line อื่นแล้ว'))
+    }
+
+    // ผูก line_user_id
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data:  { line_user_id },
+    })
+
+    // ออก JWT
+    const token = await (app as any).jwt.sign({
+      id: employee.id, tenant_id: config.tenant.id, role: 'EMPLOYEE', employee_id: employee.id,
+    }, { expiresIn: '12h' })
+
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code } }, 'ยืนยันตัวตนสำเร็จ')
+  })
 }
