@@ -193,7 +193,7 @@ export default function WeeklyOffPage() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>📅 วันหยุดประจำสัปดาห์</h2>
+          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>📅 วันหยุดประจำเดือน</h2>
           <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>จัดการวันหยุด 1 วัน/สัปดาห์ ต่อพนักงาน</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
