@@ -103,7 +103,7 @@ const NAV_GROUPS: NavGroup[] = [
     defaultOpen: true,
     items: [
       { path: '/leave',         label: 'วันลา & ปฏิทิน',     feature: 'leave_management', icon: iconLeave() },
-      { path: '/weekly-off',    label: 'หยุดประจำสัปดาห์',                              icon: iconWeeklyOff() },
+      { path: '/weekly-off',    label: 'หยุดประจำเดือน',                                icon: iconWeeklyOff() },
       { path: '/leave-balance', label: 'โควต้าวันลา',        feature: 'leave_balance',    icon: iconBalance() },
       { path: '/holiday',       label: 'วันหยุดนักขัตฤกษ์',                             icon: iconHoliday() },
     ],
