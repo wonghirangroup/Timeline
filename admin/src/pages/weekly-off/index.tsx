@@ -33,7 +33,7 @@ function toYYYYMM(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}` 
 
 // คำนวณวันที่จริงจาก week_start (Monday) + day_of_week
 function actualDate(weekStart: string, dow: number): string {
-  const d = new Date(weekStart + 'T00:00:00Z')
+  const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
   d.setUTCDate(d.getUTCDate() + (dow === 0 ? 6 : dow - 1))
   return d.toISOString().slice(0, 10)
 }

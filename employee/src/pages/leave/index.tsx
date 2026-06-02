@@ -65,8 +65,8 @@ function addWeeks(baseMonday: string, n: number): string {
   return d.toISOString().slice(0, 10)
 }
 function fmtWeekRange(monday: string): string {
-  const start = new Date(monday + 'T00:00:00')
-  const end   = new Date(monday + 'T00:00:00')
+  const start = new Date(monday.slice(0, 10) + 'T00:00:00')
+  const end   = new Date(monday.slice(0, 10) + 'T00:00:00')
   end.setDate(end.getDate() + 6)
   const m = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
   return `${start.getDate()} ${m[start.getMonth()]} – ${end.getDate()} ${m[end.getMonth()]} ${end.getFullYear()+543}`
