@@ -11,9 +11,10 @@ interface LeaveRequest {
   days: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   reviewed_at: string | null; reject_note: string | null
 }
-interface WeeklyOffRequest {
+interface MonthlyOffRequest {
   id: string; week_start: string; day_of_week: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; reject_note: string | null
+  employee?: { id: string; first_name: string; last_name: string; nickname: string | null }
 }
 
 const STATUS_CFG = {
@@ -47,32 +48,34 @@ function countDays(start: string, end: string): number {
   return count
 }
 
-const DAYS_FULL = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
-const WO_STATUS_CFG = {
+const DAYS_SHORT = ['อา','จ','อ','พ','พฤ','ศ','ส']
+const MO_STATUS_CFG = {
   PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
   APPROVED: { label: 'อนุมัติแล้ว', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
   REJECTED: { label: 'ไม่อนุมัติ', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
 }
 
-function getMondayStr(date: Date): string {
-  const d = new Date(date), day = d.getDay()
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
-  return d.toISOString().slice(0, 10)
+function getMonthStr(d: Date) { return d.toISOString().slice(0, 7) }
+function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
-function addWeeks(baseMonday: string, n: number): string {
-  const d = new Date(baseMonday + 'T00:00:00')
-  d.setDate(d.getDate() + n * 7)
-  return d.toISOString().slice(0, 10)
+function fmtMonthTH(ym: string): string {
+  const [y, m] = ym.split('-').map(Number)
+  const names = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+  return `${names[m - 1]} ${y + 543}`
 }
-function fmtWeekRange(monday: string): string {
-  const start = new Date(monday.slice(0, 10) + 'T00:00:00')
-  const end   = new Date(monday.slice(0, 10) + 'T00:00:00')
-  end.setDate(end.getDate() + 6)
-  const m = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-  return `${start.getDate()} ${m[start.getMonth()]} – ${end.getDate()} ${m[end.getMonth()]} ${end.getFullYear()+543}`
+function getDaysInMonth(ym: string): number {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+function getFirstDayOfWeek(ym: string): number {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(y, m - 1, 1).getDay()
 }
 
-type Tab = 'history' | 'request' | 'weekly'
+type Tab = 'history' | 'request' | 'monthly'
 
 export default function LeavePage() {
   const navigate    = useNavigate()
@@ -86,22 +89,30 @@ export default function LeavePage() {
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
 
-  // weekly off
-  const [woRequests,   setWoRequests]   = useState<WeeklyOffRequest[]>([])
-  const [woWeek,       setWoWeek]       = useState(() => getMondayStr(new Date()))
-  const [woSelectedDay, setWoDay]       = useState<number | null>(null)
-  const [woSubmitting, setWoSubmitting] = useState(false)
-  const [woDone,       setWoDone]       = useState(false)
+  // monthly off
+  const [moOwn,        setMoOwn]        = useState<MonthlyOffRequest[]>([])
+  const [moColleagues, setMoColleagues] = useState<MonthlyOffRequest[]>([])
+  const [moMonth,      setMoMonth]      = useState(() => getMonthStr(new Date()))
+  const [moSelected,   setMoSelected]   = useState<string | null>(null)   // YYYY-MM-DD
+  const [moSubmitting, setMoSubmitting] = useState(false)
+  const [moDone,       setMoDone]       = useState(false)
+  const [moDeleting,   setMoDeleting]   = useState(false)
 
   const load = useCallback(async (empId: string) => {
-    const [reqRes, balRes, woRes] = await Promise.all([
+    const [reqRes, balRes] = await Promise.all([
       api.get('/employee/leave-requests', { params: { employeeId: empId } }),
       api.get('/employee/leave-balances',  { params: { employeeId: empId, year: new Date().getFullYear() } }),
-      api.get('/employee/weekly-off',      { params: { employeeId: empId } }),
     ])
     setRequests((reqRes.data.data ?? []).sort((a: LeaveRequest, b: LeaveRequest) => b.start_date.localeCompare(a.start_date)))
     setBalances(balRes.data.data ?? [])
-    setWoRequests(woRes.data.data ?? [])
+  }, [])
+
+  const loadMonthView = useCallback(async (empId: string, month: string) => {
+    try {
+      const res = await api.get('/employee/weekly-off/month-view', { params: { employeeId: empId, month } })
+      setMoOwn(res.data.data?.own ?? [])
+      setMoColleagues(res.data.data?.colleagues ?? [])
+    } catch { /* ignore */ }
   }, [])
 
   useEffect(() => {
@@ -115,7 +126,8 @@ export default function LeavePage() {
         const res = await api.get('/employee/me')
         const emp = res.data.data.employee
         setEmployee(emp)
-        await load(emp.id)
+        const currentMonth = getMonthStr(new Date())
+        await Promise.all([load(emp.id), loadMonthView(emp.id, currentMonth)])
       } catch { /* ignore */ }
       finally { setBooting(false) }
     })()
@@ -147,25 +159,37 @@ export default function LeavePage() {
     } finally { setSubmitting(false) }
   }, [employee, form, load])
 
-  const handleWeeklyOff = useCallback(async () => {
-    if (!employee || woSelectedDay === null) return
-    setWoSubmitting(true)
+  const handleMonthlyOff = useCallback(async () => {
+    if (!employee || !moSelected) return
+    setMoSubmitting(true)
     setErrorMsg(null)
     try {
-      await api.post('/employee/weekly-off', {
+      await api.post('/employee/weekly-off/monthly', {
         employee_id: employee.id,
-        week_start:  woWeek,
-        day_of_week: woSelectedDay,
+        date:        moSelected,
       })
-      await load(employee.id)
-      setWoDone(true)
-      setWoDay(null)
+      await loadMonthView(employee.id, moMonth)
+      setMoDone(true)
+      setMoSelected(null)
     } catch (err: any) {
       const code = err?.response?.data?.error?.code
-      if (code === 'ALREADY_REQUESTED') setErrorMsg('มีการขอวันหยุดสัปดาห์นี้แล้ว')
+      if (code === 'ALREADY_REQUESTED') setErrorMsg('มีการขอวันหยุดเดือนนี้แล้ว')
       else setErrorMsg(err?.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด')
-    } finally { setWoSubmitting(false) }
-  }, [employee, woSelectedDay, woWeek, load])
+    } finally { setMoSubmitting(false) }
+  }, [employee, moSelected, moMonth, loadMonthView])
+
+  const handleCancelMonthlyOff = useCallback(async (id: string) => {
+    if (!employee) return
+    setMoDeleting(true)
+    try {
+      await api.delete(`/employee/weekly-off/${id}`, { params: { employeeId: employee.id } })
+      await loadMonthView(employee.id, moMonth)
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code
+      if (code === 'NOT_PENDING') setErrorMsg('ยกเลิกได้เฉพาะรายการที่รอพิจารณา')
+      else setErrorMsg(err?.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด')
+    } finally { setMoDeleting(false) }
+  }, [employee, moMonth, loadMonthView])
 
   if (booting) {
     return (
@@ -178,6 +202,19 @@ export default function LeavePage() {
 
   const days = countDays(form.startDate, form.endDate)
   const canSubmit = !!form.startDate && !!form.endDate && !!form.reason.trim() && days > 0
+
+  // monthly calendar helpers
+  const totalDays    = getDaysInMonth(moMonth)
+  const firstDow     = getFirstDayOfWeek(moMonth)
+  const moOwnDate    = moOwn.length > 0 ? moOwn[0].week_start.slice(0, 10) : null
+  const colleagueDates = new Map<string, MonthlyOffRequest[]>()
+  moColleagues.forEach(r => {
+    const d = r.week_start.slice(0, 10)
+    if (!colleagueDates.has(d)) colleagueDates.set(d, [])
+    colleagueDates.get(d)!.push(r)
+  })
+  const today = new Date().toISOString().slice(0, 10)
+  const todayMonth = today.slice(0, 7)
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
@@ -214,10 +251,13 @@ export default function LeavePage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 5, margin: '16px 16px 0', background: 'rgba(0,0,0,0.04)', borderRadius: 14, padding: 4 }}>
-        {(['history', 'request', 'weekly'] as Tab[]).map(t => (
-          <button key={t} onClick={() => { setTab(t); setSubmitDone(false); setWoDone(false); setErrorMsg(null) }}
+        {(['history', 'request', 'monthly'] as Tab[]).map(t => (
+          <button key={t} onClick={() => {
+            setTab(t); setSubmitDone(false); setMoDone(false); setErrorMsg(null)
+            if (t === 'monthly' && employee) loadMonthView(employee.id, moMonth)
+          }}
             style={{ flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', borderRadius: 10, fontWeight: 600, fontSize: '0.72rem', background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--accent-start)' : 'var(--text-secondary)', boxShadow: tab === t ? '0 2px 8px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
-            {t === 'history' ? '📋 ประวัติ' : t === 'request' ? '✏️ ขอลา' : '📅 หยุดสัปดาห์'}
+            {t === 'history' ? '📋 ประวัติ' : t === 'request' ? '✏️ ขอลา' : '📅 หยุดเดือน'}
           </button>
         ))}
       </div>
@@ -328,86 +368,182 @@ export default function LeavePage() {
           )}
         </div>
       )}
-      {/* Weekly Off tab */}
-      {tab === 'weekly' && (
+      {/* Monthly Off tab */}
+      {tab === 'monthly' && (
         <div style={{ margin: '14px 16px 0' }}>
-          {woDone ? (
-            <div className="glass-card animate-slide-up" style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <div className="animate-success-pop" style={{ fontSize: '3.5rem', marginBottom: 14 }}>📅</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>ส่งคำขอแล้ว!</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา</div>
-              <button onClick={() => setWoDone(false)} style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>ขอสัปดาห์ถัดไป</button>
-            </div>
-          ) : (
-            <div className="glass-card animate-slide-up" style={{ padding: '20px 18px' }}>
-              {/* Week selector */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <button onClick={() => setWoWeek(addWeeks(woWeek, -1))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{fmtWeekRange(woWeek)}</div>
-                </div>
-                <button onClick={() => setWoWeek(addWeeks(woWeek, 1))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>›</button>
-              </div>
 
-              {/* สถานะสัปดาห์นี้ */}
-              {(() => {
-                const existing = woRequests.find(w => w.week_start.slice(0,10) === woWeek)
-                if (existing) {
-                  const cfg = WO_STATUS_CFG[existing.status]
-                  return (
-                    <div style={{ padding: '14px', borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.color}33`, marginBottom: 14 }}>
-                      <div style={{ fontWeight: 700, color: cfg.color, fontSize: '0.9rem' }}>{cfg.label}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                        วัน{DAYS_FULL[existing.day_of_week]} — {fmtWeekRange(woWeek)}
-                      </div>
-                      {existing.reject_note && <div style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: 4 }}>เหตุผล: {existing.reject_note}</div>}
-                    </div>
-                  )
+          {/* Month navigator */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <button onClick={() => {
+              const prev = addMonths(moMonth, -1)
+              setMoMonth(prev); setMoSelected(null)
+              if (employee) loadMonthView(employee.id, prev)
+            }} style={{ padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{fmtMonthTH(moMonth)}</div>
+            <button onClick={() => {
+              const next = addMonths(moMonth, 1)
+              setMoMonth(next); setMoSelected(null)
+              if (employee) loadMonthView(employee.id, next)
+            }} style={{ padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', fontSize: '1rem' }}>›</button>
+          </div>
+
+          {/* Calendar */}
+          <div className="glass-card animate-slide-up" style={{ padding: '14px 12px' }}>
+            {/* Day-of-week header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 6 }}>
+              {DAYS_SHORT.map((d, i) => (
+                <div key={i} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: i === 0 ? '#dc2626' : i === 6 ? '#2563eb' : 'var(--text-muted)', padding: '4px 0' }}>{d}</div>
+              ))}
+            </div>
+            {/* Date cells */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+              {/* Empty cells before first day */}
+              {Array.from({ length: firstDow }).map((_, i) => <div key={`e${i}`} />)}
+              {/* Day cells */}
+              {Array.from({ length: totalDays }).map((_, i) => {
+                const day    = i + 1
+                const dateStr = `${moMonth}-${String(day).padStart(2, '0')}`
+                const isOwn      = moOwnDate === dateStr
+                const ownReq     = isOwn ? moOwn[0] : null
+                const colleagues = colleagueDates.get(dateStr) ?? []
+                const isSelected = moSelected === dateStr
+                const isPast     = dateStr < today
+                const isToday    = dateStr === today
+                const isThisMonth = moMonth === todayMonth
+
+                // ถ้าเดือนนี้ ห้ามเลือกวันในอดีต
+                const canPick = !isOwn && !isPast && (moMonth > todayMonth || (moMonth === todayMonth && !isPast))
+
+                let cellBg = 'transparent'
+                let cellBorder = '1px solid transparent'
+                let textColor = i % 7 === 0 ? '#dc2626' : i % 7 === 6 ? '#2563eb' : 'var(--text-primary)'
+
+                if (isOwn && ownReq) {
+                  const cfg = MO_STATUS_CFG[ownReq.status]
+                  cellBg = cfg.bg
+                  cellBorder = `1px solid ${cfg.color}66`
+                  textColor = cfg.color
+                } else if (isSelected) {
+                  cellBg = 'rgba(255,107,53,0.12)'
+                  cellBorder = '1px solid var(--accent-start)'
+                  textColor = 'var(--accent-start)'
+                } else if (isPast) {
+                  textColor = 'var(--text-muted)'
+                } else if (isToday) {
+                  cellBorder = '1px solid rgba(255,107,53,0.4)'
                 }
-                return null
-              })()}
 
-              {!woRequests.find(w => w.week_start.slice(0,10) === woWeek) && (
-                <>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>เลือกวันหยุด (1 วัน)</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 16 }}>
-                    {DAYS_FULL.map((d, i) => (
-                      <button key={i} onClick={() => setWoDay(woSelectedDay === i ? null : i)}
-                        style={{ padding: '10px 4px', borderRadius: 10, border: `2px solid ${woSelectedDay === i ? 'var(--accent-start)' : 'rgba(0,0,0,0.08)'}`, background: woSelectedDay === i ? 'rgba(255,107,53,0.08)' : '#fff', color: woSelectedDay === i ? 'var(--accent-start)' : i === 0 ? '#dc2626' : i === 6 ? '#2563eb' : 'var(--text-primary)', fontWeight: woSelectedDay === i ? 700 : 500, fontSize: '0.72rem', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        {d.slice(0, 2)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {errorMsg && (
-                    <div style={{ marginBottom: 12, padding: '10px', borderRadius: 10, background: 'var(--error-bg)', color: 'var(--error)', fontSize: '0.82rem' }}>⚠️ {errorMsg}</div>
-                  )}
-
-                  <button onClick={handleWeeklyOff} disabled={woSelectedDay === null || woSubmitting}
-                    style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: woSelectedDay !== null ? 'pointer' : 'not-allowed', background: woSelectedDay !== null ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))' : 'rgba(0,0,0,0.08)', color: woSelectedDay !== null ? '#fff' : 'var(--text-muted)', fontSize: '1rem', fontWeight: 700, transition: 'all 0.2s' }}>
-                    {woSubmitting ? 'กำลังส่ง...' : woSelectedDay !== null ? `📅 ขอหยุดวัน${DAYS_FULL[woSelectedDay]}` : 'เลือกวันก่อน'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ประวัติ Weekly Off */}
-          {woRequests.length > 0 && (
-            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', paddingLeft: 4 }}>ประวัติ</div>
-              {woRequests.slice().sort((a, b) => b.week_start.localeCompare(a.week_start)).slice(0, 8).map(w => {
-                const cfg = WO_STATUS_CFG[w.status]
                 return (
-                  <div key={w.id} className="glass-card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>วัน{DAYS_FULL[w.day_of_week]}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtWeekRange(w.week_start.slice(0,10))}</div>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: cfg.color, background: cfg.bg, borderRadius: 99, padding: '3px 10px' }}>{cfg.label}</span>
-                  </div>
+                  <button key={day} onClick={() => {
+                    if (!canPick) return
+                    setMoSelected(isSelected ? null : dateStr)
+                    setMoDone(false)
+                    setErrorMsg(null)
+                  }}
+                    style={{ position: 'relative', padding: '8px 2px 6px', borderRadius: 8, border: cellBorder, background: cellBg, cursor: canPick ? 'pointer' : 'default', textAlign: 'center', transition: 'all 0.12s', minHeight: 46 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: isOwn || isSelected ? 700 : 400, color: textColor }}>{day}</div>
+                    {/* Colleague dots */}
+                    {colleagues.length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 3, flexWrap: 'wrap' }}>
+                        {colleagues.slice(0, 3).map((c, ci) => (
+                          <div key={ci} style={{ width: 5, height: 5, borderRadius: '50%', background: c.status === 'APPROVED' ? '#16a34a' : c.status === 'REJECTED' ? '#dc2626' : '#d97706' }} title={c.employee ? `${c.employee.first_name}` : ''} />
+                        ))}
+                        {colleagues.length > 3 && <div style={{ fontSize: '0.5rem', color: 'var(--text-muted)', lineHeight: '5px' }}>+{colleagues.length - 3}</div>}
+                      </div>
+                    )}
+                  </button>
                 )
               })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
+              {[
+                { color: '#d97706', label: 'รอพิจารณา (ฉัน)' },
+                { color: '#16a34a', label: 'อนุมัติแล้ว (ฉัน)' },
+                { color: '#d97706', label: 'เพื่อนร่วมสาขา (รอ)', dot: true },
+                { color: '#16a34a', label: 'เพื่อนร่วมสาขา (ok)', dot: true },
+              ].map((l, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {l.dot
+                    ? <div style={{ width: 7, height: 7, borderRadius: '50%', background: l.color }} />
+                    : <div style={{ width: 12, height: 12, borderRadius: 3, background: `${l.color}22`, border: `1px solid ${l.color}66` }} />
+                  }
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{l.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* คำขอของตัวเองในเดือนนี้ */}
+          {moOwn.length > 0 && (() => {
+            const req = moOwn[0]
+            const cfg = MO_STATUS_CFG[req.status]
+            return (
+              <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 14, background: cfg.bg, border: `1px solid ${cfg.color}33`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>วันหยุดของฉันเดือนนี้</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: cfg.color }}>{fmtDate(req.week_start)}</div>
+                  <div style={{ fontSize: '0.75rem', color: cfg.color, marginTop: 2 }}>{cfg.label}</div>
+                  {req.reject_note && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: 4 }}>เหตุผล: {req.reject_note}</div>}
+                </div>
+                {req.status === 'PENDING' && (
+                  <button onClick={() => handleCancelMonthlyOff(req.id)} disabled={moDeleting}
+                    style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #dc2626', background: 'rgba(220,38,38,0.06)', color: '#dc2626', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                    {moDeleting ? '...' : 'ยกเลิก'}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* เลือกวันแล้ว → ปุ่มส่ง */}
+          {moOwn.length === 0 && (
+            <>
+              {moDone ? (
+                <div className="glass-card animate-slide-up" style={{ marginTop: 12, padding: '28px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📅</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>ส่งคำขอแล้ว!</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 6 }}>รอผู้จัดการพิจารณา</div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  {errorMsg && (
+                    <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 10, background: 'var(--error-bg)', color: 'var(--error)', fontSize: '0.82rem', fontWeight: 600 }}>⚠️ {errorMsg}</div>
+                  )}
+                  <button onClick={handleMonthlyOff} disabled={!moSelected || moSubmitting}
+                    style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: moSelected ? 'pointer' : 'not-allowed', background: moSelected ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))' : 'rgba(0,0,0,0.08)', color: moSelected ? '#fff' : 'var(--text-muted)', fontSize: '1rem', fontWeight: 700, transition: 'all 0.2s' }}>
+                    {moSubmitting ? 'กำลังส่ง...' : moSelected ? `📅 ขอหยุดวันที่ ${moSelected.split('-')[2]} ${fmtMonthTH(moMonth)}` : 'กดวันในปฏิทินเพื่อเลือก'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* รายชื่อเพื่อนร่วมสาขาที่ขอหยุดเดือนนี้ */}
+          {moColleagues.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, paddingLeft: 2 }}>เพื่อนร่วมสาขา ({moColleagues.length} คน)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {moColleagues.map((c, i) => {
+                  const cfg = MO_STATUS_CFG[c.status]
+                  const name = c.employee ? (c.employee.nickname ? c.employee.nickname : `${c.employee.first_name} ${c.employee.last_name}`) : '—'
+                  return (
+                    <div key={c.id} className="glass-card animate-slide-up" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animationDelay: `${i * 40}ms` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {name.charAt(0)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>{name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtDate(c.week_start)}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, color: cfg.color, background: cfg.bg, borderRadius: 99, padding: '3px 10px', whiteSpace: 'nowrap' }}>{cfg.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>

@@ -109,3 +109,80 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
     where: { employee_id_week_start: { employee_id: employeeId, week_start: monday } },
   })
 }
+
+// ── Monthly Off ─────────────────────────────────────────────────────────────
+
+export async function createMonthlyOff(tenantId: string, data: {
+  employee_id: string
+  date: string // YYYY-MM-DD — วันที่จริงที่ต้องการหยุด
+}) {
+  const d = new Date(data.date + 'T00:00:00Z')
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth()
+
+  const startOfMonth = new Date(Date.UTC(year, month, 1))
+  const endOfMonth   = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59))
+
+  // 1 เดือน = 1 คำขอเท่านั้น
+  const existing = await prisma.weeklyOffRequest.findFirst({
+    where: {
+      employee_id: data.employee_id,
+      tenant_id:   tenantId,
+      week_start:  { gte: startOfMonth, lte: endOfMonth },
+    },
+  })
+  if (existing) throw new Error('ALREADY_REQUESTED')
+
+  return prisma.weeklyOffRequest.create({
+    data: {
+      tenant_id:   tenantId,
+      employee_id: data.employee_id,
+      week_start:  d,               // เก็บวันจริง (ไม่ normalize เป็น Monday)
+      day_of_week: d.getUTCDay(),
+    },
+    include: {
+      employee: {
+        select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } },
+      },
+    },
+  })
+}
+
+export async function getMonthView(tenantId: string, employeeId: string, month: string) {
+  const [y, m] = month.split('-').map(Number)
+  const startOfMonth = new Date(Date.UTC(y, m - 1, 1))
+  const endOfMonth   = new Date(Date.UTC(y, m, 0, 23, 59, 59))
+
+  const employee = await prisma.employee.findFirst({
+    where:  { id: employeeId, tenant_id: tenantId },
+    select: { branch_id: true },
+  })
+
+  const all = await prisma.weeklyOffRequest.findMany({
+    where: {
+      tenant_id:  tenantId,
+      week_start: { gte: startOfMonth, lte: endOfMonth },
+      employee:   { branch_id: employee?.branch_id ?? undefined },
+    },
+    include: {
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+    },
+    orderBy: { week_start: 'asc' },
+  })
+
+  return {
+    own:       all.filter(r => r.employee_id === employeeId),
+    colleagues: all.filter(r => r.employee_id !== employeeId),
+  }
+}
+
+export async function deleteMonthlyOff(tenantId: string, id: string, employeeId: string) {
+  const req = await prisma.weeklyOffRequest.findFirst({
+    where: { id, tenant_id: tenantId, employee_id: employeeId },
+  })
+  if (!req) return false
+  if (req.status !== 'PENDING') throw new Error('NOT_PENDING')
+
+  await prisma.weeklyOffRequest.delete({ where: { id } })
+  return true
+}

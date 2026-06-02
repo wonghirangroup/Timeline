@@ -1,22 +1,22 @@
 # Feature Todolist — TimeLine HR SaaS
 
-> อัปเดตล่าสุด: 2026-05-18 (อัปเดตรอบ 2 — Employee LIFF UI Mock ครบทุกหน้า)  
+> อัปเดตล่าสุด: 2026-06-02 (sync จาก brain/_LOG_VIEW.txt + scan โค้ดจริง)
 > สแกนจากโค้ดจริงในโปรเจค
 
 ## สัญลักษณ์สถานะ
 
 | สัญลักษณ์ | ความหมาย |
 |---|---|
-| ✅ | Done — มีโค้ดจริง ทำงานได้ |
-| 🚧 | UI Only — มีหน้าจอแต่ยังไม่ต่อ API |
-| 🔌 | Stub — มี endpoint แต่เป็น hardcode / mock |
+| ✅ | Done — มีโค้ดจริง เชื่อม API จริง ทำงานได้ |
+| 🚧 | UI Only — มีหน้าจอแต่ใช้ Mock data (ยังไม่ต่อ API จริง) |
+| 🔌 | Stub — มี endpoint แต่ logic ไม่ครบ |
 | ❌ | Not Started — ยังไม่มีโค้ด |
 
 ---
 
 ## Dependency Legend
 
-> ก่อนจะทำ Feature ไหน ดูที่ `🔗 ต้องการ` ก่อนเสมอ  
+> ก่อนจะทำ Feature ไหน ดูที่ `🔗 ต้องการ` ก่อนเสมอ
 > ถ้า dependency ยัง ❌ ต้องทำ dependency ก่อน
 
 ---
@@ -25,15 +25,15 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 1.1 | Login / Auth | ❌ | ❌ | ❌ | JWT สำหรับ Super Admin |
+| 1.1 | Login / Auth | ✅ | ✅ | ✅ | JWT login + refresh token พร้อมแล้ว |
 | 1.2 | Dashboard Overview | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
-| 1.3 | Package Management | ❌ | ❌ | ❌ | สร้าง/แก้ Tier |
-| 1.4 | Tenant List | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
-| 1.5 | สร้าง Tenant ใหม่ | ❌ | ❌ | ❌ | — |
+| 1.3 | Package Management | ❌ | 🚧 | ❌ | UI mock อยู่ |
+| 1.4 | Tenant List | ✅ | ✅ | ✅ | list + detail เชื่อม API จริง |
+| 1.5 | สร้าง Tenant ใหม่ | ✅ | ✅ | ✅ | onboarding page เชื่อม API |
 | 1.6 | Suspend / Activate Tenant | ❌ | ❌ | ❌ | — |
 | 1.7 | Login as Admin (Impersonate) | ❌ | ❌ | ❌ | — |
-| 1.8 | LINE OA Config per Tenant | ❌ | 🚧 | ❌ | หน้า line-config มีแต่ TODO |
-| 1.9 | Billing / Subscription | ❌ | 🚧 | ❌ | หน้า billing มีแต่ TODO |
+| 1.8 | LINE OA Config per Tenant | ✅ | ✅ | ✅ | tenant detail page มี LINE config |
+| 1.9 | Billing / Subscription | ❌ | 🚧 | ❌ | UI mock อยู่ |
 | 1.10 | Global Announcement | ❌ | ❌ | ❌ | ส่งข้อความหาทุก Tenant |
 
 ---
@@ -44,9 +44,9 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 2.1.1 | Login (email + password) | ❌ | ❌ | ❌ |
-| 2.1.2 | JWT Refresh Token | ❌ | ❌ | ❌ |
-| 2.1.3 | Logout | ❌ | ❌ | ❌ |
+| 2.1.1 | Login (email + password) | ✅ | ✅ | ✅ |
+| 2.1.2 | JWT Refresh Token | ✅ | ✅ | ✅ |
+| 2.1.3 | Logout | ✅ | ✅ | ✅ |
 
 ---
 
@@ -56,13 +56,11 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.2.1 | Summary Cards (8 สถานะ) | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
+| 2.2.1 | Summary Cards (เช็คชื่อ/สาย/ขาด) | ❌ | 🚧 | ❌ | UI mock อยู่ |
 | 2.2.2 | Filter วันที่ (single/range) | ❌ | ❌ | ❌ | — |
 | 2.2.3 | Filter สาขา | ❌ | ❌ | ❌ | — |
-| 2.2.4 | Search Box พนักงาน | ❌ | ❌ | ❌ | — |
-| 2.2.5 | Table Record + Pagination | ❌ | ❌ | ❌ | — |
-| 2.2.6 | Manage Modal (แผนที่ + ประวัติ) | ❌ | ❌ | ❌ | — |
-| 2.2.7 | Daily Summary (Cron job) | ❌ | — | ❌ | ประมวลผลตี 00:05 |
+| 2.2.4 | Table Record + Pagination | ❌ | ❌ | ❌ | — |
+| 2.2.5 | Daily Summary (Cron job) | ❌ | — | ❌ | ประมวลผลตี 00:05 |
 
 ---
 
@@ -70,14 +68,14 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.3.1 | List พนักงาน (+ search/filter) | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
-| 2.3.2 | สร้างพนักงานรายคน | ❌ | ❌ | ❌ | — |
+| 2.3.1 | List พนักงาน (+ search/filter) | ✅ | ✅ | ✅ | เชื่อม API จริง |
+| 2.3.2 | สร้างพนักงานรายคน | ✅ | ✅ | ✅ | — |
 | 2.3.3 | Import Excel/CSV | ❌ | ❌ | ❌ | — |
-| 2.3.4 | แก้ไขข้อมูลพนักงาน | ❌ | ❌ | ❌ | — |
-| 2.3.5 | เปลี่ยนสถานะ + เหตุผล | ❌ | ❌ | ❌ | พักงาน/บวช/ทหาร/คลอด |
-| 2.3.6 | ดู Status การผูก LINE | ❌ | ❌ | ❌ | PENDING / ACTIVE |
-| 2.3.7 | Resend Invite Link | ❌ | ❌ | ❌ | ส่ง Link ยืนยันตัวตนซ้ำ |
-| 2.3.8 | ตั้งค่า Salary / OT (HR only) | ❌ | ❌ | ❌ | Feature Toggle ตาม role |
+| 2.3.4 | แก้ไขข้อมูลพนักงาน | ✅ | ✅ | ✅ | — |
+| 2.3.5 | เปลี่ยนสถานะพนักงาน | ✅ | ✅ | ✅ | active/inactive |
+| 2.3.6 | ดู Status การผูก LINE | ✅ | ✅ | ✅ | แสดงสถานะ LINE binding |
+| 2.3.7 | Resend Invite Link | ❌ | ❌ | ❌ | — |
+| 2.3.8 | ตั้งค่า Salary / OT (HR only) | ❌ | ❌ | ❌ | — |
 | 2.3.9 | Export Excel | ❌ | ❌ | ❌ | — |
 
 ---
@@ -86,31 +84,30 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.4.1 | List สาขา | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
-| 2.4.2 | สร้าง/แก้ไขสาขา | ❌ | ❌ | ❌ | — |
-| 2.4.3 | Map Picker (ปักหมุด GPS) | ❌ | ❌ | ❌ | Google Maps / Leaflet |
-| 2.4.4 | ตั้งค่า Radius + Accuracy Buffer | ❌ | ❌ | ❌ | — |
-| 2.4.5 | Generate QR Code | ❌ | ❌ | ❌ | QR Key = UUID ของสาขา |
-| 2.4.6 | Toggle เปิด/ปิดจุดสแกน | ❌ | ❌ | ❌ | — |
+| 2.4.1 | List สาขา | ✅ | ✅ | ✅ | — |
+| 2.4.2 | สร้าง/แก้ไขสาขา | ✅ | ✅ | ✅ | — |
+| 2.4.3 | ตั้งค่า GPS Lat/Lng | ✅ | ✅ | ✅ | กด "ดึงตำแหน่งปัจจุบัน" |
+| 2.4.4 | ตั้งค่า Radius + Geo Mode (WARN/BLOCK) | ✅ | ✅ | ✅ | Geofencing ครบ (2026-06-01) |
+| 2.4.5 | Generate QR Code | ✅ | ✅ | ✅ | QR modal + copy + download |
+| 2.4.6 | ลบสาขา (soft delete) | ✅ | ✅ | ✅ | — |
 | 2.4.7 | กำหนด Manager ประจำสาขา | ❌ | ❌ | ❌ | — |
 
 ---
 
 ### 2.5 Calendar & Leave Management
 
-🔗 **ต้องการก่อน:** 2.3 Employee, 2.4 Branch, 2.9 Leave Policy Settings
+🔗 **ต้องการก่อน:** 2.3 Employee, 2.4 Branch
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.5.1 | Calendar View รายเดือน | ❌ | ❌ | ❌ | FullCalendar / React Big Calendar |
-| 2.5.2 | Filter สาขา / รายคน | ❌ | ❌ | ❌ | — |
-| 2.5.3 | แสดงวันหยุดนักขัตฤกษ์ | ❌ | ❌ | ❌ | — |
-| 2.5.4 | แสดง Leave Request ในปฏิทิน | ❌ | ❌ | ❌ | — |
-| 2.5.5 | Admin ลงวันหยุดให้พนักงาน | ❌ | ❌ | ❌ | Override |
-| 2.5.6 | Admin สลับวันหยุด | ❌ | ❌ | ❌ | เปลี่ยน status ย้อนหลัง |
-| 2.5.7 | Approve / Reject Leave จาก Admin | ❌ | 🚧 | ❌ | หน้า leave มีแต่ TODO |
-| 2.5.8 | ตั้งวันหยุดนักขัตฤกษ์ประจำปี | ❌ | ❌ | ❌ | — |
-| 2.5.9 | Weekly Day-off Quota Config | ❌ | ❌ | ❌ | จำนวนคนที่หยุดได้ต่อวัน |
+| 2.5.1 | List Leave Request + filter | ✅ | ✅ | ✅ | เชื่อม API จริง |
+| 2.5.2 | Approve / Reject Leave | ✅ | ✅ | ✅ | พร้อมกรอกเหตุผล reject |
+| 2.5.3 | Leave Balance per Employee | ✅ | ✅ | ✅ | batch upsert + seniority rules |
+| 2.5.4 | Default Leave Quota Config | ✅ | ✅ | ✅ | ตั้ง default แล้ว apply ทีเดียว |
+| 2.5.5 | Seniority-based Leave Rules | ✅ | ✅ | ✅ | คำนวณจาก start_date |
+| 2.5.6 | Holiday — นักขัตฤกษ์ + บริษัท | ✅ | ✅ | ✅ | import ราชการ + เพิ่ม/แก้/ลบ + ปฏิทิน |
+| 2.5.7 | Monthly Day-off Quota Config | ❌ | ❌ | ❌ | จำนวนคนที่หยุดได้ต่อวัน |
+| 2.5.8 | Calendar View รายเดือน | ❌ | ❌ | ❌ | — |
 
 ---
 
@@ -120,299 +117,256 @@
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.6.1 | List กะงาน | ❌ | 🚧 | ❌ | หน้ามีแต่ TODO |
-| 2.6.2 | สร้าง/แก้ไขกะ | ❌ | ❌ | ❌ | — |
-| 2.6.3 | ผูกกะกับสาขา | ❌ | ❌ | ❌ | — |
-| 2.6.4 | ผูกกะกับพนักงานรายคน (Override) | ❌ | ❌ | ❌ | Priority: บุคคล > สาขา > บริษัท |
-| 2.6.5 | ตั้งค่า Late Threshold 1 & 2 | ❌ | ❌ | ❌ | — |
-| 2.6.6 | ตั้งค่า Early Check-in Window | ❌ | ❌ | ❌ | เช็คอินล่วงหน้าได้กี่นาที |
-| 2.6.7 | Approve Shift Swap | ❌ | ❌ | ❌ | — |
+| 2.6.1 | List กะงาน | ✅ | ✅ | ✅ | — |
+| 2.6.2 | สร้าง/แก้ไขกะ | ✅ | ✅ | ✅ | — |
+| 2.6.3 | ผูกกะกับสาขา | ✅ | ✅ | ✅ | — |
+| 2.6.4 | Default Shift + Override pattern | ✅ | ✅ | ✅ | Priority: บุคคล > สาขา > บริษัท (2026-05-27) |
+| 2.6.5 | Late Threshold 1 & 2 + ค่าปรับ | ✅ | ✅ | ✅ | late_fine_1/2 พร้อม |
+| 2.6.6 | ปิดรับเช็คอิน (late_threshold_2) | ✅ | ✅ | ✅ | หลังเวลานี้ = ขาด |
+| 2.6.7 | Shift Schedule (Month View) | ✅ | ✅ | ✅ | shift-schedule page (2026-05-27) |
+| 2.6.8 | Approve Shift Swap | ❌ | ❌ | ❌ | — |
 
 ---
 
-### 2.7 Manual Check-in
+### 2.7 Attendance Management (Admin Override)
 
 🔗 **ต้องการก่อน:** 2.3 Employee, 2.6 Shift
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.7.1 | ค้นหาพนักงาน | ❌ | ❌ | ❌ | — |
-| 2.7.2 | เลือก วัน/เวลา ย้อนหลัง | ❌ | ❌ | ❌ | — |
-| 2.7.3 | บันทึก Check-in / Check-out | ❌ | ❌ | ❌ | — |
-| 2.7.4 | บังคับกรอกเหตุผล | ❌ | ❌ | ❌ | — |
-| 2.7.5 | Audit Log (is_manual = true) | ❌ | ❌ | ❌ | บันทึกว่า Admin ไหนลง |
+| 2.7.1 | ดู Attendance report + filter | ✅ | ✅ | ✅ | filter วัน/สาขา/พนักงาน |
+| 2.7.2 | badge วิธีเช็คอิน (LIFF/QR/ADMIN) | ✅ | ✅ | ✅ | — |
+| 2.7.3 | badge นอกพื้นที่ | ✅ | ✅ | ✅ | is_outside_area |
+| 2.7.4 | ลงเวลาแทน (Manual Check-in) | ✅ | ✅ | ✅ | Admin ลงวันย้อนหลังได้ |
+| 2.7.5 | แก้ไขเวลาเช็คอิน/เอาท์ | ✅ | ✅ | ✅ | — |
+| 2.7.6 | Reset บันทึก (ลบแล้วเช็คอินใหม่) | ✅ | ✅ | ✅ | — |
+| 2.7.7 | Audit Log (is_manual flag) | ✅ | ✅ | ✅ | method = ADMIN |
 
 ---
 
 ### 2.8 OT Management
 
-🔗 **ต้องการก่อน:** 2.3 Employee, 2.6 Shift, 2.9.3 OT Rate Settings
-
-| # | Feature | Backend | Frontend | สถานะรวม |
-|---|---|---|---|---|
-| 2.8.1 | List OT Request | ❌ | 🚧 | ❌ |
-| 2.8.2 | Approve / Reject OT | ❌ | ❌ | ❌ |
-| 2.8.3 | คำนวณ OT จาก check_out_time | ❌ | ❌ | ❌ |
-
----
-
-### 2.9 Settings (หัวใจของระบบ)
+🔗 **ต้องการก่อน:** 2.3 Employee, 2.6 Shift
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 2.9.1 | Late Deduction Rules | ❌ | 🚧 | ❌ | สาย X นาที หัก Y บาท |
-| 2.9.2 | Payroll Base (÷30 หรือ ÷วันทำงาน) | ❌ | ❌ | ❌ | — |
-| 2.9.3 | OT Multiplier (1.5x / 2x / 3x) | ❌ | ❌ | ❌ | — |
-| 2.9.4 | Leave Policy per Type | ❌ | ❌ | ❌ | ลาป่วย/กิจ/พักร้อน/คลอด/บวช |
-| 2.9.5 | Vacation Tenure Tiers | ❌ | ❌ | ❌ | 1ปี=6วัน, 5ปี=10วัน, 10ปี=15วัน |
-| 2.9.6 | Feature Toggle (Salary visible) | ❌ | ❌ | ❌ | HR vs IT Admin |
-| 2.9.7 | LINE OA Config (channel_id/secret) | ❌ | ❌ | ❌ | — |
+| 2.8.1 | List OT Request + filter | ✅ | 🚧 | 🚧 | Backend ✅ แต่ Admin UI ยัง mock |
+| 2.8.2 | Approve / Reject OT | ✅ | 🚧 | 🚧 | Backend ✅ แต่ Admin UI ยัง mock |
+| 2.8.3 | คำนวณ OT + cap 36 ชม./สัปดาห์ | ✅ | — | ✅ | (2026-05-27) |
 
 ---
 
-### 2.10 Payroll
+### 2.9 Monthly Day-off Management (Admin)
 
-🔗 **ต้องการก่อน:** 2.9 Settings ทั้งหมด, 2.2 Dashboard (ข้อมูลเช็คชื่อ)
-
-| # | Feature | Backend | Frontend | สถานะรวม |
-|---|---|---|---|---|
-| 2.10.1 | สรุปรายเดือน (monthly_payroll_records) | ❌ | ❌ | ❌ |
-| 2.10.2 | Auto Deduction (สาย/ขาด/ลาไม่ได้รับค่าจ้าง) | ❌ | ❌ | ❌ |
-| 2.10.3 | หน้า Payroll Review | ❌ | ❌ | ❌ |
-| 2.10.4 | Confirm & Lock ยอด | ❌ | ❌ | ❌ |
-| 2.10.5 | Export Excel/CSV สำหรับธนาคาร | ❌ | ❌ | ❌ |
+| # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
+|---|---|---|---|---|---|
+| 2.9.1 | List Monthly Off + filter | ✅ | ✅ | ✅ | weekly-off page เชื่อม API |
+| 2.9.2 | Approve / Reject Monthly Off | ✅ | ✅ | ✅ | รวม Approve All ในเดือน |
+| 2.9.3 | ลบ Monthly Off | ✅ | ✅ | ✅ | — |
 
 ---
 
-### 2.11 Communication
+### 2.10 Communication
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 2.11.1 | Broadcast Announcement (ทุกคน) | ❌ | 🚧 | ❌ |
-| 2.11.2 | Direct Message รายคน | ❌ | ❌ | ❌ |
-| 2.11.3 | อ่าน Anonymous Feedback | ❌ | ❌ | ❌ |
+| 2.10.1 | Broadcast Announcement (ทุกคน / เฉพาะสาขา) | ✅ | 🚧 | 🚧 | Backend ✅ แต่ Admin UI ยัง mock |
+| 2.10.2 | Direct Message รายคน | ❌ | ❌ | ❌ |
+| 2.10.3 | อ่าน Anonymous Feedback | ❌ | 🚧 | 🚧 | UI mock อยู่ |
 
 ---
 
-### 2.12 Report
+### 2.11 Settings
+
+| # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
+|---|---|---|---|---|---|
+| 2.11.1 | Late Deduction Rules | ❌ | 🚧 | ❌ | UI mock อยู่ |
+| 2.11.2 | Leave Policy per Type | ❌ | ❌ | ❌ | — |
+| 2.11.3 | OT Multiplier | ❌ | ❌ | ❌ | — |
+| 2.11.4 | LINE OA Config | ❌ | ❌ | ❌ | — |
+
+---
+
+### 2.12 Payroll
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 2.12.1 | Attendance Report รายเดือน | ❌ | 🚧 | ❌ |
-| 2.12.2 | Leave Report | ❌ | ❌ | ❌ |
-| 2.12.3 | Late/Absent Trend Chart | ❌ | ❌ | ❌ |
-| 2.12.4 | KPI Score พนักงาน | ❌ | ❌ | ❌ |
-| 2.12.5 | Export Excel | ❌ | ❌ | ❌ |
+| 2.12.1 | สรุปรายเดือน | ❌ | ❌ | ❌ |
+| 2.12.2 | Auto Deduction (สาย/ขาด/ลา) | ❌ | ❌ | ❌ |
+| 2.12.3 | Confirm & Lock ยอด | ❌ | ❌ | ❌ |
+| 2.12.4 | Export Excel/CSV | ❌ | ❌ | ❌ |
+
+---
+
+### 2.13 Report
+
+| # | Feature | Backend | Frontend | สถานะรวม |
+|---|---|---|---|---|
+| 2.13.1 | Attendance Report รายเดือน | ❌ | 🚧 | ❌ |
+| 2.13.2 | Leave Report | ❌ | ❌ | ❌ |
+| 2.13.3 | Late/Absent Trend Chart | ❌ | ❌ | ❌ |
+| 2.13.4 | Export Excel | ❌ | ❌ | ❌ |
 
 ---
 
 ## 3. MANAGER
 
-🔗 **ต้องการก่อน:** ทุกอย่างใน Admin ที่เกี่ยวกับ Branch, Shift, Employee ต้องสร้างไว้ก่อน
+> หมายเหตุ: ปัจจุบัน MANAGER ใช้หน้าเดียวกับ ADMIN — permission แยกที่ backend RBAC
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 3.1 | Login / Auth | ❌ | ❌ | ❌ | JWT role: MANAGER |
-| 3.2 | Dashboard (เฉพาะ Branch ตัวเอง) | ❌ | ❌ | ❌ | — |
-| 3.3 | Approve / Reject Leave | ❌ | ❌ | ❌ | ผ่าน LINE หรือ Web |
-| 3.4 | Approve Shift Swap | ❌ | ❌ | ❌ | — |
-| 3.5 | Approve OT | ❌ | ❌ | ❌ | — |
+| 3.1 | Login / Auth | ✅ | ✅ | ✅ | ใช้ระบบเดียวกับ Admin |
+| 3.2 | ดู Attendance เฉพาะ Branch ตัวเอง | ✅ | ✅ | ✅ | filter branchId ที่ backend |
+| 3.3 | Approve / Reject Leave | ✅ | ✅ | ✅ | — |
+| 3.4 | Approve / Reject OT | ✅ | 🚧 | 🚧 | Backend ✅ แต่ UI ยัง mock |
+| 3.5 | Approve Monthly Day-off | ✅ | ✅ | ✅ | — |
 | 3.6 | Direct Message พนักงาน | ❌ | ❌ | ❌ | — |
 
 ---
 
 ## 4. EMPLOYEE (LINE LIFF)
 
-> ⚠️ ทุก Feature ของ Employee ต้องผ่าน LIFF ทั้งหมด ห้ามมี Web Login
+> ⚠️ ทุก Feature ของ Employee ต้องผ่าน LIFF เท่านั้น
 
 ---
 
-### 4.1 ระบบยืนยันตัวตน (First-time Setup) ← จุดเริ่มต้นทุกอย่าง
-
-🔗 **ต้องการก่อน:**
-- `2.3.2` Admin สร้าง Employee ไว้ก่อน (มีชื่อ + รหัสพนักงาน)
-- `1.8` LINE OA Config ของ Tenant นั้น
+### 4.1 ระบบยืนยันตัวตน (First-time Setup)
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 4.1.1 | LIFF init + LINE login | ✅ | ✅ | ✅ | liff.ts พร้อมแล้ว |
-| 4.1.2 | ตรวจสอบว่า line_user_id ถูก map แล้วหรือยัง | ✅ | 🔌 | 🔌 | liff middleware ทำได้ แต่ UI ยังไม่มีหน้า redirect |
-| 4.1.3 | **หน้าเลือกชื่อตัวเอง** (First-time) | ❌ | 🚧 | 🚧 | UI + Mock ครบ (search + avatar list) |
-| 4.1.4 | ค้นหา/กรอกรหัสพนักงาน เพื่อยืนยัน | ❌ | 🚧 | 🚧 | UI + Mock ครบ (3-step flow: select→confirm→success) |
-| 4.1.5 | บันทึก line_user_id ลง Employee | ❌ | ❌ | ❌ | PATCH employee + status = ACTIVE |
+| 4.1.1 | LIFF init + LINE login | ✅ | ✅ | ✅ | — |
+| 4.1.2 | ตรวจสอบ line_user_id mapping | ✅ | ✅ | ✅ | redirect ไป /verify ถ้ายังไม่ผูก |
+| 4.1.3 | หน้า Verify — ดึง LINE Profile อัตโนมัติ | ✅ | ✅ | ✅ | แสดงชื่อ+รูป LINE |
+| 4.1.4 | ผูก line_user_id ↔ employee_id | ✅ | ✅ | ✅ | PATCH employee |
 
 ---
 
 ### 4.2 Check-in / Check-out
 
-🔗 **ต้องการก่อน:**
-- `4.1` ยืนยันตัวตนครบ (line_user_id ถูก map แล้ว)
-- `2.4.5` Admin Generate QR Code ของสาขาไว้แล้ว
-- `2.6.2` Admin สร้างกะงานไว้แล้ว
+🔗 **ต้องการก่อน:** 4.1 ยืนยันตัวตน, Admin สร้าง Branch + Shift ไว้แล้ว
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 4.2.1 | UI หน้า Check-in (นาฬิกา/ปุ่ม) | — | ✅ | ✅ | สวยงามครบ |
-| 4.2.2 | สแกน QR Code (liff.scanCodeV2) | ❌ | ❌ | ❌ | ยังไม่มีใน UI |
-| 4.2.3 | ดึง GPS (navigator.geolocation) | ❌ | ❌ | ❌ | — |
-| 4.2.4 | POST check-in (API จริง) | 🔌 | 🔌 | 🔌 | Stub endpoint ไม่มี logic จริง |
-| 4.2.5 | GPS Verification (Haversine + buffer) | ❌ | — | ❌ | logic ฝั่ง Backend |
-| 4.2.6 | คำนวณสถานะ (ปกติ/สาย 1/สาย 2) | ❌ | — | ❌ | เทียบกับ shift_start_time |
-| 4.2.7 | LINE Push Message ยืนยันเช็คอิน | ❌ | — | ❌ | — |
-| 4.2.8 | UI หน้า Check-out | — | 🚧 | 🚧 | UI ครบแล้ว (mock) — แสดงเวลาเช็คอิน→เอาท์ + ชม. ทำงาน |
-| 4.2.9 | POST check-out (API จริง) | 🔌 | 🔌 | 🔌 | Stub เท่านั้น |
-| 4.2.10 | คำนวณ OT อัตโนมัติ | ❌ | — | ❌ | — |
-| 4.2.11 | Off-site Check-in | ❌ | ❌ | ❌ | Skip radius check |
+| 4.2.1 | UI หน้า Check-in | — | ✅ | ✅ | — |
+| 4.2.2 | สแกน QR Code (liff.scanCodeV2) | ✅ | ✅ | ✅ | parse URL + auto check-in |
+| 4.2.3 | ดึง GPS (LocationGate + retry) | — | ✅ | ✅ | บังคับอนุญาตก่อนเช็คอิน |
+| 4.2.4 | POST check-in-qr (API จริง) | ✅ | ✅ | ✅ | — |
+| 4.2.5 | GPS Verification (Haversine + radius) | ✅ | — | ✅ | WARN flag / BLOCK throw |
+| 4.2.6 | Auto-detect กะจากเวลาปัจจุบัน | ✅ | — | ✅ | ไม่ต้องเลือกกะเอง |
+| 4.2.7 | Popup ผล (เวลา/สาขา/กะ/สถานะ/ค่าปรับ) | — | ✅ | ✅ | — |
+| 4.2.8 | คำนวณสถานะสาย (ปกติ/สาย1/สาย2) | ✅ | — | ✅ | เทียบ late_threshold |
+| 4.2.9 | UI หน้า Check-out | — | ✅ | ✅ | — |
+| 4.2.10 | POST check-out-auto (API จริง) | ✅ | ✅ | ✅ | แสดงระยะเวลาทำงาน |
+| 4.2.11 | LINE Push Message ยืนยันเช็คอิน | ❌ | — | ❌ | Phase 2 |
+| 4.2.12 | Off-site Check-in | ❌ | ❌ | ❌ | Phase 4 |
 
 ---
 
-### 4.3 Profile (ข้อมูลพนักงาน)
-
-🔗 **ต้องการก่อน:**
-- `4.1.3–4.1.5` ยืนยันตัวตนครบแล้ว (line_user_id map กับ employee แล้ว)
-- `2.3.2` Admin สร้างข้อมูลพนักงานไว้แล้ว (ชื่อ/สาขา/ตำแหน่ง/วันเริ่มงาน)
-- `2.5` Leave Balance ถูกคำนวณไว้แล้ว
+### 4.3 Profile
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 4.3.1 | แสดง LINE Profile (รูป/ชื่อ LINE) | — | 🚧 | 🚧 | เปลี่ยนเป็น Mock Employee แทน liff.getProfile() |
-| 4.3.2 | แสดงข้อมูล Employee จาก DB | ❌ | 🚧 | 🚧 | UI + Mock ครบ (ชื่อ/รหัส/สาขา/ตำแหน่ง) |
-| 4.3.3 | แสดงวันเริ่มงาน + อายุงาน | ❌ | 🚧 | 🚧 | UI + Mock ครบ (calcTenure ครบ) |
-| 4.3.4 | แสดง Leave Balance (คงเหลือแต่ละประเภท) | ❌ | 🚧 | 🚧 | UI + Mock ครบ (progress bar 3 ประเภท) |
-| 4.3.5 | แสดง Shift ที่ถูกกำหนด | ❌ | 🚧 | 🚧 | UI + Mock ครบ (กะเช้า 08:00–17:00) |
-
-**Dependency Chain ของ Employee Profile:**
-```
-Admin สร้าง Employee [2.3.2] ❌
-    ↓
-พนักงานเปิด LIFF ครั้งแรก
-    ↓
-ตรวจสอบ line_user_id [4.1.2] 🔌
-    ↓ (ยังไม่ถูก map)
-หน้าเลือกชื่อตัวเอง [4.1.3] ❌  ← ต้องทำก่อน
-    ↓
-กรอกรหัสพนักงานยืนยัน [4.1.4] ❌
-    ↓
-บันทึก line_user_id [4.1.5] ❌
-    ↓
-✅ profile page ดึงข้อมูล Employee ได้ [4.3.2] ❌
-```
+| 4.3.1 | ดึงข้อมูล Employee จาก API (/employee/me) | ✅ | ✅ | ✅ | — |
+| 4.3.2 | แสดงชื่อ / รหัส / สาขา / ตำแหน่ง | ✅ | ✅ | ✅ | — |
+| 4.3.3 | แสดง Leave Balance | ✅ | ✅ | ✅ | — |
+| 4.3.4 | แสดง Shift ที่ถูกกำหนด | ✅ | ✅ | ✅ | — |
 
 ---
 
 ### 4.4 ประวัติการเช็คชื่อ (History)
 
-🔗 **ต้องการก่อน:** `4.2.4–4.2.6` Check-in จริงทำงานได้
-
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 4.4.1 | API GET attendance history | ❌ | — | ❌ | — |
-| 4.4.2 | UI รายการประวัติ | — | 🚧 | 🚧 | UI ครบ (mock) — แสดงวันที่/เวลา/status badge/OT |
-| 4.4.3 | Filter รายเดือน | ❌ | 🚧 | 🚧 | UI + Mock ครบ (month selector pill buttons) |
-| 4.4.4 | สรุปยอด (มา/สาย/ขาด/ลา) | ❌ | 🚧 | 🚧 | UI + Mock ครบ (4 stat cards: ทำงาน/ตรงเวลา/สาย/OT) |
+| 4.4.1 | GET attendance history (API จริง) | ✅ | ✅ | ✅ | — |
+| 4.4.2 | Filter รายเดือน | ✅ | ✅ | ✅ | — |
+| 4.4.3 | สรุปยอด (มา/สาย/ขาด) | ✅ | ✅ | ✅ | — |
 
 ---
 
 ### 4.5 Leave Request (ลางาน)
 
-🔗 **ต้องการก่อน:**
-- `4.1` ยืนยันตัวตน
-- `2.9.4` Leave Policy ถูกตั้งค่าไว้แล้ว
-- `3.3` Manager พร้อม Approve (หรือ 2.5.7 Admin)
+| # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
+|---|---|---|---|---|---|
+| 4.5.1 | UI ฟอร์มขอลา (4 ประเภท) | — | ✅ | ✅ | — |
+| 4.5.2 | POST leave-request (API จริง) | ✅ | ✅ | ✅ | validate โควต้า + ทับซ้อน |
+| 4.5.3 | ดูสถานะ Leave Request | ✅ | ✅ | ✅ | badge PENDING/APPROVED/REJECTED |
+| 4.5.4 | ส่ง LINE แจ้งหัวหน้า | ❌ | — | ❌ | Phase 2 |
+| 4.5.5 | อัปโหลดใบรับรองแพทย์ | ❌ | ❌ | ❌ | Phase 2 |
+
+---
+
+### 4.6 Monthly Day-off Booking (หยุดประจำเดือน)
+
+🔗 **ต้องการก่อน:** 4.1 ยืนยันตัวตน
 
 | # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|---|
-| 4.5.1 | UI ฟอร์มลางาน | — | 🚧 | 🚧 | UI ครบ (mock) — tab ประวัติ + ขอลา |
-| 4.5.2 | เลือกประเภทลา | ❌ | 🚧 | 🚧 | UI ครบ (3 ประเภท: ป่วย/กิจ/พักร้อน + แสดงวันเหลือ) |
-| 4.5.3 | เลือกวันที่ (date range) | ❌ | 🚧 | 🚧 | UI ครบ (start/end date input) |
-| 4.5.4 | อัปโหลดรูปใบรับรองแพทย์ | ❌ | ❌ | ❌ | Cloud Storage |
-| 4.5.5 | POST leave-request | ❌ | ❌ | ❌ | — |
-| 4.5.6 | ส่ง LINE Flex Message ขออนุมัติหัวหน้า | ❌ | — | ❌ | มี approval_token |
-| 4.5.7 | ดูสถานะ Leave Request | ❌ | 🚧 | 🚧 | UI ครบ (mock) — แสดงสถานะ badge + ผู้อนุมัติ |
+| 4.6.1 | Calendar ปฏิทินเดือน | — | ✅ | ✅ | เลือก 1 วันต่อเดือน (2026-06-02) |
+| 4.6.2 | POST monthly-off (1 ต่อเดือน) | ✅ | ✅ | ✅ | validate ซ้ำในเดือน |
+| 4.6.3 | เห็นวันที่เพื่อนร่วมสาขาเลือก (dot) | ✅ | ✅ | ✅ | month-view endpoint |
+| 4.6.4 | รายชื่อเพื่อนร่วมสาขา + สถานะ | ✅ | ✅ | ✅ | — |
+| 4.6.5 | ยกเลิกคำขอ PENDING ของตัวเอง | ✅ | ✅ | ✅ | — |
 
 ---
 
-### 4.6 OT Request
+### 4.7 OT Request
 
-🔗 **ต้องการก่อน:** `4.1` ยืนยันตัวตน, `2.9.3` OT Rate ถูกตั้งค่า
-
-| # | Feature | Backend | Frontend | สถานะรวม |
-|---|---|---|---|---|
-| 4.6.1 | UI ฟอร์มขอ OT | — | 🚧 | 🚧 | UI ครบ (mock) — tab ประวัติ/ขอ OT, summary cards, form วัน/เวลา/หมายเหตุ |
-| 4.6.2 | POST OT request | ❌ | ❌ | ❌ |
-| 4.6.3 | ส่ง LINE แจ้งหัวหน้า | ❌ | — | ❌ |
-
----
-
-### 4.7 Shift Swap (ขอแลกกะ)
-
-🔗 **ต้องการก่อน:** `4.1`, `2.6.2` มีกะงาน
-
-| # | Feature | Backend | Frontend | สถานะรวม |
-|---|---|---|---|---|
-| 4.7.1 | ดูกะของตัวเอง | ❌ | ❌ | ❌ |
-| 4.7.2 | เลือกพนักงานที่จะแลกด้วย | ❌ | ❌ | ❌ |
-| 4.7.3 | POST shift-swap-request | ❌ | ❌ | ❌ |
-| 4.7.4 | LINE แจ้งคู่แลก + หัวหน้า | ❌ | — | ❌ |
+| # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
+|---|---|---|---|---|---|
+| 4.7.1 | UI ฟอร์มขอ OT | — | ✅ | ✅ | — |
+| 4.7.2 | POST OT request (API จริง) | ✅ | ✅ | ✅ | (2026-05-27) |
+| 4.7.3 | ดูสถานะ OT | ✅ | ✅ | ✅ | — |
+| 4.7.4 | ส่ง LINE แจ้งหัวหน้า | ❌ | — | ❌ | Phase 2 |
 
 ---
 
-### 4.8 Weekly Day-off Booking
-
-🔗 **ต้องการก่อน:** `4.1`, `2.5.9` Admin ตั้ง Quota
+### 4.8 Shift Swap (ขอแลกกะ)
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 4.8.1 | ดูปฏิทินจองวันหยุดสัปดาห์ | ❌ | ❌ | ❌ |
-| 4.8.2 | เช็ค Quota (วันไหนเต็ม/ว่าง) | ❌ | ❌ | ❌ |
-| 4.8.3 | POST weekly-off | ❌ | ❌ | ❌ |
+| 4.8.1 | ดูกะของตัวเอง | ❌ | ❌ | ❌ |
+| 4.8.2 | เลือกพนักงานที่จะแลกด้วย | ❌ | ❌ | ❌ |
+| 4.8.3 | POST shift-swap-request | ❌ | ❌ | ❌ |
+| 4.8.4 | LINE แจ้งคู่แลก + หัวหน้า | ❌ | — | ❌ |
 
 ---
 
-### 4.9 Personal Report (e-Slip)
+### 4.9 Anonymous Feedback
 
-🔗 **ต้องการก่อน:** `4.1`, `2.10` Payroll ทำงานได้
-
-| # | Feature | Backend | Frontend | สถานะรวม |
-|---|---|---|---|---|
-| 4.9.1 | สรุปการมาทำงานรายเดือน | ❌ | ❌ | ❌ |
-| 4.9.2 | Preview ยอดหัก/เพิ่ม (e-Slip) | ❌ | ❌ | ❌ |
-| 4.9.3 | Download PDF สลิปเงินเดือน | ❌ | ❌ | ❌ |
+| # | Feature | Backend | Frontend | สถานะรวม | หมายเหตุ |
+|---|---|---|---|---|---|
+| 4.9.1 | UI กล่องส่ง Feedback | — | 🚧 | 🚧 | UI mock อยู่ |
+| 4.9.2 | POST feedback (ซ่อน line_user_id) | ✅ | 🚧 | 🚧 | Backend มี แต่ UI ยังไม่ต่อ |
 
 ---
 
-### 4.10 Document Request
-
-🔗 **ต้องการก่อน:** `4.1`, `2.10` Payroll, ข้อมูล Employee ครบ
+### 4.10 Personal Report / e-Slip
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 4.10.1 | ขอใบรับรองการทำงาน | ❌ | ❌ | ❌ |
-| 4.10.2 | ขอใบรับรองเงินเดือน | ❌ | ❌ | ❌ |
-| 4.10.3 | Generate PDF อัตโนมัติ | ❌ | ❌ | ❌ |
+| 4.10.1 | สรุปการมาทำงานรายเดือน | ❌ | ❌ | ❌ |
+| 4.10.2 | Preview ยอดหัก/เพิ่ม (e-Slip) | ❌ | ❌ | ❌ |
+| 4.10.3 | Download PDF สลิปเงินเดือน | ❌ | ❌ | ❌ |
 
 ---
 
-### 4.11 Expense Claim
-
-🔗 **ต้องการก่อน:** `4.1`, `3.3` Manager Approve
+### 4.11 Document Request
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 4.11.1 | ฟอร์ม + ถ่ายรูปใบเสร็จ | ❌ | ❌ | ❌ |
-| 4.11.2 | POST expense-claim | ❌ | ❌ | ❌ |
-| 4.11.3 | LINE แจ้งหัวหน้า | ❌ | — | ❌ |
+| 4.11.1 | ขอใบรับรองการทำงาน | ✅ | ❌ | ❌ | Backend module มีแต่ LIFF UI ยังไม่มี |
+| 4.11.2 | ขอใบรับรองเงินเดือน | ✅ | ❌ | ❌ | — |
+| 4.11.3 | Generate PDF อัตโนมัติ | ❌ | ❌ | ❌ | — |
 
 ---
 
-### 4.12 Anonymous Feedback
-
-🔗 **ต้องการก่อน:** `4.1`, `2.11.3` Admin มีหน้าอ่าน
+### 4.12 Expense Claim
 
 | # | Feature | Backend | Frontend | สถานะรวม |
 |---|---|---|---|---|
-| 4.12.1 | UI กล่องส่ง Feedback | — | 🚧 | 🚧 | UI ครบ (mock) — category 5 หัวข้อ, textarea 500 ตัว, anonymous badge |
-| 4.12.2 | POST feedback (ซ่อน line_user_id) | ❌ | ❌ | ❌ |
+| 4.12.1 | ฟอร์ม + ถ่ายรูปใบเสร็จ | ✅ | ❌ | ❌ | Backend module มีแต่ LIFF UI ยังไม่มี |
+| 4.12.2 | POST expense-claim | ✅ | ❌ | ❌ | — |
+| 4.12.3 | LINE แจ้งหัวหน้า | ❌ | — | ❌ | — |
 
 ---
 
@@ -420,11 +374,11 @@ Admin สร้าง Employee [2.3.2] ❌
 
 | # | Feature | Backend | สถานะรวม | หมายเหตุ |
 |---|---|---|---|---|
-| 5.1 | Webhook endpoint (receive LINE events) | ❌ | ❌ | — |
+| 5.1 | Webhook endpoint (receive LINE events) | ✅ | ✅ | line.route.ts พร้อม |
 | 5.2 | Postback handler (กด Approve/Reject) | ❌ | ❌ | — |
 | 5.3 | Push Message ยืนยันเช็คอิน | ❌ | ❌ | — |
 | 5.4 | Flex Message ขออนุมัติลา | ❌ | ❌ | — |
-| 5.5 | Flex Message ขออนุมัติ Shift Swap | ❌ | ❌ | — |
+| 5.5 | Flex Message ขออนุมัติ OT | ❌ | ❌ | — |
 | 5.6 | Rich Menu setup | ❌ | ❌ | — |
 
 ---
@@ -433,65 +387,60 @@ Admin สร้าง Employee [2.3.2] ❌
 
 | # | Feature | สถานะ | หมายเหตุ |
 |---|---|---|---|
-| 6.1 | Prisma Schema (Database) | ❌ | ยังไม่มี schema.prisma จริง |
-| 6.2 | JWT Auth middleware | ❌ | — |
-| 6.3 | RBAC middleware | ❌ | — |
-| 6.4 | Tenant resolver middleware | ✅ | liff.ts ทำแล้วส่วนหนึ่ง |
-| 6.5 | Response format มาตรฐาน | ✅ | response.ts |
-| 6.6 | Error handler | ❌ | — |
+| 6.1 | Prisma Schema (Database) | ✅ | schema.prisma ครบทุก core table |
+| 6.2 | JWT Auth middleware | ✅ | — |
+| 6.3 | RBAC middleware | ✅ | requireRole(...) |
+| 6.4 | Tenant resolver middleware | ✅ | ทุก route ใช้ tenantMiddleware |
+| 6.5 | Response format มาตรฐาน | ✅ | ok() / fail() utils |
+| 6.6 | Error handler global | ✅ | Fastify error hook |
 | 6.7 | Rate limiting | ❌ | — |
 | 6.8 | Cloud Storage (รูปภาพ) | ❌ | ใบรับรองแพทย์ / ใบเสร็จ |
-| 6.9 | Cron Jobs (daily summary / leave quota) | ❌ | — |
+| 6.9 | Cron Jobs | ❌ | daily summary / leave quota |
 
 ---
 
-## แนะนำลำดับการทำ (Sprint Order)
+## สรุปภาพรวม (2026-06-02)
+
+| ส่วน | Done ✅ | In Progress 🚧 | Not Started ❌ |
+|---|---|---|---|
+| Infrastructure | 5/9 | 0 | 4 |
+| Admin — Auth | 3/3 | 0 | 0 |
+| Admin — Branch | 6/7 | 0 | 1 |
+| Admin — Shift | 7/8 | 0 | 1 |
+| Admin — Employee | 6/9 | 0 | 3 |
+| Admin — Attendance | 7/7 | 0 | 0 |
+| Admin — Leave | 6/8 | 0 | 2 |
+| Admin — OT | 1/3 | 2 | 0 |
+| Admin — Monthly Off | 3/3 | 0 | 0 |
+| Employee — Verify | 4/4 | 0 | 0 |
+| Employee — Check-in/out | 10/12 | 0 | 2 |
+| Employee — Leave | 3/5 | 0 | 2 |
+| Employee — Monthly Off | 5/5 | 0 | 0 |
+| Employee — OT | 3/4 | 0 | 1 |
+| LINE Integration | 1/6 | 0 | 5 |
+
+---
+
+## แนะนำลำดับงานถัดไป
 
 ```
-Sprint 1 — Foundation (ทำก่อน ทุกอย่างพึ่งพา)
-  [6.1] Prisma Schema ครบทุก table
-  [6.2] JWT Auth middleware
-  [6.3] RBAC middleware
-  [2.1] Admin Login
+งานด่วน (Blocker)
+  [6.1b] Prisma Migrate dev — ยืนยัน environment ก่อนรัน
+  [env]  ตั้งค่า LINE_LIFF_ID ใน server/.env
 
-Sprint 2 — Admin Core Data
-  [2.3] Employee Management (CRUD)
-  [2.4] Branch + QR Code
-  [2.6] Shift Management
+Sprint ถัดไป — LINE Integration
+  [5.3] Push Message ยืนยันเช็คอิน
+  [5.4] Flex Message ขออนุมัติลา (Postback approve/reject)
+  [5.5] Flex Message ขออนุมัติ OT
 
-Sprint 3 — Employee First-time Flow  ← ทำก่อน ถึงจะ test อะไรได้
-  [4.1.3] หน้าเลือกชื่อตัวเอง (First-time Verify)
-  [4.1.4] กรอกรหัสยืนยัน
-  [4.1.5] บันทึก line_user_id
+Sprint — Admin UI ที่ยัง mock
+  [2.8] OT Admin UI เชื่อม API จริง
+  [2.10.1] Announcement Admin UI เชื่อม API จริง
 
-Sprint 4 — Check-in/out จริง
-  [4.2.2] QR Scan ใน LIFF
-  [4.2.3] GPS
-  [4.2.4–4.2.6] Backend check-in จริง + GPS verify + คำนวณสถานะ
-  [5.3] LINE Push ยืนยัน
-
-Sprint 5 — Admin Dashboard
-  [2.2] Dashboard cards + table
-
-Sprint 6 — Leave System
-  [2.9.4] Leave Policy Config
-  [4.5] Employee ลางาน
-  [5.4] Flex Message อนุมัติ
-  [2.5.7] Admin Approve
-
-Sprint 7 — Payroll
-  [2.9.1–2.9.3] Deduction Rules
-  [2.10] Monthly Payroll Summary
-  [4.9] Employee e-Slip
-
-Sprint 8 — Super Admin
-  [1.x] Package / Tenant management
-
-Sprint 9 — Advanced Features
-  [4.7] Shift Swap
-  [4.8] Weekly Day-off
-  [4.11] Expense Claim
-  [2.12] Reports
+Sprint — Phase 2 Features
+  [2.2] Admin Dashboard (Summary cards + table)
+  [4.9.2] Feedback LIFF เชื่อม API จริง
+  [2.11.1] Late Deduction Settings
 ```
 
 ---

@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff } from './weekly-off.service'
+import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
 import { prisma } from '../../common/utils/prisma'
 
 export async function weeklyOffRoutes(app: FastifyInstance) {
@@ -202,5 +202,74 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any) => {
     const list = await listWeeklyOff(req.tenantId, { employeeId: req.query.employeeId })
     return ok(list)
+  })
+
+  // ── Employee (LIFF): ขอวันหยุดประจำเดือน ────────────────────────────
+  app.post('/employee/weekly-off/monthly', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ขอวันหยุดประจำเดือน — 1 วันต่อเดือน (LIFF)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'date'],
+        properties: {
+          employee_id: { type: 'string' },
+          date:        { type: 'string', description: 'YYYY-MM-DD — วันที่จริงที่ต้องการหยุด' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await createMonthlyOff(req.tenantId, req.body)
+      return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดเดือนนี้แล้ว'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ดู month-view (ตัวเอง + เพื่อนร่วมสาขา) ─────────
+  app.get('/employee/weekly-off/month-view', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูวันหยุดประจำเดือนของตัวเองและเพื่อนร่วมสาขา (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        required: ['employeeId', 'month'],
+        properties: {
+          employeeId: { type: 'string' },
+          month:      { type: 'string', description: 'YYYY-MM' },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const { employeeId, month } = req.query
+    const result = await getMonthView(req.tenantId, employeeId, month)
+    return ok(result)
+  })
+
+  // ── Employee (LIFF): ยกเลิกคำขอ PENDING ของตัวเอง ────────────────────
+  app.delete('/employee/weekly-off/:id', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ยกเลิกคำขอวันหยุดประจำเดือน (LIFF) — ได้เฉพาะสถานะ PENDING',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const deleted = await deleteMonthlyOff(req.tenantId, req.params.id, req.query.employeeId)
+      if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+      return ok(null, 'ยกเลิกคำขอแล้ว')
+    } catch (e: any) {
+      if (e.message === 'NOT_PENDING') return reply.code(409).send(fail('NOT_PENDING', 'ยกเลิกได้เฉพาะรายการที่รอพิจารณา'))
+      throw e
+    }
   })
 }
