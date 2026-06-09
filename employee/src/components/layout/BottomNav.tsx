@@ -6,7 +6,7 @@ import { COLOR, SHADOW } from '../ui/tokens'
 interface NavItem {
   path: string
   label: string
-  Icon: React.FC<{ size?: number; strokeWidth?: number; color?: string }>
+  Icon: React.ElementType
 }
 
 const NAV_ITEMS: NavItem[] = [

@@ -18,7 +18,7 @@ import {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, paddingHorizontal: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '0 20px' }}>
         <span style={{ fontSize: FONT.sm, fontWeight: 800, color: COLOR.primary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {title}
         </span>

@@ -694,7 +694,7 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
               ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`
               : 'rgba(0,0,0,0.08)',
             color: pickedCount > 0 && !isPastMonth ? '#fff' : '#9CA3AF',
-            fontSize: '1rem', fontWeight: 700, fontFamily: 'inherit',
+            fontSize: '1rem', fontWeight: 700,
             boxShadow: pickedCount > 0 && !isPastMonth ? `0 4px 16px ${COLOR.primary}44` : 'none',
             transition: 'all 0.2s',
           }}
