@@ -1,5 +1,6 @@
 // MapPicker — raw Leaflet API, Google Maps tiles, Thailand bounds, geolocation
 import { useEffect, useRef, useState } from 'react'
+import { Loader2, Crosshair, MapPin } from 'lucide-react'
 import L from 'leaflet'
 
 const THAILAND_CENTER: [number, number] = [13.0, 101.0]
@@ -154,16 +155,9 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
           }}
         >
           {locating ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth={2.5}
-              style={{ animation: 'spin 1s linear infinite' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-            </svg>
+            <Loader2 size={13} color="#f97316" style={{ animation: 'spin 1s linear infinite' }} />
           ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth={2.5}>
-              <circle cx="12" cy="12" r="3" />
-              <path strokeLinecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3" />
-              <circle cx="12" cy="12" r="8" strokeDasharray="4 2" />
-            </svg>
+            <Crosshair size={13} color="#f97316" />
           )}
           {locating ? 'กำลังหาตำแหน่ง…' : 'ตำแหน่งปัจจุบัน'}
         </button>
@@ -176,11 +170,7 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
         borderTop: '1px solid #e5e7eb',
         display: 'flex', alignItems: 'center', gap: 6, minHeight: 36,
       }}>
-        <svg width="12" height="12" fill="none" stroke="#f97316" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+        <MapPin size={12} color="#f97316" />
 
         {locError ? (
           <span style={{ fontSize: '11px', color: '#ef4444' }}>{locError}</span>

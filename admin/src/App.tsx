@@ -15,11 +15,9 @@ import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
 import ShiftPage            from './pages/shift'
 import AnnouncementPage     from './pages/announcement'
-import HolidayPage          from './pages/holiday'
-import LeaveBalancePage      from './pages/leave-balance'
-import WeeklyOffPage        from './pages/weekly-off'
 import ShiftSchedulePage    from './pages/shift-schedule'
 import EmployeeDetailPage   from './pages/employee/detail'
+import UiKitPage            from './pages/ui-kit'
 import SADashboard          from './pages/superadmin/dashboard'
 import SATenantsPage        from './pages/superadmin/tenants'
 import SATenantDetail       from './pages/superadmin/tenants/detail'
@@ -40,18 +38,19 @@ function AdminRoutes() {
         <Route path="/dashboard"     element={<DashboardPage />} />
         <Route path="/employee"      element={<EmployeePage />} />
         <Route path="/branch"        element={<BranchPage />} />
-        <Route path="/shift"          element={<ShiftPage />} />
-        <Route path="/shift-schedule" element={<ShiftSchedulePage />} />
-        <Route path="/attendance"    element={<AttendancePage />} />
+        <Route path="/shift"         element={<ShiftPage />} />
+        <Route path="/shift-schedule" element={<Navigate to="/shift" replace />} />
+        <Route path="/attendance"    element={<Navigate to="/shift" replace />} />
         <Route path="/leave"         element={<LeavePage />} />
+        <Route path="/holiday"        element={<Navigate to="/leave" replace />} />
+        <Route path="/leave-balance"  element={<Navigate to="/leave" replace />} />
+        <Route path="/weekly-off"     element={<Navigate to="/leave" replace />} />
         <Route path="/ot"            element={<OtPage />} />
         <Route path="/report"        element={<ReportPage />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
-        <Route path="/holiday"        element={<HolidayPage />} />
-        <Route path="/leave-balance"  element={<LeaveBalancePage />} />
-        <Route path="/weekly-off"     element={<WeeklyOffPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
         <Route path="/settings"      element={<SettingsPage />} />
+        <Route path="/ui-kit"        element={<UiKitPage />} />
         <Route path="*"              element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>

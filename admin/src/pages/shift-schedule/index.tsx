@@ -2,6 +2,7 @@
 // ตารางกะ — Default Shift + Override เฉพาะวัน
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useDemoStore } from '../../stores/demoStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import type { ShiftAssignment, ShiftAssignmentType, Employee, ShiftDef } from '../../types'
@@ -82,6 +83,8 @@ export default function ShiftSchedulePage() {
   const [weekStart, setWeekStart] = useState(() => getMondayOf(TODAY))
   const [selMonth, setSelMonth]   = useState(() => { const d = new Date(TODAY); return { y: d.getFullYear(), m: d.getMonth()+1 } })
   const [filterBranch, setFilterBranch] = useState('ALL')
+  const [page, setPage]           = useState(1)
+  const pageSize                  = 6
   const [editCell, setEditCell]   = useState<{ empId: string; date: string }|null>(null)
   const [popupPos, setPopupPos]   = useState({ top: 0, left: 0 })
   const [highlightEmp, setHighlightEmp] = useState<string|null>(null)
@@ -96,6 +99,11 @@ export default function ShiftSchedulePage() {
   const filteredEmps = filterBranch === 'ALL'
     ? employees.filter(e => e.status === 'ACTIVE')
     : employees.filter(e => e.status === 'ACTIVE' && e.branches.includes(filterBranch))
+
+  const totalPages = Math.ceil(filteredEmps.length / pageSize)
+  const paginatedEmps = filteredEmps.slice((page - 1) * pageSize, page * pageSize)
+
+  useEffect(() => { setPage(1) }, [filterBranch, viewMode, weekStart, selMonth])
 
   function getShiftsForEmp(emp: Employee): ShiftDef[] {
     return shifts.filter(s => emp.branches.includes(s.branch_name))
@@ -342,15 +350,11 @@ export default function ShiftSchedulePage() {
   const overrideCount = shiftAssignments.filter(a => displayDates.includes(a.date) && filteredEmps.some(e=>e.id===a.employee_id)).length
 
   return (
-    <div style={{ padding: isMobile?'16px 12px':'24px 28px', maxWidth: viewMode==='month'?1400:1100, margin:'0 auto' }}>
+    <div style={{ maxWidth: viewMode==='month'?1400:1100, margin:'0 auto' }}>
 
-      {/* Header */}
+      {/* Header - Title removed */}
       <div style={{ display:'flex', alignItems: isMobile?'flex-start':'center', flexDirection: isMobile?'column':'row', gap:12, marginBottom:16 }}>
-        <div>
-          <h1 style={{ margin:0, fontSize: isMobile?18:22, fontWeight:700, color:'#111827' }}>📅 ตารางกะพนักงาน</h1>
-          <p style={{ margin:'2px 0 0', fontSize:13, color:'#6b7280' }}>กะประจำแสดงอัตโนมัติ — แก้เฉพาะวันที่เปลี่ยน</p>
-        </div>
-        <div style={{ marginLeft: isMobile?0:'auto', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ marginLeft: 'auto', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           {/* View toggle */}
           <div style={{ display:'flex', border:'1px solid #e5e7eb', borderRadius:8, overflow:'hidden' }}>
             {(['week','month'] as const).map(m => (
@@ -404,7 +408,7 @@ export default function ShiftSchedulePage() {
             </tr>
           </thead>
           <tbody>
-            {filteredEmps.map((emp, idx) => {
+            {paginatedEmps.map((emp, idx) => {
               const isHighlighted = highlightEmp === emp.id
               return (
               <tr
@@ -451,6 +455,31 @@ export default function ShiftSchedulePage() {
         </table>
         {editCell && <EditPopup empId={editCell.empId} date={editCell.date} />}
       </div>
+      
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 12 }}>
+          <span style={{ fontSize: '13px', color: '#6b7280' }}>
+            แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filteredEmps.length)} จาก {filteredEmps.length} พนักงาน
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))} 
+              disabled={page === 1}
+              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              disabled={page === totalPages}
+              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>

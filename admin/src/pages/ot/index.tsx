@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Check, AlertCircle } from 'lucide-react'
 import { MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
@@ -45,8 +46,8 @@ function capLevel(hrs: number): { color: string; bg: string; border: string; emo
 }
 
 const card: React.CSSProperties = {
-  background: '#fff', borderRadius: 12,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9',
+  background: '#fff', borderRadius: 16,
+  boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9',
 }
 
 export default function OtPage() {
@@ -251,18 +252,42 @@ export default function OtPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+      {/* Mock banner */}
+      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center' }}>
+        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
+      </div>
+
+      {/* Header - Title removed */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => { setShowBulkPay(true); setBulkEmpId(''); setBulkDailyRate('') }}
+            style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #7c3aed', background: '#faf5ff', color: '#7c3aed', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+          >
+            💸 รวมจ่าย OT
+          </button>
+          <button
+            onClick={() => { setShowAddModal(true); setAddForm(INIT_FORM) }}
+            style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(249,115,22,0.3)' }}
+          >
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> เพิ่ม OT
+          </button>
+        </div>
+      </div>
+
       {/* ── KPI Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'รอพิจารณา',   value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-          { label: 'ชม. OT รวม',  value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
-          { label: '⚠️ ใกล้/เกิน Cap', value: nearCapCount, unit: 'คน', color: nearCapCount > 0 ? '#dc2626' : '#6b7280', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
+          { label: 'รอพิจารณา',        emoji: '⏳', value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+          { label: 'ชม. OT อนุมัติ',   emoji: '✅', value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+          { label: 'ใกล้/เกิน Cap',    emoji: '⚠️', value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : '#6b7280', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: isMobile ? '12px' : '16px 18px', border: `1px solid ${s.border}`, background: s.bg }}>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 6px', fontWeight: 500 }}>{s.label}</p>
-            <p style={{ fontSize: isMobile ? '1.3rem' : '24px', fontWeight: 800, color: s.color, margin: 0, lineHeight: 1 }}>
-              {s.value} <span style={{ fontSize: '12px', fontWeight: 400, color: '#9ca3af' }}>{s.unit}</span>
-            </p>
+          <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: '1.1rem' }}>{s.emoji}</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -307,44 +332,32 @@ export default function OtPage() {
         </div>
       )}
 
-      {/* ── Filters + Add button ── */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(['', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s as any)}
-            style={{
-              padding: '6px 12px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
-              border: statusFilter === s ? '1.5px solid #f97316' : '1px solid #e5e7eb',
-              background: statusFilter === s ? '#fff7ed' : '#fff',
-              color: statusFilter === s ? '#ea580c' : '#4b5563',
-            }}
+      {/* ── Filters ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>กรอง</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Status Filter */}
+          <select 
+            value={statusFilter} 
+            onChange={e => setStatusFilter(e.target.value as any)}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
           >
-            {s === '' ? 'ทุกสถานะ' : STATUS_CFG[s as OtStatus].label}
-            {s === 'PENDING' && pending > 0 ? ` (${pending})` : ''}
-          </button>
-        ))}
-        <select
-          value={branchFilter}
-          onChange={e => setBranchFilter(e.target.value)}
-          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '12px', background: '#fff', cursor: 'pointer' }}
-        >
-          <option value="">ทุกสาขา</option>
-          {MOCK_BRANCHES.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-        </select>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => { setShowBulkPay(true); setBulkEmpId(''); setBulkDailyRate('') }}
-            style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #7c3aed', background: '#faf5ff', color: '#7c3aed', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+            <option value="">ทุกสถานะ</option>
+            <option value="PENDING">รออนุมัติ {pending > 0 ? `(${pending})` : ''}</option>
+            <option value="APPROVED">อนุมัติแล้ว</option>
+            <option value="REJECTED">ไม่อนุมัติ</option>
+          </select>
+          {/* Branch Filter */}
+          <select 
+            value={branchFilter} 
+            onChange={e => setBranchFilter(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
           >
-            💸 รวมจ่าย OT
-          </button>
-          <button
-            onClick={() => { setShowAddModal(true); setAddForm(INIT_FORM) }}
-            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-          >
-            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> เพิ่ม OT
-          </button>
+            <option value="">ทุกสาขา</option>
+            {MOCK_BRANCHES.map(b => (
+              <option key={b.id} value={b.name}>{b.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -405,9 +418,9 @@ export default function OtPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
-                <tr style={{ background: '#fafafa', borderBottom: '1px solid #f1f5f9' }}>
+                <tr style={{ background: '#fff7ed', borderBottom: '1px solid #f1f5f9' }}>
                   {['พนักงาน','สาขา','วันที่','เวลา','ชม.','ตัวคูณ','OT สัปดาห์นี้','หมายเหตุ','สถานะ','จัดการ'].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#c2410c', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -481,7 +494,7 @@ export default function OtPage() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="18" height="18" fill="none" stroke="#15803d" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <Check size={18} color="#15803d" />
               </div>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>อนุมัติ OT</p>

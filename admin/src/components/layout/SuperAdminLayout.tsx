@@ -36,12 +36,15 @@ export default function SuperAdminLayout({ children }: { children: ReactNode }) 
       <SuperAdminTopbar  isMobile={isMobile} onMenuClick={() => setDrawerOpen(o => !o)} />
 
       <main style={{
-        marginLeft:   isMobile ? 0 : 220,
-        marginTop:    56,
-        padding:      isMobile ? '16px 14px 24px' : '28px 28px',
-        minHeight:    'calc(100vh - 56px)',
-        background:   '#f8f9fc',
-      }}>
+        marginLeft:   isMobile ? 0 : 260,
+        marginTop:    isMobile ? 56 : 64,
+        padding:      isMobile ? '16px 16px 80px' : '32px',
+        minHeight:    '100vh',
+        background:   'var(--bg-page)',
+        maxWidth:     1400,
+        margin:       '0 auto',
+        width:        '100%'
+      }} className="animate-fade-in-up">
         {children}
       </main>
     </>

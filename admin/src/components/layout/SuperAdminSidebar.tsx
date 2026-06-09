@@ -1,5 +1,6 @@
 // admin/src/components/layout/SuperAdminSidebar.tsx
 import { NavLink, useNavigate } from 'react-router-dom'
+import { X } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 
 const NAV_ITEMS = [
@@ -58,9 +59,7 @@ export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: Sid
             color: '#a5b4fc', zIndex: 1,
           }}
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X size={14} />
         </button>
       )}
 

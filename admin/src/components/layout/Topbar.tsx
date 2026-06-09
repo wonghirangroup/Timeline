@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
+import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
 
@@ -7,8 +8,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard':    'ภาพรวมระบบ',
   '/employee':     'จัดการพนักงาน',
   '/branch':       'จัดการสาขา',
-  '/shift':        'จัดการกะ',
-  '/attendance':   'เช็คอินพนักงาน',
+  '/shift':        'กะ & เวลา',
   '/leave':        'วันลา & ปฏิทิน',
   '/ot':           'จัดการ OT',
   '/report':       'สรุปผลรายงาน',
@@ -135,17 +135,13 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="15" height="15" fill="none" stroke="#16a34a" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              <User size={15} color="#16a34a" />
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>แก้ไขชื่อที่แสดง</div>
               <div style={{ fontSize: '11px', color: '#9ca3af' }}>Display Name</div>
             </div>
-            <svg width="14" height="14" fill="none" stroke="#9ca3af" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight size={14} color="#9ca3af" style={{ marginLeft: 'auto' }} />
           </button>
 
           <button
@@ -155,17 +151,13 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="15" height="15" fill="none" stroke="#2563eb" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
+              <Key size={15} color="#2563eb" />
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>เปลี่ยนรหัสผ่าน</div>
               <div style={{ fontSize: '11px', color: '#9ca3af' }}>Reset Password</div>
             </div>
-            <svg width="14" height="14" fill="none" stroke="#9ca3af" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight size={14} color="#9ca3af" style={{ marginLeft: 'auto' }} />
           </button>
 
           <div style={{ height: 1, background: '#f1f5f9', margin: '8px 0' }} />
@@ -177,9 +169,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="15" height="15" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut size={15} color="#ef4444" />
             </div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#ef4444' }}>ออกจากระบบ</div>
           </button>
@@ -191,9 +181,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             onClick={() => setView('profile')}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '12px', marginBottom: 16, padding: 0 }}
           >
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeft size={14} />
             กลับ
           </button>
 
@@ -213,11 +201,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, current: !s.current }))}
                   style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
-                  {showPw.current ? (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                  ) : (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  )}
+                  {showPw.current ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -235,11 +219,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, next: !s.next }))}
                   style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
-                  {showPw.next ? (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                  ) : (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  )}
+                  {showPw.next ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {pwForm.next && pwForm.next.length < 6 && (
@@ -260,11 +240,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, confirm: !s.confirm }))}
                   style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
-                  {showPw.confirm ? (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                  ) : (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  )}
+                  {showPw.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {pwForm.confirm && pwForm.confirm !== pwForm.next && (
@@ -289,9 +265,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             onClick={() => setView('profile')}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '12px', marginBottom: 16, padding: 0 }}
           >
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeft size={14} />
             กลับ
           </button>
 
@@ -335,31 +309,33 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
     <>
       <header style={{
         position: 'fixed',
-        left: isMobile ? 0 : 220,
+        left: isMobile ? 0 : 260,
         right: 0,
         top: 0,
-        height: isMobile ? 56 : 52,
-        background: '#fff',
-        borderBottom: '1px solid #f1f5f9',
+        height: isMobile ? 56 : 64,
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(0,0,0,0.05)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: isMobile ? '0 16px' : '0 20px',
+        padding: isMobile ? '0 16px' : '0 32px',
         zIndex: 98,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        transition: 'all 0.2s',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {isMobile && (
             <button
               onClick={onMenuClick}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <Menu size={20} />
             </button>
           )}
-          <h1 style={{ fontSize: isMobile ? '15px' : '14px', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h1>
+          <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
+            {title}
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
@@ -388,9 +364,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
               {!isMobile && (
                 <>
                   <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 500 }}>{name || 'Admin'}</span>
-                  <svg width="12" height="12" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown size={12} color="#9ca3af" />
                 </>
               )}
             </button>
@@ -398,10 +372,11 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
             {/* Desktop dropdown */}
             {!isMobile && panelOpen && (
               <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: 300, background: '#fff', borderRadius: 14,
-                boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid #f1f5f9',
+                position: 'absolute', top: 'calc(100% + 12px)', right: 0,
+                width: 320, background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(0,0,0,0.05)',
                 zIndex: 300, overflow: 'hidden',
+                animation: 'fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               }}>
                 {panelContent}
               </div>
@@ -413,16 +388,17 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
       {/* Mobile bottom sheet */}
       {isMobile && panelOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'flex-end' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 300, display: 'flex', alignItems: 'flex-end', transition: 'opacity 0.2s' }}
           onClick={() => setPanelOpen(false)}
         >
           <div
-            style={{ width: '100%', background: '#fff', borderRadius: '16px 16px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '24px 24px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-float)' }}
             onClick={e => e.stopPropagation()}
+            className="animate-fade-in-up"
           >
             {/* Drag handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 99, background: '#e5e7eb' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.1)' }} />
             </div>
             {panelContent}
           </div>

@@ -1,5 +1,6 @@
 // admin/src/pages/report/index.tsx
 import { useState } from 'react'
+import { FolderOpen, Printer } from 'lucide-react'
 import { MOCK_REPORT, MOCK_BRANCHES, genEmployeeLog, MOCK_LEAVE_BALANCES, MOCK_TENANTS, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { ReportRow, AttendanceLogRow, AttendanceStatus } from '../../types'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -86,84 +87,81 @@ export default function ReportPage() {
         </div>
       )}
 
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>💰 รายงานสรุปการหักเงินเดือน</h2>
+      {/* Mock banner */}
+      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
+        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
+      </div>
 
+      {/* Header row - Title removed */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20, gap: 10, flexWrap: 'wrap' }}>
         {/* Export buttons */}
         <div style={{ display: 'flex', gap: 8 }}>
           {canExport ? (
             <>
-              <button
-                onClick={handleExportCSV}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid #16a34a30', background: '#f0fdf4', color: '#15803d', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                {!isMobile && 'Export '}CSV
+              <button onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #16a34a', background: '#f0fdf4', color: '#15803d', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                <FolderOpen size={13} />{!isMobile && 'Export '}CSV
               </button>
-              <button
-                onClick={handleExportPDF}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid #dc262630', background: '#fef2f2', color: '#dc2626', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17H17.01M17 13H17.01M13 13H13.01M9 13H9.01M9 17H9.01M13 17H13.01M6 8V6a2 2 0 012-2h8a2 2 0 012 2v2M3 8h18v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                </svg>
-                {!isMobile && 'Export '}PDF
+              <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #dc2626', background: '#fef2f2', color: '#dc2626', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                <Printer size={13} />{!isMobile && 'Export '}PDF
               </button>
             </>
           ) : (
-            <div
-              title={`ฟีเจอร์ Export ต้องการแพ็กเกจ Professional ขึ้นไป (ปัจจุบัน: ${tenant.plan})`}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#9ca3af', fontSize: '0.82rem', cursor: 'not-allowed', userSelect: 'none' }}
-            >
+            <div title={`ฟีเจอร์ Export ต้องการแพ็กเกจ Professional ขึ้นไป (ปัจจุบัน: ${tenant.plan})`}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#9ca3af', fontSize: '0.82rem', cursor: 'not-allowed', userSelect: 'none' }}>
               🔒 Export (ต้องการ Professional+)
             </div>
           )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, padding: '0 12px' }}>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '0.875rem', padding: '9px 4px' }} />
-            <span style={{ color: '#9ca3af' }}>→</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '0.875rem', padding: '9px 4px' }} />
-          </div>
-        )}
-        {isMobile && (
-          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
-          </div>
-        )}
-        <select value={branch} onChange={e => setBranch(e.target.value)} style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', background: '#fff' }}>
-          <option value="">ทุกสาขา</option>
-          {MOCK_BRANCHES.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-        </select>
-        <div style={{ position: 'relative', flex: 1, minWidth: isMobile ? '100%' : 160 }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 ค้นหา..." style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box' }} />
-        </div>
-      </div>
-
-      {/* Summary Cards */}
+      {/* Summary KPI Cards */}
       {calculated && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 14, marginBottom: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 6 }}>ยอดหักรวม</div>
-            <div style={{ fontSize: isMobile ? '1.3rem' : '1.5rem', fontWeight: 700, color: '#f97316' }}>{totalFine.toLocaleString('th-TH')} ฿</div>
-          </div>
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 6 }}>จำนวนที่ถูกหัก</div>
-            <div style={{ fontSize: isMobile ? '1.3rem' : '1.5rem', fontWeight: 700, color: '#111827' }}>{totalAffected} คน</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+          {[
+            { label: 'พนักงานรวม',  value: filtered.length,     emoji: '👥', color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe', unit: 'คน' },
+            { label: 'ยอดหักรวม',   value: totalFine.toLocaleString('th-TH'), emoji: '💸', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', unit: '฿' },
+            { label: 'คนถูกหัก',    value: totalAffected,       emoji: '⚠️', color: '#d97706', bg: '#fffbeb', border: '#fde68a', unit: 'คน' },
+            { label: 'ทำงานปกติ',  value: filtered.length - totalAffected, emoji: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', unit: 'คน' },
+          ].map(k => (
+            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: '1.1rem' }}>{k.emoji}</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+            </div>
+          ))}
         </div>
       )}
 
+      {/* Filters */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรอง</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Date range */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0 12px' }}>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '0.82rem', padding: '8px 4px' }} />
+            <span style={{ color: '#9ca3af' }}>→</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '0.82rem', padding: '8px 4px' }} />
+          </div>
+          {/* Branch Filter */}
+          <select 
+            value={branch} 
+            onChange={e => setBranch(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="">ทุกสาขา</option>
+            {MOCK_BRANCHES.map(b => (
+              <option key={b.id} value={b.name}>{b.name}</option>
+            ))}
+          </select>
+          {/* Search */}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 ค้นหา..." style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', minWidth: 140 }} />
+        </div>
+      </div>
+
       {/* Table or Cards */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
         {isMobile ? (
           <div>
             {filtered.map((row, i) => (
@@ -188,15 +186,17 @@ export default function ReportPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ background: '#dbeafe' }}>
+                <tr style={{ background: '#fff7ed' }}>
                   {['รหัส','ชื่อ-สกุล','ชื่อเล่น','สาขา','สถิติ','หักสาย','หักขาด','รวมหัก','รายละเอียด'].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#1e40af', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 700, color: '#c2410c', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((row, i) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: i%2===0?'#fff':'#fafafa' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: i%2===0?'#fff':'#fafafa', transition: 'background 0.15s' }}
+                    onMouseEnter={ev => (ev.currentTarget.style.background = '#fff7ed')}
+                    onMouseLeave={ev => (ev.currentTarget.style.background = i%2===0?'#fff':'#fafafa')}>
                     <td style={{ padding: '11px 14px', color: '#6b7280' }}>{row.code}</td>
                     <td style={{ padding: '11px 14px', fontWeight: 500 }}>
                       <div>{row.full_name}</div>

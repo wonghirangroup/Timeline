@@ -1,6 +1,6 @@
-// admin/src/pages/attendance/index.tsx
-import { useState, useEffect, useMemo } from 'react'
-import { api } from '../../lib/axios'
+// admin/src/pages/attendance/index.tsx  [MOCK MODE]
+import { useState, useMemo, useEffect } from 'react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -32,6 +32,36 @@ interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
   branch_id: string; branch: { id: string; name: string }
+}
+
+// ── Mock Data ──────────────────────────────────────────────────────────────────
+let _attSeq = 100
+function genAttId() { return `att-mock-${_attSeq++}` }
+
+const MOCK_BRANCHES_ATT: ApiBranch[] = [
+  { id: 'br-01', name: 'วงษ์หิรัญ' },
+  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' },
+  { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' },
+]
+const MOCK_SHIFTS_ATT: ApiShift[] = [
+  { id: 'sh-01', name: 'กะเช้า',  start_time: '08:00', end_time: '17:00', late_threshold_1: '08:05', late_threshold_2: '08:20' },
+  { id: 'sh-02', name: 'กะบ่าย', start_time: '13:00', end_time: '22:00', late_threshold_1: '13:05', late_threshold_2: '13:20' },
+  { id: 'sh-03', name: 'กะเช้า (แม่กิมเฮง)', start_time: '09:00', end_time: '18:00', late_threshold_1: '09:05', late_threshold_2: '09:30' },
+]
+const MOCK_EMPLOYEES_ATT: ApiEmployee[] = [
+  { id: 'em-01', employee_code: '2567-03-001', first_name: 'สมชาย',   last_name: 'ใจดี',     nickname: 'ชาย',  branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
+  { id: 'em-02', employee_code: '2567-02-002', first_name: 'วิภาวดี', last_name: 'ศรีสุข',   nickname: 'แนน',  branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
+  { id: 'em-03', employee_code: '2567-04-003', first_name: 'ธนวัฒน์', last_name: 'มงคล',     nickname: 'วัฒน์',branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
+  { id: 'em-04', employee_code: '2567-03-004', first_name: 'นันทิชา', last_name: 'พรหมบุตร', nickname: 'แพรว', branch_id: 'br-02', branch: { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' } },
+  { id: 'em-07', employee_code: '2567-04-007', first_name: 'บุญมา',   last_name: 'สีดา',      nickname: 'บุญ',  branch_id: 'br-03', branch: { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' } },
+]
+
+function makeMockRecords(dateStr: string): ApiRecord[] {
+  return [
+    { id: 'att-01', employee_id: 'em-01', shift_id: 'sh-01', date: dateStr, check_in_at: `${dateStr}T01:02:00Z`, check_out_at: `${dateStr}T10:05:00Z`, check_in_method: 'LIFF',  is_late: false, late_minutes: 0,  is_outside_area: false, note: null, employee: { ...MOCK_EMPLOYEES_ATT[0] }, shift: MOCK_SHIFTS_ATT[0] },
+    { id: 'att-02', employee_id: 'em-02', shift_id: 'sh-01', date: dateStr, check_in_at: `${dateStr}T01:08:00Z`, check_out_at: null,                    check_in_method: 'QR',    is_late: true,  late_minutes: 3,  is_outside_area: false, note: null, employee: { ...MOCK_EMPLOYEES_ATT[1] }, shift: MOCK_SHIFTS_ATT[0] },
+    { id: 'att-03', employee_id: 'em-04', shift_id: 'sh-03', date: dateStr, check_in_at: `${dateStr}T02:25:00Z`, check_out_at: `${dateStr}T11:01:00Z`,  check_in_method: 'LIFF',  is_late: true,  late_minutes: 25, is_outside_area: true,  note: 'นอกพื้นที่', employee: { ...MOCK_EMPLOYEES_ATT[3] }, shift: MOCK_SHIFTS_ATT[2] },
+  ]
 }
 
 type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT'
@@ -115,11 +145,14 @@ export default function AttendancePage() {
   const [branchFilter, setBranch] = useState('')
   const [search, setSearch]       = useState('')
   const [loading, setLoading]     = useState(false)
+  
+  const [page, setPage]           = useState(1)
+  const pageSize                  = 7
 
-  const [branches, setBranches]   = useState<ApiBranch[]>([])
-  const [employees, setEmployees] = useState<ApiEmployee[]>([])
-  const [records, setRecords]     = useState<ApiRecord[]>([])
-  const [shifts, setShifts]       = useState<ApiShift[]>([])
+  const [branches, setBranches]   = useState<ApiBranch[]>(MOCK_BRANCHES_ATT)
+  const [employees, setEmployees] = useState<ApiEmployee[]>(MOCK_EMPLOYEES_ATT)
+  const [records, setRecords]     = useState<ApiRecord[]>(() => makeMockRecords(todayStr()))
+  const [shifts, setShifts]       = useState<ApiShift[]>(MOCK_SHIFTS_ATT)
 
   // modal state
   const [editTarget, setEditTarget]     = useState<Row | null>(null)
@@ -129,37 +162,17 @@ export default function AttendancePage() {
   const [manualForm, setManualForm]   = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
   const [saving, setSaving]           = useState(false)
 
-  // ── Load ────────────────────────────────────────────────────────────
-  async function loadBranchesAndShifts() {
-    const [br, sh] = await Promise.all([
-      api.get('/api/v1/admin/branches'),
-      api.get('/api/v1/admin/shifts'),
-    ])
-    setBranches(br.data.data ?? [])
-    setShifts(sh.data.data ?? [])
+  function loadData() {
+    const base = makeMockRecords(date)
+    const filtered = branchFilter
+      ? base.filter(r => r.employee.branch.id === branchFilter)
+      : base
+    const filteredEmps = branchFilter
+      ? MOCK_EMPLOYEES_ATT.filter(e => e.branch_id === branchFilter)
+      : MOCK_EMPLOYEES_ATT
+    setRecords(filtered)
+    setEmployees(filteredEmps)
   }
-
-  async function loadData() {
-    setLoading(true)
-    try {
-      const params: Record<string, string> = { date }
-      if (branchFilter) params.branchId = branchFilter
-
-      const [empRes, attRes] = await Promise.all([
-        api.get('/api/v1/admin/employees', { params: branchFilter ? { branchId: branchFilter } : {} }),
-        api.get('/api/v1/admin/attendance', { params }),
-      ])
-      setEmployees(empRes.data.data ?? [])
-      setRecords(attRes.data.data ?? [])
-    } catch {
-      showToast('error', 'โหลดข้อมูลไม่สำเร็จ')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { loadBranchesAndShifts() }, [])
-  useEffect(() => { loadData() }, [date, branchFilter])
 
   // ── Merge employees + records ────────────────────────────────────────
   const rows = useMemo<Row[]>(() => {
@@ -195,6 +208,11 @@ export default function AttendancePage() {
     return `${e.first_name} ${e.last_name} ${e.nickname ?? ''} ${e.employee_code}`.toLowerCase().includes(q)
   }), [rows, search])
 
+  const totalPages = Math.ceil(filtered.length / pageSize)
+  const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
+
+  useEffect(() => { setPage(1) }, [branchFilter, search, date])
+
   // ── Summaries ────────────────────────────────────────────────────────
   const summary = useMemo(() => ({
     total:   employees.length,
@@ -209,14 +227,11 @@ export default function AttendancePage() {
   async function handleReset() {
     if (!resetTarget?.record) return
     setSaving(true)
-    try {
-      await api.delete(`/api/v1/admin/attendance/${resetTarget.record.id}`)
-      showToast('success', `รีเซ็ตเวลา ${resetTarget.employee.first_name} สำเร็จ`)
-      setResetTarget(null)
-      await loadData()
-    } catch {
-      showToast('error', 'รีเซ็ตไม่สำเร็จ')
-    } finally { setSaving(false) }
+    await new Promise(r => setTimeout(r, 400))
+    setRecords(prev => prev.filter(r => r.id !== resetTarget.record!.id))
+    showToast('success', `รีเซ็ตเวลา ${resetTarget.employee.first_name} สำเร็จ`)
+    setResetTarget(null)
+    setSaving(false)
   }
 
   // ── Edit existing record ─────────────────────────────────────────────
@@ -232,18 +247,16 @@ export default function AttendancePage() {
   async function handleEdit() {
     if (!editTarget?.record) return
     setSaving(true)
-    try {
-      await api.patch(`/api/v1/admin/attendance/${editTarget.record.id}`, {
-        check_in_at:  editForm.check_in_at  || undefined,
-        check_out_at: editForm.check_out_at || undefined,
-        note:         editForm.note         || undefined,
-      })
-      showToast('success', 'แก้ไขเวลาสำเร็จ')
-      setEditTarget(null)
-      await loadData()
-    } catch {
-      showToast('error', 'แก้ไขไม่สำเร็จ')
-    } finally { setSaving(false) }
+    await new Promise(r => setTimeout(r, 500))
+    setRecords(prev => prev.map(r => {
+      if (r.id !== editTarget.record!.id) return r
+      const ciISO = editForm.check_in_at  ? `${date}T${editForm.check_in_at}:00Z` : r.check_in_at
+      const coISO = editForm.check_out_at ? `${date}T${editForm.check_out_at}:00Z` : r.check_out_at
+      return { ...r, check_in_at: ciISO, check_out_at: coISO, note: editForm.note || r.note, check_in_method: 'ADMIN' as const }
+    }))
+    showToast('success', 'แก้ไขเวลาสำเร็จ')
+    setEditTarget(null)
+    setSaving(false)
   }
 
   // ── Manual check-in ─────────────────────────────────────────────────
@@ -258,22 +271,22 @@ export default function AttendancePage() {
       return
     }
     setSaving(true)
-    try {
-      await api.post('/api/v1/admin/attendance', {
-        employee_id:  manualTarget.id,
-        shift_id:     manualForm.shift_id,
-        date,
-        check_in_at:  manualForm.check_in_at,
-        check_out_at: manualForm.check_out_at || undefined,
-        note:         manualForm.note         || undefined,
-      })
-      showToast('success', `ลงเวลา ${manualTarget.first_name} สำเร็จ`)
-      setManualTarget(null)
-      await loadData()
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message ?? 'ลงเวลาไม่สำเร็จ'
-      showToast('error', msg)
-    } finally { setSaving(false) }
+    await new Promise(r => setTimeout(r, 600))
+    const shift = shifts.find(s => s.id === manualForm.shift_id) ?? shifts[0]
+    const ciISO = `${date}T${manualForm.check_in_at}:00Z`
+    const coISO = manualForm.check_out_at ? `${date}T${manualForm.check_out_at}:00Z` : null
+    const newRec: ApiRecord = {
+      id: genAttId(), employee_id: manualTarget.id, shift_id: manualForm.shift_id, date,
+      check_in_at: ciISO, check_out_at: coISO, check_in_method: 'ADMIN',
+      is_late: false, late_minutes: 0, is_outside_area: false,
+      note: manualForm.note || null,
+      employee: { id: manualTarget.id, first_name: manualTarget.first_name, last_name: manualTarget.last_name, nickname: manualTarget.nickname, employee_code: manualTarget.employee_code, branch: manualTarget.branch },
+      shift,
+    }
+    setRecords(prev => [...prev, newRec])
+    showToast('success', `ลงเวลา ${manualTarget.first_name} สำเร็จ`)
+    setManualTarget(null)
+    setSaving(false)
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -283,53 +296,73 @@ export default function AttendancePage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: '1.05rem', fontWeight: 700 }}>📅 เช็คชื่อรายวัน</h2>
-        <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>ตรวจสอบ / แก้ไขเวลาเข้า-ออกงาน</p>
+      {/* Mock banner */}
+      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(30,64,175,0.07)', border: '1px solid rgba(30,64,175,0.2)', fontSize: '0.72rem', color: '#1e40af', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
+        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
       </div>
 
+      {/* Header removed */}
+
       {/* KPI bar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        {([
-          { label: 'พนักงานทั้งหมด',    value: summary.total,              color: '#6366f1', bg: '#eef2ff' },
-          { label: 'มาปกติ',           value: summary.onTime,             color: '#16a34a', bg: '#dcfce7' },
-          { label: 'สายระดับ 1',       value: summary.late1,              color: '#d97706', bg: '#fef3c7' },
-          { label: 'สายระดับ 2 / ขาด', value: summary.late2,              color: '#dc2626', bg: '#fee2e2' },
-          { label: 'ขาดงาน',           value: summary.absent,             color: '#7f1d1d', bg: '#fef2f2' },
-          { label: 'ยังไม่เช็ค',      value: summary.pending,            color: '#64748b', bg: '#f1f5f9' },
-        ] as const).map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1px solid ${k.color}22`, borderRadius: 10, padding: '10px 16px', minWidth: 90, flex: 1 }}>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: '0.72rem', color: k.color, fontWeight: 600 }}>{k.label}</div>
-          </div>
-        ))}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          สถานะวันนี้
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
+          {([
+            { label: 'ทั้งหมด',    value: summary.total,   emoji: '👥', color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
+            { label: 'มาปกติ',     value: summary.onTime,  emoji: '✅', color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
+            { label: 'สายระดับ 1', value: summary.late1,   emoji: '⚠️', color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
+            { label: 'สายระดับ 2', value: summary.late2,   emoji: '🔴', color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+            { label: 'ขาดงาน',     value: summary.absent,  emoji: '❌', color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+            { label: 'ยังไม่เช็ค', value: summary.pending, emoji: '⏳', color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
+          ] as const).map(k => (
+            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '12px 10px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: '1rem' }}>{k.emoji}</span>
+                <span style={{ fontSize: '1.6rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          style={{ ...inp, width: 'auto' }} />
-        <select value={branchFilter} onChange={e => setBranch(e.target.value)}
-          style={{ ...inp, width: 'auto' }}>
-          <option value="">ทุกสาขา</option>
-          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 ค้นหาชื่อ / รหัส"
-          style={{ ...inp, flex: 1, minWidth: 160 }} />
-        <button onClick={loadData} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻ รีเฟรช</button>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          กรอง
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ ...inp, width: 'auto', borderRadius: 10 }} />
+          {/* Branch Filter */}
+          <select 
+            value={branchFilter} 
+            onChange={e => setBranch(e.target.value)}
+            style={{ ...inp, width: 'auto', borderRadius: 10, cursor: 'pointer', padding: '8px 12px' }}
+          >
+            <option value="">ทุกสาขา</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="🔍 ค้นหาชื่อ / รหัส"
+            style={{ ...inp, flex: 1, minWidth: 160, borderRadius: 10 }} />
+          <button onClick={loadData} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
+        </div>
       </div>
 
       {loading && <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 0' }}>กำลังโหลด...</p>}
 
       {/* Table */}
       {!loading && (
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           {isMobile ? (
             <div>
               {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</p>}
-              {filtered.map(row => {
+              {paginated.map(row => {
                 const s = STATUS_CFG[row.status]
                 const e = row.employee
                 return (
@@ -359,8 +392,8 @@ export default function AttendancePage() {
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                         {row.record ? (
                           <>
-                            <button onClick={() => openEdit(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}>✏</button>
-                            <button onClick={() => setResetTarget(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}>🗑</button>
+                            <button onClick={() => openEdit(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}><Pencil size={13}/></button>
+                            <button onClick={() => setResetTarget(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
                           </>
                         ) : (
                           <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงเวลา</button>
@@ -375,9 +408,9 @@ export default function AttendancePage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ background: '#dbeafe' }}>
+                  <tr style={{ background: '#fff7ed' }}>
                     {['รหัส', 'ชื่อ-สกุล', 'สาขา', 'กะ', 'เวลาเข้า', 'เวลาออก', 'วิธี', 'สาย', 'สถานะ', 'จัดการ'].map(h => (
-                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#1e40af', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
+                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#c2410c', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -385,7 +418,7 @@ export default function AttendancePage() {
                   {filtered.length === 0 && (
                     <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</td></tr>
                   )}
-                  {filtered.map((row, i) => {
+                  {paginated.map((row, i) => {
                     const s = STATUS_CFG[row.status]
                     const e = row.employee
                     return (
@@ -429,8 +462,8 @@ export default function AttendancePage() {
                         <td style={{ padding: '11px 14px' }}>
                           {row.record ? (
                             <div style={{ display: 'flex', gap: 6 }}>
-                              <button onClick={() => openEdit(row)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#374151' }}>✏ แก้ไข</button>
-                              <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต">🗑</button>
+                              <button onClick={() => openEdit(row)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#374151', display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={12}/> แก้ไข</button>
+                              <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต"><Trash2 size={13}/></button>
                             </div>
                           ) : (
                             <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงเวลา</button>
@@ -443,6 +476,31 @@ export default function AttendancePage() {
               </table>
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderTop: '1px solid #f1f5f9' }}>
+              <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                  disabled={page === 1}
+                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={page === totalPages}
+                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -452,7 +510,7 @@ export default function AttendancePage() {
           onClick={() => setEditTarget(null)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>✏ แก้ไขเวลา</h3>
+            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>แก้ไขเวลา</h3>
             <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280' }}>
               {editTarget.employee.first_name} {editTarget.employee.last_name} · {editTarget.record?.shift.name}
             </p>

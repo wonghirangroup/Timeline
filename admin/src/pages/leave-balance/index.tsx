@@ -1,6 +1,6 @@
-// admin/src/pages/leave-balance/index.tsx
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { api } from '../../lib/axios'
+// admin/src/pages/leave-balance/index.tsx  [MOCK MODE]
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
+import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -28,11 +28,11 @@ type LeaveKey = 'sick' | 'personal' | 'vacation' | 'compensate'
 interface Quotas { sick: number; personal: number; vacation: number; compensate: number }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const LEAVE_TYPES: { key: LeaveKey; label: string; short: string; icon: string; color: string; bg: string; border: string }[] = [
-  { key: 'sick',        label: 'ลาป่วย',      short: 'ป่วย',    icon: '🤒', color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
-  { key: 'personal',    label: 'ลากิจ',       short: 'กิจ',     icon: '📋', color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
-  { key: 'vacation',    label: 'ลาพักร้อน',   short: 'พักร้อน', icon: '🌴', color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
-  { key: 'compensate',  label: 'ลาชดเชย',     short: 'ชดเชย',   icon: '🔄', color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe' },
+const LEAVE_TYPES: { key: LeaveKey; label: string; short: string; icon: ReactNode; color: string; bg: string; border: string }[] = [
+  { key: 'sick',        label: 'ลาป่วย',      short: 'ป่วย',    icon: <Thermometer  size={16}/>, color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
+  { key: 'personal',    label: 'ลากิจ',       short: 'กิจ',     icon: <ClipboardList size={16}/>, color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
+  { key: 'vacation',    label: 'ลาพักร้อน',   short: 'พักร้อน', icon: <Sun           size={16}/>, color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
+  { key: 'compensate',  label: 'ลาชดเชย',     short: 'ชดเชย',   icon: <RefreshCw     size={16}/>, color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe' },
 ]
 
 const DEFAULT_QUOTAS: Quotas = { sick: 30, personal: 3, vacation: 6, compensate: 0 }
@@ -96,7 +96,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
               {balance.full_name} ({balance.nickname}) — {balance.branch_name}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
         </div>
 
         {/* Quota inputs */}
@@ -206,11 +206,11 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
             <button
               onClick={() => setApplyConfirm('new')}
               style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #c7d2fe', background: '#eef2ff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#4f46e5' }}
-            >📋 ใช้กับพนักงานใหม่ที่ยังไม่มีโควต้า</button>
+            >ใช้กับพนักงานใหม่ที่ยังไม่มีโควต้า</button>
             <button
               onClick={() => setApplyConfirm('all')}
-              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4f46e5', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff' }}
-            >🔄 ใช้กับพนักงานทั้งหมด ({totalCount} คน)</button>
+              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4f46e5', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}
+            ><RefreshCw size={14}/> ใช้กับพนักงานทั้งหมด ({totalCount} คน)</button>
           </>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 8, background: '#fef3c7', border: '1px solid #fde68a', flex: 1 }}>
@@ -234,11 +234,27 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
   )
 }
 
+// ── Mock Data ─────────────────────────────────────────────────────────────────
+const MOCK_BALANCES: LeaveBalance[] = [
+  { employee_id: 'e01', employee_code: '58-01-001', full_name: 'ชาตรี วงษ์วิบูลย์สิน',  nickname: 'ตอง',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2015-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 10, used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e02', employee_code: '58-01-002', full_name: 'เกาไพรรา หิรัญประทีป',  nickname: 'ที่จิ๋ว',  branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2015-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 10, used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e03', employee_code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',     nickname: 'พิม',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2016-07-01', sick: { total: 30, used: 2  }, personal: { total: 3, used: 1  }, vacation: { total: 10, used: 4  }, maternity: { total: 0, used: 0 }, compensate: { total: 2,  used: 1  } },
+  { employee_id: 'e04', employee_code: '60-03-001', full_name: 'นวลละออ โพธิ์สูงเนิน',  nickname: 'ปุ้ย',     branch_id: 'br-04', branch_name: 'ฟุคุโระ ไนท์สวนหมาก', hired_at: '2017-01-04', sick: { total: 30, used: 3  }, personal: { total: 3, used: 0  }, vacation: { total: 7,  used: 2  }, maternity: { total: 0, used: 0 }, compensate: { total: 1,  used: 0  } },
+  { employee_id: 'e05', employee_code: '63-03-001', full_name: 'มณเฑียร สว่างเมฆ',      nickname: 'เฟิร์ส',  branch_id: 'br-02', branch_name: 'ฟุคุโระ แม่กิมเฮง',   hired_at: '2020-11-01', sick: { total: 30, used: 5  }, personal: { total: 3, used: 2  }, vacation: { total: 6,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e06', employee_code: '63-04-001', full_name: 'สิรีธร จึงอนุวัตร',     nickname: 'กุล',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2020-02-17', sick: { total: 30, used: 1  }, personal: { total: 3, used: 1  }, vacation: { total: 7,  used: 5  }, maternity: { total: 0, used: 0 }, compensate: { total: 3,  used: 2  } },
+  { employee_id: 'e07', employee_code: '64-02-001', full_name: 'อมรรัตน์ โชติมณี',      nickname: 'ปิ๊ว',     branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2021-09-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 6,  used: 3  }, maternity: { total: 0, used: 0 }, compensate: { total: 1,  used: 0  } },
+  { employee_id: 'e08', employee_code: '65-03-001', full_name: 'สนธิญา เลื่อนกระโทก',  nickname: 'มิลส์',   branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2022-01-11', sick: { total: 30, used: 4  }, personal: { total: 3, used: 1  }, vacation: { total: 6,  used: 1  }, maternity: { total: 0, used: 0 }, compensate: { total: 2,  used: 0  } },
+  { employee_id: 'e09', employee_code: '66-03-001', full_name: 'ปัทมา ปลั่งกลาง',       nickname: 'แพร',      branch_id: 'br-03', branch_name: 'ฟุคุโระ ตลาดย่าโม',   hired_at: '2023-03-01', sick: { total: 30, used: 1  }, personal: { total: 3, used: 1  }, vacation: { total: 5,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e10', employee_code: '67-03-002', full_name: 'ลัดดาวัลย์ ปอกระโทก',  nickname: 'แป้ว',     branch_id: 'br-06', branch_name: 'ฟุคุโระ เทิดไท',       hired_at: '2024-01-01', sick: { total: 30, used: 2  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e12', employee_code: '68-03-004', full_name: 'ณัฐธิชา พิมพ์สระเกตุ', nickname: 'สมาย',    branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2025-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+  { employee_id: 'e13', employee_code: '68-03-006', full_name: 'ศรัญญา ถาวิชัย',        nickname: 'น้ำ สาขา',branch_id: 'br-04', branch_name: 'ฟุคุโระ ไนท์สวนหมาก', hired_at: '2025-03-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
+]
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LeaveBalancePage() {
   const { showToast } = useToast()
-  const [balances,    setBalances]    = useState<LeaveBalance[]>([])
-  const [loading,     setLoading]     = useState(true)
+  const [balances,    setBalances]    = useState<LeaveBalance[]>(MOCK_BALANCES)
+  const [loading,     setLoading]     = useState(false)
   const [year,        setYear]        = useState(new Date().getFullYear())
   const [defaults,    setDefaults]    = useState<Quotas>(DEFAULT_QUOTAS)
   const [editTarget,  setEditTarget]  = useState<LeaveBalance | null>(null)
@@ -258,22 +274,24 @@ export default function LeaveBalancePage() {
   ])
   const [showSeniority, setShowSeniority] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await api.get('/api/v1/admin/leave-balances/employees', { params: { year } })
-      setBalances(res.data.data ?? [])
-    } catch { showToast('error', 'โหลดข้อมูลไม่สำเร็จ') }
-    finally { setLoading(false) }
+  const load = useCallback(() => {
+    setBalances(MOCK_BALANCES)
   }, [year])
 
-  useEffect(() => { load() }, [load])
-
-  // batch save ไป API
+  // mock save — update local state
   async function saveBatch(items: { employee_id: string; leave_type: string; total_days: number }[]) {
     if (items.length === 0) return
-    await api.post('/api/v1/admin/leave-balances/batch', { year, items })
-    await load()
+    await new Promise(r => setTimeout(r, 500))
+    setBalances(prev => prev.map(b => {
+      const updates = items.filter(i => i.employee_id === b.employee_id)
+      if (updates.length === 0) return b
+      const next = { ...b }
+      for (const u of updates) {
+        const key = u.leave_type.toLowerCase() as LeaveKey
+        if (key in next) (next as any)[key] = { ...(next as any)[key], total: u.total_days }
+      }
+      return next
+    }))
   }
 
   // Filters
@@ -513,7 +531,7 @@ export default function LeaveBalancePage() {
                     <button
                       onClick={() => setSeniorityRules(rs => rs.filter(r => r.id !== rule.id))}
                       style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >✕</button>
+                    ><X size={14}/></button>
                   </td>
                 </tr>
               ))}
@@ -527,8 +545,8 @@ export default function LeaveBalancePage() {
             >+ เพิ่มเงื่อนไข</button>
             <button
               onClick={handleApplySeniority}
-              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff' }}
-            >🔄 คำนวณและนำไปใช้</button>
+              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}
+            ><RefreshCw size={14}/> คำนวณและนำไปใช้</button>
           </div>
         </div>
       )}
@@ -574,8 +592,8 @@ export default function LeaveBalancePage() {
             <span style={{ fontSize: '0.82rem', color: '#4f46e5', fontWeight: 700 }}>เลือก {selectedIds.size} คน</span>
             <button
               onClick={() => { setBulkQuotas(defaults); setBulkEditOpen(true) }}
-              style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
-            >✏️ แก้ไขพร้อมกัน</button>
+              style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            ><Pencil size={13}/> แก้ไขพร้อมกัน</button>
             <button
               onClick={() => setSelectedIds(new Set())}
               style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.82rem', cursor: 'pointer', color: '#64748b' }}
@@ -714,7 +732,7 @@ export default function LeaveBalancePage() {
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.borderColor = '#c7d2fe' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-                >✏️</button>
+                ><Pencil size={13}/></button>
               </div>
             </div>
           )
@@ -740,10 +758,10 @@ export default function LeaveBalancePage() {
           <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>✏️ แก้ไขโควต้าพร้อมกัน</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าพร้อมกัน</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>จะนำไปใช้กับพนักงานที่เลือก {selectedIds.size} คน</div>
               </div>
-              <button onClick={() => setBulkEditOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setBulkEditOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               {LEAVE_TYPES.map(lt => (

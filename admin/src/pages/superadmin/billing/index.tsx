@@ -1,5 +1,6 @@
 // Super Admin — Billing & Payment Management
 import { useState, useMemo } from 'react'
+import { Plus, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MOCK_INVOICES, MOCK_TENANTS } from '../../../lib/mock'
 import type { Invoice, PaymentStatus, TenantPlan } from '../../../types'
@@ -139,7 +140,7 @@ export default function BillingPage() {
           onClick={() => { setForm(EMPTY_INVOICE); setCreateModal(true) }}
           style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+          <Plus size={14} />
           สร้าง Invoice ใหม่
         </button>
       </div>
@@ -297,7 +298,7 @@ export default function BillingPage() {
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontWeight: 700, fontSize: '1rem' }}>สร้าง Invoice ใหม่</span>
               <button onClick={() => setCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <X size={18} />
               </button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -367,7 +368,7 @@ export default function BillingPage() {
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontWeight: 700, fontSize: '1rem', fontFamily: 'monospace' }}>{detailInv.id}</span>
               <button onClick={() => setDetailInv(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <X size={18} />
               </button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>

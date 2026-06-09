@@ -1,9 +1,10 @@
 // admin/src/pages/employee/detail.tsx
 import { useState } from 'react'
+import { Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   MOCK_EMPLOYEES, MOCK_LEAVE_BALANCES, MOCK_LEAVE_REQUESTS,
-  genEmployeeLog, MOCK_BRANCHES, MOCK_DEPARTMENTS,
+  genEmployeeLog, MOCK_BRANCHES, MOCK_DEPARTMENTS, MOCK_SHIFTS,
 } from '../../lib/mock'
 import type { AttendanceStatus } from '../../types'
 
@@ -67,10 +68,10 @@ function OverviewTab({ employeeId, fullName }: { employeeId: string; fullName: s
   }
 
   const leaveTypes = [
-    { key: 'sick',       label: 'ลาป่วย',    icon: '🤒', color: '#dc2626', bg: '#fee2e2', used: balance?.sick_used ?? 0,       quota: balance?.sick_quota ?? 30 },
-    { key: 'personal',   label: 'ลากิจ',     icon: '📋', color: '#d97706', bg: '#fef3c7', used: balance?.personal_used ?? 0,   quota: balance?.personal_quota ?? 3 },
-    { key: 'vacation',   label: 'พักร้อน',   icon: '🌴', color: '#059669', bg: '#d1fae5', used: balance?.vacation_used ?? 0,   quota: balance?.vacation_quota ?? 6 },
-    { key: 'compensate', label: 'ลาชดเชย',   icon: '🔄', color: '#2563eb', bg: '#dbeafe', used: balance?.compensate_used ?? 0, quota: balance?.compensate_quota ?? 0 },
+    { key: 'sick',       label: 'ลาป่วย',    icon: <Thermometer  size={16}/>, color: '#dc2626', bg: '#fee2e2', used: balance?.sick_used ?? 0,       quota: balance?.sick_quota ?? 30 },
+    { key: 'personal',   label: 'ลากิจ',     icon: <ClipboardList size={16}/>, color: '#d97706', bg: '#fef3c7', used: balance?.personal_used ?? 0,   quota: balance?.personal_quota ?? 3 },
+    { key: 'vacation',   label: 'พักร้อน',   icon: <Sun           size={16}/>, color: '#059669', bg: '#d1fae5', used: balance?.vacation_used ?? 0,   quota: balance?.vacation_quota ?? 6 },
+    { key: 'compensate', label: 'ลาชดเชย',   icon: <RefreshCw     size={16}/>, color: '#2563eb', bg: '#dbeafe', used: balance?.compensate_used ?? 0, quota: balance?.compensate_quota ?? 0 },
   ]
 
   const recentLog = [...log].reverse().slice(0, 7)
@@ -329,12 +330,14 @@ function LeaveTab({ fullName }: { fullName: string }) {
 function InfoTab({ employeeId }: { employeeId: string }) {
   const emp = MOCK_EMPLOYEES.find(e => e.id === employeeId)!
   const dept = MOCK_DEPARTMENTS.find(d => d.name === emp.department)
+  const shift = MOCK_SHIFTS.find(s => s.id === emp.default_shift_id)
 
   const rows = [
     { label: 'รหัสพนักงาน',  value: emp.code,              mono: true },
     { label: 'ชื่อ-สกุล',    value: emp.full_name },
     { label: 'ชื่อเล่น',     value: emp.nickname },
     { label: 'แผนก',         value: `${dept?.code ?? ''} — ${emp.department}` },
+    { label: 'กะทำงาน',      value: shift ? `${shift.name}  ${shift.start_time} – ${shift.end_time}  (${shift.branch_name})` : '—' },
     { label: 'เบอร์โทร',     value: emp.phone,             mono: true },
     { label: 'วันที่เริ่มงาน', value: thDate(emp.hire_date) },
     { label: 'อายุงาน',      value: `${yearsFrom(emp.hire_date)} ปี` },
@@ -439,7 +442,7 @@ export default function EmployeeDetailPage() {
           onClick={() => navigate('/employee')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '0.84rem', marginBottom: 16, padding: 0 }}
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <ChevronLeft size={16}/>
           รายการพนักงาน
         </button>
 
@@ -482,13 +485,22 @@ export default function EmployeeDetailPage() {
               <span style={{ fontSize: '0.82rem', color: '#64748b' }}>📆 เริ่มงาน {thDate(emp.hire_date)} ({yearsFrom(emp.hire_date)} ปี)</span>
             </div>
 
-            {/* Branches */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+            {/* Branches + Shift */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {emp.branches.map(b => (
                 <span key={b} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }}>
                   🏪 {b}
                 </span>
               ))}
+              {(() => {
+                const sh = MOCK_SHIFTS.find(s => s.id === emp.default_shift_id)
+                if (!sh) return null
+                return (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>
+                    ⏰ {sh.name} {sh.start_time}–{sh.end_time}
+                  </span>
+                )
+              })()}
             </div>
           </div>
 

@@ -1,8 +1,7 @@
-// employee/src/pages/verify/index.tsx
+// employee/src/pages/verify/index.tsx  [MOCK MODE — LIFF stubbed]
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import liff from '@line/liff'
 import { initLiff, getLiffProfile } from '../../lib/liff'
 import { setJwt } from '../../lib/axios'
 
@@ -60,7 +59,7 @@ export default function VerifyPage() {
     if (!selected || !profile) return
     setLinking(true)
     try {
-      const idToken = liff.getIDToken() ?? ''
+      const idToken = 'mock-id-token'
       const res = await axios.post(`${apiUrl}/employee/link`, {
         liff_token:      idToken,
         line_user_id:    profile.lineUserId,

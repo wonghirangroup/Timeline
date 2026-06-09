@@ -1,5 +1,6 @@
 // admin/src/pages/superadmin/onboarding/index.tsx
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MOCK_TENANTS, MOCK_LINE_CONFIGS } from '../../../lib/mock'
 import type { Tenant } from '../../../types'
@@ -336,10 +337,8 @@ export default function OnboardingPage() {
                 </div>
 
                 {/* Chevron */}
-                <svg width="16" height="16" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"
-                  style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <ChevronDown size={16} color="#94a3b8"
+                  style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </div>
 
               {/* Expanded checklist */}

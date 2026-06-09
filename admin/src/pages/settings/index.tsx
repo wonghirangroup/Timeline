@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BarChart2, Clock, Plus, Check, AlertCircle } from 'lucide-react'
 import { MOCK_BRANCHES, MOCK_BRANCH_SETTINGS, MOCK_GLOBAL_SETTINGS, MOCK_FINE_RULE, MOCK_TENANTS } from '../../lib/mock'
 import type { BranchSettings, GlobalSettings, FineRule, FineTier, FineMode } from '../../types'
 import { useToast } from '../../components/ui/Toast'
@@ -277,22 +278,14 @@ export default function SettingsPage() {
                 onClick={() => setMode('tier')}
                 title="ปรับตามช่วงเวลา"
                 desc="กำหนดค่าปรับแต่ละช่วงนาทีที่สาย เช่น สาย 1-15 นาที = 20 ฿, 16-30 นาที = 50 ฿"
-                icon={
-                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                  </svg>
-                }
+                icon={<BarChart2 size={20} />}
               />
               <ModeCard
                 active={fineRule.mode === 'per_minute'}
                 onClick={() => setMode('per_minute')}
                 title="ปรับตามนาทีที่สาย"
                 desc="นาทีที่สาย × อัตราค่าปรับต่อนาที เช่น สาย 10 นาที × 2 ฿ = 20 ฿"
-                icon={
-                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                }
+                icon={<Clock size={20} />}
               />
             </div>
           </div>
@@ -309,7 +302,7 @@ export default function SettingsPage() {
                   onClick={addTier}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#f97316', color: '#fff', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}
                 >
-                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                  <Plus size={12} />
                   เพิ่มช่วง
                 </button>
               </div>
@@ -568,9 +561,9 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: simMinutesLate === 0 ? '#dcfce7' : simResult.countAsAbsent ? '#fee2e2' : '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {simMinutesLate === 0 ? (
-                    <svg width="18" height="18" fill="none" stroke="#15803d" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    <Check size={18} color="#15803d" />
                   ) : (
-                    <svg width="18" height="18" fill="none" stroke={simResult.countAsAbsent ? '#dc2626' : '#d97706'} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z" /></svg>
+                    <AlertCircle size={18} color={simResult.countAsAbsent ? '#dc2626' : '#d97706'} />
                   )}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -669,9 +662,7 @@ function SaveBtn({ onClick, label }: { onClick: () => void; label: string }) {
         boxShadow: '0 2px 8px rgba(249,115,22,0.3)',
       }}
     >
-      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
+      <Check size={14} />
       {label}
     </button>
   )
