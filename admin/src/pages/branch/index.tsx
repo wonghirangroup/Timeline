@@ -1,6 +1,6 @@
 // [MOCK MODE]
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -68,6 +68,12 @@ export default function BranchPage() {
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
   const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK' })
+
+  React.useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setModal(null); setMapModal(false) } }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   const [saving, setSaving]       = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [step, setStep]           = useState(1)
@@ -274,13 +280,13 @@ export default function BranchPage() {
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
         {[
-          { label: 'ทั้งหมด',     value: branches.length,                               emoji: '🏢', color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-          { label: 'เปิดใช้งาน', value: branches.filter(b => b.is_active).length,       emoji: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'พนักงานรวม',  value: branches.reduce((s, b) => s + b._count.employees, 0), emoji: '👥', color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+          { label: 'ทั้งหมด',     value: branches.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+          { label: 'เปิดใช้งาน', value: branches.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+          { label: 'พนักงานรวม',  value: branches.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: '1.1rem' }}>{k.emoji}</span>
+              <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
@@ -406,7 +412,7 @@ export default function BranchPage() {
             <div style={{ ...sheetBox(480), width: isMobile ? '100%' : 'clamp(480px, 60vw, 780px)', maxWidth: isMobile ? '100%' : '92vw', display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
 
               {/* Header */}
-              <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>
                     {modal === 'add' ? 'เพิ่มสาขาใหม่' : `แก้ไข: ${editTarget?.name}`}
@@ -627,7 +633,7 @@ export default function BranchPage() {
 
       {/* Map Picker Modal */}
       {mapModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}
           onClick={() => setMapModal(false)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, width: isMobile ? '100%' : 620, maxWidth: '95vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: isMobile ? '90vh' : '80vh' }}
             onClick={e => e.stopPropagation()}>

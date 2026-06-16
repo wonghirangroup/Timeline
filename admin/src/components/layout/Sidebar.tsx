@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutGrid, Users, Building2, Clock, AlignLeft,
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
-  Megaphone, Settings, LogOut, X,
+  Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
@@ -66,9 +66,11 @@ interface SidebarProps {
   isMobile: boolean
   drawerOpen: boolean
   onClose: () => void
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export default function Sidebar({ isMobile, drawerOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
   const navigate = useNavigate()
   const clear    = useAuthStore(s => s.clear)
   const name     = useAuthStore(s => s.name)
@@ -82,16 +84,21 @@ export default function Sidebar({ isMobile, drawerOpen, onClose }: SidebarProps)
       initials={initials}
       onLogout={handleLogout}
       onNavClick={isMobile ? onClose : () => {}}
+      collapsed={!isMobile && collapsed}
+      onToggleCollapse={!isMobile ? onToggleCollapse : undefined}
     />
   )
 
   if (!isMobile) {
     return (
       <aside style={{
-        position: 'fixed', left: 0, top: 0, bottom: 0, width: 260,
-        background: 'var(--bg-card)', borderRight: '1px solid rgba(0,0,0,0.05)',
+        position: 'fixed', left: 0, top: 0, bottom: 0,
+        width: collapsed ? 64 : 260,
+        background: 'var(--bg-sidebar)', borderRight: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', zIndex: 100,
-        boxShadow: 'var(--shadow-md)',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
+        transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
       }}>
         {body}
       </aside>
@@ -100,26 +107,22 @@ export default function Sidebar({ isMobile, drawerOpen, onClose }: SidebarProps)
 
   return (
     <>
-      {/* Backdrop */}
       {drawerOpen && (
-        <div
-          onClick={onClose}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 99, backdropFilter: 'blur(2px)', transition: 'opacity 0.2s' }}
-        />
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 99, backdropFilter: 'blur(2px)' }} />
       )}
       <aside style={{
         position: 'fixed', left: 0, top: 0, bottom: 0, width: 280,
-        background: 'var(--bg-card)',
+        background: 'var(--bg-sidebar)',
         display: 'flex', flexDirection: 'column', zIndex: 100,
         transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        boxShadow: drawerOpen ? 'var(--shadow-float)' : 'none',
+        boxShadow: drawerOpen ? '4px 0 24px rgba(0,0,0,0.2)' : 'none',
       }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'var(--bg-page)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', zIndex: 1, transition: 'all 0.2s' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#E2E8F0'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-page)'}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(248,250,252,0.7)', zIndex: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
         >
           <X size={16} />
         </button>
@@ -130,192 +133,164 @@ export default function Sidebar({ isMobile, drawerOpen, onClose }: SidebarProps)
 }
 
 // ── Sidebar body ──────────────────────────────────────────────────────────────
-function SidebarContent({ name, initials, onLogout, onNavClick }: {
+function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onToggleCollapse }: {
   name: string | null; initials: string; onLogout: () => void; onNavClick: () => void
+  collapsed: boolean; onToggleCollapse?: () => void
 }) {
-  const location   = useLocation()
-  const tenantId   = useAuthStore(s => s.tenantId)
+  const location    = useLocation()
+  const tenantId    = useAuthStore(s => s.tenantId)
   const getFeatures = usePlanConfigStore(s => s.getFeatures)
-  const tenant     = MOCK_TENANTS.find(t => t.id === tenantId)
-  const features   = tenant ? getFeatures(tenant.plan) : null
+  const tenant      = MOCK_TENANTS.find(t => t.id === tenantId)
+  const features    = tenant ? getFeatures(tenant.plan) : null
 
   function visible(feature?: keyof PlanFeatures) {
     return !feature || !features || features[feature]
   }
 
-  // Today's date header
   const todayStr = (() => {
     const d = new Date()
-    const DAYS = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
+    const DAYS   = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
     const MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
     return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`
   })()
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
-      {/* Logo */}
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(0,0,0,0.04)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
-            boxShadow: 'var(--shadow-accent)',
-          }}>TL</div>
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', margin: 0, lineHeight: 1.2 }}>TimeLine HR</p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', fontWeight: 500 }}>{todayStr}</p>
-          </div>
+  // ── helper: icon-centered nav link ───────────────────────────────────────
+  function NavItem({ item }: { item: { path: string; label: string; icon: JSX.Element; badge?: number } }) {
+    const isActive = location.pathname === item.path
+    return (
+      <NavLink
+        to={item.path}
+        onClick={onNavClick}
+        title={collapsed ? item.label : undefined}
+        style={{
+          display: 'flex', alignItems: 'center',
+          gap: collapsed ? 0 : 12,
+          padding: collapsed ? '10px 0' : '10px 12px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          borderRadius: 'var(--radius-md)',
+          textDecoration: 'none', fontSize: '14px',
+          fontWeight: isActive ? 700 : 500,
+          color: isActive ? '#fb923c' : 'rgba(248,250,252,0.55)',
+          background: isActive ? 'rgba(249,115,22,0.15)' : 'transparent',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#f8fafc'; } }}
+        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)'; } }}
+      >
+        <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#f97316' : 'inherit' }}>
+          {item.icon}
         </div>
+        {!collapsed && (
+          <>
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.badge != null && item.badge > 0 && (
+              <span style={{ background: 'var(--error)', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, flexShrink: 0 }}>
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+      </NavLink>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* Logo + collapse toggle */}
+      <div style={{ padding: collapsed ? '20px 0' : '20px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(249,115,22,0.4)' }}>
+            TL
+          </div>
+          {!collapsed && (
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap' }}>TimeLine HR</p>
+              <p style={{ fontSize: 11, color: 'rgba(248,250,252,0.45)', margin: '4px 0 0', fontWeight: 500, whiteSpace: 'nowrap' }}>{todayStr}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Collapse toggle button — desktop only */}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? 'ขยาย sidebar' : 'ย่อ sidebar'}
+            style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(248,250,252,0.55)', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.16)'; e.currentTarget.style.color = '#f8fafc' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)' }}
+          >
+            {collapsed ? <ChevronRight size={14}/> : <ChevronLeft size={14}/>}
+          </button>
+        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
-
+      <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '16px 12px', overflowX: 'hidden' }}>
         {NAV_SECTIONS.map((section, si) => {
           const visItems = section.items.filter(it => visible(it.feature))
           if (visItems.length === 0) return null
-
           return (
             <div key={si} style={{ marginBottom: 8 }}>
-
-              {/* Section label */}
-              {section.label && (
-                <div style={{
-                  fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                  padding: '12px 10px 6px',
-                }}>
+              {section.label && !collapsed && (
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(248,250,252,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '12px 10px 6px', whiteSpace: 'nowrap' }}>
                   {section.label}
                 </div>
               )}
-
-              {/* Items */}
+              {collapsed && si > 0 && (
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 4px' }} />
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {visItems.map(item => {
-                  const isActive = location.pathname === item.path
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      onClick={onNavClick}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '10px 12px', borderRadius: 'var(--radius-md)',
-                        textDecoration: 'none', fontSize: '14px',
-                        fontWeight: isActive ? 700 : 500,
-                        color: isActive ? 'var(--accent-hover)' : 'var(--text-muted)',
-                        background: isActive ? 'var(--accent-light)' : 'transparent',
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-main)'; } }}
-                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; } }}
-                    >
-                      {/* Icon */}
-                      <div style={{
-                        width: 28, height: 28, flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: isActive ? 'var(--accent-primary)' : 'inherit',
-                        transition: 'all 0.15s',
-                      }}>
-                        {item.icon}
-                      </div>
-
-                      {/* Label */}
-                      <span style={{ flex: 1 }}>{item.label}</span>
-
-                      {/* Badge */}
-                      {item.badge != null && item.badge > 0 && (
-                        <span style={{
-                          background: 'var(--error)', color: '#fff', fontSize: '11px',
-                          fontWeight: 700, padding: '2px 8px', borderRadius: 99,
-                          flexShrink: 0, boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
-                        }}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </NavLink>
-                  )
-                })}
+                {visItems.map(item => <NavItem key={item.path} item={item} />)}
               </div>
-
-              {/* Divider after each section */}
-              {si < NAV_SECTIONS.length - 1 && (
-                <div style={{ height: 1, background: 'rgba(0,0,0,0.04)', margin: '12px 10px 4px' }} />
+              {!collapsed && si < NAV_SECTIONS.length - 1 && (
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '12px 10px 4px' }} />
               )}
             </div>
           )
         })}
 
         {/* Settings */}
-        <div style={{ marginTop: 8, paddingTop: 8 }}>
-          {(() => {
-            const isActive = location.pathname === '/settings'
-            return (
-              <NavLink
-                to="/settings"
-                onClick={onNavClick}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px', borderRadius: 'var(--radius-md)',
-                  textDecoration: 'none', fontSize: '14px',
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? 'var(--accent-hover)' : 'var(--text-muted)',
-                  background: isActive ? 'var(--accent-light)' : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-main)'; } }}
-                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; } }}
-              >
-                <div style={{
-                  width: 28, height: 28, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: isActive ? 'var(--accent-primary)' : 'inherit',
-                }}>
-                  <Settings size={18} />
-                </div>
-                <span>การตั้งค่า</span>
-              </NavLink>
-            )
-          })()}
+        <div style={{ marginTop: 8, paddingTop: collapsed ? 0 : 8 }}>
+          <NavItem item={{ path: '/settings', label: 'การตั้งค่า', icon: <Settings size={16}/> }} />
         </div>
       </nav>
 
       {/* User footer */}
-      <div style={{ borderTop: '1px solid rgba(0,0,0,0.04)', padding: '16px 12px', flexShrink: 0 }}>
-        {/* User info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-page)', marginBottom: 8, border: '1px solid rgba(0,0,0,0.02)' }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, color: '#fff',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-main)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0', fontWeight: 500 }}>HR Administrator</p>
-          </div>
-        </div>
-        {/* Logout */}
-        <button
-          onClick={onLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-            borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', width: '100%',
-            fontSize: '14px', color: 'var(--error)', background: 'transparent',
-            fontWeight: 600, transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--error-bg)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-        >
-          <LogOut size={16} />
-          ออกจากระบบ
-        </button>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '16px 12px', flexShrink: 0 }}>
+        {collapsed ? (
+          /* Collapsed: avatar only, click to logout */
+          <button
+            onClick={onLogout}
+            title="ออกจากระบบ"
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
+              {initials}
+            </div>
+          </button>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.06)', marginBottom: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</p>
+                <p style={{ fontSize: 11, color: 'rgba(248,250,252,0.45)', margin: '2px 0 0', fontWeight: 500 }}>HR Administrator</p>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', width: '100%', fontSize: '14px', color: '#f87171', background: 'transparent', fontWeight: 600, transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <LogOut size={16} />
+              ออกจากระบบ
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

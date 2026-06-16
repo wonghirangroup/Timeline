@@ -101,9 +101,10 @@ function ProgressBar({ pct, color = '#4f46e5' }: { pct: number; color?: string }
   return (
     <div style={{ height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
       <div style={{
-        height: '100%', width: `${pct}%`, borderRadius: 99,
+        height: '100%', width: '100%', borderRadius: 99,
         background: pct === 100 ? '#10b981' : color,
-        transition: 'width 0.4s',
+        transform: `scaleX(${pct / 100})`, transformOrigin: 'left',
+        transition: 'transform 0.4s',
       }} />
     </div>
   )

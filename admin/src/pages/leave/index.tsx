@@ -10,9 +10,9 @@ type LeaveTab = 'requests' | 'time-off' | 'balance' | 'calendar'
 
 const TABS: { id: LeaveTab; label: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
   { id: 'requests',  label: 'วันลา',      icon: <CalendarDays size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
-  { id: 'time-off',  label: 'วันหยุด',    icon: <CalendarOff  size={15}/>, color: '#2563eb', activeBg: '#eff6ff', activeBorder: '#3b82f6' },
-  { id: 'balance',   label: 'โควต้า',     icon: <BarChart3    size={15}/>, color: '#4f46e5', activeBg: '#eef2ff', activeBorder: '#6366f1' },
-  { id: 'calendar',  label: 'ปฏิทินรวม',  icon: <LayoutGrid   size={15}/>, color: '#0891b2', activeBg: '#ecfeff', activeBorder: '#06b6d4' },
+  { id: 'time-off',  label: 'วันหยุด',    icon: <CalendarOff  size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
+  { id: 'balance',   label: 'โควต้า',     icon: <BarChart3    size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
+  { id: 'calendar',  label: 'ปฏิทินรวม',  icon: <LayoutGrid   size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
 ]
 
 export default function LeavePage() {

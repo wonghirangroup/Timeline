@@ -1,0 +1,8 @@
+{
+  "files": ["admin/index.html"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "framework": "vite-react-spa",
+  "devUrl": "http://localhost:5173",
+  "cspChecked": true
+}

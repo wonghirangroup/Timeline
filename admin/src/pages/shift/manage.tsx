@@ -1,6 +1,6 @@
 // admin/src/pages/shift/index.tsx  [MOCK MODE]
 import { useState, useMemo, useEffect } from 'react'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2 } from 'lucide-react'
 import { MOCK_EMPLOYEES } from '../../lib/mock'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -112,15 +112,25 @@ export default function ShiftPage() {
   const [branchFilter, setBranchFilter] = useState('')
   
   const [page, setPage]         = useState(1)
-  const pageSize                = 6
+  const pageSize                = isMobile ? 3 : 6
+  const [swipeStart, setSwipeStart] = useState<number | null>(null)
 
   const [modal, setModal]       = useState<{ mode: 'add' | 'edit'; data: ApiShift | null } | null>(null)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setModal(null); setEmpViewShift(null); setEmpSearch(''); setRemoveConfirm(null) }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   const [form, setForm]         = useState(EMPTY_FORM)
   const [saving, setSaving]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiShift | null>(null)
   const [empViewShift, setEmpViewShift] = useState<ApiShift | null>(null)
   const [empSearch, setEmpSearch] = useState('')
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
+  const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
 
   // mutable emp→shift mapping (starts from mock default_shift_id)
   const [empShiftAssign, setEmpShiftAssign] = useState<Record<string, string | null>>(() => {
@@ -140,6 +150,7 @@ export default function ShiftPage() {
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
 
   useEffect(() => { setPage(1) }, [branchFilter])
+  useEffect(() => { setPage(1) }, [pageSize])
 
   const shiftEmpMap = useMemo(() => {
     const map: Record<string, typeof MOCK_EMPLOYEES> = {}
@@ -236,29 +247,29 @@ export default function ShiftPage() {
   }
 
   return (
-    <div>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Mock banner */}
-      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
+      <div style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center', marginBottom: 12 }}>
         🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
       </div>
 
-      {/* Header - Title removed */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
+      {/* Header */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14 }}>
         <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
           + เพิ่มกะ
         </button>
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
         {[
-          { label: 'กะทั้งหมด',   value: shifts.length,                           emoji: '⏰', color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
-          { label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, emoji: '🟢', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'จำนวนสาขา',  value: branches.length,                          emoji: '🏢', color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+          { label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+          { label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+          { label: 'จำนวนสาขา',  value: branches.length,                          icon: <Building2 size={15}/>,    color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: '1.1rem' }}>{k.emoji}</span>
+              <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
@@ -268,28 +279,47 @@ export default function ShiftPage() {
 
       {/* Branch filter */}
       {branches.length > 1 && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ flexShrink: 0, marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select 
-              value={branchFilter} 
-              onChange={e => setBranchFilter(e.target.value)}
-              style={{ padding: '8px 12px', fontSize: '13px', borderRadius: 10, border: '1px solid #e5e7eb', outline: 'none', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <option value="">ทุกสาขา</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+            {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
+              <button
+                key={b.id}
+                onClick={() => setBranchFilter(b.id)}
+                style={{
+                  padding: '4px 14px', borderRadius: 99, border: 'none',
+                  fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  background: branchFilter === b.id ? '#f97316' : '#f1f5f9',
+                  color: branchFilter === b.id ? '#fff' : '#64748b',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {b.name}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
+      {/* Cards + Pagination — fills remaining height, internal scroll only */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 
-      {/* Shift cards */}
-      {!loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>
+      {/* Scrollable cards area */}
+      <div
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingBottom: 4 }}
+        onTouchStart={e => setSwipeStart(e.touches[0].clientX)}
+        onTouchEnd={e => {
+          if (swipeStart === null) return
+          const diff = swipeStart - e.changedTouches[0].clientX
+          if (diff > 50)  setPage(p => Math.min(totalPages, p + 1))
+          if (diff < -50) setPage(p => Math.max(1, p - 1))
+          setSwipeStart(null)
+        }}
+      >
+        {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
+
+        {!loading && (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>
           {filtered.length === 0 && (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
               <p style={{ marginBottom: 12 }}>{shifts.length === 0 ? 'ยังไม่มีกะ' : 'ไม่พบกะในสาขาที่เลือก'}</p>
@@ -340,33 +370,44 @@ export default function ShiftPage() {
             </div>
             )
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>{/* end scrollable cards area */}
 
-      {/* Pagination Controls */}
-      {!loading && totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 14 }}>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>
-            แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} กะ
+      {/* Pagination — always pinned at bottom */}
+      {!loading && (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
+          <span style={{ fontSize: '12px', color: '#6b7280' }}>
+            {filtered.length === 0
+              ? 'ไม่มีกะ'
+              : `หน้า ${page}/${totalPages} · ${filtered.length} กะ`}
           </span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button 
-              onClick={() => setPage(p => Math.max(1, p - 1))} 
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              style={{ padding: '5px 10px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#d1d5db' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            ><ChevronLeft size={15}/></button>
+            {/* Page dots */}
+            <div style={{ display: 'flex', gap: 5 }}>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPage(i + 1)}
+                  style={{ width: page === i + 1 ? 20 : 8, height: 8, borderRadius: 99, border: 'none', padding: 0, cursor: 'pointer', background: page === i + 1 ? '#f97316' : '#e5e7eb', transition: 'all 0.2s' }}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronRight size={16} />
-            </button>
+              style={{ padding: '5px 10px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#d1d5db' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+            ><ChevronRight size={15}/></button>
           </div>
         </div>
       )}
+
+      </div>{/* end cards + pagination wrapper */}
 
       {/* Add/Edit Modal */}
       {modal && (
@@ -471,7 +512,7 @@ export default function ShiftPage() {
             <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
               <button onClick={() => setModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={saving}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : modal.mode === 'add' ? '+ เพิ่มกะ' : '💾 บันทึก'}
               </button>
             </div>
@@ -506,18 +547,18 @@ export default function ShiftPage() {
         const avatarColor = (idx: number) => COLORS[idx % COLORS.length]
         return (
           <div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
-            onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in') }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
+            onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }}
           >
             <div
-              style={{ background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 16, width: '100%', maxWidth: 460, maxHeight: isMobile ? '88vh' : '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}
+              style={{ background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 16, width: '100%', maxWidth: 520, maxHeight: isMobile ? '88vh' : '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{empViewShift.name} — {empViewShift.branch.name}</div>
-                  <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
+                  <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {empViewShift.start_time} – {empViewShift.end_time} · {inShift.length} คน
@@ -526,9 +567,12 @@ export default function ShiftPage() {
 
               {/* Tabs */}
               <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
-                {([['in', <><Users size={13}/> ในกะนี้ ({inShift.length})</>], ['add', <><UserPlus size={13}/> เพิ่มพนักงาน</>]] as const).map(([tab, label]) => (
-                  <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch('') }}
-                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#4f46e5' : 'transparent'}`, color: addEmpTab === tab ? '#4f46e5' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                {([
+                  ['in',  <><Users size={13}/> ในกะนี้ ({inShift.length})</>],
+                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {MOCK_EMPLOYEES.filter(e => !inShiftIds.has(e.id)).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{MOCK_EMPLOYEES.filter(e => !inShiftIds.has(e.id)).length}</span>}</>],
+                ] as const).map(([tab, label]) => (
+                  <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch(''); setRemoveConfirm(null) }}
+                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#f97316' : 'transparent'}`, color: addEmpTab === tab ? '#f97316' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                     {label}
                   </button>
                 ))}
@@ -545,28 +589,41 @@ export default function ShiftPage() {
               </div>
 
               {/* List */}
-              <div style={{ overflowY: 'auto', flex: 1 }}>
+              <div style={{ overflowY: 'auto', flex: 1, overscrollBehavior: 'contain', position: 'relative' }}>
                 {addEmpTab === 'in' ? (
                   inShiftFiltered.length === 0 ? (
                     <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
                       {inShift.length === 0 ? 'ยังไม่มีพนักงานในกะนี้' : 'ไม่พบพนักงานที่ค้นหา'}
                     </div>
                   ) : inShiftFiltered.map((e, idx) => (
-                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid #f8fafc' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f8fafc' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
                         {e.nickname.slice(0, 2)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.full_name}</div>
                         <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>{e.nickname} · {e.department}</div>
                       </div>
-                      <button
-                        onClick={() => removeEmp(e.id, e.nickname)}
-                        title="ย้ายออกจากกะ"
-                        style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 600, flexShrink: 0 }}
-                      >
-                        <UserMinus size={12}/> ย้ายออก
-                      </button>
+                      {removeConfirm === e.id ? (
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button
+                            onClick={() => { removeEmp(e.id, e.nickname); setRemoveConfirm(null) }}
+                            style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}
+                          >ยืนยัน</button>
+                          <button
+                            onClick={() => setRemoveConfirm(null)}
+                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                          >ยกเลิก</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setRemoveConfirm(e.id)}
+                          title="ย้ายออกจากกะ"
+                          style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 600, flexShrink: 0 }}
+                        >
+                          <UserMinus size={12}/> ย้ายออก
+                        </button>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -602,7 +659,7 @@ export default function ShiftPage() {
 
               {/* Footer */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fafafa', display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in') }}
+                <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }}
                   style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
                   เสร็จสิ้น
                 </button>

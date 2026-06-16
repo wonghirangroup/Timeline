@@ -55,7 +55,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #f8f9fc 0%, #ede9fe 40%, #fef3c7 100%)',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, #fff7ed 100%)',
     }}>
       <div style={{ width: '100%', maxWidth: 440, padding: '0 20px' }}>
         {/* Card */}

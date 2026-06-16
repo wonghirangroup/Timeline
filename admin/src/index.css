@@ -65,13 +65,13 @@ button { font-family: inherit; }
 .premium-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+  border: none;
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .premium-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.04);
   transform: translateY(-2px);
 }
 
@@ -106,12 +106,12 @@ button { font-family: inherit; }
 
 /* ── Animations ────────────────────────────────────────────── */
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-in-up 0.4s ease-out backwards;
 }
 
 .stagger > *:nth-child(1) { animation-delay: 0ms; }

@@ -1,6 +1,6 @@
 // admin/src/pages/attendance/index.tsx  [MOCK MODE]
 import { useState, useMemo, useEffect } from 'react'
-import { Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -89,16 +89,16 @@ function todayStr() {
 }
 function fmtTime(iso: string | null): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return new Date(iso).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 function timeToStr(iso: string | null): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const bkk = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+  return `${pad(bkk.getHours())}:${pad(bkk.getMinutes())}`
 }
 
 const METHOD_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  LIFF:         { label: 'LIFF',    color: '#2563eb', bg: '#dbeafe' },
+  LIFF:         { label: 'LINE App', color: '#2563eb', bg: '#dbeafe' },
   QR:           { label: 'QR',      color: '#7c3aed', bg: '#ede9fe' },
   ADMIN:        { label: 'Admin',   color: '#0891b2', bg: '#cffafe' },
   WEB_FALLBACK: { label: 'Web',     color: '#64748b', bg: '#f1f5f9' },
@@ -308,45 +308,50 @@ export default function AttendancePage() {
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
           สถานะวันนี้
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
-          {([
-            { label: 'ทั้งหมด',    value: summary.total,   emoji: '👥', color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
-            { label: 'มาปกติ',     value: summary.onTime,  emoji: '✅', color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
-            { label: 'สายระดับ 1', value: summary.late1,   emoji: '⚠️', color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
-            { label: 'สายระดับ 2', value: summary.late2,   emoji: '🔴', color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
-            { label: 'ขาดงาน',     value: summary.absent,  emoji: '❌', color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
-            { label: 'ยังไม่เช็ค', value: summary.pending, emoji: '⏳', color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
-          ] as const).map(k => (
-            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '12px 10px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+          {[
+            { label: 'ทั้งหมด',    value: summary.total,   icon: <Users size={15}/>,         color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
+            { label: 'มาปกติ',     value: summary.onTime,  icon: <CheckCircle2 size={15}/>,   color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
+            { label: 'ยังไม่เช็ค', value: summary.pending, icon: <Clock size={15}/>,          color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
+            { label: 'สายระดับ 1', value: summary.late1,   icon: <AlertTriangle size={15}/>,  color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
+            { label: 'สายระดับ 2', value: summary.late2,   icon: <AlertCircle size={15}/>,    color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+            { label: 'ขาดงาน',     value: summary.absent,  icon: <XCircle size={15}/>,        color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+          ].map(k => (
+            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '12px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: '1rem' }}>{k.emoji}</span>
+                <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
                 <span style={{ fontSize: '1.6rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Filters */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-          กรอง
+      <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Branch pills */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[{ id: '', name: 'ทั้งหมด' }, ...branches].map(b => (
+            <button
+              key={b.id}
+              onClick={() => { setBranch(b.id); setPage(1) }}
+              style={{
+                padding: '4px 14px', borderRadius: 99, border: 'none',
+                fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                background: branchFilter === b.id ? '#f97316' : '#f1f5f9',
+                color: branchFilter === b.id ? '#fff' : '#64748b',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {b.name}
+            </button>
+          ))}
         </div>
+        {/* Compact controls */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ ...inp, width: 'auto', borderRadius: 10 }} />
-          {/* Branch Filter */}
-          <select 
-            value={branchFilter} 
-            onChange={e => setBranch(e.target.value)}
-            style={{ ...inp, width: 'auto', borderRadius: 10, cursor: 'pointer', padding: '8px 12px' }}
-          >
-            <option value="">ทุกสาขา</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍 ค้นหาชื่อ / รหัส"
             style={{ ...inp, flex: 1, minWidth: 160, borderRadius: 10 }} />
@@ -381,13 +386,15 @@ export default function AttendancePage() {
                     </div>
                     <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
-                      <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>ออก: {fmtTime(row.record?.check_out_at ?? null)}</span>
+                      {row.record?.check_in_at && !row.record?.check_out_at
+                        ? <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
+                        : <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>ออก: <b>{fmtTime(row.record?.check_out_at ?? null) || '—'}</b></span>}
                       {row.record?.check_in_method && (() => {
                         const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
                         return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
                       })()}
                       {row.record?.is_outside_area && (
-                        <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706' }}>⚠️ นอกพื้นที่</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={10}/>นอกพื้นที่</span>
                       )}
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                         {row.record ? (
@@ -444,7 +451,11 @@ export default function AttendancePage() {
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null)}</td>
+                        <td style={{ padding: '11px 14px' }}>
+                          {row.record?.check_in_at && !row.record?.check_out_at
+                            ? <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
+                            : <span style={{ color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null) || '—'}</span>}
+                        </td>
                         <td style={{ padding: '11px 14px' }}>
                           {row.record?.check_in_method ? (() => {
                             const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
@@ -587,7 +598,7 @@ export default function AttendancePage() {
           onClick={() => setResetTarget(null)}>
           <div style={{ background: '#fff', borderRadius: 14, padding: '24px', width: 360, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '2rem', textAlign: 'center', marginBottom: 12 }}>🗑️</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: '#ef4444' }}><Trash2 size={32}/></div>
             <h3 style={{ margin: '0 0 8px', fontWeight: 700, textAlign: 'center' }}>รีเซ็ตบันทึกเช็คชื่อ?</h3>
             <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: '#6b7280', textAlign: 'center' }}>
               {resetTarget.employee.first_name} {resetTarget.employee.last_name}
@@ -595,8 +606,8 @@ export default function AttendancePage() {
             <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280', textAlign: 'center' }}>
               กะ: {resetTarget.record?.shift.name} · เวลาเข้า: {fmtTime(resetTarget.record?.check_in_at ?? null)}
             </p>
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626', marginBottom: 20 }}>
-              ⚠️ บันทึกนี้จะถูกลบออก พนักงานสามารถเช็คอินใหม่ได้อีกครั้ง
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <AlertTriangle size={14} style={{ marginTop: 1, flexShrink: 0 }}/>บันทึกนี้จะถูกลบออก พนักงานสามารถเช็คอินใหม่ได้อีกครั้ง
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setResetTarget(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>ยกเลิก</button>

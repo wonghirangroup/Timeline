@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { Check, AlertCircle } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
 import { MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
@@ -69,6 +69,16 @@ export default function OtPage() {
   const [rejectTarget, setRejectTarget] = useState<OtRequest | null>(null)
   const [rejectNote, setRejectNote]     = useState('')
   const [approveTarget, setApproveTarget] = useState<OtRequest | null>(null)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setApproveTarget(null); setRejectTarget(null); setShowAddModal(false)
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   // inline calculator state (not saved)
   const [calcRate, setCalcRate]           = useState('')
@@ -278,13 +288,13 @@ export default function OtPage() {
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'รอพิจารณา',        emoji: '⏳', value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-          { label: 'ชม. OT อนุมัติ',   emoji: '✅', value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
-          { label: 'ใกล้/เกิน Cap',    emoji: '⚠️', value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : '#6b7280', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
+          { label: 'รอพิจารณา',        icon: <Clock size={15}/>,         value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+          { label: 'ชม. OT อนุมัติ',   icon: <CheckCircle2 size={15}/>,  value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+          { label: 'ใกล้/เกิน Cap',    icon: <AlertTriangle size={15}/>, value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : '#6b7280', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
         ].map(s => (
-          <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: '1.1rem' }}>{s.emoji}</span>
+              <span style={{ color: s.color, display: 'flex' }}>{s.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{s.label}</div>
@@ -319,10 +329,10 @@ export default function OtPage() {
                   {/* Progress bar */}
                   <div style={{ background: '#f1f5f9', borderRadius: 99, height: 6, overflow: 'hidden' }}>
                     <div style={{
-                      height: '100%', borderRadius: 99,
-                      width: `${pct}%`,
+                      height: '100%', width: '100%', borderRadius: 99,
                       background: lv.color,
-                      transition: 'width 0.3s ease',
+                      transform: `scaleX(${pct / 100})`, transformOrigin: 'left',
+                      transition: 'transform 0.3s ease',
                     }} />
                   </div>
                 </div>
@@ -587,7 +597,7 @@ export default function OtPage() {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setApproveTarget(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={doApprove} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#15803d', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>✓ อนุมัติ OT</button>
+              <button onClick={doApprove} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>✓ อนุมัติ OT</button>
             </div>
           </div>
         </div>

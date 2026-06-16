@@ -173,6 +173,12 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
     return () => document.removeEventListener('mousedown', handler)
   }, [onClose])
 
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
   function applyTemplate(t: AnnType) {
     setAnnType(t)
     if (TEMPLATES[t].title) setTitle(TEMPLATES[t].title)
@@ -209,7 +215,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
   return (
     <div ref={overlayRef} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
     }}>
       <div style={{
@@ -218,7 +224,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
         boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
       }}>
         {/* Modal Header */}
-        <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
               {step === 'compose' ? '📣 สร้างประกาศระบบใหม่' : '👀 ตรวจสอบก่อนส่ง'}
@@ -581,10 +587,15 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
 
   return (
     <div ref={overlayRef} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
     }}>
       <div style={{

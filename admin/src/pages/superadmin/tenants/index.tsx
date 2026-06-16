@@ -77,6 +77,16 @@ export default function TenantsPage() {
 
   // Line OA modal (local only for now)
   const [lineModal, setLineModal]   = useState<ApiTenant | null>(null)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCreateModal(false); setEditTarget(null); setSuspendTarget(null); setDeleteTarget(null); setLineModal(null)
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   const [lineForm, setLineForm]     = useState({ line_channel_id: '', line_channel_secret: '', liff_id: '' })
   const [showSecret, setShowSecret] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle')
@@ -300,7 +310,7 @@ export default function TenantsPage() {
 
       {/* ── Create Tenant Modal ── */}
       {createModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 20px', fontWeight: 700 }}>+ เพิ่ม Tenant ใหม่</h3>
 
@@ -387,7 +397,7 @@ export default function TenantsPage() {
 
       {/* ── Edit Tenant Modal ── */}
       {editTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 460, maxWidth: '90vw' }}>
             <h3 style={{ margin: '0 0 20px', fontWeight: 700 }}>✏ แก้ไข Tenant</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -428,7 +438,7 @@ export default function TenantsPage() {
 
       {/* ── Suspend Confirm ── */}
       {suspendTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
             <h3 style={{ margin: '0 0 10px', fontWeight: 700 }}>
               {suspendTarget.is_active ? '⏸ ระงับ Tenant' : '▶ เปิดใช้งาน Tenant'}
@@ -442,7 +452,7 @@ export default function TenantsPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setSuspendTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
               <button onClick={handleSuspend} disabled={actionLoading}
-                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: suspendTarget.is_active ? '#f59e0b' : '#16a34a', color: '#fff', fontWeight: 700 }}>
+                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: suspendTarget.is_active ? '#f59e0b' : '#f97316', color: '#fff', fontWeight: 700 }}>
                 {actionLoading ? '...' : suspendTarget.is_active ? '⏸ ยืนยันระงับ' : '▶ เปิดใช้งาน'}
               </button>
             </div>
@@ -452,7 +462,7 @@ export default function TenantsPage() {
 
       {/* ── Delete Confirm ── */}
       {deleteTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
             <h3 style={{ margin: '0 0 10px', fontWeight: 700, color: '#dc2626' }}>🗑 ลบ Tenant</h3>
             <p style={{ margin: '0 0 8px', fontSize: '0.875rem' }}><strong>{deleteTarget.name}</strong></p>
@@ -472,7 +482,7 @@ export default function TenantsPage() {
 
       {/* ── Line OA Modal (local state for now) ── */}
       {lineModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 520, maxWidth: '90vw' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <span style={{ fontSize: '1.4rem' }}>💚</span>

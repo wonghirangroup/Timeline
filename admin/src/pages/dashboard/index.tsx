@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap } from 'lucide-react'
 import { MOCK_BRANCHES, MOCK_TODAY_ATTENDANCE } from '../../lib/mock'
 import type { AttendanceStatus } from '../../types'
 import { useAuthStore } from '../../stores/authStore'
@@ -66,8 +67,8 @@ export default function DashboardPage() {
         {/* ── Action required ──────────────────────────────────────── */}
         {(MOCK_PENDING_LEAVE > 0 || MOCK_PENDING_OT > 0) && (
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
-              ⚡ ต้องดำเนินการ
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Zap size={12} style={{ color: '#f59e0b' }}/> ต้องดำเนินการ
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
               {MOCK_PENDING_LEAVE > 0 && (
@@ -77,10 +78,10 @@ export default function DashboardPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 16, padding: '16px',
                     cursor: 'pointer', textAlign: 'left',
-                    border: '1px solid var(--warning-bg)', borderLeft: '4px solid var(--warning)'
+                    background: 'var(--warning-bg)', border: '1.5px solid #fcd34d'
                   }}
                 >
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>📋</div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}><ClipboardList size={20}/></div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>ใบลา รออนุมัติ</div>
                     <div style={{ fontSize: '12px', color: 'var(--warning)', fontWeight: 600, marginTop: 2 }}>{MOCK_PENDING_LEAVE} รายการ</div>
@@ -94,10 +95,10 @@ export default function DashboardPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 16, padding: '16px',
                     cursor: 'pointer', textAlign: 'left',
-                    border: '1px solid var(--info-bg)', borderLeft: '4px solid var(--info)'
+                    background: 'var(--info-bg)', border: '1.5px solid #93c5fd'
                   }}
                 >
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>⏰</div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: '#bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}><Clock size={20}/></div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>OT รออนุมัติ</div>
                     <div style={{ fontSize: '12px', color: 'var(--info)', fontWeight: 600, marginTop: 2 }}>{MOCK_PENDING_OT} รายการ</div>
@@ -115,17 +116,17 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             {[
-              { label: 'เข้างาน',    value: onTime,   icon: '✅', color: 'var(--success)', bg: 'var(--success-bg)' },
-              { label: 'มาสาย',      value: late,     icon: '⚠️', color: 'var(--warning)', bg: 'var(--warning-bg)' },
-              { label: 'ขาดงาน',     value: absent,   icon: '❌', color: 'var(--error)', bg: 'var(--error-bg)' },
-              { label: 'หยุด/ลา',    value: offToday, icon: '🏖️', color: 'var(--info)', bg: 'var(--info-bg)' },
+              { label: 'เข้างาน',    value: onTime,   icon: <CheckCircle2 size={18}/>, color: 'var(--success)', bg: 'var(--success-bg)', iconColor: '#10b981' },
+              { label: 'มาสาย',      value: late,     icon: <AlertTriangle size={18}/>, color: 'var(--warning)', bg: 'var(--warning-bg)', iconColor: '#f59e0b' },
+              { label: 'ขาดงาน',     value: absent,   icon: <XCircle size={18}/>, color: 'var(--error)', bg: 'var(--error-bg)', iconColor: '#ef4444' },
+              { label: 'หยุด/ลา',    value: offToday, icon: <CalendarDays size={18}/>, color: 'var(--info)', bg: 'var(--info-bg)', iconColor: '#3b82f6' },
             ].map(card => (
-              <div key={card.label} className="premium-card" style={{ padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+              <div key={card.label} className="premium-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.iconColor }}>
                     {card.icon}
                   </div>
-                  <span style={{ fontSize: '28px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
+                  <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>{card.label}</div>
               </div>
@@ -136,9 +137,9 @@ export default function DashboardPage() {
         {/* ── Quick link row ───────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 16 }}>
           {[
-            { label: 'จัดการพนักงาน', icon: '👥', path: '/employee', bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE' },
-            { label: 'ดูรายงาน',      icon: '📊', path: '/report',   bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },
-            { label: 'จัดการกะ',      icon: '⏰', path: '/shift',    bg: '#FAF5FF', color: '#6B21A8', border: '#E9D5FF' },
+            { label: 'จัดการพนักงาน', icon: <Users size={20}/>, path: '/employee', bg: '#f8fafc', color: '#1e293b', border: '#e2e8f0' },
+            { label: 'ดูรายงาน',      icon: <BarChart2 size={20}/>, path: '/report',   bg: '#f8fafc', color: '#1e293b', border: '#e2e8f0' },
+            { label: 'จัดการกะ',      icon: <Clock size={20}/>, path: '/shift',    bg: '#f8fafc', color: '#1e293b', border: '#e2e8f0' },
           ].map(q => (
             <button
               key={q.path}
@@ -149,7 +150,7 @@ export default function DashboardPage() {
                 background: q.bg, textAlign: 'center', fontFamily: 'inherit',
               }}
             >
-              <div style={{ fontSize: '24px', marginBottom: 8 }}>{q.icon}</div>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', color: '#64748b' }}>{q.icon}</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: q.color }}>{q.label}</div>
             </button>
           ))}
@@ -160,22 +161,24 @@ export default function DashboardPage() {
       {/* ── Right Column (Attendance List) ───────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
         
-        {/* ── Branch quick pills ───────────────────────────────────── */}
-        <div>
-          <select 
-            value={branch}
-            onChange={(e) => { setBranch(e.target.value); setShowAll(false) }}
-            style={{
-              padding: '6px 12px', borderRadius: 8, border: '1px solid #e5e7eb',
-              fontSize: '13px', fontWeight: 600, fontFamily: 'inherit',
-              background: '#fff', color: '#374151', cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)', outline: 'none'
-            }}
-          >
-            {[{ id: 'all', name: 'ทั้งหมด', count: all.length }, ...MOCK_BRANCHES.map(b => ({ id: b.name, name: b.name, count: all.filter(r => r.branch_name === b.name).length }))].map(b => (
-              <option key={b.id} value={b.id}>{b.name} ({b.count})</option>
-            ))}
-          </select>
+        {/* ── Branch filter pills ──────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[{ id: 'all', name: 'ทั้งหมด' }, ...MOCK_BRANCHES.map(b => ({ id: b.name, name: b.name }))].map(b => (
+            <button
+              key={b.id}
+              onClick={() => { setBranch(b.id); setShowAll(false) }}
+              style={{
+                padding: '4px 14px', borderRadius: 99, border: 'none',
+                fontFamily: 'inherit', fontSize: '13px', fontWeight: 600,
+                cursor: 'pointer',
+                background: branch === b.id ? '#f97316' : '#f1f5f9',
+                color: branch === b.id ? '#fff' : '#64748b',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {b.name}
+            </button>
+          ))}
         </div>
 
         {/* List Card */}
@@ -188,7 +191,7 @@ export default function DashboardPage() {
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.5 }}>📋</div>
+                <div style={{ marginBottom: 12, opacity: 0.4, display: 'flex', justifyContent: 'center' }}><ClipboardList size={40}/></div>
                 <div style={{ fontWeight: 600, fontSize: '13px' }}>ไม่มีข้อมูล</div>
               </div>
             ) : (

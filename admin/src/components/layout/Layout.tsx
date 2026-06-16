@@ -3,10 +3,15 @@ import Sidebar, { MobileBottomNav } from './Sidebar'
 import Topbar from './Topbar'
 import { useLocation } from 'react-router-dom'
 
+const SIDEBAR_W   = 260
+const SIDEBAR_COL = 64
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === '1' } catch { return false }
+  })
   const location = useLocation()
 
   useEffect(() => {
@@ -19,24 +24,30 @@ export default function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  // ปิด drawer อัตโนมัติเมื่อเปลี่ยนหน้า
-  useEffect(() => {
-    setDrawerOpen(false)
-  }, [location.pathname])
+  useEffect(() => { setDrawerOpen(false) }, [location.pathname])
+
+  function toggleCollapse() {
+    setCollapsed(c => {
+      const next = !c
+      try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
+
+  const sidebarW = isMobile ? 0 : (collapsed ? SIDEBAR_COL : SIDEBAR_W)
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-page)' }}>
-      {/* Drawer backdrop */}
       {isMobile && drawerOpen && (
         <div
           onClick={() => setDrawerOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 99, touchAction: 'none', transition: 'opacity 0.2s' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 99, touchAction: 'none' }}
         />
       )}
 
-      <Sidebar isMobile={isMobile} drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: isMobile ? 0 : 260, transition: 'margin 0.2s' }}>
+      <Sidebar isMobile={isMobile} drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: sidebarW, transition: 'margin-left 0.25s cubic-bezier(0.4,0,0.2,1)' }}>
         <Topbar isMobile={isMobile} onMenuClick={() => setDrawerOpen(o => !o)} />
 
         <main style={{

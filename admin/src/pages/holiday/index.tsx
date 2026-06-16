@@ -1,6 +1,6 @@
 // admin/src/pages/holiday/index.tsx  [MOCK MODE]
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Pencil, Trash2, X, Check } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Pin, Repeat2, CheckCircle2, Save } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -334,13 +334,13 @@ function BranchOverrideView({
                   <div style={{ fontSize: '0.84rem', fontWeight: 600, color: isChecked ? '#111827' : '#6b7280' }}>{h.name}</div>
                   <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
                     <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: tc.bg, color: tc.color, fontWeight: 600 }}>{tc.label}</span>
-                    {isBase && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#eff6ff', color: '#2563eb', fontWeight: 600 }}>📌 วันหยุดพื้นฐาน</span>}
-                    {h.recurring && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', fontWeight: 600 }}>🔁</span>}
+                    {isBase && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#eff6ff', color: '#2563eb', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Pin size={9}/>วันหยุดพื้นฐาน</span>}
+                    {h.recurring && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Repeat2 size={9}/>ประจำปี</span>}
                   </div>
                 </div>
                 {/* Status badge */}
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: isChecked ? '#eef2ff' : '#f3f4f6', color: isChecked ? '#4f46e5' : '#9ca3af', flexShrink: 0 }}>
-                  {isChecked ? '✅ ได้หยุด' : '— ไม่หยุด'}
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: isChecked ? '#fff7ed' : '#f3f4f6', color: isChecked ? '#ea580c' : '#9ca3af', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {isChecked ? <><CheckCircle2 size={11}/>ได้หยุด</> : '— ไม่หยุด'}
                 </span>
               </div>
             )
@@ -351,8 +351,8 @@ function BranchOverrideView({
       {/* Save button */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={onSave}
-          style={{ padding: '10px 28px', borderRadius: 10, border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(79,70,229,0.3)' }}>
-          💾 บันทึกสิทธิ์วันหยุด
+          style={{ padding: '10px 28px', borderRadius: 10, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <Save size={15}/>บันทึกสิทธิ์วันหยุด
         </button>
       </div>
     </div>

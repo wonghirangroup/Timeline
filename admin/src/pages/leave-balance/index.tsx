@@ -1,6 +1,6 @@
 // admin/src/pages/leave-balance/index.tsx  [MOCK MODE]
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
-import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X } from 'lucide-react'
+import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ function MiniBar({ used, quota, color }: { used: number; quota: number; color: s
   const barColor = quota === 0 ? '#e2e8f0' : used > quota ? '#dc2626' : used / quota >= 0.8 ? '#f59e0b' : '#10b981'
   return (
     <div style={{ height: 4, borderRadius: 99, background: '#f1f5f9', overflow: 'hidden', marginTop: 4 }}>
-      <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 99, transition: 'width 0.3s' }} />
+      <div style={{ height: '100%', width: '100%', background: barColor, borderRadius: 99, transform: `scaleX(${pct / 100})`, transformOrigin: 'left', transition: 'transform 0.3s' }} />
     </div>
   )
 }
@@ -81,14 +81,20 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
 
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
   return (
     <div ref={overlayRef} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
     }}>
       <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🗓</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าวันลา</div>
@@ -144,7 +150,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
           <button
             onClick={() => onSave(balance.employee_id, quotas)}
-            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#f97316', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
           >บันทึกโควต้า</button>
         </div>
       </div>
@@ -462,13 +468,13 @@ export default function LeaveBalancePage() {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 16 }}>
           {[
-            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: '👥', color: '#4f46e5', bg: '#eef2ff' },
-            { label: 'เกินโควต้า',      value: warnings,        icon: '🚨', color: '#dc2626', bg: '#fee2e2' },
-            { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: '⚠️', color: '#d97706', bg: '#fef3c7' },
-            { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: '✅', color: '#059669', bg: '#d1fae5' },
+            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#4f46e5', bg: '#eef2ff', iconColor: '#4f46e5' },
+            { label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
+            { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
+            { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
           ].map(s => (
-            <div key={s.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>{s.icon}</div>
+            <div key={s.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.iconColor, flexShrink: 0 }}>{s.icon}</div>
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>{s.label}</div>
@@ -754,9 +760,9 @@ export default function LeaveBalancePage() {
 
       {/* Bulk edit modal */}
       {bulkEditOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
           <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าพร้อมกัน</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>จะนำไปใช้กับพนักงานที่เลือก {selectedIds.size} คน</div>
@@ -779,7 +785,7 @@ export default function LeaveBalancePage() {
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setBulkEditOpen(false)} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
-              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
+              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#f97316', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
             </div>
           </div>
         </div>
@@ -787,3 +793,4 @@ export default function LeaveBalancePage() {
     </div>
   )
 }
+

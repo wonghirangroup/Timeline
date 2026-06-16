@@ -1,6 +1,7 @@
 // admin/src/pages/employee/detail.tsx
 import { useState } from 'react'
-import { Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft, BarChart2, CalendarDays, Umbrella, Info, CheckCircle2, Clock, XCircle, Scale, Folder, Phone, Building2, Smartphone, AlertTriangle, Users } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   MOCK_EMPLOYEES, MOCK_LEAVE_BALANCES, MOCK_LEAVE_REQUESTS,
@@ -82,15 +83,15 @@ function OverviewTab({ employeeId, fullName }: { employeeId: string; fullName: s
       <div>
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>สถิติเดือนพฤษภาคม 2569</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
-          {[
-            { label: 'วันทำงาน',  value: stats.work,   icon: '✅', color: '#059669', bg: '#d1fae5' },
-            { label: 'มาสาย',    value: stats.late,   icon: '⏰', color: '#d97706', bg: '#fef3c7' },
-            { label: 'ขาดงาน',   value: stats.absent, icon: '❌', color: '#dc2626', bg: '#fee2e2' },
-            { label: 'วันลา',    value: stats.leave,  icon: '📅', color: '#2563eb', bg: '#dbeafe' },
-            { label: 'ค่าปรับ',  value: `฿${stats.fine}`, icon: '⚖️', color: '#7c3aed', bg: '#ede9fe' },
-          ].map(s => (
+          {([
+            { label: 'วันทำงาน',  value: stats.work,   icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5' },
+            { label: 'มาสาย',    value: stats.late,   icon: <Clock size={18}/>,        color: '#d97706', bg: '#fef3c7' },
+            { label: 'ขาดงาน',   value: stats.absent, icon: <XCircle size={18}/>,      color: '#dc2626', bg: '#fee2e2' },
+            { label: 'วันลา',    value: stats.leave,  icon: <CalendarDays size={18}/>, color: '#2563eb', bg: '#dbeafe' },
+            { label: 'ค่าปรับ',  value: `฿${stats.fine}`, icon: <Scale size={18}/>,   color: '#7c3aed', bg: '#ede9fe' },
+          ] as { label: string; value: number | string; icon: ReactNode; color: string; bg: string }[]).map(s => (
             <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '14px 12px', textAlign: 'center', border: `1px solid ${s.color}20` }}>
-              <div style={{ fontSize: '1.3rem', marginBottom: 4 }}>{s.icon}</div>
+              <div style={{ marginBottom: 4, color: s.color, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
               <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 4 }}>{s.label}</div>
             </div>
@@ -280,7 +281,7 @@ function LeaveTab({ fullName }: { fullName: string }) {
   if (requests.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📭</div>
+        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center', opacity: 0.4 }}><CalendarDays size={40}/></div>
         <div style={{ fontSize: '0.9rem' }}>ยังไม่มีประวัติการลา</div>
       </div>
     )
@@ -415,9 +416,9 @@ export default function EmployeeDetailPage() {
   if (!emp) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔍</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', opacity: 0.4 }}><Users size={36}/></div>
         <div style={{ fontSize: '1rem', color: '#64748b' }}>ไม่พบข้อมูลพนักงาน</div>
-        <button onClick={() => navigate('/employee')} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer' }}>← กลับรายการ</button>
+        <button onClick={() => navigate('/employee')} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><ChevronLeft size={14}/>กลับรายการ</button>
       </div>
     )
   }
@@ -425,11 +426,11 @@ export default function EmployeeDetailPage() {
   const [avatarBg, avatarText] = avatarPalette(emp.id)
   const balance = MOCK_LEAVE_BALANCES.find(b => b.employee_id === emp.id)
 
-  const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'overview',   label: 'ภาพรวม',         icon: '📊' },
-    { key: 'attendance', label: 'ประวัติเช็คอิน',  icon: '📅' },
-    { key: 'leave',      label: 'วันลา',           icon: '🏖' },
-    { key: 'info',       label: 'ข้อมูลส่วนตัว',   icon: 'ℹ️' },
+  const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
+    { key: 'overview',   label: 'ภาพรวม',         icon: <BarChart2 size={15}/> },
+    { key: 'attendance', label: 'ประวัติเช็คอิน',  icon: <ClipboardList size={15}/> },
+    { key: 'leave',      label: 'วันลา',           icon: <Umbrella size={15}/> },
+    { key: 'info',       label: 'ข้อมูลส่วนตัว',   icon: <Info size={15}/> },
   ]
 
   return (
@@ -480,24 +481,24 @@ export default function EmployeeDetailPage() {
 
             <div style={{ display: 'flex', gap: 14, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', background: '#f1f5f9', padding: '3px 10px', borderRadius: 7, color: '#374151', fontWeight: 600 }}>{emp.code}</span>
-              <span style={{ fontSize: '0.82rem', color: '#64748b' }}>📁 {emp.department}</span>
-              <span style={{ fontSize: '0.82rem', color: '#64748b' }}>📞 {emp.phone}</span>
-              <span style={{ fontSize: '0.82rem', color: '#64748b' }}>📆 เริ่มงาน {thDate(emp.hire_date)} ({yearsFrom(emp.hire_date)} ปี)</span>
+              <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Folder size={13}/>{emp.department}</span>
+              <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={13}/>{emp.phone}</span>
+              <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={13}/>เริ่มงาน {thDate(emp.hire_date)} ({yearsFrom(emp.hire_date)} ปี)</span>
             </div>
 
             {/* Branches + Shift */}
             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {emp.branches.map(b => (
-                <span key={b} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }}>
-                  🏪 {b}
+                <span key={b} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Building2 size={11}/>{b}
                 </span>
               ))}
               {(() => {
                 const sh = MOCK_SHIFTS.find(s => s.id === emp.default_shift_id)
                 if (!sh) return null
                 return (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>
-                    ⏰ {sh.name} {sh.start_time}–{sh.end_time}
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Clock size={11}/>{sh.name} {sh.start_time}–{sh.end_time}
                   </span>
                 )
               })()}
@@ -525,7 +526,7 @@ export default function EmployeeDetailPage() {
         {/* Line warning banner */}
         {!emp.line_user_id && (
           <div style={{ marginTop: 16, padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+            <AlertTriangle size={20} style={{ color: '#d97706', flexShrink: 0 }}/>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#92400e' }}>พนักงานยังไม่ได้ผูก Line account</div>
               <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: 2 }}>ไม่สามารถเช็คอินผ่าน Line LIFF ได้จนกว่าจะผูก account — กดส่งลิงก์ให้พนักงานทำขั้นตอนผูกบัญชีเอง</div>
@@ -535,9 +536,10 @@ export default function EmployeeDetailPage() {
             ) : (
               <button
                 onClick={handleSendInvite}
-                style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#f59e0b', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#f59e0b', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                📱 ส่งลิงก์ผูก Line
+                <Smartphone size={14}/>
+                ส่งลิงก์ผูก Line
               </button>
             )}
           </div>
@@ -553,8 +555,8 @@ export default function EmployeeDetailPage() {
                 padding: '9px 18px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
                 fontSize: '0.875rem', fontWeight: tab === t.key ? 700 : 500,
                 background: tab === t.key ? '#fff' : 'transparent',
-                color: tab === t.key ? '#4f46e5' : '#64748b',
-                borderBottom: tab === t.key ? '2px solid #4f46e5' : '2px solid transparent',
+                color: tab === t.key ? '#ea580c' : '#64748b',
+                borderBottom: tab === t.key ? '2px solid #f97316' : '2px solid transparent',
                 marginBottom: -2, transition: 'all 0.12s',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}

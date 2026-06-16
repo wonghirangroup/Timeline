@@ -1,5 +1,5 @@
 // Super Admin — Billing & Payment Management
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MOCK_INVOICES, MOCK_TENANTS } from '../../../lib/mock'
@@ -55,6 +55,14 @@ export default function BillingPage() {
   const [extendInv,   setExtendInv]       = useState<Invoice | null>(null)
   const [extendDays,  setExtendDays]      = useState(30)
   const [form,        setForm]            = useState<Omit<Invoice, 'id'>>(EMPTY_INVOICE)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setCreateModal(false); setDetailInv(null); setExtendInv(null) }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   // Computed
   const today = new Date().toISOString().slice(0, 10)
@@ -402,7 +410,7 @@ export default function BillingPage() {
             <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {(detailInv.status === 'PENDING' || detailInv.status === 'OVERDUE') && (
                 <>
-                  <button onClick={() => markPaid(detailInv)} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>✓ บันทึกชำระแล้ว</button>
+                  <button onClick={() => markPaid(detailInv)} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>✓ บันทึกชำระแล้ว</button>
                   <button onClick={() => sendReminder(detailInv)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '0.85rem', cursor: 'pointer' }}>📧 ส่ง Reminder</button>
                   <button onClick={() => cancelInvoice(detailInv)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
                 </>

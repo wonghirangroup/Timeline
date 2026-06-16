@@ -1,9 +1,10 @@
 // admin/src/pages/weekly-off/index.tsx  [MOCK MODE]
-import { useState, useMemo } from 'react'
-import { Pencil, Trash2, Check, X, CalendarDays } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Pencil, Trash2, Check, X, CalendarDays, Smartphone } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import HolidayPage from '../holiday'
+import LiffPreview from './LiffPreview'
 
 type WeeklyOffStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
@@ -213,6 +214,12 @@ export default function WeeklyOffPage() {
   // UI state
   const [selectedDate,    setSelectedDate]    = useState<string | null>(null)
   const [showPreview,     setShowPreview]     = useState(false)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowPreview(false); setShowLiffPreview(false); setModal(null) } }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   const [branchFilter,    setBranchFilter]    = useState('')
   const [modal,           setModal]           = useState<{ mode: 'add'; date: string } | { mode: 'edit'; booking: WeeklyOffBooking } | null>(null)
   const [form,            setForm]            = useState({ employee_id: '', day_of_week: 1 })
@@ -221,6 +228,25 @@ export default function WeeklyOffPage() {
   const [showHolidayMgmt, setShowHolidayMgmt] = useState(false)
   const [compDays,        setCompDays]        = useState<CompDay[]>(INIT_COMP_DAYS)
   const [showCompPanel,   setShowCompPanel]   = useState(false)
+
+  // ── Booking rounds — key = `${branchId}::${monthStr}` ─────────────────────
+  const [bookingRounds, setBookingRounds] = useState<Record<string, 'OPEN' | 'CLOSED'>>({
+    'br-01::2026-06': 'OPEN',
+  })
+  const [showLiffPreview, setShowLiffPreview] = useState(false)
+  const [liffBranch, setLiffBranch] = useState('br-01')
+
+  function toggleRound(branchId: string, monthStr: string) {
+    const key = `${branchId}::${monthStr}`
+    setBookingRounds(prev => ({ ...prev, [key]: prev[key] === 'OPEN' ? 'CLOSED' : 'OPEN' }))
+    const next = bookingRounds[`${branchId}::${monthStr}`] === 'OPEN' ? 'ปิด' : 'เปิด'
+    const brName = MOCK_BRANCHES_WO.find(b => b.id === branchId)?.name ?? branchId
+    showToast('success', `${next}การจองวันหยุด — ${brName}`)
+  }
+
+  function roundStatus(branchId: string, monthStr: string): 'OPEN' | 'CLOSED' {
+    return bookingRounds[`${branchId}::${monthStr}`] ?? 'CLOSED'
+  }
 
   // ── Day-off slot config ────────────────────────────────────────────────────
   // key = `${branchId}::${monthStr}`, value = sorted date strings
@@ -425,6 +451,11 @@ export default function WeeklyOffPage() {
           <button onClick={openSlotCfg} style={{ ...btn, color: '#2563eb', borderColor: '#93c5fd', background: '#eff6ff', fontWeight: 600 }}>
             📅 ตั้งค่าวันจอง
           </button>
+          {/* LIFF preview */}
+          <button onClick={() => { setLiffBranch(branchFilter || 'br-01'); setShowLiffPreview(true) }}
+            style={{ ...btn, color: '#06C755', borderColor: '#86efac', background: '#f0fdf4', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Smartphone size={14}/> ดูหน้า Employee
+          </button>
           {/* Holiday management */}
           <button onClick={() => setShowHolidayMgmt(true)} style={{ ...btn, color: '#374151' }}>
             ⚙️ จัดการวันหยุด
@@ -561,6 +592,47 @@ export default function WeeklyOffPage() {
             <div style={{ fontSize: '0.72rem', color: s.color, fontWeight: 600 }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Booking round status ── */}
+      <div style={{ ...card, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', margin: 0 }}>
+            รอบการจอง — {MONTHS_TH[m-1]} {y+543}
+          </p>
+          <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>ตั้งค่าได้รายสาขา</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {MOCK_BRANCHES_WO.map(br => {
+            const status = roundStatus(br.id, month)
+            const isOpen = status === 'OPEN'
+            const slotCount = (dayOffSlots[`${br.id}::${month}`] ?? []).length
+            return (
+              <div key={br.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `1px solid ${isOpen ? '#86efac' : '#e5e7eb'}`, background: isOpen ? '#f0fdf4' : '#fafafa' }}>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b', margin: 0 }}>{br.name}</p>
+                  <p style={{ fontSize: '0.72rem', color: '#6b7280', margin: '2px 0 0' }}>
+                    {slotCount > 0 ? `${slotCount} วันที่กำหนดไว้` : 'ยังไม่ตั้งค่าวันจอง'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isOpen ? '#16a34a' : '#6b7280', background: isOpen ? '#dcfce7' : '#f1f5f9', padding: '3px 10px', borderRadius: 99, border: `1px solid ${isOpen ? '#86efac' : '#e5e7eb'}` }}>
+                    {isOpen ? '● เปิดแล้ว' : '○ ปิดอยู่'}
+                  </span>
+                  <button
+                    onClick={() => toggleRound(br.id, month)}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 700, background: isOpen ? '#fee2e2' : 'linear-gradient(135deg,#f97316,#ea580c)', color: isOpen ? '#dc2626' : '#fff', transition: 'all 0.15s' }}>
+                    {isOpen ? 'ปิดการจอง' : 'เปิดการจอง'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Smartphone size={11}/>
+          เมื่อเปิด — พนักงานจะเห็นปุ่มจองวันหยุดใน Line LIFF ทันที
+        </p>
       </div>
 
       {/* ── Calendar ── */}
@@ -719,7 +791,7 @@ export default function WeeklyOffPage() {
 
       {/* ── Preview & Approve All Modal ── */}
       {showPreview && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
           onClick={() => setShowPreview(false)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 16, width: '100%', maxWidth: 560, maxHeight: isMobile ? '85vh' : '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
             onClick={e => e.stopPropagation()}>
@@ -762,7 +834,7 @@ export default function WeeklyOffPage() {
               <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
                 <button onClick={() => setShowPreview(false)} style={btn}>ปิด</button>
                 <button onClick={handleApproveAll} disabled={saving}
-                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                   {saving ? 'กำลังอนุมัติ...' : `อนุมัติทั้งหมด ${pendingAll.length} รายการ`}
                 </button>
               </div>
@@ -773,7 +845,7 @@ export default function WeeklyOffPage() {
 
       {/* ── Add/Edit Modal ── */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}
           onClick={() => setModal(null)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 14, padding: isMobile ? '24px 20px 32px' : 28, width: '100%', maxWidth: 420, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}
             onClick={e => e.stopPropagation()}>
@@ -957,6 +1029,51 @@ export default function WeeklyOffPage() {
               </button>
             </div>
           </div>
+        )
+      })()}
+
+      {/* ── LIFF Employee Preview ── */}
+      {showLiffPreview && (() => {
+        const liffMonth = month
+        const liffSlots = dayOffSlots[`${liffBranch}::${liffMonth}`] ?? []
+        const liffStatus = roundStatus(liffBranch, liffMonth)
+        // simulate this employee's bookings from mock data (first employee in branch)
+        const liffEmpId = MOCK_EMPLOYEES_WO.find(e => e.branch.id === liffBranch)?.id ?? ''
+        const liffMyBookings = bookings
+          .filter(b => b.employee_id === liffEmpId)
+          .map(b => ({ date: actualDate(b.week_start, b.day_of_week), status: b.status }))
+          .filter(b => liffSlots.includes(b.date))
+
+        function handleLiffBook(date: string) {
+          const emp = MOCK_EMPLOYEES_WO.find(e => e.id === liffEmpId)
+          if (!emp) return
+          const weekStart = (() => {
+            const d = new Date(date + 'T00:00:00')
+            const dow = d.getDay() // 0=Sun
+            const diff = dow === 0 ? -6 : 1 - dow
+            d.setDate(d.getDate() + diff)
+            return fmt(d)
+          })()
+          const dateObj = new Date(date + 'T00:00:00')
+          const dayOfWeek = dateObj.getDay() // 0=Sun,1=Mon,...
+          setBookings(prev => [...prev, {
+            id: genWoId(), employee_id: emp.id,
+            week_start: weekStart, day_of_week: dayOfWeek, status: 'PENDING', reject_note: null,
+            employee: { id: emp.id, first_name: emp.first_name, last_name: emp.last_name, nickname: emp.nickname, employee_code: '', branch: emp.branch },
+          }])
+          showToast('success', `พนักงานจอง ${date} — รอ Admin อนุมัติ`)
+        }
+
+        return (
+          <LiffPreview
+            roundStatus={liffStatus}
+            month={liffMonth}
+            slots={liffSlots}
+            myBookings={liffMyBookings}
+            onBook={handleLiffBook}
+            onCancelBooking={() => {}}
+            onClose={() => setShowLiffPreview(false)}
+          />
         )
       })()}
 

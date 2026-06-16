@@ -26,7 +26,8 @@ function useClock() {
 
 function formatDateTime(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear() + 543} · ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const bkk = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+  return `${bkk.getDate()} ${MONTHS_SHORT[bkk.getMonth()]} ${bkk.getFullYear() + 543} · ${pad(bkk.getHours())}:${pad(bkk.getMinutes())}`
 }
 
 interface TopbarProps {

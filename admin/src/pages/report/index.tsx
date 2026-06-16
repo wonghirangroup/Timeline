@@ -1,6 +1,6 @@
 // admin/src/pages/report/index.tsx
-import { useState } from 'react'
-import { FolderOpen, Printer } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FolderOpen, Printer, Users, AlertTriangle, CheckCircle2, TrendingDown } from 'lucide-react'
 import { MOCK_REPORT, MOCK_BRANCHES, genEmployeeLog, MOCK_LEAVE_BALANCES, MOCK_TENANTS, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { ReportRow, AttendanceLogRow, AttendanceStatus } from '../../types'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -34,6 +34,12 @@ export default function ReportPage() {
   const [detailRow, setDetailRow] = useState<ReportRow | null>(null)
   const [logTab, setLogTab] = useState<'log'|'balance'>('log')
   const [exportToast, setExportToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetailRow(null) }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   const tenantId = useAuthStore(s => s.tenantId)
   const tenant = MOCK_TENANTS.find(t => t.id === tenantId) ?? MOCK_TENANTS[0]
@@ -118,14 +124,14 @@ export default function ReportPage() {
       {calculated && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
           {[
-            { label: 'พนักงานรวม',  value: filtered.length,     emoji: '👥', color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe', unit: 'คน' },
-            { label: 'ยอดหักรวม',   value: totalFine.toLocaleString('th-TH'), emoji: '💸', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', unit: '฿' },
-            { label: 'คนถูกหัก',    value: totalAffected,       emoji: '⚠️', color: '#d97706', bg: '#fffbeb', border: '#fde68a', unit: 'คน' },
-            { label: 'ทำงานปกติ',  value: filtered.length - totalAffected, emoji: '✅', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', unit: 'คน' },
+            { label: 'พนักงานรวม',  value: filtered.length,     icon: <Users size={15}/>,           color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe', unit: 'คน' },
+            { label: 'ยอดหักรวม',   value: totalFine.toLocaleString('th-TH'), icon: <TrendingDown size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca', unit: '฿' },
+            { label: 'คนถูกหัก',    value: totalAffected,       icon: <AlertTriangle size={15}/>,   color: '#d97706', bg: '#fffbeb', border: '#fde68a', unit: 'คน' },
+            { label: 'ทำงานปกติ',  value: filtered.length - totalAffected, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', unit: 'คน' },
           ].map(k => (
-            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: '1.1rem' }}>{k.emoji}</span>
+                <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
                 <span style={{ fontSize: '1.5rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
               </div>
               <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
@@ -241,7 +247,7 @@ export default function ReportPage() {
 
       {/* Detail Modal — bottom sheet on mobile */}
       {detailRow && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 300, padding: isMobile ? 0 : 20 }} onClick={() => setDetailRow(null)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 300, padding: isMobile ? 0 : 20 }} onClick={() => setDetailRow(null)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, width: '100%', maxWidth: isMobile ? '100%' : 780, maxHeight: isMobile ? '88vh' : '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
 
             {/* Header */}

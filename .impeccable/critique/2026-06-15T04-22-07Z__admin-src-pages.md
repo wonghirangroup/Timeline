@@ -1,0 +1,35 @@
+---
+target: admin/src/pages
+total_score: 21
+p0_count: 0
+p1_count: 2
+timestamp: 2026-06-15T04-22-07Z
+slug: admin-src-pages
+---
+## Design Health Score
+19/40 — Acceptable
+
+| # | Heuristic | Score | Key Issue |
+|---|-----------|-------|-----------|
+| 1 | Visibility of System Status | 2 | ไม่มี feedback จริงหลัง submit |
+| 2 | Match System / Real World | 3 | ภาษาไทยดี แต่ field ชื่อ technical รั่วมา |
+| 3 | User Control and Freedom | 2 | ไม่มี undo หลัง confirm ลบ |
+| 4 | Consistency and Standards | 2 | Filter UI ต่างกันแต่ละหน้า |
+| 5 | Error Prevention | 2 | ConfirmDialog ดี แต่ form validation ไม่ครบ |
+| 6 | Recognition Rather Than Recall | 3 | Sidebar ชัดเจน, active state ดี |
+| 7 | Flexibility and Efficiency | 1 | ไม่มี keyboard shortcuts หรือ bulk actions |
+| 8 | Aesthetic and Minimalist Design | 3 | สะอาดดี แต่ KPI emoji หนักในบางหน้า |
+| 9 | Error Recovery | 1 | ยัง MOCK — ไม่มี error states จริง |
+| 10 | Help and Documentation | 0 | ไม่มี tooltip, help, onboarding เลย |
+
+## Anti-Patterns
+- side-tab: 2 findings (dashboard borderLeft 4px)
+- layout-transition: 4 findings (Layout margin, progress bars width)
+- overused-font: 1 finding (Inter)
+
+## Priority Issues
+P1: Side-tab borders บน dashboard
+P1: Filter pattern ไม่สม่ำเสมอ (select vs pills)
+P2: ไม่มี empty states หรือ contextual help
+P2: layout-transition jank
+P3: Inter font overused
