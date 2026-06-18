@@ -28,8 +28,15 @@ export default function ReportPage() {
   const isMobile = useIsMobile()
   const [branch, setBranch] = useState('')
   const [search, setSearch] = useState('')
-  const [startDate, setStartDate] = useState('2026-05-01')
-  const [endDate, setEndDate] = useState('2026-05-31')
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}-01`
+  })
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date(); const y = d.getFullYear(); const m = d.getMonth() + 1
+    const last = new Date(y, m, 0).getDate()
+    return `${y}-${String(m).padStart(2, '0')}-${last}`
+  })
   const [calculated] = useState(true)
   const [detailRow, setDetailRow] = useState<ReportRow | null>(null)
   const [logTab, setLogTab] = useState<'log'|'balance'>('log')

@@ -105,7 +105,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
             <Menu size={20} />
           </button>
         )}
-        {!isMobile && <span style={{ background: '#ede9fe', color: '#4f46e5', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>SUPER ADMIN</span>}
+        {!isMobile && <span style={{ background: '#ede9fe', color: 'var(--sa-accent)', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>SUPER ADMIN</span>}
         <h1 style={{ fontSize: isMobile ? '0.95rem' : '1.05rem', fontWeight: 700, color: '#111827', margin: 0 }}>{title}</h1>
       </div>
 
@@ -120,7 +120,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
           >
             <div style={{
               width: 34, height: 34, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#818cf8,#4f46e5)',
+              background: 'linear-gradient(135deg,var(--sa-accent-soft),var(--sa-accent))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.8rem', fontWeight: 700, color: '#fff',
             }}>{initials}</div>
@@ -128,7 +128,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
               <>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, lineHeight: 1.2 }}>{name}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#818cf8' }}>Super Admin</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--sa-accent-soft)' }}>Super Admin</div>
                 </div>
                 <ChevronDown size={12} color="#9ca3af" style={{ transform: panelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
               </>
@@ -147,7 +147,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
               {/* ── PROFILE VIEW ── */}
               {view === 'profile' && (
                 <>
-                  <div style={{ padding: '16px', background: 'linear-gradient(135deg,#4f46e5,#6d28d9)', textAlign: 'center' }}>
+                  <div style={{ padding: '16px', background: 'linear-gradient(135deg,var(--sa-accent),#6d28d9)', textAlign: 'center' }}>
                     <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#fff', margin: '0 auto 8px', border: '2px solid rgba(255,255,255,0.4)' }}>{initials}</div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{name}</div>
                     <div style={{ fontSize: '0.72rem', color: '#c4b5fd', marginTop: 2 }}>Super Administrator</div>
@@ -225,7 +225,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
                   ))}
                   <button
                     onClick={handleResetPw}
-                    style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', marginTop: 4 }}
+                    style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', marginTop: 4 }}
                   >เปลี่ยนรหัสผ่าน</button>
                 </div>
               )}
@@ -253,7 +253,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
                   <button
                     onClick={handleSaveName}
                     disabled={!nameInput.trim()}
-                    style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#4f46e5' : '#f3f4f6', color: nameInput.trim() ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.875rem', cursor: nameInput.trim() ? 'pointer' : 'not-allowed', marginTop: 6 }}
+                    style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? 'var(--sa-accent)' : '#f3f4f6', color: nameInput.trim() ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.875rem', cursor: nameInput.trim() ? 'pointer' : 'not-allowed', marginTop: 6 }}
                   >บันทึก</button>
                 </div>
               )}

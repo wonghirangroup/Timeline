@@ -151,6 +151,7 @@ export interface ShiftDef {
   late_threshold_1: string
   late_threshold_2: string
   employee_count: number
+  shift_type?: 'REGULAR' | 'SPECIAL'
 }
 
 export interface AnnouncementItem {

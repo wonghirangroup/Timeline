@@ -596,12 +596,15 @@ export default function WeeklyOffPage() {
 
       {/* ── Booking round status ── */}
       <div style={{ ...card, padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', margin: 0 }}>
             รอบการจอง — {MONTHS_TH[m-1]} {y+543}
           </p>
           <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>ตั้งค่าได้รายสาขา</span>
         </div>
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0 0 12px' }}>
+          ต้องเปิดรอบก่อน พนักงานจึงจะเห็นปุ่มจองวันหยุดใน Line — ถ้ายังไม่เปิด พนักงานจะเห็น "ยังไม่เปิดให้จอง"
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {MOCK_BRANCHES_WO.map(br => {
             const status = roundStatus(br.id, month)
@@ -631,7 +634,7 @@ export default function WeeklyOffPage() {
         </div>
         <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
           <Smartphone size={11}/>
-          เมื่อเปิด — พนักงานจะเห็นปุ่มจองวันหยุดใน Line LIFF ทันที
+          📱 เปิด = พนักงานเห็นปุ่มจองใน Line · ปิด = พนักงานเห็น "ยังไม่เปิดให้จอง"
         </p>
       </div>
 

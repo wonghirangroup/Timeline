@@ -2,9 +2,16 @@
 
 ## Color
 
+### Admin / Manager (tenant users)
 Primary accent: `#EA580C` (orange-600) — used for CTAs, active states, key highlights  
 Hover accent: `#C2410C` (orange-700)  
 Light accent: `#FFEDD5` (orange-100) — backgrounds for active pills, KPI cards  
+
+### Super Admin (vendor-side only)
+Primary accent: `#4F46E5` (indigo-600) — all Super Admin CTAs, active states, key highlights  
+Hover accent: `#4338CA` (indigo-700)  
+Light accent: `#EEF2FF` (indigo-50) — backgrounds for active pills, stat cards  
+> Rationale: visual separation makes it immediately obvious which context (vendor vs. tenant) the user is operating in. Never mix orange and indigo within the same layout.
 
 Surface: `#F1F5F9` (slate-100) — page background  
 Card: `#FFFFFF`  

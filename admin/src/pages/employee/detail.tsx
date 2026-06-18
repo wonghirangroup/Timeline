@@ -163,8 +163,8 @@ function OverviewTab({ employeeId, fullName }: { employeeId: string; fullName: s
 
 // ── Attendance Tab ────────────────────────────────────────────────────────────
 function AttendanceTab({ employeeId }: { employeeId: string }) {
-  const [month, setMonth] = useState(5)
-  const [year, setYear] = useState(2026)
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1)
+  const [year, setYear]   = useState(() => new Date().getFullYear())
 
   const log = genEmployeeLog(employeeId, year, month)
 

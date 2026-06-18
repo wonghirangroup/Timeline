@@ -1,6 +1,6 @@
 // [MOCK MODE]
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users } from 'lucide-react'
+import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -53,6 +53,111 @@ const QR_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" 
 
 type ModalMode = 'add' | 'edit' | 'qr' | null
 
+// ── Branch Tour ────────────────────────────────────────────────────────────────
+const BRANCH_TOUR_STEPS = [
+  { selector: 'branch-kpi',     title: '📊 ภาพรวมสาขา',       body: 'ดูจำนวนสาขาทั้งหมด สาขาที่เปิดใช้งาน และพนักงานรวมทุกสาขา — อัพเดทอัตโนมัติทุกครั้งที่เพิ่มหรือแก้ไขสาขา' },
+  { selector: 'branch-add-btn', title: '➕ เพิ่มสาขาใหม่',     body: 'เปิด wizard 3 ขั้นตอน — ตั้งชื่อและที่อยู่ → ปักหมุด GPS (กดดึงตำแหน่ง หรือคลิกบนแมพ) → กำหนดรัศมี Geofencing ที่พนักงานจะเช็คอินได้' },
+  { selector: 'branch-card-0',  title: '🏢 การ์ดสาขา',         body: 'แต่ละการ์ดคือ 1 สาขา — แสดงชื่อ จำนวนพนักงานและกะ ที่อยู่ และสถานะเปิด/ปิด' },
+  { selector: 'branch-qr-0',    title: '📱 QR Code เช็คอิน',   body: 'พิมพ์ QR แล้วติดไว้ที่สาขา พนักงานสแกนผ่าน LINE เพื่อเช็คอิน — ระบบ detect กะจากเวลาที่สแกนอัตโนมัติ ไม่ต้องเลือกเอง' },
+  { selector: 'branch-geo-0',   title: '🌐 GPS & Geofencing',  body: 'รัศมีที่กำหนดคือขอบเขตที่พนักงานต้องอยู่ใน · ⚠️ WARN = เช็คอินได้แต่บันทึกว่า "นอกพื้นที่" · 🚫 BLOCK = เช็คอินไม่ได้ถ้าอยู่นอกพื้นที่' },
+]
+
+function BranchTour({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = React.useState(0)
+  const [rect, setRect] = React.useState<{ top: number; left: number; bottom: number; right: number; width: number; height: number } | null>(null)
+  const PAD = 10
+
+  React.useEffect(() => {
+    const el = document.querySelector(`[data-tour="${BRANCH_TOUR_STEPS[step].selector}"]`) as HTMLElement | null
+    if (!el) { setRect(null); return }
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const timer = setTimeout(() => {
+      const r = el.getBoundingClientRect()
+      setRect({ top: r.top, left: r.left, bottom: r.bottom, right: r.right, width: r.width, height: r.height })
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [step])
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault()
+        if (step === BRANCH_TOUR_STEPS.length - 1) { onClose(); return }
+        setStep(s => s + 1)
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setStep(s => Math.max(0, s - 1))
+      } else if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step, onClose])
+
+  const TW = 304
+  let tipTop = 80, tipLeft = 16
+  if (rect) {
+    const wh = window.innerHeight
+    const belowOk = rect.bottom + PAD + 12 + 210 < wh
+    tipTop  = belowOk ? rect.bottom + PAD + 12 : Math.max(70, rect.top - 210 - PAD)
+    tipLeft = Math.max(16, Math.min(rect.left, window.innerWidth - TW - 16))
+  }
+
+  const cur   = BRANCH_TOUR_STEPS[step]
+  const total = BRANCH_TOUR_STEPS.length
+
+  return (
+    <>
+      <style>{`
+        @keyframes btGlow{0%,100%{border-color:#f97316;box-shadow:0 0 0 5px rgba(249,115,22,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
+        @keyframes btTipIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+      `}</style>
+
+      {rect ? (
+        <>
+          <div onClick={onClose} style={{ position:'fixed',top:0,left:0,right:0,height:Math.max(0,rect.top-PAD),background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.bottom+PAD,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.top-PAD,left:0,width:Math.max(0,rect.left-PAD),height:rect.height+PAD*2,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.top-PAD,left:rect.right+PAD,right:0,height:rect.height+PAD*2,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+        </>
+      ) : (
+        <div onClick={onClose} style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+      )}
+
+      {rect && (
+        <div style={{ position:'fixed',pointerEvents:'none',top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:12,border:'3px solid #f97316',zIndex:9001,animation:'btGlow 1.4s ease-in-out infinite' }} />
+      )}
+
+      <div key={step} style={{ position:'fixed',top:tipTop,left:tipLeft,width:TW,background:'#fff',borderRadius:16,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',zIndex:9002,overflow:'hidden',animation:'btTipIn 0.22s cubic-bezier(0.16,1,0.3,1)' }}>
+        <div style={{ background:'linear-gradient(135deg,#f97316,#ea580c)',padding:'14px 16px 12px',position:'relative' }}>
+          <div style={{ fontWeight:800,color:'#fff',fontSize:'15px',lineHeight:1.3,paddingRight:44 }}>{cur.title}</div>
+          <span style={{ position:'absolute',top:11,right:14,fontSize:'11px',color:'rgba(255,255,255,0.85)',fontWeight:700,background:'rgba(0,0,0,0.18)',borderRadius:99,padding:'2px 8px' }}>{step+1}/{total}</span>
+        </div>
+        <div style={{ padding:'12px 16px 8px',fontSize:'13px',color:'#374151',lineHeight:1.65 }}>{cur.body}</div>
+        <div style={{ padding:'2px 16px 8px',display:'flex',gap:5 }}>
+          {BRANCH_TOUR_STEPS.map((_,i) => (
+            <button key={i} onClick={()=>setStep(i)} style={{ width:i===step?20:7,height:7,borderRadius:99,border:'none',cursor:'pointer',padding:0,background:i===step?'#f97316':i<step?'#fed7aa':'#e5e7eb',transition:'all 0.25s' }} />
+          ))}
+        </div>
+        <div style={{ padding:'4px 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+          <button onClick={onClose} style={{ padding:'7px 10px',borderRadius:8,border:'1px solid #e5e7eb',background:'#fff',color:'#9ca3af',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>✕ ปิด</button>
+          <div style={{ display:'flex',gap:6 }}>
+            {step > 0 && (
+              <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px',borderRadius:8,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#374151',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>← ก่อนหน้า</button>
+            )}
+            {step < total-1 ? (
+              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px',borderRadius:8,border:'none',background:'#f97316',color:'#fff',fontWeight:700,fontSize:'13px',cursor:'pointer',fontFamily:'inherit' }}>ถัดไป →</button>
+            ) : (
+              <button onClick={onClose} style={{ padding:'7px 18px',borderRadius:8,border:'none',background:'#16a34a',color:'#fff',fontWeight:700,fontSize:'13px',cursor:'pointer',fontFamily:'inherit' }}>✓ เสร็จแล้ว!</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function BranchPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
@@ -69,8 +174,11 @@ export default function BranchPage() {
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
   const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK' })
 
+  const [tourActive, setTourActive] = React.useState(false)
+  useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
+
   React.useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setModal(null); setMapModal(false) } }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setModal(null); setMapModal(false); setTourActive(false) } }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [])
@@ -269,16 +377,22 @@ export default function BranchPage() {
         🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
       </div>
 
-      {/* Header - Title removed */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+        <button
+          onClick={() => setTourActive(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          <HelpCircle size={14} /> วิธีใช้
+        </button>
+        <button data-tour="branch-add-btn" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
           <Plus size={14} />
           เพิ่มสาขา
         </button>
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+      <div data-tour="branch-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
         {[
           { label: 'ทั้งหมด',     value: branches.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
           { label: 'เปิดใช้งาน', value: branches.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -306,8 +420,8 @@ export default function BranchPage() {
               <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มสาขาแรก</button>
             </div>
           )}
-          {paginated.map(b => (
-            <div key={b.id} style={{ ...card, padding: '16px 18px' }}>
+          {paginated.map((b, idx) => (
+            <div key={b.id} data-tour={idx === 0 ? 'branch-card-0' : undefined} style={{ ...card, padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -331,7 +445,7 @@ export default function BranchPage() {
                 </p>
               )}
               {b.lat && b.lng && (
-                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 4px', fontFamily: 'monospace' }}>
+                <p data-tour={idx === 0 ? 'branch-geo-0' : undefined} style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 4px', fontFamily: 'monospace' }}>
                   🌐 {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)} · {b.gps_radius}m
                 </p>
               )}
@@ -344,7 +458,7 @@ export default function BranchPage() {
               )}
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => openQr(b)}
+                <button data-tour={idx === 0 ? 'branch-qr-0' : undefined} onClick={() => openQr(b)}
                   style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <QrCode size={13} />
                   QR
@@ -742,6 +856,8 @@ export default function BranchPage() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      {tourActive && <BranchTour onClose={() => setTourActive(false)} />}
     </div>
   )
 }

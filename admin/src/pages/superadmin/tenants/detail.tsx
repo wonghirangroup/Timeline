@@ -1,18 +1,18 @@
 // Super Admin — Tenant Detail Page
 import { useState } from 'react'
-import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle } from 'lucide-react'
+import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle, CreditCard } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { MOCK_TENANTS, MOCK_LINE_CONFIGS, MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../../lib/mock'
 import type { TenantStatus, TenantPlan, TenantLineConfig } from '../../../types'
 import { useToast } from '../../../components/ui/Toast'
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
-  ACTIVE:    { label: 'ใช้งาน',   color: '#16a34a', bg: '#dcfce7' },
-  SUSPENDED: { label: 'ระงับ',    color: '#dc2626', bg: '#fee2e2' },
-  TRIAL:     { label: 'ทดลองใช้', color: '#d97706', bg: '#fef3c7' },
+  ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },
+  SUSPENDED: { label: 'ระงับ',    color: 'var(--error-text)', bg: '#fee2e2' },
+  TRIAL:     { label: 'ทดลองใช้', color: 'var(--warning-text)', bg: '#fef3c7' },
 }
 const PLAN_CFG: Record<TenantPlan, { label: string; color: string; bg: string; price: string }> = {
-  STARTER:      { label: 'Starter',      color: '#374151', bg: '#f3f4f6', price: '990 ฿/เดือน'  },
+  STARTER:      { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6', price: '990 ฿/เดือน'  },
   PROFESSIONAL: { label: 'Professional', color: '#2563eb', bg: '#dbeafe', price: '2,490 ฿/เดือน' },
   ENTERPRISE:   { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe', price: 'Custom'          },
 }
@@ -33,20 +33,20 @@ const MOCK_ACTIVITY = [
   { at: '20/05/2569 11:30', msg: 'ต่ออายุ Plan — Enterprise', type: 'plan' },
 ]
 const ACT_COLOR: Record<string, string> = {
-  login: '#6366f1', add: '#16a34a', edit: '#d97706', approve: '#2563eb', plan: '#7c3aed',
+  login: '#6366f1', add: 'var(--success-text)', edit: 'var(--warning-text)', approve: '#2563eb', plan: '#7c3aed',
 }
 
 const inputSt: React.CSSProperties = {
   width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
   fontSize: '0.875rem', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit',
 }
-const labelSt: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5, display: 'block' }
+const labelSt: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-body)', marginBottom: 5, display: 'block' }
 
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px' }}>
       <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</div>
+      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-dark)', fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</div>
     </div>
   )
 }
@@ -62,7 +62,7 @@ export default function TenantDetailPage() {
     <div style={{ textAlign: 'center', padding: '80px 20px' }}>
       <div style={{ fontSize: '3rem', marginBottom: 12 }}>🔍</div>
       <p style={{ color: '#6b7280' }}>ไม่พบ Tenant ID: {id}</p>
-      <button onClick={() => navigate('/superadmin/tenants')} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+      <button onClick={() => navigate('/superadmin/tenants')} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
         กลับรายการ
       </button>
     </div>
@@ -118,7 +118,7 @@ export default function TenantDetailPage() {
           <div style={{ width: 52, height: 52, borderRadius: 14, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🏗</div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>{tenant.name}</h2>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-dark)' }}>{tenant.name}</h2>
               <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 10px', fontSize: '0.72rem', fontWeight: 700 }}>{sc.label}</span>
               <span style={{ background: pc.bg, color: pc.color, borderRadius: 99, padding: '2px 10px', fontSize: '0.72rem', fontWeight: 700 }}>{pc.label}</span>
             </div>
@@ -127,11 +127,11 @@ export default function TenantDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ textAlign: 'center', padding: '8px 18px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#4f46e5' }}>{tenant.branch_count}</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--sa-accent)' }}>{tenant.branch_count}</div>
             <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>สาขา</div>
           </div>
           <div style={{ textAlign: 'center', padding: '8px 18px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#4f46e5' }}>{tenant.employee_count}</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--sa-accent)' }}>{tenant.employee_count}</div>
             <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>พนักงาน</div>
           </div>
           <div style={{ textAlign: 'center', padding: '8px 18px', borderRadius: 10, background: tenant.line_configured ? '#f0fdf4' : '#fff7ed', border: `1px solid ${tenant.line_configured ? '#86efac' : '#fed7aa'}` }}>
@@ -150,7 +150,7 @@ export default function TenantDetailPage() {
             style={{
               padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
               fontSize: '0.82rem', fontWeight: tab === t.key ? 700 : 400,
-              background: tab === t.key ? '#4f46e5' : 'transparent',
+              background: tab === t.key ? 'var(--sa-accent)' : 'transparent',
               color: tab === t.key ? '#fff' : '#6b7280',
               transition: 'all 0.15s',
             }}
@@ -181,7 +181,7 @@ export default function TenantDetailPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
                 onClick={() => { showToast('info', 'ฟีเจอร์แก้ไข Tenant อยู่ในหน้า Tenant List') }}
-                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: 'var(--text-body)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <Pencil size={14} />
                 แก้ไขข้อมูล
@@ -189,7 +189,7 @@ export default function TenantDetailPage() {
               {tenant.status !== 'SUSPENDED' ? (
                 <button
                   onClick={() => showToast('info', `ระงับ ${tenant.name} — ยืนยันในหน้า Tenant List`)}
-                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #fbbf24', background: '#fffbeb', color: '#d97706', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #fbbf24', background: '#fffbeb', color: 'var(--warning-text)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                 >
                   <PauseCircle size={14} />
                   ระงับ Tenant
@@ -197,7 +197,7 @@ export default function TenantDetailPage() {
               ) : (
                 <button
                   onClick={() => showToast('success', `เปิดใช้งาน ${tenant.name} แล้ว`)}
-                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: 'var(--success-text)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                 >
                   <PlayCircle size={14} />
                   เปิดใช้งาน
@@ -205,10 +205,17 @@ export default function TenantDetailPage() {
               )}
               <button
                 onClick={() => { setTab('line') }}
-                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <Settings size={14} />
                 ตั้งค่า Line OA
+              </button>
+              <button
+                onClick={() => navigate(`/superadmin/billing?tenant=${tenant.id}`)}
+                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #c4b5fd', background: '#ede9fe', color: '#7c3aed', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <CreditCard size={14} />
+                ดู Invoice
               </button>
             </div>
           </div>
@@ -265,7 +272,7 @@ export default function TenantDetailPage() {
             <div>
               <label style={labelSt}>Webhook URL — คัดลอกไปวางใน Line Developer Console</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input readOnly value={webhookUrl} style={{ ...inputSt, flex: 1, background: '#f9fafb', color: '#374151', fontSize: '0.8rem', fontFamily: 'monospace' }} />
+                <input readOnly value={webhookUrl} style={{ ...inputSt, flex: 1, background: '#f9fafb', color: 'var(--text-body)', fontSize: '0.8rem', fontFamily: 'monospace' }} />
                 <button
                   onClick={() => { navigator.clipboard?.writeText(webhookUrl); showToast('info', 'คัดลอก Webhook URL แล้ว') }}
                   style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}
@@ -331,7 +338,7 @@ export default function TenantDetailPage() {
                 background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2',
                 border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`,
                 borderRadius: 8, padding: '10px 14px',
-                fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : '#dc2626',
+                fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ — Channel ID และ Secret ถูกต้อง' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret อีกครั้ง'}
@@ -342,7 +349,7 @@ export default function TenantDetailPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 10 }}>
             <button
               onClick={testConnection}
-              style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid #4f46e5', cursor: 'pointer', background: '#fff', color: '#4f46e5', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <CheckCircle size={14} />
               Test Connection
@@ -350,7 +357,7 @@ export default function TenantDetailPage() {
             <button
               onClick={saveLineConfig}
               disabled={saving || !lineForm.line_channel_id}
-              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.875rem', opacity: saving ? 0.7 : 1 }}
+              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', opacity: saving ? 0.7 : 1 }}
             >
               {saving ? 'กำลังบันทึก…' : '💾 บันทึก Line Config'}
             </button>
@@ -374,17 +381,17 @@ export default function TenantDetailPage() {
                     <Building2 size={16} color="#0ea5e9" />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600, color: '#111827', fontSize: '0.9rem' }}>สาขา {i + 1} — {br.name}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.9rem' }}>สาขา {i + 1} — {br.name}</div>
                     <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 2 }}>{br.address}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, color: '#4f46e5', fontSize: '1rem' }}>{empCount}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--sa-accent)', fontSize: '1rem' }}>{empCount}</div>
                     <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>พนักงาน</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, color: '#374151', fontSize: '1rem' }}>{br.radius_m}ม.</div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-body)', fontSize: '1rem' }}>{br.radius_m}ม.</div>
                     <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>รัศมี</div>
                   </div>
                   <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#9ca3af' }}>{br.lat.toFixed(4)}, {br.lng.toFixed(4)}</span>
@@ -409,7 +416,7 @@ export default function TenantDetailPage() {
               <div key={i} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: i < MOCK_ACTIVITY.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'flex-start' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACT_COLOR[a.type] ?? '#9ca3af', marginTop: 6, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.875rem', color: '#111827' }}>{a.msg}</div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-dark)' }}>{a.msg}</div>
                   <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 3 }}>{a.at}</div>
                 </div>
               </div>

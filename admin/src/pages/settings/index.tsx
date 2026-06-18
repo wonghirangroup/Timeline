@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { BarChart2, Clock, Plus, Check, AlertCircle } from 'lucide-react'
-import { MOCK_BRANCHES, MOCK_BRANCH_SETTINGS, MOCK_GLOBAL_SETTINGS, MOCK_FINE_RULE, MOCK_TENANTS } from '../../lib/mock'
-import type { BranchSettings, GlobalSettings, FineRule, FineTier, FineMode } from '../../types'
+import { MOCK_GLOBAL_SETTINGS, MOCK_FINE_RULE, MOCK_TENANTS } from '../../lib/mock'
+import type { GlobalSettings, FineRule, FineTier, FineMode } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useAuthStore } from '../../stores/authStore'
 import { usePlanConfigStore } from '../../stores/planConfigStore'
 
-type Tab = 'time' | 'fine' | 'general'
+type Tab = 'fine' | 'general'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -60,30 +60,14 @@ export default function SettingsPage() {
   const tenant = MOCK_TENANTS.find(t => t.id === tenantId) ?? MOCK_TENANTS[0]
   const features = usePlanConfigStore(s => s.getFeatures(tenant.plan))
   const canUseFine = features.fine_system
-  const [tab, setTab] = useState<Tab>('time')
-  const [selectedBranch, setSelectedBranch] = useState('br-01')
-  const [branchSettings, setBranchSettings] = useState<BranchSettings>(MOCK_BRANCH_SETTINGS)
+  const [tab, setTab] = useState<Tab>('fine')
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(MOCK_GLOBAL_SETTINGS)
   const [fineRule, setFineRule] = useState<FineRule>(MOCK_FINE_RULE)
-  const [activeShift, setActiveShift] = useState(0)
   const [deleteTierId, setDeleteTierId] = useState<string | null>(null)
 
   // Simulator state
   const [simTime, setSimTime] = useState('08:10')
   const [simShiftStart, setSimShiftStart] = useState('08:00')
-
-  const shift = branchSettings.shifts[activeShift]
-
-  function updateShift(key: string, value: string) {
-    setBranchSettings(prev => ({
-      ...prev,
-      shifts: prev.shifts.map((s, i) => i === activeShift ? { ...s, [key]: value } : s),
-    }))
-  }
-
-  function handleSaveTime() {
-    showToast('success', 'บันทึกการตั้งค่าเวลาเรียบร้อยแล้ว')
-  }
 
   function handleSaveFine() {
     showToast('success', 'บันทึกกฎค่าปรับเรียบร้อยแล้ว')
@@ -150,7 +134,6 @@ export default function SettingsPage() {
 
       {/* Tab bar — scrollable on mobile */}
       <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', gap: 0, background: '#fff', borderRadius: '12px 12px 0 0', padding: '0 4px', overflowX: 'auto' }}>
-        {tabBtn('time', 'เวลาทำงาน')}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           {tabBtn('fine', 'กฎค่าปรับ')}
           {!canUseFine && (
@@ -159,76 +142,6 @@ export default function SettingsPage() {
         </div>
         {tabBtn('general', 'ทั่วไป')}
       </div>
-
-      {/* ══ TAB: เวลาทำงาน ══ */}
-      {tab === 'time' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>สาขา:</label>
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              style={{ ...inputStyle, width: 'auto', padding: '7px 12px', flex: isMobile ? 1 : 'none' }}
-            >
-              {MOCK_BRANCHES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: isMobile ? 0 : 'auto', cursor: 'pointer' }}>
-              <span style={{ fontSize: '12px', color: '#6b7280' }}>ใช้งานกะที่ 2</span>
-              <div
-                onClick={() => setBranchSettings(prev => ({ ...prev, use_shift_2: !prev.use_shift_2 }))}
-                style={{ width: 40, height: 22, borderRadius: 99, cursor: 'pointer', background: branchSettings.use_shift_2 ? '#f97316' : '#d1d5db', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
-              >
-                <div style={{ position: 'absolute', top: 2, left: branchSettings.use_shift_2 ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
-              </div>
-            </label>
-          </div>
-
-          {/* Shift tabs */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {branchSettings.shifts.filter((_, i) => i === 0 || branchSettings.use_shift_2).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveShift(i)}
-                style={{
-                  padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
-                  background: activeShift === i ? '#fff7ed' : '#f8fafc',
-                  color: activeShift === i ? '#ea580c' : '#6b7280',
-                  outline: activeShift === i ? '1.5px solid #f97316' : '1px solid #e5e7eb',
-                }}
-              >กะที่ {i + 1} {i === 0 ? '(หลัก)' : ''}</button>
-            ))}
-          </div>
-
-          <div style={{ ...card, padding: 20 }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>เวลาเข้า–ออกงาน (กะ {activeShift + 1})</p>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
-              <Field label="เวลาเริ่มงาน">
-                <input type="time" value={shift.start_time} onChange={e => updateShift('start_time', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="เวลาเลิกงาน">
-                <input type="time" value={shift.end_time} onChange={e => updateShift('end_time', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="เช็คเอาท์ขั้นต่ำ">
-                <input type="time" value={shift.min_checkout} onChange={e => updateShift('min_checkout', e.target.value)} style={inputStyle} />
-              </Field>
-            </div>
-
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444', margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>เกณฑ์การสาย</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="สายระดับ 1 (นับหลังจาก)">
-                <input type="time" value={shift.late_threshold_1} onChange={e => updateShift('late_threshold_1', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="สายระดับ 2 / นับว่าขาด">
-                <input type="time" value={shift.late_threshold_2} onChange={e => updateShift('late_threshold_2', e.target.value)} style={inputStyle} />
-              </Field>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <SaveBtn onClick={handleSaveTime} label="บันทึกเวลา" />
-          </div>
-        </div>
-      )}
 
       {/* ══ TAB: กฎค่าปรับ ══ */}
       {tab === 'fine' && (
@@ -279,6 +192,7 @@ export default function SettingsPage() {
                 title="ปรับตามช่วงเวลา"
                 desc="กำหนดค่าปรับแต่ละช่วงนาทีที่สาย เช่น สาย 1-15 นาที = 20 ฿, 16-30 นาที = 50 ฿"
                 icon={<BarChart2 size={20} />}
+                recommended
               />
               <ModeCard
                 active={fineRule.mode === 'per_minute'}
@@ -668,8 +582,8 @@ function SaveBtn({ onClick, label }: { onClick: () => void; label: string }) {
   )
 }
 
-function ModeCard({ active, onClick, title, desc, icon }: {
-  active: boolean; onClick: () => void; title: string; desc: string; icon: React.ReactNode
+function ModeCard({ active, onClick, title, desc, icon, recommended }: {
+  active: boolean; onClick: () => void; title: string; desc: string; icon: React.ReactNode; recommended?: boolean
 }) {
   return (
     <button
@@ -685,8 +599,11 @@ function ModeCard({ active, onClick, title, desc, icon }: {
         <div style={{ width: 36, height: 36, borderRadius: 8, background: active ? '#fdba74' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? '#c2410c' : '#9ca3af' }}>
           {icon}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <p style={{ fontWeight: 700, fontSize: '13px', color: active ? '#c2410c' : '#374151', margin: 0 }}>{title}</p>
+          {recommended && !active && (
+            <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: 99, background: '#dcfce7', color: '#16a34a', fontWeight: 600, border: '1px solid #86efac' }}>แนะนำ</span>
+          )}
           {active && (
             <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: 99, background: '#f97316', color: '#fff', fontWeight: 600 }}>ใช้งาน</span>
           )}

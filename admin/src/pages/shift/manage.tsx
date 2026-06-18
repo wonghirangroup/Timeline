@@ -1,7 +1,7 @@
 // admin/src/pages/shift/index.tsx  [MOCK MODE]
 import { useState, useMemo, useEffect } from 'react'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2 } from 'lucide-react'
-import { MOCK_EMPLOYEES } from '../../lib/mock'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle } from 'lucide-react'
+import { useDemoStore } from '../../stores/demoStore'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -102,9 +102,150 @@ const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string
   done:     { label: 'เลิกงานแล้ว',   color: '#6366f1', bg: '#eef2ff', dot: '✓' },
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function timeDiff(base: string, target: string, mode: 'after' | 'before'): string {
+  if (!base || !target) return ''
+  const toMin = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m }
+  const d = mode === 'after' ? toMin(target) - toMin(base) : toMin(base) - toMin(target)
+  if (d <= 0) return ''
+  return mode === 'after' ? `+${d} นาที หลังเวลาเริ่มงาน` : `${d} นาที ก่อนเวลาเลิก`
+}
+
+// ── Tour ──────────────────────────────────────────────────────────────────────
+interface ShiftTourStep { selector: string; title: string; body: string }
+
+const SHIFT_TOUR_STEPS: ShiftTourStep[] = [
+  { selector: 'shift-kpi',           title: '📊 ภาพรวมกะทำงาน',       body: 'ดูจำนวนกะทั้งหมด กะที่กำลังเปิดอยู่ตอนนี้ และจำนวนสาขาในระบบ — อัพเดทอัตโนมัติทุกครั้งที่เพิ่มหรือแก้ไขกะ' },
+  { selector: 'shift-add-btn',       title: '➕ สร้างกะใหม่',          body: 'กดเพื่อเปิด form เพิ่มกะ — ตั้งชื่อ เวลาเข้า-ออก เช็คเอาท์ขั้นต่ำ เกณฑ์การสาย และค่าปรับ ระบบจะ preview ให้เห็นก่อนบันทึก' },
+  { selector: 'shift-branch-filter', title: '🏢 กรองตามสาขา',          body: 'กดชื่อสาขาเพื่อดูเฉพาะกะของสาขานั้น · กด "ทุกสาขา" เพื่อดูทั้งหมด' },
+  { selector: 'shift-card-0',        title: '📋 การ์ดกะ',              body: 'แต่ละการ์ดคือ 1 กะ — แสดงชื่อกะ สถานะปัจจุบัน เวลาเข้า-ออก เกณฑ์การสาย และจำนวนพนักงานที่อยู่ในกะนั้น' },
+  { selector: 'shift-threshold-0',   title: '⚠️ เกณฑ์การสาย',          body: '🟢 เวลาเริ่มงาน · ⚠️ สายระดับ 1 = เวลาที่นับว่าสาย (หักเงิน) · 🚫 สายระดับ 2 / ขาด = ปิดรับเช็คอิน หลังจากนี้ถือว่าขาดงาน' },
+  { selector: 'shift-actions-0',     title: '👥 จัดการพนักงานและกะ',   body: '"พนักงาน" = ดู/เพิ่ม/ถอดพนักงานออกจากกะ · "แก้ไข" = แก้ไขเวลาและเกณฑ์ · 🗑 = ลบกะออกจากระบบ' },
+  { selector: 'shift-pagination',    title: '📄 เลื่อนดูกะอื่น',       body: 'ถ้ามีกะมากกว่าที่แสดง กดลูกศรหรือ dot เพื่อเลื่อนหน้า · บนมือถือปัดซ้าย-ขวาได้เลย' },
+]
+
+function ShiftTour({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0)
+  const [rect, setRect] = useState<{ top: number; left: number; bottom: number; right: number; width: number; height: number } | null>(null)
+  const PAD = 10
+
+  useEffect(() => {
+    const el = document.querySelector(`[data-tour="${SHIFT_TOUR_STEPS[step].selector}"]`) as HTMLElement | null
+    if (!el) { setRect(null); return }
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const timer = setTimeout(() => {
+      const r = el.getBoundingClientRect()
+      setRect({ top: r.top, left: r.left, bottom: r.bottom, right: r.right, width: r.width, height: r.height })
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [step])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault()
+        setStep(s => s < SHIFT_TOUR_STEPS.length - 1 ? s + 1 : s)
+        if (step === SHIFT_TOUR_STEPS.length - 1) onClose()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setStep(s => Math.max(0, s - 1))
+      } else if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step, onClose])
+
+  const TW = 304
+  let tipTop = 80, tipLeft = 16
+  if (rect) {
+    const wh = window.innerHeight
+    const belowOk = rect.bottom + PAD + 12 + 210 < wh
+    tipTop  = belowOk ? rect.bottom + PAD + 12 : Math.max(70, rect.top - 210 - PAD)
+    tipLeft = Math.max(16, Math.min(rect.left, window.innerWidth - TW - 16))
+  }
+
+  const cur = SHIFT_TOUR_STEPS[step]
+  const total = SHIFT_TOUR_STEPS.length
+
+  return (
+    <>
+      <style>{`
+        @keyframes stGlow{0%,100%{border-color:#f97316;box-shadow:0 0 0 5px rgba(249,115,22,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
+        @keyframes stTipIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+      `}</style>
+
+      {/* 4-quadrant dim overlay */}
+      {rect ? (
+        <>
+          <div onClick={onClose} style={{ position:'fixed',top:0,left:0,right:0,height:Math.max(0,rect.top-PAD),background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.bottom+PAD,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.top-PAD,left:0,width:Math.max(0,rect.left-PAD),height:rect.height+PAD*2,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+          <div onClick={onClose} style={{ position:'fixed',top:rect.top-PAD,left:rect.right+PAD,right:0,height:rect.height+PAD*2,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+        </>
+      ) : (
+        <div onClick={onClose} style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:9000,cursor:'default' }} />
+      )}
+
+      {/* Animated spotlight ring — position:fixed so renders above all stacking contexts */}
+      {rect && (
+        <div style={{
+          position:'fixed', pointerEvents:'none',
+          top:rect.top-PAD, left:rect.left-PAD,
+          width:rect.width+PAD*2, height:rect.height+PAD*2,
+          borderRadius:12, border:'3px solid #f97316',
+          zIndex:9001,
+          animation:'stGlow 1.4s ease-in-out infinite',
+        }} />
+      )}
+
+      {/* Tooltip card */}
+      <div key={step} style={{
+        position:'fixed', top:tipTop, left:tipLeft,
+        width:TW, background:'#fff', borderRadius:16,
+        boxShadow:'0 20px 60px rgba(0,0,0,0.25)',
+        zIndex:9002, overflow:'hidden',
+        animation:'stTipIn 0.22s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        <div style={{ background:'linear-gradient(135deg,#f97316,#ea580c)', padding:'14px 16px 12px', position:'relative' }}>
+          <div style={{ fontWeight:800, color:'#fff', fontSize:'15px', lineHeight:1.3, paddingRight:44 }}>{cur.title}</div>
+          <span style={{ position:'absolute', top:11, right:14, fontSize:'11px', color:'rgba(255,255,255,0.85)', fontWeight:700, background:'rgba(0,0,0,0.18)', borderRadius:99, padding:'2px 8px' }}>
+            {step+1}/{total}
+          </span>
+        </div>
+        <div style={{ padding:'12px 16px 8px', fontSize:'13px', color:'#374151', lineHeight:1.65 }}>{cur.body}</div>
+        <div style={{ padding:'2px 16px 8px', display:'flex', gap:5 }}>
+          {SHIFT_TOUR_STEPS.map((_,i) => (
+            <button key={i} onClick={()=>setStep(i)} style={{
+              width:i===step?20:7, height:7, borderRadius:99, border:'none', cursor:'pointer', padding:0,
+              background:i===step?'#f97316':i<step?'#fed7aa':'#e5e7eb', transition:'all 0.25s',
+            }}/>
+          ))}
+        </div>
+        <div style={{ padding:'4px 16px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <button onClick={onClose} style={{ padding:'7px 10px', borderRadius:8, border:'1px solid #e5e7eb', background:'#fff', color:'#9ca3af', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>✕ ปิด</button>
+          <div style={{ display:'flex', gap:6 }}>
+            {step > 0 && (
+              <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px', borderRadius:8, border:'1px solid #e5e7eb', background:'#f9fafb', color:'#374151', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>← ก่อนหน้า</button>
+            )}
+            {step < total-1 ? (
+              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px', borderRadius:8, border:'none', background:'#f97316', color:'#fff', fontWeight:700, fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>ถัดไป →</button>
+            ) : (
+              <button onClick={onClose} style={{ padding:'7px 18px', borderRadius:8, border:'none', background:'#16a34a', color:'#fff', fontWeight:700, fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>✓ เสร็จแล้ว!</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function ShiftPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+
+  const { employees: storeEmployees, addShift: storeAddShift, updateShift: storeUpdateShift, deleteShift: storeDeleteShift, updateEmployee: storeUpdateEmployee } = useDemoStore()
 
   const [shifts, setShifts]     = useState<ApiShift[]>(MOCK_SHIFTS_API)
   const [branches, setBranches] = useState<ApiBranch[]>(MOCK_BRANCHES_SH)
@@ -116,10 +257,13 @@ export default function ShiftPage() {
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
 
   const [modal, setModal]       = useState<{ mode: 'add' | 'edit'; data: ApiShift | null } | null>(null)
+  const [tourActive, setTourActive] = useState(false)
+
+  useEffect(() => { if (tourActive) { setPage(1); setBranchFilter('') } }, [tourActive])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setModal(null); setEmpViewShift(null); setEmpSearch(''); setRemoveConfirm(null) }
+      if (e.key === 'Escape') { setModal(null); setEmpViewShift(null); setEmpSearch(''); setRemoveConfirm(null); setTourActive(false) }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -132,17 +276,12 @@ export default function ShiftPage() {
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
 
-  // mutable emp→shift mapping (starts from mock default_shift_id)
+  // mutable emp→shift mapping — init จาก demoStore employees เพื่อ sync กับ shift-schedule
   const [empShiftAssign, setEmpShiftAssign] = useState<Record<string, string | null>>(() => {
     const m: Record<string, string | null> = {}
-    MOCK_EMPLOYEES.forEach(e => { m[e.id] = e.default_shift_id ?? null })
+    storeEmployees.forEach(e => { m[e.id] = e.default_shift_id ?? null })
     return m
   })
-
-  function loadAll() {
-    setBranches(MOCK_BRANCHES_SH)
-    setShifts(MOCK_SHIFTS_API)
-  }
 
   const filtered = shifts.filter(s => !branchFilter || s.branch_id === branchFilter)
   
@@ -153,23 +292,25 @@ export default function ShiftPage() {
   useEffect(() => { setPage(1) }, [pageSize])
 
   const shiftEmpMap = useMemo(() => {
-    const map: Record<string, typeof MOCK_EMPLOYEES> = {}
-    MOCK_EMPLOYEES.forEach(e => {
+    const map: Record<string, typeof storeEmployees> = {}
+    storeEmployees.forEach(e => {
       const sid = empShiftAssign[e.id]
       if (!sid) return
       if (!map[sid]) map[sid] = []
       map[sid].push(e)
     })
     return map
-  }, [empShiftAssign])
+  }, [empShiftAssign, storeEmployees])
 
   function assignEmp(empId: string, shiftId: string) {
     setEmpShiftAssign(prev => ({ ...prev, [empId]: shiftId }))
+    storeUpdateEmployee(empId, { default_shift_id: shiftId })
     showToast('success', 'เพิ่มพนักงานเข้ากะแล้ว')
   }
 
   function removeEmp(empId: string, empName: string) {
     setEmpShiftAssign(prev => ({ ...prev, [empId]: null }))
+    storeUpdateEmployee(empId, { default_shift_id: undefined })
     showToast('success', `ย้าย ${empName} ออกจากกะแล้ว`)
   }
 
@@ -203,8 +344,9 @@ export default function ShiftPage() {
     await new Promise(r => setTimeout(r, 600))
     const br = branches.find(b => b.id === form.branch_id) ?? { id: form.branch_id, name: form.branch_id }
     if (modal?.mode === 'add') {
+      const newId = genShId()
       const newShift: ApiShift = {
-        id: genShId(), branch_id: form.branch_id,
+        id: newId, branch_id: form.branch_id,
         name: form.name, start_time: form.start_time, end_time: form.end_time,
         min_checkout: form.min_checkout || null,
         late_threshold: 5,
@@ -213,6 +355,7 @@ export default function ShiftPage() {
         shift_type: form.shift_type, is_active: true, branch: br,
       }
       setShifts(prev => [...prev, newShift])
+      storeAddShift({ id: newId, name: form.name, branch_name: br.name, start_time: form.start_time, end_time: form.end_time, late_threshold_1: form.late_threshold_1 || '', late_threshold_2: form.late_threshold_2 || '', employee_count: 0, shift_type: form.shift_type })
       showToast('success', `เพิ่มกะ "${form.name}" สำเร็จ`)
     } else if (modal?.data) {
       setShifts(prev => prev.map(s => s.id === modal.data!.id
@@ -221,6 +364,7 @@ export default function ShiftPage() {
             late_threshold_2: form.late_threshold_2 || null, late_fine_1: form.late_fine_1 || null,
             late_fine_2: form.late_fine_2 || null, shift_type: form.shift_type }
         : s))
+      storeUpdateShift(modal.data.id, { name: form.name, start_time: form.start_time, end_time: form.end_time, late_threshold_1: form.late_threshold_1 || '', late_threshold_2: form.late_threshold_2 || '', shift_type: form.shift_type })
       showToast('success', `บันทึกกะ "${form.name}" เรียบร้อย`)
     }
     setSaving(false)
@@ -231,6 +375,7 @@ export default function ShiftPage() {
     if (!deleteTarget) return
     await new Promise(r => setTimeout(r, 400))
     setShifts(prev => prev.filter(s => s.id !== deleteTarget.id))
+    storeDeleteShift(deleteTarget.id)
     showToast('success', `ลบกะ "${deleteTarget.name}" เรียบร้อย`)
     setDeleteTarget(null)
   }
@@ -254,14 +399,20 @@ export default function ShiftPage() {
       </div>
 
       {/* Header */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <button
+          onClick={() => setTourActive(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          <HelpCircle size={14} /> วิธีใช้
+        </button>
+        <button data-tour="shift-add-btn" onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
           + เพิ่มกะ
         </button>
       </div>
 
       {/* KPI row */}
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
+      <div data-tour="shift-kpi" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
         {[
           { label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
           { label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -279,7 +430,7 @@ export default function ShiftPage() {
 
       {/* Branch filter */}
       {branches.length > 1 && (
-        <div style={{ flexShrink: 0, marginBottom: 12 }}>
+        <div data-tour="shift-branch-filter" style={{ flexShrink: 0, marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
@@ -326,17 +477,24 @@ export default function ShiftPage() {
               {shifts.length === 0 && <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มกะแรก</button>}
             </div>
           )}
-          {paginated.map(s => {
-            const st     = getShiftStatus(s)
-            const cfg    = STATUS_CFG[st]
-            const empCnt = (shiftEmpMap[s.id] ?? []).length
+          {paginated.map((s, idx) => {
+            const st         = getShiftStatus(s)
+            const cfg        = STATUS_CFG[st]
+            const empCnt     = (shiftEmpMap[s.id] ?? []).length
+            const isSpecial  = s.shift_type === 'SPECIAL'
+            const cardBorder = isSpecial ? '#c4b5fd' : st === 'active' ? '#86efac' : '#f1f5f9'
+            const cardShadow = isSpecial ? '0 2px 12px rgba(124,58,237,0.1)' : st === 'active' ? '0 2px 12px rgba(22,163,74,0.1)' : '0 2px 12px rgba(0,0,0,0.04)'
+            const headerBg   = isSpecial ? '#f5f3ff' : st === 'active' ? '#f0fdf4' : st === 'upcoming' ? '#fffbeb' : '#f9fafb'
             return (
-            <div key={s.id} style={{ background: '#fff', borderRadius: 16, border: `1px solid ${st === 'active' ? '#86efac' : '#f1f5f9'}`, overflow: 'hidden', boxShadow: st === 'active' ? '0 2px 12px rgba(22,163,74,0.1)' : '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+            <div key={s.id} data-tour={idx === 0 ? 'shift-card-0' : undefined} style={{ background: '#fff', borderRadius: 16, border: `1px solid ${cardBorder}`, overflow: 'hidden', boxShadow: cardShadow, display: 'flex', flexDirection: 'column' }}>
 
               {/* Card header */}
-              <div style={{ background: st === 'active' ? '#f0fdf4' : st === 'upcoming' ? '#fffbeb' : '#f9fafb', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: headerBg, padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{s.name}</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {isSpecial && <span style={{ fontSize: '11px', background: '#ede9fe', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}>⭐ พิเศษ</span>}
+                    {s.name}
+                  </div>
                   <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 1 }}>{s.branch.name}</div>
                 </div>
                 <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -345,19 +503,24 @@ export default function ShiftPage() {
               </div>
 
               {/* Time grid — flex:1 ทำให้ card สูงเท่ากัน */}
-              <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', flex: 1 }}>
+              <div data-tour={idx === 0 ? 'shift-threshold-0' : undefined} style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', flex: 1 }}>
                 <TimeRow icon="🟢" label="เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
                 <TimeRow icon="🔴" label="เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
-                {s.min_checkout && <TimeRow icon="🔒" label="เช็คเอาท์ขั้นต่ำ" value={s.min_checkout} color="#7c3aed" />}
-                {s.late_threshold_1 && <TimeRow icon="⚠️" label="สายระดับ 1" value={s.late_threshold_1} color="#d97706" />}
-                {s.late_threshold_2 && <TimeRow icon="🚫" label="สายระดับ 2 / ขาด" value={s.late_threshold_2} color="#dc2626" />}
-                {!s.late_threshold_1 && !s.late_threshold_2 && (
+                {s.min_checkout && <TimeRow icon="🔒" label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
+                {!isSpecial && s.late_threshold_1 && <TimeRow icon="⚠️" label="สายระดับ 1" value={s.late_threshold_1} color="#d97706" />}
+                {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label="ปิดรับเช็คอิน" value={s.late_threshold_2} color="#dc2626" />}
+                {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                )}
+                {isSpecial && (
+                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '5px 8px', marginTop: 2 }}>
+                    ⭐ ทับซ้อนกะปกติได้ · ไม่นับสาย · เหมาะสำหรับ OT หรืองานนอกสถานที่
+                  </div>
                 )}
               </div>
 
               {/* Actions — อยู่ล่างสุดเสมอ */}
-              <div style={{ padding: '10px 16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
+              <div data-tour={idx === 0 ? 'shift-actions-0' : undefined} style={{ padding: '10px 16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => setEmpViewShift(s)}
                   style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
@@ -372,11 +535,11 @@ export default function ShiftPage() {
           })}
           </div>
         )}
-      </div>{/* end scrollable cards area */}
+      </div>{/* end scrollable cards */}
 
       {/* Pagination — always pinned at bottom */}
       {!loading && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
+        <div data-tour="shift-pagination" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
           <span style={{ fontSize: '12px', color: '#6b7280' }}>
             {filtered.length === 0
               ? 'ไม่มีกะ'
@@ -445,8 +608,8 @@ export default function ShiftPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   <TimeInput label="เวลาเริ่มงาน" value={form.start_time} onChange={v => setForm(f => ({ ...f, start_time: v }))} />
                   <TimeInput label="เวลาเลิกงาน" value={form.end_time} onChange={v => setForm(f => ({ ...f, end_time: v }))} />
-                  <TimeInput label="เช็คเอาท์ขั้นต่ำ" value={form.min_checkout} onChange={v => setForm(f => ({ ...f, min_checkout: v }))}
-                    sublabel="เช็คเอาท์ได้ตั้งแต่" />
+                  <TimeInput label="เช็คเอาท์ได้ตั้งแต่" value={form.min_checkout} onChange={v => setForm(f => ({ ...f, min_checkout: v }))}
+                    sublabel={timeDiff(form.end_time, form.min_checkout, 'before') || 'กำหนดเวลาเร็วสุดที่เช็คเอาท์ได้'} />
                 </div>
               </div>
 
@@ -473,10 +636,12 @@ export default function ShiftPage() {
                   ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong> (หลังจากนี้ถือว่าขาด)
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <TimeInput label="สายระดับ 1 (หลังจาก)" value={form.late_threshold_1}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))} sublabel="เช่น 08:05" />
-                  <TimeInput label="ปิดรับเช็คอิน / ขาด" value={form.late_threshold_2}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))} sublabel="เช่น 08:30" />
+                  <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
+                    onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
+                    sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
+                  <TimeInput label="ปิดรับเช็คอิน" value={form.late_threshold_2}
+                    onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
+                    sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
                   <div>
@@ -501,7 +666,7 @@ export default function ShiftPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
                     <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
                     {form.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}</span></>}
-                    {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2 / ขาด</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}</span></>}
+                    {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>ปิดรับเช็คอิน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}</span></>}
                     {form.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
                     <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
                   </div>
@@ -520,24 +685,31 @@ export default function ShiftPage() {
         </div>
       )}
 
-      {deleteTarget && (
-        <ConfirmDialog
-          title="ลบกะ?"
-          message={`"${deleteTarget.name}" (${deleteTarget.branch.name}) จะถูกลบออกจากระบบ`}
-          confirmLabel="ลบกะ"
-          variant="danger"
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
-        />
-      )}
+      {deleteTarget && (() => {
+        const empCount = (shiftEmpMap[deleteTarget.id] ?? []).length
+        return (
+          <ConfirmDialog
+            title="ลบกะ?"
+            message={empCount > 0
+              ? `"${deleteTarget.name}" (${deleteTarget.branch.name}) มีพนักงาน ${empCount} คนอยู่ในกะนี้ — ถ้าลบ พนักงานเหล่านี้จะไม่มีกะประจำ`
+              : `"${deleteTarget.name}" (${deleteTarget.branch.name}) จะถูกลบออกจากระบบ`
+            }
+            confirmLabel="ลบกะ"
+            variant="danger"
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )
+      })()}
 
       {/* Employee Manage Modal */}
       {empViewShift && (() => {
         const inShift  = shiftEmpMap[empViewShift.id] ?? []
         const inShiftIds = new Set(inShift.map(e => e.id))
         const q = empSearch.trim().toLowerCase()
-        const notInShift = MOCK_EMPLOYEES.filter(e =>
+        const notInShift = storeEmployees.filter(e =>
           !inShiftIds.has(e.id) &&
+          e.branches.includes(empViewShift.branch.name) &&
           (!q || e.full_name.toLowerCase().includes(q) || e.nickname.toLowerCase().includes(q) || e.code.includes(q))
         )
         const inShiftFiltered = inShift.filter(e =>
@@ -569,7 +741,7 @@ export default function ShiftPage() {
               <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                 {([
                   ['in',  <><Users size={13}/> ในกะนี้ ({inShift.length})</>],
-                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {MOCK_EMPLOYEES.filter(e => !inShiftIds.has(e.id)).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{MOCK_EMPLOYEES.filter(e => !inShiftIds.has(e.id)).length}</span>}</>],
+                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {storeEmployees.filter(e => !inShiftIds.has(e.id) && e.branches.includes(empViewShift.branch.name)).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{storeEmployees.filter(e => !inShiftIds.has(e.id) && e.branches.includes(empViewShift.branch.name)).length}</span>}</>],
                 ] as const).map(([tab, label]) => (
                   <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch(''); setRemoveConfirm(null) }}
                     style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#f97316' : 'transparent'}`, color: addEmpTab === tab ? '#f97316' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
@@ -642,7 +814,8 @@ export default function ShiftPage() {
                           <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.full_name}</div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>
                             {e.nickname} · {e.department}
-                            {curShift && <span style={{ color: '#d97706' }}> · กำลังอยู่ใน {curShift.name}</span>}
+                            {curShift && empViewShift.shift_type === 'SPECIAL' && <span style={{ color: '#7c3aed' }}> · กะประจำ: {curShift.name}</span>}
+                            {curShift && empViewShift.shift_type !== 'SPECIAL' && <span style={{ color: '#d97706' }}> · กำลังอยู่ใน {curShift.name}</span>}
                           </div>
                         </div>
                         <button
@@ -668,6 +841,9 @@ export default function ShiftPage() {
           </div>
         )
       })()}
+
+      {/* Guided tour */}
+      {tourActive && <ShiftTour onClose={() => setTourActive(false)} />}
     </div>
   )
 }

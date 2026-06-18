@@ -1,9 +1,10 @@
 // Super Admin — Package / Plan Management
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MOCK_TENANTS } from '../../../lib/mock'
 import type { PlanConfig, PlanFeatures, PlanLimits, TenantPlan } from '../../../types'
 import { useToast } from '../../../components/ui/Toast'
 import { usePlanConfigStore } from '../../../stores/planConfigStore'
+import { api } from '../../../lib/axios'
 
 // Feature metadata
 const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon: string }[] = [
@@ -26,20 +27,7 @@ function LimitInput({
 }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   const isUnlimited = value === -1
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <button
-        type="button"
-        onClick={() => onChange(isUnlimited ? 999 : -1)}
-        style={{
-          padding: '3px 8px', borderRadius: 6, border: `1px solid ${isUnlimited ? '#7c3aed' : '#d1d5db'}`,
-          background: isUnlimited ? '#ede9fe' : '#fff', cursor: disabled ? 'default' : 'pointer',
-          fontSize: '0.7rem', fontWeight: 700, color: isUnlimited ? '#7c3aed' : '#9ca3af',
-          whiteSpace: 'nowrap',
-        }}
-        disabled={disabled}
-      >
-        {isUnlimited ? '∞ ไม่จำกัด' : 'จำกัด'}
-      </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {!isUnlimited && (
         <input
           type="number"
@@ -48,12 +36,28 @@ function LimitInput({
           onChange={e => onChange(Math.max(1, parseInt(e.target.value) || 1))}
           disabled={disabled}
           style={{
-            width: 64, padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db',
+            width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db',
             fontSize: '0.85rem', textAlign: 'center', fontFamily: 'inherit',
             background: disabled ? '#f9fafb' : '#fff',
           }}
         />
       )}
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        cursor: disabled ? 'default' : 'pointer',
+        fontSize: '0.78rem', color: isUnlimited ? '#7c3aed' : 'var(--text-gray)',
+        fontWeight: isUnlimited ? 700 : 400, whiteSpace: 'nowrap',
+        userSelect: 'none',
+      }}>
+        <input
+          type="checkbox"
+          checked={isUnlimited}
+          onChange={() => onChange(isUnlimited ? 999 : -1)}
+          disabled={disabled}
+          style={{ accentColor: '#7c3aed', width: 14, height: 14, cursor: disabled ? 'default' : 'pointer' }}
+        />
+        ∞ ไม่จำกัด
+      </label>
     </div>
   )
 }
@@ -67,7 +71,7 @@ function ToggleSwitch({
       onClick={() => !disabled && onChange(!checked)}
       style={{
         width: 40, height: 22, borderRadius: 11, border: 'none', cursor: disabled ? 'default' : 'pointer',
-        background: checked ? '#4f46e5' : '#d1d5db', position: 'relative',
+        background: checked ? 'var(--sa-accent)' : '#d1d5db', position: 'relative',
         transition: 'background 0.2s', flexShrink: 0,
       }}
     >
@@ -87,10 +91,19 @@ export default function PackagesPage() {
   const storeUpdateLim  = usePlanConfigStore(s => s.updateLimit)
   const storeUpdatePrc  = usePlanConfigStore(s => s.updatePrice)
 
-  // Local draft — flushed to store only on save
+  // Local draft — flushed to store only on successful save
   const [configs, setConfigs] = useState<PlanConfig[]>(storeConfigs)
   const [saving, setSaving] = useState<TenantPlan | null>(null)
   const [compareMode, setCompareMode] = useState(false)
+
+  // Load server-side config on mount so drafts start from current DB state
+  useEffect(() => {
+    api.get('/api/v1/super-admin/packages')
+      .then(res => {
+        if (Array.isArray(res.data?.data)) setConfigs(res.data.data)
+      })
+      .catch(() => { /* fallback to store defaults */ })
+  }, [])
 
   function updateLimit(plan: TenantPlan, key: keyof PlanLimits, val: number) {
     setConfigs(prev => prev.map(c =>
@@ -110,23 +123,30 @@ export default function PackagesPage() {
     ))
   }
 
-  function handleSave(plan: TenantPlan) {
+  async function handleSave(plan: TenantPlan) {
+    const draft = configs.find(c => c.plan === plan)
+    if (!draft) return
     setSaving(plan)
-    setTimeout(() => {
-      // Flush draft for this plan into the global store
-      const draft = configs.find(c => c.plan === plan)
-      if (draft) {
-        Object.entries(draft.features).forEach(([k, v]) =>
-          storeUpdateFeat(plan, k as keyof PlanFeatures, v)
-        )
-        Object.entries(draft.limits).forEach(([k, v]) =>
-          storeUpdateLim(plan, k as keyof PlanLimits, v as number)
-        )
-        storeUpdatePrc(plan, draft.price_monthly)
-      }
+    try {
+      await api.put(`/api/v1/super-admin/packages/${plan}`, {
+        price_monthly: draft.price_monthly,
+        features:      draft.features,
+        limits:        draft.limits,
+      })
+      // Flush to local Zustand store only after confirmed server save
+      Object.entries(draft.features).forEach(([k, v]) =>
+        storeUpdateFeat(plan, k as keyof PlanFeatures, v)
+      )
+      Object.entries(draft.limits).forEach(([k, v]) =>
+        storeUpdateLim(plan, k as keyof PlanLimits, v as number)
+      )
+      storeUpdatePrc(plan, draft.price_monthly)
+      showToast('success', `บันทึก Package ${draft.label} เรียบร้อยแล้ว — มีผลกับ Tenant ทันที`)
+    } catch {
+      showToast('error', `บันทึกไม่สำเร็จ — กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่`)
+    } finally {
       setSaving(null)
-      showToast('success', `บันทึก Package ${plan} เรียบร้อยแล้ว — เมนู Admin อัปเดตทันที`)
-    }, 800)
+    }
   }
 
   const tenantsByPlan = (plan: TenantPlan) => MOCK_TENANTS.filter(t => t.plan === plan).length
@@ -137,22 +157,28 @@ export default function PackagesPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>📦 จัดการ Package & Plan</h2>
-          <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>กำหนด limits และ feature ของแต่ละ plan — มีผลกับ tenant ที่ใช้ plan นั้นทันที</p>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-gray)' }}>กำหนด limits และ feature ของแต่ละ plan — มีผลกับ tenant ที่ใช้ plan นั้นทันที</p>
         </div>
-        <button
-          onClick={() => setCompareMode(m => !m)}
-          style={{
-            padding: '8px 16px', borderRadius: 8, border: '1px solid #e5e7eb',
-            background: compareMode ? '#4f46e5' : '#fff', color: compareMode ? '#fff' : '#374151',
-            fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          {compareMode ? '✕ ปิดโหมดเปรียบเทียบ' : '⇄ เปรียบเทียบ Plans'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          <button
+            onClick={() => setCompareMode(m => !m)}
+            title="เปรียบเทียบ limit ของทุก plan แบบ side-by-side — feature descriptions จะถูกซ่อนเพื่อให้เห็นตัวเลขได้ชัดขึ้น"
+            style={{
+              padding: '8px 16px', borderRadius: 8, border: '1px solid #e5e7eb',
+              background: compareMode ? 'var(--sa-accent)' : '#fff', color: compareMode ? '#fff' : 'var(--text-body)',
+              fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {compareMode ? '✕ ปิดโหมดเปรียบเทียบ' : '⇄ เปรียบเทียบ Plans'}
+          </button>
+          {!compareMode && (
+            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>ดู limit ทุก plan แบบ side-by-side</span>
+          )}
+        </div>
       </div>
 
       {/* Plan cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+      <div className="grid-3-col" style={{ gap: 18 }}>
         {PLAN_ORDER.map(plan => {
           const cfg = configs.find(c => c.plan === plan)!
           const tenantCount = tenantsByPlan(plan)
@@ -184,7 +210,7 @@ export default function PackagesPage() {
                 {/* Price input */}
                 {!isEnterprise && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: '0.72rem', color: '#6b7280', whiteSpace: 'nowrap' }}>ราคา ฿/เดือน</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-gray)', whiteSpace: 'nowrap' }}>ราคา ฿/เดือน</span>
                     <input
                       type="number"
                       value={cfg.price_monthly}
@@ -198,7 +224,7 @@ export default function PackagesPage() {
               <div style={{ padding: '16px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* ── Limits section ── */}
                 <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-body)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
                     📏 จำนวนที่อนุญาต
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -209,7 +235,7 @@ export default function PackagesPage() {
                       { key: 'max_managers' as const,          label: 'จำนวน Manager' },
                     ]).map(({ key, label }) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontSize: '0.82rem', color: '#374151', minWidth: 0 }}>{label}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-body)', minWidth: 0 }}>{label}</span>
                         <LimitInput
                           value={cfg.limits[key]}
                           onChange={v => updateLimit(plan, key, v)}
@@ -221,7 +247,7 @@ export default function PackagesPage() {
 
                 {/* ── Features section ── */}
                 <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-body)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
                     🔧 ฟีเจอร์
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -240,7 +266,7 @@ export default function PackagesPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                             <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>{icon}</span>
                             <div>
-                              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#111827' }}>{label}</div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-dark)' }}>{label}</div>
                               {!compareMode && (
                                 <div style={{ fontSize: '0.7rem', color: '#9ca3af', lineHeight: 1.3, marginTop: 1 }}>{desc}</div>
                               )}
@@ -265,7 +291,7 @@ export default function PackagesPage() {
                   style={{
                     width: '100%', padding: '10px', borderRadius: 8, border: 'none',
                     cursor: saving === plan ? 'not-allowed' : 'pointer',
-                    background: saving === plan ? '#e0e7ff' : cfg.color === '#374151' ? '#374151' : cfg.color,
+                    background: saving === plan ? '#e0e7ff' : cfg.color === 'var(--text-body)' ? 'var(--text-body)' : cfg.color,
                     color: '#fff', fontWeight: 700, fontSize: '0.875rem',
                     transition: 'opacity 0.2s', opacity: saving === plan ? 0.7 : 1,
                   }}
@@ -280,7 +306,7 @@ export default function PackagesPage() {
 
       {/* ── Active tenants per plan warning ── */}
       <div style={{ marginTop: 20, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 20px' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', marginBottom: 10 }}>⚠️ ผลกระทบต่อ Tenant ที่ใช้งานอยู่</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-body)', marginBottom: 10 }}>⚠️ ผลกระทบต่อ Tenant ที่ใช้งานอยู่</div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {PLAN_ORDER.map(plan => {
             const cfg = configs.find(c => c.plan === plan)!
@@ -297,11 +323,11 @@ export default function PackagesPage() {
                 <div style={{ fontWeight: 700, color: cfg.color, fontSize: '0.85rem', marginBottom: 6 }}>{cfg.label}</div>
                 {hasWarning ? (
                   <>
-                    {overBranch.length > 0 && <div style={{ fontSize: '0.78rem', color: '#dc2626' }}>⚠ {overBranch.length} tenant มีสาขาเกินลิมิต</div>}
-                    {overEmp.length > 0    && <div style={{ fontSize: '0.78rem', color: '#dc2626' }}>⚠ {overEmp.length} tenant มีพนักงานเกินลิมิต</div>}
+                    {overBranch.length > 0 && <div style={{ fontSize: '0.78rem', color: 'var(--error-text)' }}>⚠ {overBranch.length} tenant มีสาขาเกินลิมิต</div>}
+                    {overEmp.length > 0    && <div style={{ fontSize: '0.78rem', color: 'var(--error-text)' }}>⚠ {overEmp.length} tenant มีพนักงานเกินลิมิต</div>}
                   </>
                 ) : (
-                  <div style={{ fontSize: '0.78rem', color: '#16a34a' }}>✓ Tenant ทั้งหมดอยู่ในลิมิต</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--success-text)' }}>✓ Tenant ทั้งหมดอยู่ในลิมิต</div>
                 )}
               </div>
             )

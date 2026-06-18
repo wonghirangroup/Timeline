@@ -208,7 +208,7 @@ export default function EmployeePage() {
       created_at: new Date().toISOString(), branch_id: br.id, branch: br,
     }
     setEmployees(prev => [...prev, newEm])
-    showToast('success', `เพิ่มพนักงาน "${fullName}" สำเร็จ`)
+    showToast('success', `เพิ่ม "${fullName}" สำเร็จ — ส่งลิงก์ยืนยัน Line ให้พนักงานด้วย`)
     setSaving(false)
     setModal(null)
   }
@@ -894,6 +894,10 @@ export default function EmployeePage() {
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     </div>
+                  </div>
+
+                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px', fontSize: '12px', color: '#15803d', lineHeight: 1.55 }}>
+                    📱 <strong>ขั้นตอนถัดไป</strong> — หลังบันทึก ระบบจะส่งลิงก์ยืนยัน Line ให้พนักงาน พนักงานต้องกดลิงก์ก่อนจึงจะเช็คอินได้
                   </div>
 
                   {af.branch_accesses.length === 0 ? (

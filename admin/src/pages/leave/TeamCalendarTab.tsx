@@ -353,7 +353,7 @@ export default function TeamCalendarTab() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayYM  = todayStr.slice(0, 7)
 
-  const [month,        setMonth]        = useState('2026-06')
+  const [month,        setMonth]        = useState(todayYM)
   const [branchFilter, setBranchFilter] = useState('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 

@@ -1,9 +1,10 @@
 // admin/src/pages/superadmin/onboarding/index.tsx
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Copy, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MOCK_TENANTS, MOCK_LINE_CONFIGS } from '../../../lib/mock'
 import type { Tenant } from '../../../types'
+import { api } from '../../../lib/axios'
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 interface StepDef {
@@ -97,7 +98,7 @@ function thDate(d: string) {
   return `${day}/${m}/${y + 543}`
 }
 
-function ProgressBar({ pct, color = '#4f46e5' }: { pct: number; color?: string }) {
+function ProgressBar({ pct, color = 'var(--sa-accent)' }: { pct: number; color?: string }) {
   return (
     <div style={{ height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
       <div style={{
@@ -118,6 +119,7 @@ export default function OnboardingPage() {
   const [filter, setFilter] = useState<FilterMode>('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [reminded, setReminded] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState<string | null>(null)
 
   const checklists = MOCK_TENANTS.map(buildChecklist)
 
@@ -143,13 +145,26 @@ export default function OnboardingPage() {
     })
   }
 
-  function handleAction(actionKey: string, tenantId: string, stepId: string) {
+  async function handleAction(actionKey: string, tenantId: string, stepId: string) {
     if (actionKey === 'billing')  navigate(`/superadmin/billing`)
     if (actionKey === 'line')     navigate(`/superadmin/tenants/${tenantId}`)
     if (actionKey === 'detail')   navigate(`/superadmin/tenants/${tenantId}`)
     if (actionKey === 'reminder') {
+      try {
+        await api.post(`/api/v1/super-admin/tenants/${tenantId}/remind-line-linking`)
+      } catch {
+        // non-critical — still mark as sent visually
+      }
       setReminded(s => new Set(s).add(`${tenantId}-${stepId}`))
     }
+  }
+
+  function copyVerifyLink(tenantId: string) {
+    const link = `${window.location.origin}/liff/verify?tenant=${tenantId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(tenantId)
+      setTimeout(() => setCopied(null), 2000)
+    })
   }
 
   const overallPct = Math.round(checklists.reduce((s, c) => s + c.pct, 0) / checklists.length)
@@ -174,7 +189,7 @@ export default function OnboardingPage() {
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           }}>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Platform Progress</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: overallPct === 100 ? '#10b981' : '#4f46e5', lineHeight: 1.2, margin: '4px 0' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: overallPct === 100 ? '#10b981' : 'var(--sa-accent)', lineHeight: 1.2, margin: '4px 0' }}>
               {overallPct}%
             </div>
             <ProgressBar pct={overallPct} />
@@ -185,9 +200,9 @@ export default function OnboardingPage() {
         </div>
 
         {/* Summary Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginTop: 20 }}>
+        <div className="grid-stats" style={{ marginTop: 20 }}>
           {([
-            { key: 'all',        label: 'Tenant ทั้งหมด',      color: '#4f46e5', bg: '#ede9fe', icon: '🏗' },
+            { key: 'all',        label: 'Tenant ทั้งหมด',      color: 'var(--sa-accent)', bg: '#ede9fe', icon: '🏗' },
             { key: 'done',       label: 'เสร็จสิ้นครบถ้วน',   color: '#059669', bg: '#d1fae5', icon: '✅' },
             { key: 'inprogress', label: 'กำลังดำเนินการ',      color: '#d97706', bg: '#fef3c7', icon: '⏳' },
             { key: 'todo',       label: 'ยังไม่เริ่ม',          color: '#dc2626', bg: '#fee2e2', icon: '⚠️' },
@@ -226,7 +241,7 @@ export default function OnboardingPage() {
             style={{
               padding: '7px 16px', borderRadius: 8, fontSize: '0.84rem', fontWeight: 500,
               cursor: 'pointer', border: 'none',
-              background: filter === t.key ? '#4f46e5' : '#fff',
+              background: filter === t.key ? 'var(--sa-accent)' : '#fff',
               color: filter === t.key ? '#fff' : '#64748b',
               boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
             }}
@@ -263,7 +278,7 @@ export default function OnboardingPage() {
                     <circle cx="26" cy="26" r="22" fill="none" stroke="#f1f5f9" strokeWidth="4" />
                     <circle
                       cx="26" cy="26" r="22" fill="none"
-                      stroke={c.pct === 100 ? '#10b981' : '#4f46e5'}
+                      stroke={c.pct === 100 ? '#10b981' : 'var(--sa-accent)'}
                       strokeWidth="4"
                       strokeDasharray={`${2 * Math.PI * 22}`}
                       strokeDashoffset={`${2 * Math.PI * 22 * (1 - c.pct / 100)}`}
@@ -275,7 +290,7 @@ export default function OnboardingPage() {
                     position: 'absolute', inset: 0, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.7rem', fontWeight: 800,
-                    color: c.pct === 100 ? '#10b981' : '#4f46e5',
+                    color: c.pct === 100 ? '#10b981' : 'var(--sa-accent)',
                   }}>
                     {c.pct === 100 ? '✓' : `${c.pct}%`}
                   </div>
@@ -362,7 +377,7 @@ export default function OnboardingPage() {
                       onClick={e => { e.stopPropagation(); navigate(`/superadmin/tenants/${c.tenant.id}`) }}
                       style={{
                         padding: '6px 14px', borderRadius: 8, border: '1px solid #e2e8f0',
-                        background: '#fff', fontSize: '0.8rem', cursor: 'pointer', color: '#4f46e5', fontWeight: 600,
+                        background: '#fff', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--sa-accent)', fontWeight: 600,
                       }}
                     >ดูรายละเอียด Tenant →</button>
                   </div>
@@ -422,12 +437,30 @@ export default function OnboardingPage() {
                                 {step.desc}
                               </div>
                               {showLinePct && (
-                                <div style={{ marginTop: 6, maxWidth: 200 }}>
+                                <div style={{ marginTop: 6 }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b', marginBottom: 3 }}>
                                     <span>ยืนยันแล้ว {c.employeeLinePct}%</span>
                                     <span>{Math.round(c.tenant.employee_count * c.employeeLinePct / 100)}/{c.tenant.employee_count} คน</span>
                                   </div>
-                                  <ProgressBar pct={c.employeeLinePct} color="#f59e0b" />
+                                  <div style={{ maxWidth: 200, marginBottom: 6 }}>
+                                    <ProgressBar pct={c.employeeLinePct} color="#f59e0b" />
+                                  </div>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); copyVerifyLink(c.tenant.id) }}
+                                    style={{
+                                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                                      padding: '4px 10px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 600,
+                                      cursor: 'pointer', border: '1px solid var(--sa-accent-border)',
+                                      background: copied === c.tenant.id ? '#d1fae5' : 'var(--sa-accent-light)',
+                                      color: copied === c.tenant.id ? '#059669' : 'var(--sa-accent)',
+                                      transition: 'all 0.15s',
+                                    }}
+                                  >
+                                    {copied === c.tenant.id
+                                      ? <><Check size={11} /> คัดลอกแล้ว</>
+                                      : <><Copy size={11} /> คัดลอกลิงก์ยืนยัน Line</>
+                                    }
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -441,13 +474,13 @@ export default function OnboardingPage() {
                                   fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
                                   border: step.actionKey === 'reminder'
                                     ? `1px solid ${wasReminded ? '#d1fae5' : '#fde68a'}`
-                                    : '1px solid #c7d2fe',
+                                    : '1px solid var(--sa-accent-border)',
                                   background: step.actionKey === 'reminder'
                                     ? (wasReminded ? '#d1fae5' : '#fef3c7')
-                                    : '#eef2ff',
+                                    : 'var(--sa-accent-light)',
                                   color: step.actionKey === 'reminder'
                                     ? (wasReminded ? '#059669' : '#d97706')
-                                    : '#4f46e5',
+                                    : 'var(--sa-accent)',
                                 }}
                               >
                                 {step.actionKey === 'reminder' && wasReminded ? '✓ ส่งแล้ว' : step.actionLabel}

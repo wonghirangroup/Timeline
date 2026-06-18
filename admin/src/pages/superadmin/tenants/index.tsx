@@ -19,8 +19,8 @@ interface ApiTenant {
 }
 
 const PLAN_CFG: Record<Plan, { label: string; color: string; bg: string; price: string }> = {
-  FREE:       { label: 'Free',         color: '#374151', bg: '#f3f4f6', price: 'ฟรี' },
-  STARTER:    { label: 'Starter',      color: '#374151', bg: '#f3f4f6', price: '990 ฿/เดือน' },
+  FREE:       { label: 'Free',         color: 'var(--text-body)', bg: '#f3f4f6', price: 'ฟรี' },
+  STARTER:    { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6', price: '990 ฿/เดือน' },
   PRO:        { label: 'Pro',          color: '#2563eb', bg: '#dbeafe', price: '2,490 ฿/เดือน' },
   ENTERPRISE: { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe', price: 'Custom' },
 }
@@ -74,6 +74,27 @@ export default function TenantsPage() {
   const [suspendTarget, setSuspendTarget] = useState<ApiTenant | null>(null)
   const [deleteTarget, setDeleteTarget]   = useState<ApiTenant | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Bulk select
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  function toggleSelectAll() {
+    setSelectedIds(prev => prev.length === filtered.length ? [] : filtered.map(t => t.id))
+  }
+  async function handleBulkSuspend() {
+    const targets = tenants.filter(t => selectedIds.includes(t.id) && t.is_active)
+    await Promise.all(targets.map(t => api.patch(`/api/v1/super-admin/tenants/${t.id}`, { is_active: false }).catch(() => {})))
+    setSelectedIds([])
+    await loadTenants()
+  }
+  async function handleBulkActivate() {
+    const targets = tenants.filter(t => selectedIds.includes(t.id) && !t.is_active)
+    await Promise.all(targets.map(t => api.patch(`/api/v1/super-admin/tenants/${t.id}`, { is_active: true }).catch(() => {})))
+    setSelectedIds([])
+    await loadTenants()
+  }
 
   // Line OA modal (local only for now)
   const [lineModal, setLineModal]   = useState<ApiTenant | null>(null)
@@ -196,7 +217,7 @@ export default function TenantsPage() {
   }
 
   const inputSt: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' }
-  const labelSt: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5, display: 'block' }
+  const labelSt: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-body)', marginBottom: 5, display: 'block' }
 
   return (
     <div>
@@ -204,10 +225,10 @@ export default function TenantsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>🏗 จัดการ Tenant ทั้งหมด</h2>
-          <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>เพิ่ม / แก้ไข / ระงับ บริษัทลูกค้า และตั้งค่า Line OA</p>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-gray)' }}>เพิ่ม / แก้ไข / ระงับ บริษัทลูกค้า และตั้งค่า Line OA</p>
         </div>
         <button onClick={() => { setCreateModal(true); setCreateError(null) }}
-          style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+          style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
           + เพิ่ม Tenant ใหม่
         </button>
       </div>
@@ -218,17 +239,17 @@ export default function TenantsPage() {
           style={{ ...inputSt, width: 280 }} />
         {(['ALL', 'ACTIVE', 'SUSPENDED'] as const).map(f => (
           <button key={f} onClick={() => setActiveFilter(f)}
-            style={{ padding: '8px 16px', borderRadius: 20, border: `1px solid ${activeFilter === f ? '#4f46e5' : '#d1d5db'}`, cursor: 'pointer', background: activeFilter === f ? '#ede9fe' : '#fff', color: activeFilter === f ? '#4f46e5' : '#374151', fontSize: '0.82rem', fontWeight: activeFilter === f ? 700 : 400 }}>
+            style={{ padding: '8px 16px', borderRadius: 20, border: `1px solid ${activeFilter === f ? 'var(--sa-accent)' : '#d1d5db'}`, cursor: 'pointer', background: activeFilter === f ? '#ede9fe' : '#fff', color: activeFilter === f ? 'var(--sa-accent)' : 'var(--text-body)', fontSize: '0.82rem', fontWeight: activeFilter === f ? 700 : 400 }}>
             {f === 'ALL' ? 'ทั้งหมด' : f === 'ACTIVE' ? '✓ ใช้งาน' : '⏸ ระงับ'}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#6b7280' }}>
+        <div style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text-gray)' }}>
           แสดง {filtered.length} / {tenants.length} Tenant
         </div>
       </div>
 
       {/* Error / Loading */}
-      {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#dc2626', fontSize: '0.875rem' }}>{error}</div>}
+      {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: 'var(--error-text)', fontSize: '0.875rem' }}>{error}</div>}
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
@@ -236,25 +257,44 @@ export default function TenantsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#ede9fe' }}>
+                <th style={{ padding: '11px 14px', width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onChange={toggleSelectAll}
+                    style={{ accentColor: 'var(--sa-accent)', width: 15, height: 15, cursor: 'pointer' }}
+                    title="เลือกทั้งหมด"
+                  />
+                </th>
                 {['บริษัท / Admin', 'Plan / Limits', 'สาขา', 'พนักงาน', 'Line OA', 'สร้างเมื่อ', 'สถานะ', 'จัดการ'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#4338ca', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--sa-accent-hover)', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}><span className="animate-spin" style={{ display: 'inline-block', marginRight: 8 }}>⟳</span>กำลังโหลด...</td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบ Tenant</td></tr>
+                <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบ Tenant</td></tr>
               )}
               {!loading && filtered.map((t, i) => {
                 const admin = t.users[0]
                 const pc = PLAN_CFG[t.plan] ?? PLAN_CFG.FREE
+                const isSelected = selectedIds.includes(t.id)
                 return (
-                  <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: isSelected ? 'var(--sa-accent-light)' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '12px 14px' }}>
-                      <div style={{ fontWeight: 700, color: '#4f46e5', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(t.id)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ accentColor: 'var(--sa-accent)', width: 15, height: 15, cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--sa-accent)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
                         onClick={() => navigate(`/superadmin/tenants/${t.id}`)}>
                         {t.name}
                       </div>
@@ -268,36 +308,36 @@ export default function TenantsPage() {
                         สูงสุด {t.max_employees} คน / {t.max_branches} สาขา
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', color: '#374151', fontWeight: 600, textAlign: 'center' }}>{t._count.branches}</td>
-                    <td style={{ padding: '12px 14px', color: '#374151', fontWeight: 600, textAlign: 'center' }}>{t._count.employees}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-body)', fontWeight: 600, textAlign: 'center' }}>{t._count.branches}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-body)', fontWeight: 600, textAlign: 'center' }}>{t._count.employees}</td>
                     <td style={{ padding: '12px 14px' }}>
                       {t.line_config
-                        ? <span style={{ color: '#16a34a', fontSize: '0.78rem', fontWeight: 700 }}>✓ ตั้งค่าแล้ว</span>
+                        ? <span style={{ color: 'var(--success-text)', fontSize: '0.78rem', fontWeight: 700 }}>✓ ตั้งค่าแล้ว</span>
                         : <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>— ยังไม่ตั้งค่า</span>}
                       <br />
                       <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult('idle'); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
-                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #4f46e5', cursor: 'pointer', background: '#fff', color: '#4f46e5', fontSize: '0.72rem', fontWeight: 600, marginTop: 4 }}>
+                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontSize: '0.72rem', fontWeight: 600, marginTop: 4 }}>
                         {t.line_config ? '⚙ แก้ไข' : '+ ตั้งค่า'}
                       </button>
                     </td>
-                    <td style={{ padding: '12px 14px', color: '#6b7280', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{thDate(t.created_at)}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-gray)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{thDate(t.created_at)}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      <span style={{ background: t.is_active ? '#dcfce7' : '#fee2e2', color: t.is_active ? '#16a34a' : '#dc2626', borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <span style={{ background: t.is_active ? '#dcfce7' : '#fee2e2', color: t.is_active ? 'var(--success-text)' : 'var(--error-text)', borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {t.is_active ? 'ใช้งาน' : 'ระงับ'}
                       </span>
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         <button onClick={() => navigate(`/superadmin/tenants/${t.id}`)}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #4f46e5', cursor: 'pointer', background: '#ede9fe', fontSize: '0.75rem', color: '#4f46e5', fontWeight: 600 }}>ดู</button>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#ede9fe', fontSize: '0.75rem', color: 'var(--sa-accent)', fontWeight: 600 }}>ดู</button>
                         <button onClick={() => openEdit(t)}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#374151' }}>✏</button>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: 'var(--text-body)' }}>✏</button>
                         <button onClick={() => setSuspendTarget(t)}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${t.is_active ? '#f59e0b' : '#16a34a'}`, cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: t.is_active ? '#d97706' : '#16a34a', fontWeight: 600 }}>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${t.is_active ? '#f59e0b' : 'var(--success-text)'}`, cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: t.is_active ? '#d97706' : 'var(--success-text)', fontWeight: 600 }}>
                           {t.is_active ? '⏸ ระงับ' : '▶ เปิด'}
                         </button>
                         <button onClick={() => setDeleteTarget(t)}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#dc2626' }}>🗑</button>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: 'var(--error-text)' }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -310,19 +350,19 @@ export default function TenantsPage() {
 
       {/* ── Create Tenant Modal ── */}
       {createModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 20px', fontWeight: 700 }}>+ เพิ่ม Tenant ใหม่</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setCreateModal(false) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="create-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 id="create-tenant-title" style={{ margin: '0 0 20px', fontWeight: 700 }}>+ เพิ่ม Tenant ใหม่</h3>
 
             {createError && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#dc2626', fontSize: '0.82rem' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: 'var(--error-text)', fontSize: '0.82rem' }}>
                 {createError}
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={labelSt}>ชื่อบริษัท / Tenant <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={labelSt}>ชื่อบริษัท / Tenant <span style={{ color: 'var(--error-text)' }}>*</span></label>
                 <input value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="เช่น บริษัท ABC จำกัด" style={inputSt} />
               </div>
@@ -333,25 +373,25 @@ export default function TenantsPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={labelSt}>ชื่อ Admin <span style={{ color: '#dc2626' }}>*</span></label>
+                  <label style={labelSt}>ชื่อ Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
                   <input value={createForm.admin_first_name} onChange={e => setCreateForm(f => ({ ...f, admin_first_name: e.target.value }))}
                     placeholder="ชื่อ" style={inputSt} />
                 </div>
                 <div>
-                  <label style={labelSt}>นามสกุล Admin <span style={{ color: '#dc2626' }}>*</span></label>
+                  <label style={labelSt}>นามสกุล Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
                   <input value={createForm.admin_last_name} onChange={e => setCreateForm(f => ({ ...f, admin_last_name: e.target.value }))}
                     placeholder="นามสกุล" style={inputSt} />
                 </div>
               </div>
 
               <div>
-                <label style={labelSt}>อีเมล Admin <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={labelSt}>อีเมล Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
                 <input type="email" value={createForm.admin_email} onChange={e => setCreateForm(f => ({ ...f, admin_email: e.target.value }))}
                   placeholder="admin@company.com" style={inputSt} />
               </div>
 
               <div>
-                <label style={labelSt}>รหัสผ่าน Admin <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={labelSt}>รหัสผ่าน Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <input type={showPassword ? 'text' : 'password'} value={createForm.admin_password}
                     onChange={e => setCreateForm(f => ({ ...f, admin_password: e.target.value }))}
@@ -387,7 +427,7 @@ export default function TenantsPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
               <button onClick={() => setCreateModal(false)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
               <button onClick={handleCreate} disabled={createLoading}
-                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: createLoading ? 'not-allowed' : 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700, opacity: createLoading ? 0.7 : 1 }}>
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: createLoading ? 'not-allowed' : 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: createLoading ? 0.7 : 1 }}>
                 {createLoading ? 'กำลังสร้าง...' : '+ สร้าง Tenant'}
               </button>
             </div>
@@ -397,9 +437,9 @@ export default function TenantsPage() {
 
       {/* ── Edit Tenant Modal ── */}
       {editTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 460, maxWidth: '90vw' }}>
-            <h3 style={{ margin: '0 0 20px', fontWeight: 700 }}>✏ แก้ไข Tenant</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setEditTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 460, maxWidth: '90vw' }}>
+            <h3 id="edit-tenant-title" style={{ margin: '0 0 20px', fontWeight: 700 }}>✏ แก้ไข Tenant</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={labelSt}>ชื่อบริษัท</label>
@@ -428,7 +468,7 @@ export default function TenantsPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
               <button onClick={() => setEditTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
               <button onClick={handleEdit} disabled={editLoading}
-                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700, opacity: editLoading ? 0.7 : 1 }}>
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: editLoading ? 0.7 : 1 }}>
                 {editLoading ? 'กำลังบันทึก...' : '💾 บันทึก'}
               </button>
             </div>
@@ -438,13 +478,13 @@ export default function TenantsPage() {
 
       {/* ── Suspend Confirm ── */}
       {suspendTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
-            <h3 style={{ margin: '0 0 10px', fontWeight: 700 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setSuspendTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="suspend-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
+            <h3 id="suspend-tenant-title" style={{ margin: '0 0 10px', fontWeight: 700 }}>
               {suspendTarget.is_active ? '⏸ ระงับ Tenant' : '▶ เปิดใช้งาน Tenant'}
             </h3>
             <p style={{ margin: '0 0 8px', fontSize: '0.875rem' }}><strong>{suspendTarget.name}</strong></p>
-            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>
               {suspendTarget.is_active
                 ? 'พนักงานทั้งหมดจะไม่สามารถเช็คอินหรือใช้งานระบบได้ทันที'
                 : 'พนักงานจะสามารถเช็คอินและใช้งานระบบได้อีกครั้ง'}
@@ -462,17 +502,17 @@ export default function TenantsPage() {
 
       {/* ── Delete Confirm ── */}
       {deleteTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
-            <h3 style={{ margin: '0 0 10px', fontWeight: 700, color: '#dc2626' }}>🗑 ลบ Tenant</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setDeleteTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
+            <h3 id="delete-tenant-title" style={{ margin: '0 0 10px', fontWeight: 700, color: 'var(--error-text)' }}>🗑 ลบ Tenant</h3>
             <p style={{ margin: '0 0 8px', fontSize: '0.875rem' }}><strong>{deleteTarget.name}</strong></p>
-            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#dc2626', marginBottom: 20 }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: 'var(--error-text)', marginBottom: 20 }}>
               ⚠️ Soft delete — ข้อมูลจะถูกซ่อน ไม่ได้ลบจริงจาก Database
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
               <button onClick={handleDelete} disabled={actionLoading}
-                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#dc2626', color: '#fff', fontWeight: 700 }}>
+                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--error-text)', color: '#fff', fontWeight: 700 }}>
                 {actionLoading ? '...' : 'ยืนยันลบ'}
               </button>
             </div>
@@ -480,15 +520,39 @@ export default function TenantsPage() {
         </div>
       )}
 
+      {/* ── Bulk action bar ── */}
+      {selectedIds.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--text-dark)', color: '#fff', borderRadius: 10, padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 12, zIndex: 300,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.35)', fontSize: '0.875rem', whiteSpace: 'nowrap',
+        }}>
+          <span>เลือก <strong>{selectedIds.length}</strong> Tenant</span>
+          <button
+            onClick={handleBulkSuspend}
+            style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#f59e0b', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+          >⏸ ระงับที่เลือก</button>
+          <button
+            onClick={handleBulkActivate}
+            style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--success-text)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+          >▶ เปิดที่เลือก</button>
+          <button
+            onClick={() => setSelectedIds([])}
+            style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}
+          >✕</button>
+        </div>
+      )}
+
       {/* ── Line OA Modal (local state for now) ── */}
       {lineModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 520, maxWidth: '90vw' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setLineModal(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="line-oa-modal-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 520, maxWidth: '90vw' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <span style={{ fontSize: '1.4rem' }}>💚</span>
-              <h3 style={{ margin: 0, fontWeight: 700 }}>ตั้งค่า Line OA</h3>
+              <h3 id="line-oa-modal-title" style={{ margin: 0, fontWeight: 700 }}>ตั้งค่า Line OA</h3>
             </div>
-            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#6b7280' }}>{lineModal.name}</p>
+            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>{lineModal.name}</p>
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.7 }}>
               <strong>Webhook URL:</strong><br />
               <code style={{ fontSize: '0.75rem' }}>{`https://api.timeline.app/api/v1/line/webhook/${lineModal.id}`}</code>
@@ -511,17 +575,17 @@ export default function TenantsPage() {
                 <input value={lineForm.liff_id} onChange={e => setLineForm(f => ({ ...f, liff_id: e.target.value }))} placeholder="เช่น 2006123456-AbCdEfGh" style={inputSt} />
               </div>
               {testResult !== 'idle' && (
-                <div style={{ background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : '#dc2626' }}>
+                <div style={{ background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)' }}>
                   {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret'}
                 </div>
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 22 }}>
               <button onClick={() => { setTestResult('idle'); setTimeout(() => setTestResult(lineForm.line_channel_id && lineForm.line_channel_secret ? 'ok' : 'fail'), 1200) }}
-                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid #4f46e5', cursor: 'pointer', background: '#fff', color: '#4f46e5', fontWeight: 600 }}>🔌 Test</button>
+                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600 }}>🔌 Test</button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setLineModal(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ปิด</button>
-                <button onClick={() => setLineModal(null)} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontWeight: 700 }}>💾 บันทึก</button>
+                <button onClick={() => setLineModal(null)} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700 }}>💾 บันทึก</button>
               </div>
             </div>
           </div>

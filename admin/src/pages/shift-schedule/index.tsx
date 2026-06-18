@@ -78,7 +78,7 @@ export default function ShiftSchedulePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { employees, branches, shifts, shiftAssignments, upsertShiftAssignment, deleteShiftAssignment } = useDemoStore()
 
-  const TODAY = '2026-05-27'
+  const TODAY = new Date().toISOString().slice(0, 10)
   const [viewMode, setViewMode]   = useState<'week'|'month'>('week')
   const [weekStart, setWeekStart] = useState(() => getMondayOf(TODAY))
   const [selMonth, setSelMonth]   = useState(() => { const d = new Date(TODAY); return { y: d.getFullYear(), m: d.getMonth()+1 } })
@@ -205,13 +205,17 @@ export default function ShiftSchedulePage() {
                 <button key={sh.id} onClick={() => handleSave(empId, date, 'WORK', sh.id)} style={{
                   display:'flex', alignItems:'center', gap:8, width:'100%',
                   padding:'7px 14px', border:'none',
-                  background: isActive ? '#f0fdf4' : 'transparent',
+                  background: isActive ? (sh.shift_type === 'SPECIAL' ? '#f5f3ff' : '#f0fdf4') : 'transparent',
                   cursor:'pointer', textAlign:'left',
                 }}>
-                  <span style={{ width:8, height:8, borderRadius:'50%', background: isActive ? '#22c55e' : '#d1d5db', flexShrink:0 }} />
-                  <span style={{ color:'#374151', fontWeight: isActive ? 600 : 400 }}>{sh.name}</span>
+                  <span style={{ width:8, height:8, borderRadius:'50%', background: isActive ? (sh.shift_type === 'SPECIAL' ? '#7c3aed' : '#22c55e') : '#d1d5db', flexShrink:0 }} />
+                  <span style={{ color:'#374151', fontWeight: isActive ? 600 : 400 }}>
+                    {sh.shift_type === 'SPECIAL' && <span style={{ fontSize:10, marginRight:3 }}>⭐</span>}
+                    {sh.name}
+                  </span>
                   <span style={{ color:'#9ca3af', fontSize:11, marginLeft:'auto' }}>{sh.start_time}–{sh.end_time}</span>
                   {isDefault && <span style={{ fontSize:10, color:'#6366f1', background:'#e0e7ff', borderRadius:4, padding:'0 5px' }}>ประจำ</span>}
+                  {sh.shift_type === 'SPECIAL' && <span style={{ fontSize:10, color:'#7c3aed', background:'#ede9fe', borderRadius:4, padding:'0 5px' }}>พิเศษ</span>}
                 </button>
               )
             })}
@@ -265,16 +269,18 @@ export default function ShiftSchedulePage() {
       // วันหยุดตาม default (ไม่แสดงอะไร)
       content = <span style={{ color:'#e5e7eb', fontSize:11 }}>—</span>
     } else if (eff.assignment.type === 'WORK' && eff.assignment.shift_id) {
-      const sh  = shifts.find(s => s.id === eff.assignment.shift_id)
-      const bg  = eff.isDefault ? '#f0fdf4' : '#dcfce7'
-      const brd = eff.isDefault ? '1px dashed #86efac' : '1px solid #86efac'
+      const sh         = shifts.find(s => s.id === eff.assignment.shift_id)
+      const isSpecial  = sh?.shift_type === 'SPECIAL'
+      const bg  = isSpecial ? (eff.isDefault ? '#f5f3ff' : '#ede9fe') : eff.isDefault ? '#f0fdf4' : '#dcfce7'
+      const brd = isSpecial ? (eff.isDefault ? '1px dashed #c4b5fd' : '1px solid #c4b5fd') : eff.isDefault ? '1px dashed #86efac' : '1px solid #86efac'
+      const clr = isSpecial ? '#7c3aed' : '#15803d'
       content = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-          <span style={{ padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:'#15803d', border:brd, whiteSpace:'nowrap' }}>
-            {sh?.name ?? 'กะ'}
+          <span style={{ padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:clr, border:brd, whiteSpace:'nowrap' }}>
+            {isSpecial && '⭐ '}{sh?.name ?? 'กะ'}
           </span>
           {eff.isDefault
-            ? <span style={{ fontSize:9, color:'#a5b4fc' }}>ประจำ</span>
+            ? <span style={{ fontSize:9, color: isSpecial ? '#a78bfa' : '#a5b4fc' }}>ประจำ</span>
             : <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
         </div>
       )
@@ -310,12 +316,13 @@ export default function ShiftSchedulePage() {
     if (!eff || (eff.isOff && eff.isDefault)) {
       inner = <span style={{ color:'#e5e7eb', fontSize:9 }}>·</span>
     } else if (eff.assignment.type === 'WORK') {
-      const sh = shifts.find(s => s.id === eff.assignment.shift_id)
+      const sh        = shifts.find(s => s.id === eff.assignment.shift_id)
+      const isSpecial = sh?.shift_type === 'SPECIAL'
       inner = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-          <span style={{ width:6, height:6, borderRadius:'50%', background: eff.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
-          <span style={{ fontSize:9, color: eff.isDefault ? '#6b7280' : '#15803d', fontWeight: eff.isDefault ? 400 : 700, lineHeight:1 }}>
-            {sh?.name?.slice(0,3) ?? 'W'}
+          <span style={{ width:6, height:6, borderRadius:'50%', background: isSpecial ? (eff.isDefault ? '#c4b5fd' : '#7c3aed') : eff.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
+          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : eff.isDefault ? '#6b7280' : '#15803d', fontWeight: eff.isDefault ? 400 : 700, lineHeight:1 }}>
+            {isSpecial ? '⭐' : (sh?.name?.slice(0,3) ?? 'W')}
           </span>
           {hasOver && <span style={{ fontSize:8, color:'#f97316' }}>✏</span>}
         </div>

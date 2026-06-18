@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MOCK_TENANTS } from '../../../lib/mock'
 import type { TenantPlan } from '../../../types'
+import { api } from '../../../lib/axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AnnType   = 'MAINTENANCE' | 'FEATURE' | 'BILLING' | 'GENERAL' | 'URGENT'
@@ -79,14 +80,14 @@ const INIT_HISTORY: SystemAnn[] = [
 const ANN_TYPE_CONFIG: Record<AnnType, { label: string; icon: string; color: string; bg: string; border: string }> = {
   MAINTENANCE: { label: 'Maintenance',    icon: '🔧', color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
   FEATURE:     { label: 'Feature Update', icon: '✨', color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe' },
-  BILLING:     { label: 'Billing Notice', icon: '💳', color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
-  GENERAL:     { label: 'General',        icon: '📢', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
-  URGENT:      { label: 'ด่วน / Urgent',  icon: '🚨', color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
+  BILLING:     { label: 'Billing Notice', icon: '💳', color: 'var(--success-text)', bg: '#d1fae5', border: '#a7f3d0' },
+  GENERAL:     { label: 'General',        icon: '📢', color: 'var(--text-gray)', bg: '#f3f4f6', border: '#e5e7eb' },
+  URGENT:      { label: 'ด่วน / Urgent',  icon: '🚨', color: 'var(--error-text)', bg: '#fee2e2', border: '#fecaca' },
 }
 
 const STATUS_CONFIG: Record<AnnStatus, { label: string; color: string; bg: string }> = {
-  SENT:      { label: 'ส่งแล้ว',      color: '#059669', bg: '#d1fae5' },
-  DRAFT:     { label: 'Draft',        color: '#6b7280', bg: '#f3f4f6' },
+  SENT:      { label: 'ส่งแล้ว',      color: 'var(--success-text)', bg: '#d1fae5' },
+  DRAFT:     { label: 'Draft',        color: 'var(--text-gray)', bg: '#f3f4f6' },
   SCHEDULED: { label: 'กำหนดส่ง',    color: '#2563eb', bg: '#dbeafe' },
 }
 
@@ -95,7 +96,7 @@ const PLAN_LABEL: Record<TenantPlan, string> = {
 }
 
 const PLAN_COLOR: Record<TenantPlan, string> = {
-  STARTER: '#059669', PROFESSIONAL: '#2563eb', ENTERPRISE: '#7c3aed',
+  STARTER: 'var(--success-text)', PROFESSIONAL: '#2563eb', ENTERPRISE: '#7c3aed',
 }
 const PLAN_BG: Record<TenantPlan, string> = {
   STARTER: '#d1fae5', PROFESSIONAL: '#dbeafe', ENTERPRISE: '#ede9fe',
@@ -126,7 +127,8 @@ let nextId = 100
 // ── Compose Modal ─────────────────────────────────────────────────────────────
 interface ComposeProps {
   onClose: () => void
-  onSend: (ann: SystemAnn) => void
+  onSend: (ann: SystemAnn, replacingId?: string) => void
+  initialData?: SystemAnn
 }
 
 const TEMPLATES: Record<AnnType, { title: string; body: string }> = {
@@ -152,17 +154,18 @@ const TEMPLATES: Record<AnnType, { title: string; body: string }> = {
   },
 }
 
-function ComposeModal({ onClose, onSend }: ComposeProps) {
+function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
   const [step, setStep] = useState<'compose' | 'preview'>('compose')
-  const [annType, setAnnType] = useState<AnnType>('GENERAL')
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [targetType, setTargetType] = useState<TargetType>('ALL')
-  const [targetPlan, setTargetPlan] = useState<TenantPlan>('PROFESSIONAL')
-  const [targetIds, setTargetIds] = useState<string[]>([])
+  const [annType, setAnnType] = useState<AnnType>(initialData?.type ?? 'GENERAL')
+  const [title, setTitle] = useState(initialData?.title ?? '')
+  const [body, setBody] = useState(initialData?.body ?? '')
+  const [targetType, setTargetType] = useState<TargetType>(initialData?.target_type ?? 'ALL')
+  const [targetPlan, setTargetPlan] = useState<TenantPlan>(initialData?.target_plan ?? 'PROFESSIONAL')
+  const [targetIds, setTargetIds] = useState<string[]>(initialData?.target_tenant_ids ?? [])
   const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now')
   const [scheduleAt, setScheduleAt] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -185,14 +188,26 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
     if (TEMPLATES[t].body)  setBody(TEMPLATES[t].body)
   }
 
-  function handleSend() {
+  async function handleSend() {
     setSending(true)
-    setTimeout(() => {
-      const ann: SystemAnn = {
-        id: `sa-${++nextId}`,
-        type: annType,
-        title,
-        body,
+    setSendError(null)
+    try {
+      const payload = {
+        type: annType, title, body,
+        target_type: targetType,
+        target_plan: targetType === 'PLAN' ? targetPlan : null,
+        target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
+        schedule_mode: scheduleMode,
+        scheduled_at: scheduleMode === 'schedule' ? scheduleAt : null,
+      }
+      const method = initialData ? api.put : api.post
+      const url = initialData
+        ? `/api/v1/super-admin/announcements/${initialData.id}`
+        : '/api/v1/super-admin/announcements'
+      const res = await method(url, payload)
+      const ann: SystemAnn = res.data?.data ?? {
+        id: initialData?.id ?? `sa-${++nextId}`,
+        type: annType, title, body,
         target_type: targetType,
         target_plan: targetType === 'PLAN' ? targetPlan : null,
         target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
@@ -202,9 +217,41 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
         sent_count: scheduleMode === 'now' ? resolveCount(targetType, targetPlan, targetIds) : 0,
         created_by: 'Super Admin',
       }
-      onSend(ann)
+      onSend(ann, initialData?.id)
+    } catch {
+      setSendError('ส่งไม่สำเร็จ — กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่')
+    } finally {
       setSending(false)
-    }, 800)
+    }
+  }
+
+  async function handleSaveDraft() {
+    if (!title.trim()) return
+    try {
+      const payload = {
+        type: annType, title, body,
+        target_type: targetType,
+        target_plan: targetType === 'PLAN' ? targetPlan : null,
+        target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
+        status: 'DRAFT',
+      }
+      const method = initialData ? api.put : api.post
+      const url = initialData
+        ? `/api/v1/super-admin/announcements/${initialData.id}`
+        : '/api/v1/super-admin/announcements'
+      const res = await method(url, payload)
+      const draft: SystemAnn = res.data?.data ?? {
+        id: initialData?.id ?? `sa-${++nextId}`, type: annType, title, body,
+        target_type: targetType,
+        target_plan: targetType === 'PLAN' ? targetPlan : null,
+        target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
+        status: 'DRAFT', sent_at: null, scheduled_at: null,
+        sent_count: 0, created_by: 'Super Admin',
+      }
+      onSend(draft, initialData?.id)
+    } catch {
+      // draft save failure is non-critical; parent toast will not fire
+    }
   }
 
   const recipientCount = resolveCount(targetType, targetPlan, targetIds)
@@ -218,7 +265,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
     }}>
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="compose-modal-title" style={{
         background: '#fff', borderRadius: 20, width: '92vw', maxWidth: 820,
         maxHeight: '92vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
@@ -226,14 +273,14 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
         {/* Modal Header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+            <h2 id="compose-modal-title" style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
               {step === 'compose' ? '📣 สร้างประกาศระบบใหม่' : '👀 ตรวจสอบก่อนส่ง'}
             </h2>
-            <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+            <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
               {step === 'compose' ? 'ข้อความจะถูกส่งไปยัง Admin ของ Tenant ที่เลือก' : 'ตรวจสอบเนื้อหาและผู้รับก่อนยืนยันการส่ง'}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.3rem', lineHeight: 1 }}>✕</button>
+          <button onClick={onClose} aria-label="ปิดหน้าต่าง" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.3rem', lineHeight: 1 }}>✕</button>
         </div>
 
         {step === 'compose' ? (
@@ -243,7 +290,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
               {/* Type selector */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 8 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 8 }}>
                   ประเภทประกาศ
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -257,7 +304,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                         style={{
                           padding: '7px 14px', borderRadius: 99, fontSize: '0.8rem', fontWeight: 600,
                           cursor: 'pointer', border: `2px solid ${active ? cfg.color : cfg.border}`,
-                          background: active ? cfg.bg : '#fff', color: active ? cfg.color : '#6b7280',
+                          background: active ? cfg.bg : '#fff', color: active ? cfg.color : 'var(--text-gray)',
                           transition: 'all 0.12s',
                         }}
                       >{cfg.icon} {cfg.label}</button>
@@ -268,8 +315,8 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
               {/* Title */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  หัวข้อประกาศ <span style={{ color: '#dc2626' }}>*</span>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 6 }}>
+                  หัวข้อประกาศ <span style={{ color: 'var(--error-text)' }}>*</span>
                 </label>
                 <input
                   value={title}
@@ -281,13 +328,13 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                     boxSizing: 'border-box', outline: 'none',
                   }}
                 />
-                <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#94a3b8', marginTop: 3 }}>{title.length}/120</div>
+                <div style={{ textAlign: 'right', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 3 }}>{title.length}/120</div>
               </div>
 
               {/* Body */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  เนื้อหา <span style={{ color: '#dc2626' }}>*</span>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 6 }}>
+                  เนื้อหา <span style={{ color: 'var(--error-text)' }}>*</span>
                 </label>
                 <textarea
                   value={body}
@@ -300,12 +347,12 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                     boxSizing: 'border-box', resize: 'vertical', outline: 'none', lineHeight: 1.7,
                   }}
                 />
-                <div style={{ textAlign: 'right', fontSize: '0.72rem', color: '#94a3b8', marginTop: 3 }}>{body.length}/1000</div>
+                <div style={{ textAlign: 'right', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 3 }}>{body.length}/1000</div>
               </div>
 
               {/* Target */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 8 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 8 }}>
                   กลุ่มผู้รับ
                 </label>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -320,9 +367,9 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                       style={{
                         padding: '7px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600,
                         cursor: 'pointer',
-                        border: `2px solid ${targetType === opt.key ? '#4f46e5' : '#e2e8f0'}`,
-                        background: targetType === opt.key ? '#eef2ff' : '#fff',
-                        color: targetType === opt.key ? '#4f46e5' : '#64748b',
+                        border: `2px solid ${targetType === opt.key ? 'var(--sa-accent)' : '#e2e8f0'}`,
+                        background: targetType === opt.key ? 'var(--sa-accent-light)' : '#fff',
+                        color: targetType === opt.key ? 'var(--sa-accent)' : '#64748b',
                       }}
                     >{opt.label}</button>
                   ))}
@@ -354,8 +401,8 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                         <label key={t.id} style={{
                           display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
                           borderRadius: 8, cursor: 'pointer',
-                          background: checked ? '#eef2ff' : '#f8fafc',
-                          border: `1px solid ${checked ? '#c7d2fe' : '#e2e8f0'}`,
+                          background: checked ? 'var(--sa-accent-light)' : '#f8fafc',
+                          border: `1px solid ${checked ? 'var(--sa-accent-border)' : '#e2e8f0'}`,
                         }}>
                           <input
                             type="checkbox"
@@ -363,11 +410,11 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                             onChange={() => setTargetIds(ids =>
                               checked ? ids.filter(x => x !== t.id) : [...ids, t.id]
                             )}
-                            style={{ accentColor: '#4f46e5', width: 16, height: 16 }}
+                            style={{ accentColor: 'var(--sa-accent)', width: 16, height: 16 }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{t.name}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t.owner_email}</div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>{t.name}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{t.owner_email}</div>
                           </div>
                           <span style={{
                             fontSize: '0.68rem', padding: '2px 7px', borderRadius: 99, fontWeight: 700,
@@ -381,10 +428,10 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
                 <div style={{
                   marginTop: 10, padding: '8px 12px', borderRadius: 8,
-                  background: recipientCount > 0 ? '#eef2ff' : '#fef2f2',
-                  border: `1px solid ${recipientCount > 0 ? '#c7d2fe' : '#fecaca'}`,
+                  background: recipientCount > 0 ? 'var(--sa-accent-light)' : '#fef2f2',
+                  border: `1px solid ${recipientCount > 0 ? 'var(--sa-accent-border)' : '#fecaca'}`,
                   fontSize: '0.8rem', fontWeight: 600,
-                  color: recipientCount > 0 ? '#4f46e5' : '#dc2626',
+                  color: recipientCount > 0 ? 'var(--sa-accent)' : 'var(--error-text)',
                 }}>
                   {recipientCount > 0
                     ? `📨 จะส่งถึง ${recipientCount} Tenant`
@@ -394,7 +441,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
               {/* Schedule */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 8 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 8 }}>
                   เวลาส่ง
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -408,9 +455,9 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                       style={{
                         padding: '7px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600,
                         cursor: 'pointer',
-                        border: `2px solid ${scheduleMode === opt.key ? '#4f46e5' : '#e2e8f0'}`,
-                        background: scheduleMode === opt.key ? '#eef2ff' : '#fff',
-                        color: scheduleMode === opt.key ? '#4f46e5' : '#64748b',
+                        border: `2px solid ${scheduleMode === opt.key ? 'var(--sa-accent)' : '#e2e8f0'}`,
+                        background: scheduleMode === opt.key ? 'var(--sa-accent-light)' : '#fff',
+                        color: scheduleMode === opt.key ? 'var(--sa-accent)' : '#64748b',
                       }}
                     >{opt.label}</button>
                   ))}
@@ -432,14 +479,14 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
 
             {/* Right: Live Preview */}
             <div style={{ width: 260, flexShrink: 0 }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>ตัวอย่างข้อความ</div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', marginBottom: 8 }}>ตัวอย่างข้อความ</div>
               <div style={{
                 border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
               }}>
                 {/* Phone mockup top bar */}
                 <div style={{ background: '#1e1b4b', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4f46e5' }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sa-accent)' }} />
                   <span style={{ fontSize: '0.7rem', color: '#a5b4fc', fontWeight: 600 }}>TimeLine System</span>
                 </div>
                 {/* Message bubble */}
@@ -456,19 +503,19 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                     }}>
                       {tc.icon} {tc.label}
                     </div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', marginBottom: 6, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6, lineHeight: 1.4 }}>
                       {title || 'หัวข้อประกาศ...'}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden' }}>
                       {body || 'เนื้อหาประกาศ...'}
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 8, textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', marginTop: 8, textAlign: 'right' }}>
                       {new Date().toLocaleDateString('th-TH')} — TimeLine
                     </div>
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 6, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 6, textAlign: 'center' }}>
                 ตัวอย่างที่ Admin จะเห็น
               </div>
             </div>
@@ -487,8 +534,8 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                   ส่งถึง: <strong>{targetType === 'ALL' ? 'ทุก Tenant' : targetType === 'PLAN' ? `Plan ${PLAN_LABEL[targetPlan]}` : `${targetIds.length} Tenant`}</strong> ({recipientCount} บริษัท)
                 </span>
               </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: 10 }}>{title}</div>
-              <div style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.8, whiteSpace: 'pre-wrap', background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '12px 16px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 10 }}>{title}</div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-body)', lineHeight: 1.8, whiteSpace: 'pre-wrap', background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '12px 16px' }}>
                 {body}
               </div>
             </div>
@@ -500,8 +547,8 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                 { label: 'เวลาส่ง',     value: scheduleMode === 'now' ? 'ส่งทันที' : `${scheduleAt.replace('T', ' ')}` },
               ].map(r => (
                 <div key={r.label} style={{ flex: 1, background: '#f8fafc', borderRadius: 10, padding: '10px 14px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{r.label}</div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginTop: 2 }}>{r.value}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 600 }}>{r.label}</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>{r.value}</div>
                 </div>
               ))}
             </div>
@@ -518,26 +565,20 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
         <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={() => step === 'compose' ? onClose() : setStep('compose')}
-            style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}
+            style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: 'var(--text-body)' }}
           >{step === 'compose' ? 'ยกเลิก' : '← แก้ไข'}</button>
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {sendError && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--error-text)', fontWeight: 600 }}>{sendError}</span>
+            )}
             {step === 'compose' && (
               <button
-                onClick={() => {
-                  const draft: SystemAnn = {
-                    id: `sa-${++nextId}`, type: annType, title, body,
-                    target_type: targetType, target_plan: targetType === 'PLAN' ? targetPlan : null,
-                    target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
-                    status: 'DRAFT', sent_at: null, scheduled_at: null,
-                    sent_count: 0, created_by: 'Super Admin',
-                  }
-                  onSend(draft)
-                }}
+                onClick={handleSaveDraft}
                 disabled={!title.trim()}
                 style={{
                   padding: '9px 20px', borderRadius: 9, fontSize: '0.875rem', cursor: title.trim() ? 'pointer' : 'not-allowed',
-                  border: '1px solid #e2e8f0', background: '#fff', color: title.trim() ? '#374151' : '#94a3b8',
+                  border: '1px solid #e2e8f0', background: '#fff', color: title.trim() ? 'var(--text-body)' : 'var(--text-faint)',
                 }}
               >💾 บันทึก Draft</button>
             )}
@@ -550,8 +591,8 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                   padding: '9px 22px', borderRadius: 9, fontSize: '0.875rem', fontWeight: 700,
                   cursor: canSend ? 'pointer' : 'not-allowed',
                   border: 'none',
-                  background: canSend ? '#4f46e5' : '#e2e8f0',
-                  color: canSend ? '#fff' : '#94a3b8',
+                  background: canSend ? 'var(--sa-accent)' : '#e2e8f0',
+                  color: canSend ? '#fff' : 'var(--text-faint)',
                 }}
               >ตรวจสอบก่อนส่ง →</button>
             ) : (
@@ -561,7 +602,7 @@ function ComposeModal({ onClose, onSend }: ComposeProps) {
                 style={{
                   padding: '9px 24px', borderRadius: 9, fontSize: '0.875rem', fontWeight: 700,
                   border: 'none', cursor: sending ? 'not-allowed' : 'pointer',
-                  background: scheduleMode === 'now' ? '#dc2626' : '#4f46e5',
+                  background: scheduleMode === 'now' ? 'var(--error-text)' : 'var(--sa-accent)',
                   color: '#fff', display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
@@ -598,7 +639,7 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
     }}>
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="ann-detail-title" style={{
         background: '#fff', borderRadius: 20, width: '90vw', maxWidth: 640,
         maxHeight: '88vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
@@ -609,12 +650,12 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
           }}>{tc.icon}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{ann.title}</div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>
+            <div id="ann-detail-title" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>{ann.title}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: 2 }}>
               {ann.sent_at ? `ส่งเมื่อ ${thDateTime(ann.sent_at)}` : ann.scheduled_at ? `กำหนดส่ง ${thDateTime(ann.scheduled_at)}` : 'Draft'}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} aria-label="ปิดหน้าต่าง" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.2rem' }}>✕</button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
@@ -622,11 +663,11 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
             {[
               { l: 'ประเภท',  v: `${tc.icon} ${tc.label}`,                             color: tc.color, bg: tc.bg },
               { l: 'สถานะ',   v: STATUS_CONFIG[ann.status].label,                      color: STATUS_CONFIG[ann.status].color, bg: STATUS_CONFIG[ann.status].bg },
-              { l: 'ผู้รับ',   v: targetLabel(ann),                                     color: '#4f46e5', bg: '#eef2ff' },
-              { l: 'ส่งถึง',  v: ann.status === 'SENT' ? `${ann.sent_count} Tenant` : '—', color: '#0f172a', bg: '#f8fafc' },
+              { l: 'ผู้รับ',   v: targetLabel(ann),                                     color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
+              { l: 'ส่งถึง',  v: ann.status === 'SENT' ? `${ann.sent_count} Tenant` : '—', color: 'var(--text-main)', bg: '#f8fafc' },
             ].map(r => (
               <div key={r.l} style={{ background: r.bg, borderRadius: 8, padding: '8px 12px', minWidth: 100 }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>{r.l}</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontWeight: 600 }}>{r.l}</div>
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, color: r.color, marginTop: 2 }}>{r.v}</div>
               </div>
             ))}
@@ -634,12 +675,12 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
 
           <div style={{
             background: '#f8fafc', border: `2px solid ${tc.border}`, borderRadius: 12,
-            padding: '16px', fontSize: '0.875rem', color: '#374151', lineHeight: 1.8, whiteSpace: 'pre-wrap',
+            padding: '16px', fontSize: '0.875rem', color: 'var(--text-body)', lineHeight: 1.8, whiteSpace: 'pre-wrap',
           }}>
             {ann.body}
           </div>
 
-          <div style={{ marginTop: 12, fontSize: '0.75rem', color: '#94a3b8' }}>
+          <div style={{ marginTop: 12, fontSize: '0.75rem', color: 'var(--text-faint)' }}>
             สร้างโดย: {ann.created_by}
           </div>
         </div>
@@ -648,7 +689,7 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
           {ann.status !== 'SENT' ? (
             <button
               onClick={onDelete}
-              style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: '0.875rem', cursor: 'pointer', fontWeight: 600 }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: 'var(--error-text)', fontSize: '0.875rem', cursor: 'pointer', fontWeight: 600 }}
             >🗑 ลบ</button>
           ) : <div />}
           <button onClick={onClose} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer' }}>ปิด</button>
@@ -664,20 +705,31 @@ type HistoryFilter = 'ALL' | AnnStatus | AnnType
 export default function SAAnnouncementPage() {
   const [history, setHistory] = useState<SystemAnn[]>(INIT_HISTORY)
   const [showCompose, setShowCompose] = useState(false)
+  const [editDraft, setEditDraft] = useState<SystemAnn | null>(null)
   const [viewAnn, setViewAnn] = useState<SystemAnn | null>(null)
   const [filterStatus, setFilterStatus] = useState<AnnStatus | 'ALL'>('ALL')
   const [filterType, setFilterType] = useState<AnnType | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
 
+  useEffect(() => {
+    api.get('/api/v1/super-admin/announcements')
+      .then(res => { if (Array.isArray(res.data?.data)) setHistory(res.data.data) })
+      .catch(() => { /* fall back to INIT_HISTORY already in state */ })
+  }, [])
+
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3000)
   }
 
-  function handleSend(ann: SystemAnn) {
-    setHistory(h => [ann, ...h])
+  function handleSend(ann: SystemAnn, replacingId?: string) {
+    setHistory(h => {
+      const without = replacingId ? h.filter(a => a.id !== replacingId) : h
+      return [ann, ...without]
+    })
     setShowCompose(false)
+    setEditDraft(null)
     showToast(
       ann.status === 'SENT' ? `ส่งประกาศถึง ${ann.sent_count} Tenant เรียบร้อย` :
       ann.status === 'SCHEDULED' ? 'บันทึกตารางส่งเรียบร้อย' :
@@ -685,10 +737,15 @@ export default function SAAnnouncementPage() {
     )
   }
 
-  function handleDelete(id: string) {
-    setHistory(h => h.filter(a => a.id !== id))
-    setViewAnn(null)
-    showToast('ลบประกาศเรียบร้อย')
+  async function handleDelete(id: string) {
+    try {
+      await api.delete(`/api/v1/super-admin/announcements/${id}`)
+      setHistory(h => h.filter(a => a.id !== id))
+      setViewAnn(null)
+      showToast('ลบประกาศเรียบร้อย')
+    } catch {
+      showToast('ลบไม่สำเร็จ — กรุณาลองใหม่', false)
+    }
   }
 
   const filtered = history.filter(a => {
@@ -713,7 +770,7 @@ export default function SAAnnouncementPage() {
           position: 'fixed', top: 20, right: 20, zIndex: 999,
           padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: '0.875rem',
           background: toast.ok ? '#d1fae5' : '#fee2e2',
-          color: toast.ok ? '#059669' : '#dc2626',
+          color: toast.ok ? 'var(--success-text)' : 'var(--error-text)',
           border: `1px solid ${toast.ok ? '#a7f3d0' : '#fecaca'}`,
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         }}>{toast.ok ? '✅' : '❌'} {toast.msg}</div>
@@ -722,7 +779,7 @@ export default function SAAnnouncementPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
             System Announcement
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b' }}>
@@ -733,7 +790,7 @@ export default function SAAnnouncementPage() {
           onClick={() => setShowCompose(true)}
           style={{
             padding: '10px 22px', borderRadius: 10, border: 'none',
-            background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.9rem',
+            background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.9rem',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
             boxShadow: '0 2px 8px rgba(79,70,229,0.35)',
           }}
@@ -743,12 +800,12 @@ export default function SAAnnouncementPage() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="grid-stats" style={{ marginBottom: 24 }}>
         {[
-          { label: 'ทั้งหมด',        value: history.length,    icon: '📋', color: '#4f46e5', bg: '#eef2ff' },
-          { label: 'ส่งแล้ว',        value: counts.SENT,       icon: '✅', color: '#059669', bg: '#d1fae5' },
+          { label: 'ทั้งหมด',        value: history.length,    icon: '📋', color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
+          { label: 'ส่งแล้ว',        value: counts.SENT,       icon: '✅', color: 'var(--success-text)', bg: '#d1fae5' },
           { label: 'กำหนดส่ง',      value: counts.SCHEDULED,  icon: '📅', color: '#2563eb', bg: '#dbeafe' },
-          { label: 'Draft',          value: counts.DRAFT,      icon: '📝', color: '#6b7280', bg: '#f3f4f6' },
+          { label: 'Draft',          value: counts.DRAFT,      icon: '📝', color: 'var(--text-gray)', bg: '#f3f4f6' },
         ].map(s => (
           <div key={s.label} style={{
             background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
@@ -760,7 +817,7 @@ export default function SAAnnouncementPage() {
             </div>
             <div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>{s.label}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', marginTop: 2 }}>{s.label}</div>
             </div>
           </div>
         ))}
@@ -774,7 +831,7 @@ export default function SAAnnouncementPage() {
       }}>
         {/* Search */}
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>🔍</span>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }}>🔍</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -801,7 +858,7 @@ export default function SAAnnouncementPage() {
               style={{
                 padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
                 cursor: 'pointer', border: 'none',
-                background: filterStatus === f.k ? '#4f46e5' : '#f1f5f9',
+                background: filterStatus === f.k ? 'var(--sa-accent)' : '#f1f5f9',
                 color: filterStatus === f.k ? '#fff' : '#64748b',
               }}
             >{f.l}</button>
@@ -834,7 +891,7 @@ export default function SAAnnouncementPage() {
           display: 'grid', gridTemplateColumns: '28px 2fr 100px 130px 90px 90px',
           gap: 12, padding: '10px 18px',
           background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
-          fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px',
+          fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px',
         }}>
           <div />
           <div>หัวข้อ</div>
@@ -845,7 +902,7 @@ export default function SAAnnouncementPage() {
         </div>
 
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: '0.9rem' }}>
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-faint)', fontSize: '0.9rem' }}>
             ไม่พบประกาศที่ตรงกับเงื่อนไข
           </div>
         )}
@@ -862,10 +919,10 @@ export default function SAAnnouncementPage() {
           return (
             <div
               key={ann.id}
-              onClick={() => setViewAnn(ann)}
+              onClick={() => ann.status !== 'DRAFT' && setViewAnn(ann)}
               style={{
                 display: 'grid', gridTemplateColumns: '28px 2fr 100px 130px 90px 90px',
-                gap: 12, padding: '14px 18px', cursor: 'pointer',
+                gap: 12, padding: '14px 18px', cursor: ann.status !== 'DRAFT' ? 'pointer' : 'default',
                 borderBottom: idx < filtered.length - 1 ? '1px solid #f8fafc' : 'none',
                 transition: 'background 0.1s',
               }}
@@ -875,13 +932,23 @@ export default function SAAnnouncementPage() {
               <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.95rem' }}>{tc.icon}</div>
 
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ann.title}
                 </div>
                 {ann.status === 'SENT' && (
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 2 }}>
                     ส่งถึง {ann.sent_count} Tenant
                   </div>
+                )}
+                {ann.status === 'DRAFT' && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditDraft(ann) }}
+                    style={{
+                      marginTop: 4, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--sa-accent-border)',
+                      background: 'var(--sa-accent-light)', color: 'var(--sa-accent)', fontSize: '0.7rem', fontWeight: 700,
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, width: 'fit-content',
+                    }}
+                  >✏️ แก้ไข Draft</button>
                 )}
               </div>
 
@@ -893,7 +960,7 @@ export default function SAAnnouncementPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {targetLabel(ann)}
                 </span>
               </div>
@@ -906,7 +973,7 @@ export default function SAAnnouncementPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'right' }}>{dateStr}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', textAlign: 'right' }}>{dateStr}</span>
               </div>
             </div>
           )
@@ -914,13 +981,14 @@ export default function SAAnnouncementPage() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.78rem', color: '#94a3b8' }}>
+        <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.78rem', color: 'var(--text-faint)' }}>
           แสดง {filtered.length} จาก {history.length} รายการ
         </div>
       )}
 
       {/* Modals */}
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSend={handleSend} />}
+      {editDraft && <ComposeModal onClose={() => setEditDraft(null)} onSend={handleSend} initialData={editDraft} />}
       {viewAnn && (
         <DetailModal
           ann={viewAnn}
