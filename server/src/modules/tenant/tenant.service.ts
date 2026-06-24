@@ -22,9 +22,10 @@ export async function getTenant(id: string) {
   return prisma.tenant.findFirst({
     where: { id, deleted_at: null },
     include: {
-      users:    { where: { deleted_at: null }, select: { id: true, email: true, first_name: true, last_name: true, role: true } },
-      branches: { where: { deleted_at: null } },
-      _count:   { select: { employees: true } },
+      users:       { where: { deleted_at: null }, select: { id: true, email: true, first_name: true, last_name: true, role: true } },
+      branches:    { where: { deleted_at: null } },
+      _count:      { select: { employees: true } },
+      line_config: { select: { line_channel_id: true, line_channel_access_token: true, line_liff_id: true } },
     },
   })
 }

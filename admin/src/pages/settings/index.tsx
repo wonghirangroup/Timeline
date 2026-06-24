@@ -508,34 +508,8 @@ export default function SettingsPage() {
       {tab === 'general' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ ...card, padding: 20 }}>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>รัศมีเช็คอิน GPS</p>
-            <Field label="รัศมีอนุญาต (เมตร) — ใช้กับทุกสาขา">
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[50, 100, 150, 200, 300].map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setGlobalSettings(g => ({ ...g, radius_m: r }))}
-                    style={{
-                      padding: '7px 14px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
-                      border: `1.5px solid ${globalSettings.radius_m === r ? '#f97316' : '#e5e7eb'}`,
-                      background: globalSettings.radius_m === r ? '#fff7ed' : '#fff',
-                      color: globalSettings.radius_m === r ? '#ea580c' : '#4b5563',
-                    }}
-                  >{r}ม.</button>
-                ))}
-                <input
-                  type="number"
-                  value={globalSettings.radius_m}
-                  onChange={e => setGlobalSettings(g => ({ ...g, radius_m: Number(e.target.value) }))}
-                  style={{ ...inputStyle, width: 90 }}
-                  placeholder="กำหนดเอง"
-                />
-              </div>
-            </Field>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <SaveBtn onClick={handleSaveGeneral} label="บันทึกการตั้งค่า" />
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#6b7280', margin: 0 }}>รัศมีเช็คอิน GPS ย้ายไปตั้งค่าในแต่ละกะแล้ว</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: 8 }}>ไปที่ <strong>กะ & เวลา → จัดการกะ</strong> เพื่อกำหนดรัศมีของแต่ละกะ</p>
           </div>
         </div>
       )}

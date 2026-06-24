@@ -320,9 +320,10 @@ export async function tenantRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['line_channel_id', 'line_channel_secret', 'line_liff_id'],
         properties: {
-          line_channel_id:     { type: 'string' },
-          line_channel_secret: { type: 'string' },
-          line_liff_id:        { type: 'string' },
+          line_channel_id:           { type: 'string' },
+          line_channel_secret:       { type: 'string' },
+          line_channel_access_token: { type: 'string' },
+          line_liff_id:              { type: 'string' },
         },
       },
     },

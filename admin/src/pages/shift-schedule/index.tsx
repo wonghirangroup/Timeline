@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useDemoStore } from '../../stores/demoStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useSwipePage } from '../../hooks/useSwipePage'
 import type { ShiftAssignment, ShiftAssignmentType, Employee, ShiftDef } from '../../types'
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
@@ -76,6 +77,10 @@ function getEffective(
 export default function ShiftSchedulePage() {
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
+  const swipeHandlers = useSwipePage(
+    () => setPage(p => Math.min(totalPages, p + 1)),
+    () => setPage(p => Math.max(1, p - 1)),
+  )
   const { employees, branches, shifts, shiftAssignments, upsertShiftAssignment, deleteShiftAssignment } = useDemoStore()
 
   const TODAY = new Date().toISOString().slice(0, 10)
@@ -392,7 +397,7 @@ export default function ShiftSchedulePage() {
       </div>
 
       {/* Table */}
-      <div ref={tableRef} style={{ overflowX:'auto', position:'relative', borderRadius:12, border:'1px solid #e5e7eb', background:'#fff' }}>
+      <div ref={tableRef} {...(isMobile ? swipeHandlers : {})} style={{ overflowX:'auto', position:'relative', borderRadius:12, border:'1px solid #e5e7eb', background:'#fff' }}>
         <table style={{ borderCollapse:'collapse', width:'100%', minWidth: viewMode==='week'?600:900 }}>
           <thead>
             <tr style={{ background:'#f9fafb' }}>
@@ -465,26 +470,30 @@ export default function ShiftSchedulePage() {
       
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 12 }}>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>
-            แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filteredEmps.length)} จาก {filteredEmps.length} พนักงาน
-          </span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button 
-              onClick={() => setPage(p => Math.max(1, p - 1))} 
-              disabled={page === 1}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-              disabled={page === totalPages}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronRight size={16} />
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+              แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filteredEmps.length)} จาก {filteredEmps.length} พนักงาน
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isMobile && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#f97316' : '#e5e7eb', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                <ChevronLeft size={16} />
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
+          {isMobile && <span style={{ fontSize: '0.68rem', color: '#d1d5db' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
         </div>
       )}
 

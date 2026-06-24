@@ -3,7 +3,8 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listBranches, getBranch, createBranch, updateBranch, deleteBranch, getBranchQrUrl } from './branch.service'
+import { listBranches, getBranch, createBranch, updateBranch, deleteBranch } from './branch.service'
+import { generateBranchQR } from '../shift/shift.service'
 
 const TAG = 'Admin'
 
@@ -88,19 +89,23 @@ export async function branchRoutes(app: FastifyInstance) {
     return ok(branch, 'อัปเดตสาขาสำเร็จ')
   })
 
-  // GET /api/v1/admin/branches/:id/qr
+  // GET /api/v1/admin/branches/:id/qr  — QR ถาวรต่อสาขา (ไม่มีวันหมดอายุ)
   app.get('/branches/:id/qr', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
-      summary: 'ดึง URL สำหรับสร้าง QR เช็คอิน (1 QR ต่อ 1 สาขา)',
+      summary: 'สร้าง QR payload ถาวรสำหรับสาขา — พนักงานสแกนแล้วระบบ auto-detect กะจากเวลา',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
-    const result = await getBranchQrUrl(req.tenantId, req.params.id)
-    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
-    return ok(result)
+    try {
+      const result = await generateBranchQR(req.tenantId, req.params.id)
+      return ok(result)
+    } catch (e: any) {
+      if (e.message === 'BRANCH_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
+      throw e
+    }
   })
 
   // DELETE /api/v1/admin/branches/:id

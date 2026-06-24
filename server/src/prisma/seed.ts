@@ -7,7 +7,7 @@ async function main() {
 
   // ── 1. Super Admin (no tenant) ─────────────────────────────────────
   const superAdmin = await prisma.user.upsert({
-    where: { email: 'admin@timeline.local' },
+    where: { email: 'superadmin' },
     update: {
       password: hashedPassword,
       first_name: 'Super',
@@ -16,7 +16,7 @@ async function main() {
       is_active: true,
     },
     create: {
-      email: 'admin@timeline.local',
+      email: 'superadmin',
       password: hashedPassword,
       first_name: 'Super',
       last_name: 'Admin',
@@ -43,7 +43,7 @@ async function main() {
 
   // ── 3. Admin ของ Tenant ─────────────────────────────────────────────
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@wonghiran.com' },
+    where: { email: 'wonghi_admin' },
     update: {
       password: hashedPassword,
       first_name: 'จิรพงศ์',
@@ -53,7 +53,7 @@ async function main() {
       tenant_id: tenant.id,
     },
     create: {
-      email: 'admin@wonghiran.com',
+      email: 'wonghi_admin',
       password: hashedPassword,
       first_name: 'จิรพงศ์',
       last_name: 'ศรีอำไพ',
@@ -233,9 +233,9 @@ async function main() {
 
   console.log('\n🎉 Seed เสร็จสิ้น!')
   console.log('─────────────────────────────────────────')
-  console.log('Super Admin : admin@timeline.local  / Password123!')
-  console.log('Admin       : admin@wonghiran.com   / Password123!')
-  console.log('Dev (Swagger): netdev              / netdev99')
+  console.log('Super Admin  : superadmin    / Password123!')
+  console.log('Admin วงษ์หิรัญ: wonghi_admin / Password123!')
+  console.log('Dev (Swagger): netdev        / netdev99')
   console.log('─────────────────────────────────────────')
 }
 

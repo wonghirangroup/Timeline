@@ -1,11 +1,17 @@
 // admin/src/pages/announcement/index.tsx
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Mail, MessageSquare, Package, User, Star, Sparkles, PenLine, Clock, Smartphone, Send, AlertTriangle } from 'lucide-react'
-import { MOCK_ANNOUNCEMENTS, MOCK_FEEDBACKS, MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
-import type { AnnouncementItem, FeedbackItem } from '../../types'
+import { MOCK_FEEDBACKS } from '../../lib/mock'
+import type { FeedbackItem } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { api } from '../../lib/axios'
+
+interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
+interface ApiBranch { id: string; name: string }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string }
 
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 function thDateTime(s: string) {
@@ -24,8 +30,8 @@ const FEEDBACK_CATEGORY_CFG: Record<string, { icon: ReactNode; color: string; bg
 export default function AnnouncementPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const qc = useQueryClient()
   const [tab, setTab] = useState<'broadcast' | 'direct' | 'feedback'>('broadcast')
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(MOCK_ANNOUNCEMENTS)
   const [feedbacks] = useState<FeedbackItem[]>(MOCK_FEEDBACKS)
 
   // Broadcast form
@@ -37,33 +43,71 @@ export default function AnnouncementPage() {
   const [dEmployee, setDEmployee] = useState('')
   const [dMsg, setDMsg] = useState('')
 
+  const { data: announcements = [] } = useQuery<ApiAnnouncement[]>({
+    queryKey: ['admin', 'announcements'],
+    queryFn: () => api.get('/api/v1/admin/announcements').then(r => r.data.data),
+  })
+
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['admin', 'branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const { data: employees = [] } = useQuery<ApiEmployee[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: (data: { title: string; content: string; send_line: boolean; branch_id?: string }) =>
+      api.post('/api/v1/admin/announcements', data).then(r => r.data),
+    onSuccess: (res, data) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'announcements'] })
+      setBTitle(''); setBBody(''); setBTarget('all')
+      const lineResult = res.data?.line_result
+      if (lineResult?.error) {
+        showToast('warning', `ส่งประกาศแล้ว แต่ Line ไม่สำเร็จ: ${lineResult.error}`)
+      } else if (lineResult?.sent != null) {
+        showToast('success', `ส่งประกาศ "${data.title}" ผ่าน Line ถึง ${lineResult.sent} คน สำเร็จ`)
+      } else {
+        showToast('success', `บันทึกประกาศ "${data.title}" แล้ว`)
+      }
+    },
+    onError: () => showToast('error', 'ส่งประกาศไม่สำเร็จ'),
+  })
+
   function sendBroadcast() {
     if (!bTitle.trim() || !bBody.trim()) {
       showToast('warning', 'กรุณากรอกหัวข้อและรายละเอียดประกาศ')
       return
     }
-    const sentCount = bTarget === 'all' ? 27 : MOCK_BRANCHES.find(b => b.name === bTarget)?.employee_count ?? 0
-    const item: AnnouncementItem = {
-      id: `ann-${Date.now()}`,
-      title: bTitle,
-      body: bBody,
-      sent_at: new Date().toISOString(),
-      target: bTarget,
-      sent_count: sentCount,
-    }
-    setAnnouncements(prev => [item, ...prev])
-    setBTitle(''); setBBody(''); setBTarget('all')
-    showToast('success', `ส่งประกาศ "${bTitle}" ถึง ${sentCount} คน สำเร็จแล้ว`)
+    sendMutation.mutate({
+      title:     bTitle,
+      content:   bBody,
+      send_line: true,
+      branch_id: bTarget !== 'all' ? bTarget : undefined,
+    })
   }
+
+  const directMutation = useMutation({
+    mutationFn: (data: { employee_id: string; message: string }) =>
+      api.post('/api/v1/admin/announcements/direct', data).then(r => r.data),
+    onSuccess: (res) => {
+      setDEmployee(''); setDMsg('')
+      showToast('success', `ส่งข้อความถึง ${res.data?.to ?? 'พนักงาน'} สำเร็จแล้ว`)
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message ?? 'ส่งข้อความไม่สำเร็จ'
+      showToast('error', msg)
+    },
+  })
 
   function sendDirect() {
     if (!dEmployee || !dMsg.trim()) {
       showToast('warning', 'กรุณาเลือกพนักงานและพิมพ์ข้อความ')
       return
     }
-    const emp = MOCK_EMPLOYEES.find(e => e.id === dEmployee)
-    setDEmployee(''); setDMsg('')
-    showToast('success', `ส่งข้อความถึง ${emp?.nickname ?? 'พนักงาน'} สำเร็จแล้ว`)
+    directMutation.mutate({ employee_id: dEmployee, message: dMsg })
   }
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -114,8 +158,8 @@ export default function AnnouncementPage() {
               <div>
                 <label style={labelStyle}>ส่งถึง</label>
                 <select value={bTarget} onChange={e => setBTarget(e.target.value)} style={inputStyle}>
-                  <option value="all">ทุกคน (27 คน)</option>
-                  {MOCK_BRANCHES.map(b => <option key={b.id} value={b.name}>{b.name} ({b.employee_count} คน)</option>)}
+                  <option value="all">ทุกคน</option>
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div style={{ background: '#eff6ff', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -134,20 +178,18 @@ export default function AnnouncementPage() {
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px' }}>
             <h3 style={{ margin: '0 0 16px', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><Clock size={15} style={{ color: '#64748b' }}/>ประกาศที่ผ่านมา</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {announcements.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '0.82rem' }}>ยังไม่มีประกาศ</div>
+              )}
               {announcements.map(a => (
                 <div key={a.id} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#111827', marginBottom: 4 }}>{a.title}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 8, lineHeight: 1.5 }}>{a.body}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 8, lineHeight: 1.5 }}>{a.content}</div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#1d4ed8', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>
-                        {a.target === 'all' ? 'ทุกคน' : a.target}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', background: '#dcfce7', color: '#15803d', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>
-                        ส่งแล้ว {a.sent_count} คน
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{thDateTime(a.sent_at)}</div>
+                    <span style={{ fontSize: '0.72rem', background: a.send_line ? '#dcfce7' : '#f3f4f6', color: a.send_line ? '#15803d' : '#6b7280', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>
+                      {a.send_line ? 'ส่งผ่าน Line แล้ว' : 'ไม่ได้ส่ง Line'}
+                    </span>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{thDateTime(a.created_at)}</div>
                   </div>
                 </div>
               ))}
@@ -166,8 +208,8 @@ export default function AnnouncementPage() {
                 <label style={labelStyle}>พนักงานที่ต้องการส่งถึง</label>
                 <select value={dEmployee} onChange={e => setDEmployee(e.target.value)} style={inputStyle}>
                   <option value="">เลือกพนักงาน...</option>
-                  {MOCK_EMPLOYEES.map(e => (
-                    <option key={e.id} value={e.id}>{e.full_name} ({e.nickname}) — {e.branches[0]}</option>
+                  {employees.map(e => (
+                    <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname})</option>
                   ))}
                 </select>
               </div>
@@ -180,9 +222,10 @@ export default function AnnouncementPage() {
               </div>
               <button
                 onClick={sendDirect}
-                style={{ padding: '11px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                disabled={directMutation.isPending}
+                style={{ padding: '11px 24px', borderRadius: 8, border: 'none', cursor: directMutation.isPending ? 'not-allowed' : 'pointer', background: directMutation.isPending ? '#fdba74' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
               >
-                <Send size={15}/>ส่งข้อความ
+                <Send size={15}/>{directMutation.isPending ? 'กำลังส่ง...' : 'ส่งข้อความ'}
               </button>
             </div>
           </div>

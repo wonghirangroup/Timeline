@@ -1,5 +1,5 @@
 import { type ReactNode, useState, useEffect } from 'react'
-import Sidebar, { MobileBottomNav } from './Sidebar'
+import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useLocation } from 'react-router-dom'
 
@@ -48,11 +48,11 @@ export default function Layout({ children }: { children: ReactNode }) {
       <Sidebar isMobile={isMobile} drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: sidebarW, transition: 'margin-left 0.25s cubic-bezier(0.4,0,0.2,1)' }}>
-        <Topbar isMobile={isMobile} onMenuClick={() => setDrawerOpen(o => !o)} />
+        <Topbar isMobile={isMobile} sidebarW={sidebarW} onMenuClick={() => setDrawerOpen(o => !o)} />
 
         <main style={{
           flex: 1,
-          padding: isMobile ? '16px 16px 80px' : '24px 32px',
+          padding: isMobile ? '16px' : '24px 32px',
           marginTop: isMobile ? 56 : 64,
           maxWidth: 1400,
           marginLeft: 'auto',
@@ -66,7 +66,6 @@ export default function Layout({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {isMobile && <MobileBottomNav currentPath={location.pathname} />}
     </div>
   )
 }

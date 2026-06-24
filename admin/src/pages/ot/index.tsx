@@ -1,10 +1,35 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
-import { MOCK_BRANCHES, MOCK_EMPLOYEES } from '../../lib/mock'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { useDemoStore } from '../../stores/demoStore'
+import { api } from '../../lib/axios'
+
+interface ApiOt {
+  id: string; employee_id: string; date: string; start_time: string; end_time: string
+  hours: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  employee: { id: string; first_name: string; last_name: string; nickname: string; employee_code: string; branch: { id: string; name: string } }
+}
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code: string }
+
+function toOtRequest(a: ApiOt): OtRequest {
+  return {
+    id:           a.id,
+    employee_id:  a.employee_id,
+    full_name:    `${a.employee.first_name} ${a.employee.last_name}`,
+    nickname:     a.employee.nickname,
+    branch_name:  a.employee.branch.name,
+    date:         a.date.slice(0, 10),
+    start_time:   a.start_time,
+    end_time:     a.end_time,
+    hours:        a.hours,
+    multiplier:   1.5,
+    amount:       0,
+    note:         a.reason ?? '',
+    status:       a.status as OtStatus,
+  }
+}
 
 const OT_WEEKLY_CAP = 36
 
@@ -53,7 +78,44 @@ const card: React.CSSProperties = {
 export default function OtPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
-  const { otRequests: rows, approveOt, rejectOt, addOtRequest, payOt, bulkPayOt } = useDemoStore()
+  const qc = useQueryClient()
+
+  const { data: rawRows = [] } = useQuery<ApiOt[]>({
+    queryKey: ['admin', 'ot-requests'],
+    queryFn: () => api.get('/api/v1/admin/ot-requests').then(r => r.data.data),
+    refetchInterval: 60_000,
+  })
+  const rows: OtRequest[] = useMemo(() => rawRows.map(toOtRequest), [rawRows])
+
+  const { data: employees = [] } = useQuery<ApiEmployee[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+
+  function invalidate() { qc.invalidateQueries({ queryKey: ['admin', 'ot-requests'] }) }
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/admin/ot-requests/${id}/approve`).then(r => r.data),
+    onSuccess: (_, id) => {
+      const r = rows.find(x => x.id === id)
+      invalidate()
+      showToast('success', `อนุมัติ OT ของ "${r?.full_name}" เรียบร้อยแล้ว`)
+      setApproveTarget(null); setCalcRate(''); setCalcMultiplier(1.5)
+    },
+    onError: () => showToast('error', 'อนุมัติไม่สำเร็จ'),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      api.post(`/api/v1/admin/ot-requests/${id}/reject`, { reject_note: note || undefined }).then(r => r.data),
+    onSuccess: (_, { id }) => {
+      const r = rows.find(x => x.id === id)
+      invalidate()
+      showToast('info', `ไม่อนุมัติ OT ของ "${r?.full_name}"`)
+      setRejectTarget(null); setRejectNote('')
+    },
+    onError: () => showToast('error', 'ดำเนินการไม่สำเร็จ'),
+  })
 
   // single pay
   const [payTarget, setPayTarget]   = useState<OtRequest | null>(null)
@@ -107,32 +169,12 @@ export default function OtPage() {
     return Math.round((mins / 60) * 10) / 10
   }
 
-  const selectedEmp      = MOCK_EMPLOYEES.find(e => e.id === addForm.employee_id) ?? null
-  const selectedBranch   = selectedEmp ? MOCK_BRANCHES.find(b => selectedEmp.branches.includes(b.id)) ?? null : null
-  const addHours         = calcHours(addForm.start_time, addForm.end_time)
+  const selectedEmp = employees.find(e => e.id === addForm.employee_id) ?? null
+  const addHours    = calcHours(addForm.start_time, addForm.end_time)
 
   const doAddOt = () => {
-    if (!selectedEmp) return
-    const newOt: OtRequest = {
-      id: `ot-${Date.now()}`,
-      employee_id: selectedEmp.id,
-      full_name: selectedEmp.full_name,
-      nickname: selectedEmp.nickname,
-      branch_name: selectedBranch?.name ?? selectedEmp.branches[0] ?? '',
-      date: addForm.date,
-      start_time: addForm.start_time,
-      end_time: addForm.end_time,
-      hours: addHours,
-      multiplier: addForm.multiplier,
-      amount: 0,
-      note: addForm.note,
-      bank_account: addForm.bank_account || undefined,
-      status: addForm.status,
-    }
-    addOtRequest(newOt)
-    showToast('success', `เพิ่ม OT ให้ "${selectedEmp.full_name}" เรียบร้อย (${addHours} ชม.)`)
+    showToast('warning', 'ฟีเจอร์เพิ่ม OT ต้องการ backend endpoint — ยังไม่รองรับ')
     setShowAddModal(false)
-    setAddForm(INIT_FORM)
   }
 
   // วันจันทร์ของสัปดาห์ปัจจุบัน (2026-05-25)
@@ -172,18 +214,11 @@ export default function OtPage() {
 
   const doApprove = () => {
     if (!approveTarget) return
-    approveOt(approveTarget.id)
-    showToast('success', `อนุมัติ OT ของ "${approveTarget.full_name}" เรียบร้อยแล้ว`)
-    setApproveTarget(null)
-    setCalcRate('')
-    setCalcMultiplier(1.5)
+    approveMutation.mutate(approveTarget.id)
   }
   const doReject = () => {
     if (!rejectTarget) return
-    rejectOt(rejectTarget.id)
-    showToast('info', `ไม่อนุมัติ OT ของ "${rejectTarget.full_name}"`)
-    setRejectTarget(null)
-    setRejectNote('')
+    rejectMutation.mutate({ id: rejectTarget.id, note: rejectNote })
   }
 
   const openPay = (r: OtRequest) => {
@@ -196,17 +231,11 @@ export default function OtPage() {
     : null
 
   const doPay = () => {
-    if (!payTarget) return
-    const amount = payAmountSingle ?? undefined
-    payOt(payTarget.id, amount)
-    const fmt = amount ? `฿${amount.toLocaleString('th-TH', { maximumFractionDigits: 2 })}` : ''
-    showToast('success', `จ่าย OT "${payTarget.full_name}" เรียบร้อย${fmt ? ` — ${fmt}` : ''}`)
-    setPayTarget(null)
-    setPayRate('')
+    showToast('warning', 'ฟีเจอร์จ่าย OT ยังไม่รองรับ — ต้องการ PAID status ใน backend')
+    setPayTarget(null); setPayRate('')
   }
 
-  // รวมจ่าย — APPROVED records ของพนักงานที่เลือก
-  const bulkEmp          = MOCK_EMPLOYEES.find(e => e.id === bulkEmpId) ?? null
+  const bulkEmp = employees.find(e => e.id === bulkEmpId) ?? null
   const bulkRows         = rows.filter(r => r.employee_id === bulkEmpId && r.status === 'APPROVED')
   const bulkBank         = bulkRows.find(r => r.bank_account)?.bank_account ?? null
   const bulkTotalPerDay  = (r: OtRequest) => Number(bulkDailyRate) > 0 ? Number(bulkDailyRate) * r.multiplier : null
@@ -215,13 +244,8 @@ export default function OtPage() {
     : null
 
   const doBulkPay = () => {
-    if (!bulkEmp || bulkRows.length === 0) return
-    const amount = bulkGrandTotal ?? undefined
-    bulkPayOt(bulkRows.map(r => r.id), amount)
-    showToast('success', `รวมจ่าย OT "${bulkEmp.full_name}" ${bulkRows.length} รายการ${amount ? ` — ฿${amount.toLocaleString('th-TH', { maximumFractionDigits: 2 })}` : ''} เรียบร้อย`)
-    setShowBulkPay(false)
-    setBulkEmpId('')
-    setBulkDailyRate('')
+    showToast('warning', 'ฟีเจอร์รวมจ่าย OT ยังไม่รองรับ — ต้องการ PAID status ใน backend')
+    setShowBulkPay(false); setBulkEmpId(''); setBulkDailyRate('')
   }
 
   const openApprove = (r: OtRequest) => {
@@ -262,12 +286,7 @@ export default function OtPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Mock banner */}
-      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center' }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
-      </div>
-
-      {/* Header - Title removed */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
@@ -364,8 +383,8 @@ export default function OtPage() {
             style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
           >
             <option value="">ทุกสาขา</option>
-            {MOCK_BRANCHES.map(b => (
-              <option key={b.id} value={b.name}>{b.name}</option>
+            {[...new Set(rows.map(r => r.branch_name))].map(name => (
+              <option key={name} value={name}>{name}</option>
             ))}
           </select>
         </div>
@@ -618,10 +637,9 @@ export default function OtPage() {
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${!addForm.employee_id ? '#fca5a5' : '#e5e7eb'}`, fontSize: '13px', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
               >
                 <option value="">-- เลือกพนักงาน --</option>
-                {MOCK_EMPLOYEES.map(e => {
-                  const br = MOCK_BRANCHES.find(b => e.branches.includes(b.id))
-                  return <option key={e.id} value={e.id}>{e.full_name} ({e.nickname}) — {br?.name ?? e.branches[0]}</option>
-                })}
+                {employees.map(e => (
+                  <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname})</option>
+                ))}
               </select>
             </div>
 
@@ -764,11 +782,11 @@ export default function OtPage() {
               >
                 <option value="">-- เลือกพนักงาน --</option>
                 {/* แสดงเฉพาะคนที่มี APPROVED อยู่ */}
-                {MOCK_EMPLOYEES
+                {employees
                   .filter(e => rows.some(r => r.employee_id === e.id && r.status === 'APPROVED'))
                   .map(e => {
                     const cnt = rows.filter(r => r.employee_id === e.id && r.status === 'APPROVED').length
-                    return <option key={e.id} value={e.id}>{e.full_name} ({e.nickname}) — {cnt} รายการรอจ่าย</option>
+                    return <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname}) — {cnt} รายการรอจ่าย</option>
                   })
                 }
               </select>

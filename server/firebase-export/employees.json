@@ -1,0 +1,370 @@
+[
+  {
+    "_id": "58-01-001",
+    "employeeId": "58-01-001",
+    "name": "ชาตรี วงษ์วิบูลย์สิน",
+    "department": "01",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2015-01-01",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U75e16819a50703451e9223349adee0d4",
+    "phone": "0819999828",
+    "nickname": "ตอง"
+  },
+  {
+    "_id": "58-01-002",
+    "employeeId": "58-01-002",
+    "name": "เภาไพรรำ หิรัญประทีป",
+    "department": "01",
+    "phone": "0843335828",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2015-01-01",
+    "branch": "วงษ์หิรัญ",
+    "nickname": "พี่จิ๋ว"
+  },
+  {
+    "_id": "59-03-001",
+    "employeeId": "59-03-001",
+    "name": "ศุภนุช จึงอนุวัตร",
+    "department": "03",
+    "phone": "0841982368",
+    "joinDate": "2016-07-01",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U8acb6da04ea3e9a9c32ee26b53cc7954",
+    "nickname": "พิม",
+    "branches": [
+      "วงษ์หิรัญ",
+      "ฟุคุโระ ไนท์สวนหมาก"
+    ]
+  },
+  {
+    "_id": "60-03-001",
+    "employeeId": "60-03-001",
+    "name": "นวลละออ  โพธิ์สูงเนิน",
+    "department": "03",
+    "phone": "0811862480",
+    "joinDate": "2017-01-04",
+    "branch": "ฟุคุโระ ไนท์สวนหมาก",
+    "lineUserId": "U52fbae6f58ecf4b0da51343796e84330",
+    "nickname": "ปุ๋ย",
+    "branches": [
+      "ฟุคุโระ ไนท์สวนหมาก"
+    ]
+  },
+  {
+    "_id": "63-03-001",
+    "employeeId": "63-03-001",
+    "name": "มณธิดา สว่างเมฆ",
+    "department": "03",
+    "phone": "0625595460",
+    "branch": "ฟุคุโระ แม่กิมเฮง",
+    "lineUserId": "U25b78a30ca867a199e0df8cb917802cb",
+    "joinDate": "2020-11-01",
+    "nickname": "เฟิร์ส",
+    "branches": [
+      "ฟุคุโระ แม่กิมเฮง",
+      "ฟุคุโระ ไนท์สวนหมาก"
+    ]
+  },
+  {
+    "_id": "63-04-001",
+    "employeeId": "63-04-001",
+    "name": "สิรีธร  จึงอนุวัตร",
+    "department": "04",
+    "phone": "0849608786",
+    "joinDate": "2020-02-17",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U9c63a1fea0fa797ad2bd9e800575920f",
+    "nickname": "กุล",
+    "branches": [
+      "วงษ์หิรัญ",
+      "ฟุคุโระ ไนท์สวนหมาก"
+    ]
+  },
+  {
+    "_id": "64-02-001",
+    "employeeId": "64-02-001",
+    "name": "อมรรัตน์ โชติมณี",
+    "department": "02",
+    "joinDate": "2021-09-01",
+    "branch": "วงษ์หิรัญ",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "lineUserId": "Uea7f02b3f9e92019ab8c36d1c71a0341",
+    "phone": "0858792878",
+    "nickname": "ปิ๋ว"
+  },
+  {
+    "_id": "65-03-001",
+    "employeeId": "65-03-001",
+    "name": "สนธิญา เผื่อนกระโทก",
+    "department": "03",
+    "phone": "0821282803",
+    "joinDate": "2022-01-11",
+    "branch": "ฟุคุโระ แม่กิมเฮง",
+    "lineUserId": "Uacfd5af18e58ce81312ca6503609f2e1",
+    "nickname": "มิลล์",
+    "branches": [
+      "ฟุคุโระ แม่กิมเฮง",
+      "ฟุคุโระ ไนท์สวนหมาก",
+      "วงษ์หิรัญ"
+    ]
+  },
+  {
+    "_id": "66-03-001",
+    "employeeId": "66-03-001",
+    "name": "ปัทมา ปลั่งกลาง",
+    "department": "03",
+    "phone": "0630052922",
+    "joinDate": "2023-03-12",
+    "branch": "ฟุคุโระ ตลาดย่าโม",
+    "lineUserId": "U003a5dde56544ac69d40958d11f612dd",
+    "nickname": "แพร",
+    "branches": [
+      "ฟุคุโระ ตลาดย่าโม"
+    ]
+  },
+  {
+    "_id": "66-03-002",
+    "employeeId": "66-03-002",
+    "name": "ภัทรภรณ์  ปู่นุช",
+    "department": "03",
+    "phone": "0610796852",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2023-09-16",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U3149cbc9035ce1bfa3be5913bd62c083",
+    "nickname": "แบม"
+  },
+  {
+    "_id": "67-03-001",
+    "employeeId": "67-03-001",
+    "name": "หทัยชนก  ยืนยง",
+    "department": "03",
+    "phone": "0936964277",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2024-04-02",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U6346396a2c861953be5e8179aafd60cc",
+    "nickname": "จุ๋ม"
+  },
+  {
+    "_id": "67-03-002",
+    "employeeId": "67-03-002",
+    "name": "ลัดดาวัลย์ ปอกระโทก",
+    "department": "03",
+    "phone": "0628199482",
+    "joinDate": "2024-07-01",
+    "branch": "ฟุคุโระ เทิดไท",
+    "lineUserId": "Uc76a8399c1b0d07303e36f5e3f141a01",
+    "nickname": "แป๋ว",
+    "branches": [
+      "ฟุคุโระ เทิดไท"
+    ]
+  },
+  {
+    "_id": "68-02-002",
+    "employeeId": "68-02-002",
+    "name": "วรวลันท์ สันติชีวานันท์",
+    "department": "02",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-10-01",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U9fcde089870baec24ebca91ada1446ff",
+    "phone": "0956056336",
+    "nickname": "อุ๋ม"
+  },
+  {
+    "_id": "68-02-003",
+    "employeeId": "68-02-003",
+    "name": "พิชิต ม่วงเมืองแสน",
+    "department": "02",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-10-02",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "Uf8b057f95db7bf22b00e137bf586acc9",
+    "phone": "0887194063",
+    "nickname": "มอส"
+  },
+  {
+    "_id": "68-02-004",
+    "employeeId": "68-02-004",
+    "name": "จิรพงศ์ ศรีอำไพ",
+    "phone": "0981143300",
+    "joinDate": "2025-10-25",
+    "lineUserId": "U73c5e93b22447aa6a99870b2765c6c68",
+    "nickname": "เน็ต",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "department": "02",
+    "branch": "วงษ์หิรัญ"
+  },
+  {
+    "_id": "68-03-003",
+    "employeeId": "68-03-003",
+    "name": "ธิดารัตน์ อามาตร์",
+    "department": "03",
+    "phone": "0611127325",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-07-31",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U1e5c8c890483993a617aa80cb5d30fd7",
+    "nickname": "ใบเตย"
+  },
+  {
+    "_id": "68-03-004",
+    "employeeId": "68-03-004",
+    "name": "ณัฐธิชา พิมพ์สระเกตุ",
+    "department": "03",
+    "phone": "0937680413",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-08-07",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "Ua60d8d0edb55f1c1d63e3893c6e6cb36",
+    "nickname": "สมาย"
+  },
+  {
+    "_id": "68-03-007",
+    "employeeId": "68-03-007",
+    "name": "ณัฐวดี แสนอ้วน",
+    "nickname": "ออน",
+    "department": "03",
+    "phone": "0839389954",
+    "joinDate": "2025-12-12",
+    "branch": "ฟุคุโระ เทิดไท",
+    "lineUserId": "Ue8b7a92c44751d267816ad6ecd42ef93",
+    "branches": [
+      "ฟุคุโระ เทิดไท"
+    ]
+  },
+  {
+    "_id": "68-04-002",
+    "employeeId": "68-04-002",
+    "name": "ธนะรัตน์ ทองกระโทก",
+    "department": "04",
+    "phone": "0611750200",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-10-10",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U3c13faf07df94cf82dfb624831aa34fc",
+    "nickname": "ม่อน"
+  },
+  {
+    "_id": "68-04-003",
+    "employeeId": "68-04-003",
+    "name": "ธนา เบี้ยกระโทก",
+    "department": "04",
+    "phone": "0930839310",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2025-10-16",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "Ub5416adc2e3b129354b96e615a2435dc",
+    "nickname": "สมติ้ด"
+  },
+  {
+    "_id": "69-02-001",
+    "employeeId": "69-02-001",
+    "name": "กิตติมา กวงขุนทด",
+    "nickname": "แพรว",
+    "department": "02",
+    "phone": "0958945375",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-05-04",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U5787305d703434672aef48aaebc5c34d"
+  },
+  {
+    "_id": "69-02-002",
+    "employeeId": "69-02-002",
+    "name": "กิตตินันท์ ทิพย์รักษา",
+    "nickname": "บีม",
+    "department": "02",
+    "phone": "0821492753",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-06-15",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "Uad0d5e05ce71143f3b0d98306ffaa34a"
+  },
+  {
+    "_id": "69-03-004",
+    "employeeId": "69-03-004",
+    "name": "นิธิภรณ์ พรมสุภา",
+    "nickname": "มุก",
+    "department": "03",
+    "phone": "0639743740",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-02-21",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U40611677850a13f93f4613bddd5d4930"
+  },
+  {
+    "_id": "69-03-005",
+    "employeeId": "69-03-005",
+    "name": "ชลธิชา หงษาวดี",
+    "nickname": "พิ้งค์",
+    "department": "03",
+    "phone": "0970907451",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-05-30",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U15730e925e785a991da23151fd7814f6"
+  },
+  {
+    "_id": "69-03-006",
+    "employeeId": "69-03-006",
+    "name": "เริงฤดี  สมเสนาะ",
+    "nickname": "ปลา",
+    "department": "03",
+    "phone": "0645188960",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-06-01",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U0669bed1d33dd2f66e4f8385cdaef236"
+  },
+  {
+    "_id": "69-03-007",
+    "employeeId": "69-03-007",
+    "name": "วงศ์ฤทัย  จงจอหอ",
+    "nickname": "ปราย",
+    "department": "03",
+    "phone": "0959241181",
+    "branches": [
+      "วงษ์หิรัญ"
+    ],
+    "joinDate": "2026-06-19",
+    "branch": "วงษ์หิรัญ",
+    "lineUserId": "U886d079c48e3ef90f56e8e5ac6de6241"
+  }
+]

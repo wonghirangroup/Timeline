@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listAnnouncements, createAnnouncement, deleteAnnouncement } from './announcement.service'
+import { listAnnouncements, createAnnouncement, deleteAnnouncement, sendDirectMessage } from './announcement.service'
 
 export async function announcementRoutes(app: FastifyInstance) {
 
@@ -34,12 +34,43 @@ export async function announcementRoutes(app: FastifyInstance) {
           title:     { type: 'string' },
           content:   { type: 'string' },
           send_line: { type: 'boolean', description: 'broadcast ผ่าน Line ด้วย' },
+          branch_id: { type: 'string', description: 'ส่งถึงสาขาเฉพาะ (ไม่ระบุ = ทุกคน)' },
         },
       },
     },
   }, async (req: any, reply) => {
-    const announcement = await createAnnouncement(req.tenantId, req.userId!, req.body)
+    const announcement = await createAnnouncement(req.tenantId, req.userId!, {
+      title:     req.body.title,
+      content:   req.body.content,
+      send_line: req.body.send_line,
+      branch_id: req.body.branch_id,
+    })
     return reply.code(201).send(ok(announcement, 'สร้างประกาศสำเร็จ'))
+  })
+
+  // POST /api/v1/admin/announcements/direct
+  app.post('/announcements/direct', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ส่งข้อความส่วนตัวผ่าน Line',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'message'],
+        properties: {
+          employee_id: { type: 'string' },
+          message:     { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await sendDirectMessage(req.tenantId, req.body.employee_id, req.body.message)
+      return reply.code(200).send(ok(result, 'ส่งข้อความสำเร็จ'))
+    } catch (err: any) {
+      return reply.code(400).send(fail('SEND_FAILED', err.message))
+    }
   })
 
   // DELETE /api/v1/admin/announcements/:id

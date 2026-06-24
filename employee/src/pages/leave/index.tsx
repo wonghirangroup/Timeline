@@ -1,7 +1,10 @@
-// employee/src/pages/leave/index.tsx  [MOCK MODE — FinWise layout]
+// employee/src/pages/leave/index.tsx
 import { useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
+import { api } from '../../lib/axios'
+import { useAuthStore } from '../../stores/authStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface LeaveBalance { leave_type: string; total_days: number; used_days: number }
@@ -11,68 +14,24 @@ interface LeaveRequest {
   reviewed_at: string | null; reject_note: string | null
 }
 interface ColleagueOff {
-  id: string; date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  employee: { first_name: string; last_name: string; nickname: string | null }
+  id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null }
 }
-interface SavedOff { dateStr: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
-
-// ─── Employee types & quota ───────────────────────────────────────────────────
-type EmployeeType = 'FULL_TIME' | 'PART_TIME'
-
-const DAY_OFF_QUOTA: Record<EmployeeType, number> = {
-  FULL_TIME: 5,   // พนักงานประจำ
-  PART_TIME: 4,   // รายวัน / part-time
+interface WeeklyOffRecord {
+  id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null }
 }
-
-const EMP_TYPE_LABEL: Record<EmployeeType, string> = {
-  FULL_TIME: 'พนักงานประจำ',
-  PART_TIME: 'รายวัน / Part-time',
-}
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_EMPLOYEE = {
-  id: 'emp-001', first_name: 'สมชาย', last_name: 'ใจดี',
-  branch_id: 'br-01', employee_type: 'FULL_TIME' as EmployeeType,
-}
-
-// ─── Day-off slot config (Admin-configured per branch per month) ──────────────
-// key = `${branchId}::${monthStr}` → sorted date strings that are bookable
-const MOCK_ALLOWED_SLOTS: Record<string, string[]> = {
-  'br-01::2026-06': ['2026-06-02', '2026-06-09', '2026-06-16', '2026-06-23', '2026-06-30'],
-  'br-01::2026-07': ['2026-07-07', '2026-07-14', '2026-07-21', '2026-07-28'],
-}
-
-function getAllowedDates(branchId: string, monthStr: string): string[] | null {
-  const key = `${branchId}::${monthStr}`
-  return MOCK_ALLOWED_SLOTS[key] ?? null
-}
-
-const MOCK_BALANCES: LeaveBalance[] = [
-  { leave_type: 'SICK',     total_days: 30, used_days: 2 },
-  { leave_type: 'PERSONAL', total_days: 3,  used_days: 1 },
-  { leave_type: 'VACATION', total_days: 10, used_days: 3 },
-]
+interface PeriodStatus { is_open: boolean; deadline: string | null; note: string | null }
 
 const pad = (n: number) => String(n).padStart(2, '0')
-const y     = new Date().getFullYear()
-const prevM = new Date().getMonth() === 0 ? 12 : new Date().getMonth()
-const prevY = new Date().getMonth() === 0 ? y - 1 : y
-const curM  = pad(new Date().getMonth() + 1)
 
-const MOCK_REQUESTS_INIT: LeaveRequest[] = [
-  { id: 'lr-001', leave_type: 'SICK',     start_date: `${prevY}-${pad(prevM)}-10`, end_date: `${prevY}-${pad(prevM)}-10`, days: 1, reason: 'ป่วยเป็นไข้',  status: 'APPROVED', reviewed_at: null, reject_note: null },
-  { id: 'lr-002', leave_type: 'PERSONAL', start_date: `${prevY}-${pad(prevM)}-20`, end_date: `${prevY}-${pad(prevM)}-21`, days: 2, reason: 'ธุระส่วนตัว',  status: 'APPROVED', reviewed_at: null, reject_note: null },
-  { id: 'lr-003', leave_type: 'SICK',     start_date: `${y}-${curM}-05`,           end_date: `${y}-${curM}-05`,           days: 1, reason: 'ไม่สบาย',      status: 'PENDING',  reviewed_at: null, reject_note: null },
-]
-
-// Colleagues who have booked days off (date format: YYYY-MM-DD)
-const MOCK_COLLEAGUES: ColleagueOff[] = [
-  { id: 'mc-1', date: `${y}-${curM}-08`, status: 'APPROVED', employee: { first_name: 'มานี',    last_name: 'รักเรียน', nickname: 'มานี'  } },
-  { id: 'mc-2', date: `${y}-${curM}-08`, status: 'PENDING',  employee: { first_name: 'วิชัย',  last_name: 'ดีงาม',   nickname: 'อ้น'   } },
-  { id: 'mc-3', date: `${y}-${curM}-15`, status: 'APPROVED', employee: { first_name: 'สมหญิง', last_name: 'ใจงาม',   nickname: null    } },
-  { id: 'mc-4', date: `${y}-${curM}-22`, status: 'PENDING',  employee: { first_name: 'ประภา',  last_name: 'ดีมาก',   nickname: 'ป้อม'  } },
-  { id: 'mc-5', date: `${y}-${curM}-22`, status: 'APPROVED', employee: { first_name: 'ชัยณรงค์',last_name: 'ขยัน', nickname: 'เอก'   } },
-]
+function resolveDate(weekStart: string, dayOfWeek: number): string {
+  const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
+  if (d.getUTCDay() === dayOfWeek) return weekStart.slice(0, 10)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString().slice(0, 10)
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -92,11 +51,11 @@ const DAYS_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(s: string) {
-  const d = new Date(s + 'T00:00:00')
+  const d = new Date(s.slice(0, 10) + 'T00:00:00')
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 function fmtDateShort(s: string) {
-  const d = new Date(s + 'T00:00:00')
+  const d = new Date(s.slice(0, 10) + 'T00:00:00')
   return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`
 }
 function countDays(start: string, end: string) {
@@ -123,14 +82,6 @@ function toDateStr(ym: string, d: number) { return `${ym}-${String(d).padStart(2
 
 type Tab = 'calendar' | 'booking' | 'request'
 
-// ─── Mock personal day-off bookings (for calendar view) ───────────────────────
-const MOCK_MY_DAY_OFFS = [
-  { date: `${y}-${curM}-02`, status: 'APPROVED' as const },
-  { date: `${y}-${curM}-09`, status: 'APPROVED' as const },
-  { date: `${y}-${curM}-16`, status: 'PENDING'  as const },
-  { date: `${y}-${curM}-23`, status: 'APPROVED' as const },
-]
-
 const MOCK_PUB_HOLIDAYS = [
   { date: '2026-06-03', name: 'วันเฉลิมพระชนมพรรษา (ชดเชย)' },
 ]
@@ -151,13 +102,12 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
   const firstDow   = getFirstDow(month)
   const totalCells = Math.ceil((totalDays + firstDow) / 7) * 7
 
-  const getMyOff    = (d: string) => MOCK_MY_DAY_OFFS.find(x => x.date === d) ?? null
+  const getMyOff    = (_d: string) => null
   const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
-  const getColls    = (d: string) => colleagues.filter(c => c.date === d)
+  const getColls    = (d: string) => colleagues.filter(c => resolveDate(c.week_start, c.day_of_week) === d)
   const getHoliday  = (d: string) => MOCK_PUB_HOLIDAYS.find(h => h.date === d) ?? null
 
-  // How many of my day-offs confirmed this month
-  const myOffThisMonth = MOCK_MY_DAY_OFFS.filter(d => d.date.startsWith(month) && d.status === 'APPROVED').length
+  const myOffThisMonth = 0
 
   const selMyOff  = selDay ? getMyOff(selDay)    : null
   const selLeaves = selDay ? getMyLeaves(selDay)  : []
@@ -236,8 +186,8 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
             const holiday   = getHoliday(dateStr)
             const isToday   = dateStr === today
             const isSel     = selDay === dateStr
-            const isApprOff = myOff?.status === 'APPROVED'
-            const isPendOff = myOff?.status === 'PENDING'
+            const isApprOff = false
+            const isPendOff = false
             const firstLeave = myLeaves[0]
             const lCfg       = firstLeave ? LEAVE_TYPES.find(t => t.code === firstLeave.leave_type) : null
             const isPast     = dateStr < today
@@ -337,17 +287,7 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
             </div>
           )}
 
-          {selMyOff && (
-            <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: '#FFF7ED', border: '1.5px solid #FED7AA' }}>
-              <span style={{ fontSize: '1.6rem' }}>🏖️</span>
-              <div>
-                <div style={{ fontWeight: 700, color: '#EA580C', fontSize: '0.9rem' }}>วันหยุดของฉัน</div>
-                <div style={{ fontSize: '0.75rem', marginTop: 2, fontWeight: 600, color: selMyOff.status === 'APPROVED' ? '#16a34a' : '#D97706' }}>
-                  {selMyOff.status === 'APPROVED' ? '✅ ผู้จัดการอนุมัติแล้ว' : '⏳ รอผู้จัดการอนุมัติ'}
-                </div>
-              </div>
-            </div>
-          )}
+          {false && selMyOff && null}
 
           {selLeaves.map(lr => {
             const cfg = LEAVE_TYPES.find(t => t.code === lr.leave_type)
@@ -423,75 +363,72 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Monthly Off Booking Tab
+// Monthly Off Booking Tab (real API)
 // ═══════════════════════════════════════════════════════════════════════════════
-function MonthlyBooking({ colleagues, branchId, employeeType }: {
-  colleagues: ColleagueOff[]; branchId: string; employeeType: EmployeeType
-}) {
+function MonthlyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
   const today      = new Date().toISOString().slice(0, 10)
   const todayMonth = today.slice(0, 7)
+  const qc         = useQueryClient()
 
-  const [month,      setMonth]      = useState(() => getMonthStr(new Date()))
-  const [picks,      setPicks]      = useState<Record<number, string>>({})   // weekRow → dateStr
-  const [saved,      setSaved]      = useState<SavedOff[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [done,       setDone]       = useState(false)
-  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
+  const [month,      setMonth]   = useState(todayMonth)
+  const [selDate,    setSelDate] = useState('')
+  const [errorMsg,   setErrorMsg] = useState<string | null>(null)
+  const [successMsg, setSuccess]  = useState(false)
 
-  const totalDays   = getDaysInMonth(month)
-  const firstDow    = getFirstDow(month)
-  const totalWeeks  = Math.ceil((firstDow + totalDays) / 7)
   const isPastMonth = month < todayMonth
-
-  // Quota per employee type — 1 วัน/สัปดาห์ ไม่จำกัดวัน
-  const quota        = totalWeeks   // เลือกได้สูงสุด 1 วันต่อสัปดาห์ (จำนวนสัปดาห์ในเดือน)
-  const effectiveMax = totalWeeks
-
-  // Colleague map: date → ColleagueOff[]
-  const colleagueMap = new Map<string, ColleagueOff[]>()
-  colleagues.filter(c => c.date.startsWith(month)).forEach(c => {
-    if (!colleagueMap.has(c.date)) colleagueMap.set(c.date, [])
-    colleagueMap.get(c.date)!.push(c)
-  })
-
-  // Saved dates for this month
-  const savedThisMonth = saved.filter(s => s.dateStr.startsWith(month))
-
-  function toggleDay(day: number) {
-    const dateStr = `${month}-${pad(day)}`
-    if (dateStr < today) return          // ไม่เลือกวันที่ผ่านมาแล้ว
-    const wRow = weekRow(day, firstDow)
-    setPicks(prev => {
-      const next = { ...prev }
-      if (next[wRow] === dateStr) {
-        delete next[wRow]               // กดซ้ำ = ยกเลิก
-      } else {
-        next[wRow] = dateStr            // เปลี่ยนวันในสัปดาห์นั้น (1 วัน/สัปดาห์ auto-replace)
-      }
-      return next
-    })
-    setDone(false); setErrorMsg(null)
-  }
 
   function changeMonth(delta: number) {
     setMonth(m => addMonths(m, delta))
-    setPicks({}); setDone(false); setErrorMsg(null)
+    setSelDate(''); setErrorMsg(null); setSuccess(false)
   }
 
-  async function handleSubmit() {
-    const dates = Object.values(picks).sort()
-    if (dates.length === 0) { setErrorMsg('กรุณาเลือกอย่างน้อย 1 วัน'); return }
-    setSubmitting(true); setErrorMsg(null)
-    await new Promise(r => setTimeout(r, 900))
-    setSaved(prev => [
-      ...prev.filter(s => !s.dateStr.startsWith(month)),
-      ...dates.map(d => ({ dateStr: d, status: 'PENDING' as const })),
-    ])
-    setPicks({}); setDone(true); setSubmitting(false)
-  }
+  const periodQ = useQuery<PeriodStatus>({
+    queryKey: ['employee', 'weekly-off-period', branchId, month],
+    queryFn: () => api.get('/employee/weekly-off/period-status', { params: { branchId, month } }).then((r: any) => r.data.data),
+    enabled: !!branchId,
+  })
+  const viewQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+    queryKey: ['employee', 'weekly-off-view', employeeId, month],
+    queryFn: () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
+    enabled: !!employeeId,
+  })
 
-  const pickedDates  = Object.values(picks).sort()
-  const pickedCount  = pickedDates.length
+  const isOpen    = periodQ.data?.is_open ?? false
+  const ownOff    = viewQ.data?.own?.[0] ?? null
+  const colleagues = viewQ.data?.colleagues ?? []
+  const ownDate   = ownOff ? resolveDate(ownOff.week_start, ownOff.day_of_week) : null
+
+  // Colleague map: date → ColleagueOff[]
+  const colleagueMap = new Map<string, ColleagueOff[]>()
+  colleagues.forEach(c => {
+    const d = resolveDate(c.week_start, c.day_of_week)
+    if (!colleagueMap.has(d)) colleagueMap.set(d, [])
+    colleagueMap.get(d)!.push(c)
+  })
+
+  const submitMutation = useMutation({
+    mutationFn: () => api.post('/employee/weekly-off/monthly', { employee_id: employeeId, date: selDate }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view', employeeId, month] })
+      setSelDate(''); setSuccess(true); setErrorMsg(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(code === 'ALREADY_REQUESTED' ? 'คุณมีการจองวันหยุดเดือนนี้แล้ว' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+    },
+  })
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/employee/weekly-off/${id}`, { params: { employeeId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view', employeeId, month] })
+      setSuccess(false)
+    },
+    onError: () => setErrorMsg('ยกเลิกไม่สำเร็จ'),
+  })
+
+  const totalDays  = getDaysInMonth(month)
+  const firstDow   = getFirstDow(month)
+  const totalWeeks = Math.ceil((firstDow + totalDays) / 7)
   const navBtnStyle: React.CSSProperties = {
     width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)',
     background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -507,8 +444,8 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
         </button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
-          <div style={{ fontSize: '0.68rem', color: '#9CA3AF', marginTop: 2 }}>
-            เลือกได้ 1 วัน/สัปดาห์ · {totalWeeks} สัปดาห์
+          <div style={{ fontSize: '0.68rem', color: isOpen ? '#16A34A' : '#DC2626', marginTop: 2, fontWeight: 600 }}>
+            {isOpen ? '🟢 เปิดรับการจอง' : '🔴 ปิดการจองแล้ว'}
           </div>
         </div>
         <button style={navBtnStyle} onClick={() => changeMonth(1)}>
@@ -516,42 +453,55 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
         </button>
       </div>
 
-      {/* Employee type + quota strip */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(0,0,0,0.03)', borderRadius: 12, marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fff', background: employeeType === 'FULL_TIME' ? '#3B82F6' : '#8B5CF6', borderRadius: 99, padding: '3px 10px' }}>
-            {EMP_TYPE_LABEL[employeeType]}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {Array.from({ length: quota }).map((_, i) => (
-            <div key={i} style={{ width: 10, height: 10, borderRadius: '50%',
-              background: i < Object.keys(picks).length ? COLOR.primary : 'rgba(0,0,0,0.12)',
-              transition: 'background 0.2s',
-            }} />
-          ))}
-          <span style={{ fontSize: '0.7rem', color: '#6B7D90', marginLeft: 4, fontWeight: 600 }}>
-            {Object.keys(picks).length}/{totalWeeks} สัปดาห์
-          </span>
-        </div>
-      </div>
-
-      {/* Saved bookings badge */}
-      {savedThisMonth.length > 0 && (
-        <div style={{ background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#16A34A', marginBottom: 8 }}>✅ จองแล้วเดือนนี้</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {savedThisMonth.map(s => (
-              <span key={s.dateStr} style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16A34A', background: 'rgba(22,163,74,0.1)', borderRadius: 99, padding: '4px 12px' }}>
-                {fmtDateShort(s.dateStr)}
-              </span>
-            ))}
-          </div>
-          <div style={{ marginTop: 8, fontSize: '0.72rem', color: '#9CA3AF' }}>รอผู้จัดการพิจารณา · แจ้งผลทาง LINE</div>
+      {/* Period note from admin */}
+      {periodQ.data?.note && (
+        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600 }}>
+          📋 {periodQ.data.note}
         </div>
       )}
 
-      {/* Calendar */}
+      {/* Period closed banner */}
+      {!isOpen && !periodQ.isLoading && (
+        <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
+          <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองเดือนนี้</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะครับ</div>
+        </div>
+      )}
+
+      {/* Own booking badge */}
+      {ownOff && ownDate && (
+        <div style={{ background: ownOff.status === 'APPROVED' ? '#F0FDF4' : '#FFFBEB', border: `1px solid ${ownOff.status === 'APPROVED' ? 'rgba(22,163,74,0.25)' : '#FDE68A'}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: ownOff.status === 'APPROVED' ? '#16A34A' : '#D97706' }}>
+              {ownOff.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : '⏳ รอพิจารณา'}
+            </div>
+            {ownOff.status === 'PENDING' && (
+              <button onClick={() => cancelMutation.mutate(ownOff.id)} disabled={cancelMutation.isPending}
+                style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {cancelMutation.isPending ? '...' : 'ยกเลิก'}
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '1.8rem' }}>🏖️</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A2B3C' }}>วันหยุดเดือนนี้</div>
+              <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>{fmtDate(ownDate)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success flash */}
+      {successMsg && !ownOff && (
+        <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, marginBottom: 14, textAlign: 'center', fontWeight: 700, color: '#16A34A', fontSize: '0.88rem' }}>
+          📨 ส่งคำขอแล้ว รอผู้จัดการพิจารณา
+        </div>
+      )}
+
+      {/* Calendar (visible only when period open and no existing booking) */}
+      {isOpen && !ownOff && (
       <div style={{ background: '#F9FAFB', borderRadius: 18, padding: '14px 10px', marginBottom: 16, border: '1px solid rgba(0,0,0,0.05)' }}>
 
         {/* Day headers */}
@@ -567,72 +517,40 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
 
         {/* Week rows */}
         {Array.from({ length: totalWeeks }).map((_, wIdx) => {
-          const pickedForWeek = picks[wIdx]
-          const savedForWeek  = savedThisMonth.find(s => weekRow(parseInt(s.dateStr.slice(8)), firstDow) === wIdx)
+          const _unused = wIdx
 
           return (
             <div key={wIdx} style={{ marginBottom: 4 }}>
-              {/* Week label strip */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '20px repeat(7, 1fr)', gap: 2, alignItems: 'center',
-                background: pickedForWeek ? 'rgba(255,107,53,0.05)' : savedForWeek ? 'rgba(22,163,74,0.04)' : 'transparent',
-                borderRadius: 10, padding: '2px 0',
-              }}>
-                {/* สป.N */}
-                <div style={{ fontSize: '8px', fontWeight: 800, textAlign: 'center', lineHeight: 1.2,
-                  color: pickedForWeek ? COLOR.primary : savedForWeek ? '#16A34A' : '#D1D5DB' }}>
-                  ส{wIdx + 1}
-                </div>
-
+              <div style={{ display: 'grid', gridTemplateColumns: '20px repeat(7, 1fr)', gap: 2, alignItems: 'center', borderRadius: 10, padding: '2px 0' }}>
+                <div style={{ fontSize: '8px', fontWeight: 800, textAlign: 'center', lineHeight: 1.2, color: '#D1D5DB' }}>ส{wIdx + 1}</div>
                 {Array.from({ length: 7 }).map((_, dow) => {
                   const day = wIdx * 7 + dow - firstDow + 1
                   if (day < 1 || day > totalDays) return <div key={dow} />
+                  const dateStr    = `${month}-${pad(day)}`
+                  const isPast     = dateStr < today || isPastMonth
+                  const isToday    = dateStr === today
+                  const isSelected = selDate === dateStr
+                  const collegues  = colleagueMap.get(dateStr) ?? []
+                  const dayColor   = dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : '#1A2B3C'
 
-                  const dateStr      = `${month}-${pad(day)}`
-                  const isPast       = dateStr < today || isPastMonth
-                  const isToday      = dateStr === today
-                  const isPickedThis = picks[wIdx] === dateStr
-                  const isSaved      = savedThisMonth.some(s => s.dateStr === dateStr)
-                  const collegues    = colleagueMap.get(dateStr) ?? []
-                  const dayColor     = dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : '#1A2B3C'
+                  let cellBg = isPast ? 'transparent' : 'rgba(255,107,53,0.04)'
+                  let cellBorder = isPast ? '1.5px solid transparent' : `1.5px solid ${COLOR.primary}22`
+                  let numColor = isPast ? '#D1D5DB' : dayColor
 
-                  let cellBg     = !isPast && !isSaved ? 'rgba(255,107,53,0.04)' : 'transparent'
-                  let cellBorder = !isPast && !isSaved ? `1.5px solid ${COLOR.primary}22` : '1.5px solid transparent'
-                  let numColor   = isPast ? '#D1D5DB' : dayColor
-
-                  if (isPickedThis) {
-                    cellBg = COLOR.primary; cellBorder = `1.5px solid ${COLOR.primary}`; numColor = '#fff'
-                  } else if (isSaved) {
-                    cellBg = 'rgba(22,163,74,0.12)'; cellBorder = '1.5px solid rgba(22,163,74,0.3)'; numColor = '#16A34A'
-                  } else if (isToday) {
-                    cellBorder = `1.5px solid ${COLOR.primary}66`
-                  }
+                  if (isSelected) { cellBg = COLOR.primary; cellBorder = `1.5px solid ${COLOR.primary}`; numColor = '#fff' }
+                  else if (isToday) { cellBorder = `1.5px solid ${COLOR.primary}66` }
 
                   return (
                     <button key={dow}
-                      onClick={() => !isSaved && toggleDay(day)}
-                      style={{
-                        position: 'relative', border: cellBorder, borderRadius: 8,
-                        background: cellBg, padding: '5px 1px 4px',
-                        cursor: isPast || isSaved ? 'default' : 'pointer',
-                        textAlign: 'center', transition: 'all 0.12s',
-                        opacity: isPast && !isSaved ? 0.25 : 1,
-                        minHeight: 42,
-                      }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: isPickedThis || isSaved ? 700 : 400, color: numColor, lineHeight: 1 }}>
-                        {day}
-                      </div>
-                      {/* Colleague dots */}
+                      onClick={() => { if (!isPast) setSelDate(p => p === dateStr ? '' : dateStr) }}
+                      style={{ position: 'relative', border: cellBorder, borderRadius: 8, background: cellBg, padding: '5px 1px 4px', cursor: isPast ? 'default' : 'pointer', textAlign: 'center', transition: 'all 0.12s', opacity: isPast ? 0.25 : 1, minHeight: 42 }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: isSelected ? 700 : 400, color: numColor, lineHeight: 1 }}>{day}</div>
                       {collegues.length > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 3, flexWrap: 'wrap' }}>
                           {collegues.slice(0, 3).map((c, ci) => (
-                            <div key={ci} style={{ width: 4, height: 4, borderRadius: '50%',
-                              background: isPickedThis ? 'rgba(255,255,255,0.8)'
-                                : c.status === 'APPROVED' ? '#16A34A' : '#D97706' }} />
+                            <div key={ci} style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.8)' : c.status === 'APPROVED' ? '#16A34A' : '#D97706' }} />
                           ))}
-                          {collegues.length > 3 && (
-                            <span style={{ fontSize: '7px', color: isPickedThis ? 'rgba(255,255,255,0.7)' : '#9CA3AF', lineHeight: '4px' }}>+{collegues.length - 3}</span>
-                          )}
+                          {collegues.length > 3 && <span style={{ fontSize: '7px', color: '#9CA3AF' }}>+{collegues.length - 3}</span>}
                         </div>
                       )}
                     </button>
@@ -647,7 +565,6 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
         <div style={{ display: 'flex', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
           {[
             { el: <div style={{ width: 12, height: 12, borderRadius: 4, background: COLOR.primary }} />, label: 'เลือกแล้ว' },
-            { el: <div style={{ width: 12, height: 12, borderRadius: 4, background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)' }} />, label: 'จองแล้ว' },
             { el: <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A' }} />, label: 'เพื่อน(ok)' },
             { el: <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706' }} />, label: 'เพื่อน(รอ)' },
           ].map((l, i) => (
@@ -658,21 +575,13 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
           ))}
         </div>
       </div>
+      )}
 
-      {/* Selection summary */}
-      {pickedCount > 0 && (
-        <div style={{ background: 'rgba(255,107,53,0.06)', border: `1px solid ${COLOR.primary}22`, borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: COLOR.primary, marginBottom: 8 }}>
-            เลือก {pickedCount} วัน จาก {totalWeeks} สัปดาห์
-            {pickedCount >= totalWeeks && <span style={{ fontSize: '0.7rem', color: '#16A34A', marginLeft: 8 }}>✅ ครบทุกสัปดาห์</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {pickedDates.map(d => (
-              <span key={d} style={{ fontSize: '0.78rem', fontWeight: 700, color: COLOR.primary, background: `${COLOR.primary}15`, borderRadius: 99, padding: '4px 12px' }}>
-                {fmtDateShort(d)} · {fmtDate(d).split(' ')[1]}
-              </span>
-            ))}
-          </div>
+      {/* Selected date confirm box */}
+      {isOpen && !ownOff && selDate && (
+        <div style={{ background: `${COLOR.primary}08`, border: `1px solid ${COLOR.primary}22`, borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: COLOR.primary }}>📅 เลือกวันที่ {fmtDate(selDate)}</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>กดยืนยันเพื่อส่งคำขอหยุด 1 วัน</div>
         </div>
       )}
 
@@ -683,46 +592,37 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
       )}
 
       {/* Submit button */}
-      {savedThisMonth.length === 0 ? (
+      {isOpen && !ownOff && (
         <button
-          onClick={handleSubmit}
-          disabled={pickedCount === 0 || submitting || isPastMonth}
+          onClick={() => submitMutation.mutate()}
+          disabled={!selDate || submitMutation.isPending || isPastMonth}
           style={{
             width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
-            cursor: pickedCount > 0 && !isPastMonth ? 'pointer' : 'not-allowed',
-            background: pickedCount > 0 && !isPastMonth
+            cursor: selDate && !isPastMonth ? 'pointer' : 'not-allowed',
+            background: selDate && !isPastMonth
               ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`
               : 'rgba(0,0,0,0.08)',
-            color: pickedCount > 0 && !isPastMonth ? '#fff' : '#9CA3AF',
+            color: selDate && !isPastMonth ? '#fff' : '#9CA3AF',
             fontSize: '1rem', fontWeight: 700,
-            boxShadow: pickedCount > 0 && !isPastMonth ? `0 4px 16px ${COLOR.primary}44` : 'none',
+            boxShadow: selDate && !isPastMonth ? `0 4px 16px ${COLOR.primary}44` : 'none',
             transition: 'all 0.2s',
           }}
         >
-          {submitting
-            ? '⏳ กำลังส่ง...'
-            : isPastMonth
-            ? 'เดือนที่ผ่านมาแล้ว'
-            : pickedCount > 0
-            ? `📅 ขอหยุด ${pickedCount} วัน ใน${fmtMonthTH(month)}`
-            : `กดเลือกวันหยุดจากปฏิทิน (1 วัน/สัปดาห์)`}
-        </button>
-      ) : (
-        <button
-          onClick={() => { setSaved(prev => prev.filter(s => !s.dateStr.startsWith(month))); setDone(false) }}
-          style={{ width: '100%', padding: '13px', borderRadius: 16, border: '1px solid #DC2626', background: 'rgba(220,38,38,0.06)', color: '#DC2626', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem' }}
-        >
-          ยกเลิกการจองเดือนนี้
+          {submitMutation.isPending ? '⏳ กำลังส่ง...'
+            : isPastMonth ? 'เดือนที่ผ่านมาแล้ว'
+            : selDate ? `📅 ขอหยุด ${fmtDate(selDate)}`
+            : 'กดเลือกวันจากปฏิทิน'}
         </button>
       )}
 
       {/* Colleague list */}
-      {MOCK_COLLEAGUES.filter(c => c.date.startsWith(month)).length > 0 && (
+      {colleagues.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 10 }}>เพื่อนร่วมสาขาเดือนนี้</div>
-          {MOCK_COLLEAGUES.filter(c => c.date.startsWith(month)).map((c, i) => {
+          {colleagues.map((c, i) => {
             const cfg  = STATUS_CFG[c.status]
             const name = c.employee.nickname ?? `${c.employee.first_name} ${c.employee.last_name}`
+            const date = resolveDate(c.week_start, c.day_of_week)
             return (
               <div key={c.id} className="fw-row" style={{ animationDelay: `${i * 40}ms` }}>
                 <div className="icon-bubble icon-bubble-blue" style={{ borderRadius: 14, width: 40, height: 40 }}>
@@ -730,7 +630,7 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1A2B3C' }}>{name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#6C89F5', marginTop: 2 }}>{fmtDate(c.date)}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6C89F5', marginTop: 2 }}>{fmtDate(date)}</div>
                 </div>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: cfg.color, background: cfg.bg, borderRadius: 99, padding: '3px 10px', whiteSpace: 'nowrap' }}>
                   {cfg.label}
@@ -748,35 +648,69 @@ function MonthlyBooking({ colleagues, branchId, employeeType }: {
 // Main LeavePage
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function LeavePage() {
-  const [balances,   setBalances]  = useState<LeaveBalance[]>(MOCK_BALANCES)
-  const [requests,   setRequests]  = useState<LeaveRequest[]>(MOCK_REQUESTS_INIT)
+  const employee = useAuthStore(s => s.employee)
+  const qc       = useQueryClient()
+
   const [tab,        setTab]       = useState<Tab>('calendar')
   const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
-  const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)
-  const employee = MOCK_EMPLOYEE
 
-  const handleSubmitLeave = useCallback(async () => {
+  const { data: balances = [] } = useQuery<LeaveBalance[]>({
+    queryKey: ['employee', 'leave-balances', employee?.id],
+    queryFn: () =>
+      api.get('/employee/leave-balances', { params: { employeeId: employee?.id } })
+         .then(r => r.data.data),
+    enabled: !!employee?.id,
+  })
+
+  const { data: requests = [] } = useQuery<LeaveRequest[]>({
+    queryKey: ['employee', 'leave-requests', employee?.id],
+    queryFn: () =>
+      api.get('/employee/leave-requests', { params: { employeeId: employee?.id } })
+         .then(r => (r.data.data as any[]).map((x: any) => ({
+           ...x,
+           start_date: x.start_date?.slice(0, 10) ?? x.start_date,
+           end_date:   x.end_date?.slice(0, 10)   ?? x.end_date,
+         }))),
+    enabled: !!employee?.id,
+  })
+
+  const submitMutation = useMutation({
+    mutationFn: (payload: object) =>
+      api.post('/employee/leave-requests', payload).then(r => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
+      setSubmitDone(true)
+      setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'LEAVE_OVERLAP')        setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
+      else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
+      else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    },
+  })
+
+  const handleSubmitLeave = useCallback(() => {
     if (!form.startDate || !form.endDate || !form.reason.trim()) return
     const days = countDays(form.startDate, form.endDate)
     if (days === 0) { setErrorMsg('วันที่เลือกไม่มีวันทำงาน'); return }
-    setSubmitting(true); setErrorMsg(null)
-    await new Promise(r => setTimeout(r, 900))
-    const newReq: LeaveRequest = {
-      id: `lr-${Date.now()}`, leave_type: form.leaveType,
-      start_date: form.startDate, end_date: form.endDate, days,
-      reason: form.reason, status: 'PENDING', reviewed_at: null, reject_note: null,
-    }
-    setRequests(prev => [newReq, ...prev])
-    setBalances(prev => prev.map(b => b.leave_type === form.leaveType ? { ...b, used_days: b.used_days + days } : b))
-    setSubmitDone(true)
-    setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
-    setSubmitting(false)
-  }, [form])
+    setErrorMsg(null)
+    submitMutation.mutate({
+      employee_id: employee?.id,
+      leave_type:  form.leaveType,
+      start_date:  form.startDate,
+      end_date:    form.endDate,
+      days,
+      reason: form.reason,
+    })
+  }, [form, employee, submitMutation])
 
-  const days     = countDays(form.startDate, form.endDate)
-  const canSubmit= !!form.startDate && !!form.endDate && !!form.reason.trim() && days > 0
+  const days      = countDays(form.startDate, form.endDate)
+  const submitting = submitMutation.isPending
+  const canSubmit  = !!form.startDate && !!form.endDate && !!form.reason.trim() && days > 0
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
@@ -787,7 +721,7 @@ export default function LeavePage() {
           <div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>วันลา</div>
             <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
-              {employee.first_name} {employee.last_name} · จัดการวันลา
+              {employee?.first_name} {employee?.last_name} · จัดการวันลา
             </div>
           </div>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -812,11 +746,6 @@ export default function LeavePage() {
       {/* ── White Content Panel ─────────────────────────────────── */}
       <div className="app-panel" style={{ padding: '20px 16px 100px' }}>
 
-        {/* Mock badge */}
-        <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.72rem', color: '#6366f1', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
-          🧪 MOCK MODE — ข้อมูลจำลอง
-        </div>
-
         {/* Tabs */}
         <div className="fw-tabs">
           {([
@@ -833,7 +762,7 @@ export default function LeavePage() {
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
-          <PersonalCalendar requests={requests} colleagues={MOCK_COLLEAGUES} onBooking={() => setTab('booking')} onRequest={() => setTab('request')} />
+          <PersonalCalendar requests={requests} colleagues={[]} onBooking={() => setTab('booking')} onRequest={() => setTab('request')} />
         )}
 
         {/* ── Request ─────────────────────────────────────────── */}
@@ -901,7 +830,7 @@ export default function LeavePage() {
 
         {/* ── จองหยุด ─────────────────────────────────────────── */}
         {tab === 'booking' && (
-          <MonthlyBooking colleagues={MOCK_COLLEAGUES} branchId={employee.branch_id} employeeType={employee.employee_type} />
+          <MonthlyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
         )}
       </div>
     </div>

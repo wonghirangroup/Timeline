@@ -4,6 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
+import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
 
 export async function weeklyOffRoutes(app: FastifyInstance) {
@@ -157,6 +158,58 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     })
 
     return ok({ count: pending.length }, `อนุมัติ ${pending.length} รายการสำเร็จ`)
+  })
+
+  // ── Admin: ดูสถานะการเปิดจองต่อสาขา ─────────────────────────────────────────
+  app.get('/admin/weekly-off/periods', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: { tags: ['Admin'], summary: 'ดูสถานะเปิด/ปิดการจองวันหยุดต่อสาขา', security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string' } } } },
+  }, async (req: any) => {
+    return ok(await listPeriods(req.tenantId, req.query.month))
+  })
+
+  // ── Admin: เปิดการจองสำหรับสาขา ──────────────────────────────────────────────
+  app.post('/admin/weekly-off/periods', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: { tags: ['Admin'], summary: 'เปิดการจองวันหยุดให้สาขา', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['branch_id', 'month'],
+        properties: { branch_id: { type: 'string' }, month: { type: 'string' }, deadline: { type: ['string', 'null'] }, note: { type: ['string', 'null'] } } } },
+  }, async (req: any, reply) => {
+    const period = await openPeriod(req.tenantId, req.body)
+    return reply.code(201).send(ok(period, 'เปิดการจองสำเร็จ'))
+  })
+
+  // ── Admin: ปิดการจองสำหรับสาขา ───────────────────────────────────────────────
+  app.post('/admin/weekly-off/periods/close', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: { tags: ['Admin'], summary: 'ปิดการจองวันหยุดของสาขา', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['branch_id', 'month'], properties: { branch_id: { type: 'string' }, month: { type: 'string' } } } },
+  }, async (req: any, reply) => {
+    await closePeriod(req.tenantId, req.body.branch_id, req.body.month)
+    return ok(null, 'ปิดการจองแล้ว')
+  })
+
+  // ── Admin: แก้ deadline / note ────────────────────────────────────────────────
+  app.patch('/admin/weekly-off/periods/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: { tags: ['Admin'], summary: 'แก้ไข period', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', properties: { is_open: { type: 'boolean' }, deadline: { type: ['string', 'null'] }, note: { type: ['string', 'null'] } } } },
+  }, async (req: any, reply) => {
+    const updated = await updatePeriod(req.tenantId, req.params.id, req.body)
+    if (!updated) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(null, 'อัปเดตสำเร็จ')
+  })
+
+  // ── Employee (LIFF): เช็คว่า period เปิดไหม ────────────────────────────────
+  app.get('/employee/weekly-off/period-status', {
+    preHandler: [tenantMiddleware],
+    schema: { tags: ['Employee'], summary: 'เช็คว่าเปิดจองอยู่ไหม (LIFF)', security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['branchId', 'month'], properties: { branchId: { type: 'string' }, month: { type: 'string' } } } },
+  }, async (req: any) => {
+    const isOpen = await checkPeriodOpen(req.tenantId, req.query.branchId, req.query.month)
+    return ok({ is_open: isOpen })
   })
 
   // ── Employee (LIFF): ขอวันหยุดสัปดาห์ ──────────────────────────────

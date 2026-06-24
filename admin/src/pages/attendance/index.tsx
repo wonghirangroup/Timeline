@@ -1,8 +1,11 @@
-// admin/src/pages/attendance/index.tsx  [MOCK MODE]
+// admin/src/pages/attendance/index.tsx
 import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useSwipePage } from '../../hooks/useSwipePage'
+import { api } from '../../lib/axios'
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface ApiBranch  { id: string; name: string }
@@ -34,35 +37,6 @@ interface ApiEmployee {
   branch_id: string; branch: { id: string; name: string }
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-let _attSeq = 100
-function genAttId() { return `att-mock-${_attSeq++}` }
-
-const MOCK_BRANCHES_ATT: ApiBranch[] = [
-  { id: 'br-01', name: 'วงษ์หิรัญ' },
-  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' },
-  { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' },
-]
-const MOCK_SHIFTS_ATT: ApiShift[] = [
-  { id: 'sh-01', name: 'กะเช้า',  start_time: '08:00', end_time: '17:00', late_threshold_1: '08:05', late_threshold_2: '08:20' },
-  { id: 'sh-02', name: 'กะบ่าย', start_time: '13:00', end_time: '22:00', late_threshold_1: '13:05', late_threshold_2: '13:20' },
-  { id: 'sh-03', name: 'กะเช้า (แม่กิมเฮง)', start_time: '09:00', end_time: '18:00', late_threshold_1: '09:05', late_threshold_2: '09:30' },
-]
-const MOCK_EMPLOYEES_ATT: ApiEmployee[] = [
-  { id: 'em-01', employee_code: '2567-03-001', first_name: 'สมชาย',   last_name: 'ใจดี',     nickname: 'ชาย',  branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-02', employee_code: '2567-02-002', first_name: 'วิภาวดี', last_name: 'ศรีสุข',   nickname: 'แนน',  branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-03', employee_code: '2567-04-003', first_name: 'ธนวัฒน์', last_name: 'มงคล',     nickname: 'วัฒน์',branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-04', employee_code: '2567-03-004', first_name: 'นันทิชา', last_name: 'พรหมบุตร', nickname: 'แพรว', branch_id: 'br-02', branch: { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' } },
-  { id: 'em-07', employee_code: '2567-04-007', first_name: 'บุญมา',   last_name: 'สีดา',      nickname: 'บุญ',  branch_id: 'br-03', branch: { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' } },
-]
-
-function makeMockRecords(dateStr: string): ApiRecord[] {
-  return [
-    { id: 'att-01', employee_id: 'em-01', shift_id: 'sh-01', date: dateStr, check_in_at: `${dateStr}T01:02:00Z`, check_out_at: `${dateStr}T10:05:00Z`, check_in_method: 'LIFF',  is_late: false, late_minutes: 0,  is_outside_area: false, note: null, employee: { ...MOCK_EMPLOYEES_ATT[0] }, shift: MOCK_SHIFTS_ATT[0] },
-    { id: 'att-02', employee_id: 'em-02', shift_id: 'sh-01', date: dateStr, check_in_at: `${dateStr}T01:08:00Z`, check_out_at: null,                    check_in_method: 'QR',    is_late: true,  late_minutes: 3,  is_outside_area: false, note: null, employee: { ...MOCK_EMPLOYEES_ATT[1] }, shift: MOCK_SHIFTS_ATT[0] },
-    { id: 'att-03', employee_id: 'em-04', shift_id: 'sh-03', date: dateStr, check_in_at: `${dateStr}T02:25:00Z`, check_out_at: `${dateStr}T11:01:00Z`,  check_in_method: 'LIFF',  is_late: true,  late_minutes: 25, is_outside_area: true,  note: 'นอกพื้นที่', employee: { ...MOCK_EMPLOYEES_ATT[3] }, shift: MOCK_SHIFTS_ATT[2] },
-  ]
-}
 
 type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT'
 
@@ -140,39 +114,92 @@ const inp: React.CSSProperties = {
 export default function AttendancePage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const qc = useQueryClient()
+  const swipeHandlers = useSwipePage(
+    () => setPage(p => Math.min(totalPages, p + 1)),
+    () => setPage(p => Math.max(1, p - 1)),
+  )
 
   const [date, setDate]           = useState(todayStr())
   const [branchFilter, setBranch] = useState('')
   const [search, setSearch]       = useState('')
-  const [loading, setLoading]     = useState(false)
-  
   const [page, setPage]           = useState(1)
   const pageSize                  = 7
-
-  const [branches, setBranches]   = useState<ApiBranch[]>(MOCK_BRANCHES_ATT)
-  const [employees, setEmployees] = useState<ApiEmployee[]>(MOCK_EMPLOYEES_ATT)
-  const [records, setRecords]     = useState<ApiRecord[]>(() => makeMockRecords(todayStr()))
-  const [shifts, setShifts]       = useState<ApiShift[]>(MOCK_SHIFTS_ATT)
 
   // modal state
   const [editTarget, setEditTarget]     = useState<Row | null>(null)
   const [manualTarget, setManualTarget] = useState<ApiEmployee | null>(null)
   const [resetTarget, setResetTarget]   = useState<Row | null>(null)
   const [editForm, setEditForm]         = useState({ check_in_at: '', check_out_at: '', note: '' })
-  const [manualForm, setManualForm]   = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
-  const [saving, setSaving]           = useState(false)
+  const [manualForm, setManualForm]     = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
 
-  function loadData() {
-    const base = makeMockRecords(date)
-    const filtered = branchFilter
-      ? base.filter(r => r.employee.branch.id === branchFilter)
-      : base
-    const filteredEmps = branchFilter
-      ? MOCK_EMPLOYEES_ATT.filter(e => e.branch_id === branchFilter)
-      : MOCK_EMPLOYEES_ATT
-    setRecords(filtered)
-    setEmployees(filteredEmps)
-  }
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['admin', 'branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const { data: employees = [], isLoading: empLoading } = useQuery<ApiEmployee[]>({
+    queryKey: ['admin', 'employees', branchFilter],
+    queryFn: () =>
+      api.get('/api/v1/admin/employees', { params: branchFilter ? { branchId: branchFilter } : {} })
+         .then(r => r.data.data),
+  })
+
+  const { data: records = [], isLoading: recLoading, refetch } = useQuery<ApiRecord[]>({
+    queryKey: ['admin', 'attendance', date, branchFilter],
+    queryFn: () =>
+      api.get('/api/v1/admin/attendance', {
+        params: { date, ...(branchFilter ? { branchId: branchFilter } : {}) },
+      }).then(r => r.data.data),
+  })
+
+  const { data: shifts = [] } = useQuery<ApiShift[]>({
+    queryKey: ['admin', 'shifts', branchFilter],
+    queryFn: () =>
+      api.get('/api/v1/admin/shifts', { params: branchFilter ? { branchId: branchFilter } : {} })
+         .then(r => r.data.data),
+  })
+
+  const loading = empLoading || recLoading
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) =>
+      api.patch(`/api/v1/admin/attendance/${id}`, body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
+      showToast('success', 'แก้ไขเวลาสำเร็จ')
+      setEditTarget(null)
+    },
+    onError: () => showToast('error', 'แก้ไขไม่สำเร็จ'),
+  })
+
+  const manualMutation = useMutation({
+    mutationFn: (body: object) =>
+      api.post('/api/v1/admin/attendance', body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
+      showToast('success', `ลงเวลา ${manualTarget?.first_name} สำเร็จ`)
+      setManualTarget(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'ALREADY_CHECKED_IN') showToast('error', 'พนักงานนี้มีบันทึกในกะนี้แล้ว')
+      else showToast('error', 'ลงเวลาไม่สำเร็จ')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.delete(`/api/v1/admin/attendance/${id}`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
+      showToast('success', `รีเซ็ตเวลา ${resetTarget?.employee.first_name} สำเร็จ`)
+      setResetTarget(null)
+    },
+    onError: () => showToast('error', 'รีเซ็ตไม่สำเร็จ'),
+  })
+
+  const saving = editMutation.isPending || manualMutation.isPending || deleteMutation.isPending
 
   // ── Merge employees + records ────────────────────────────────────────
   const rows = useMemo<Row[]>(() => {
@@ -223,18 +250,6 @@ export default function AttendancePage() {
     pending: rows.filter(r => r.status === 'PENDING').length,
   }), [rows, employees])
 
-  // ── Reset (ลบ) record ────────────────────────────────────────────────
-  async function handleReset() {
-    if (!resetTarget?.record) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 400))
-    setRecords(prev => prev.filter(r => r.id !== resetTarget.record!.id))
-    showToast('success', `รีเซ็ตเวลา ${resetTarget.employee.first_name} สำเร็จ`)
-    setResetTarget(null)
-    setSaving(false)
-  }
-
-  // ── Edit existing record ─────────────────────────────────────────────
   function openEdit(row: Row) {
     setEditForm({
       check_in_at:  timeToStr(row.record?.check_in_at ?? null),
@@ -244,49 +259,41 @@ export default function AttendancePage() {
     setEditTarget(row)
   }
 
-  async function handleEdit() {
+  function handleEdit() {
     if (!editTarget?.record) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setRecords(prev => prev.map(r => {
-      if (r.id !== editTarget.record!.id) return r
-      const ciISO = editForm.check_in_at  ? `${date}T${editForm.check_in_at}:00Z` : r.check_in_at
-      const coISO = editForm.check_out_at ? `${date}T${editForm.check_out_at}:00Z` : r.check_out_at
-      return { ...r, check_in_at: ciISO, check_out_at: coISO, note: editForm.note || r.note, check_in_method: 'ADMIN' as const }
-    }))
-    showToast('success', 'แก้ไขเวลาสำเร็จ')
-    setEditTarget(null)
-    setSaving(false)
+    editMutation.mutate({
+      id: editTarget.record.id,
+      body: {
+        check_in_at:  editForm.check_in_at  || undefined,
+        check_out_at: editForm.check_out_at || undefined,
+        note: editForm.note || undefined,
+      },
+    })
   }
 
-  // ── Manual check-in ─────────────────────────────────────────────────
   function openManual(emp: ApiEmployee) {
     setManualForm({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
     setManualTarget(emp)
   }
 
-  async function handleManual() {
+  function handleManual() {
     if (!manualTarget || !manualForm.shift_id || !manualForm.check_in_at) {
       showToast('error', 'กรุณาเลือกกะและกรอกเวลาเข้างาน')
       return
     }
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const shift = shifts.find(s => s.id === manualForm.shift_id) ?? shifts[0]
-    const ciISO = `${date}T${manualForm.check_in_at}:00Z`
-    const coISO = manualForm.check_out_at ? `${date}T${manualForm.check_out_at}:00Z` : null
-    const newRec: ApiRecord = {
-      id: genAttId(), employee_id: manualTarget.id, shift_id: manualForm.shift_id, date,
-      check_in_at: ciISO, check_out_at: coISO, check_in_method: 'ADMIN',
-      is_late: false, late_minutes: 0, is_outside_area: false,
-      note: manualForm.note || null,
-      employee: { id: manualTarget.id, first_name: manualTarget.first_name, last_name: manualTarget.last_name, nickname: manualTarget.nickname, employee_code: manualTarget.employee_code, branch: manualTarget.branch },
-      shift,
-    }
-    setRecords(prev => [...prev, newRec])
-    showToast('success', `ลงเวลา ${manualTarget.first_name} สำเร็จ`)
-    setManualTarget(null)
-    setSaving(false)
+    manualMutation.mutate({
+      employee_id:  manualTarget.id,
+      shift_id:     manualForm.shift_id,
+      date,
+      check_in_at:  manualForm.check_in_at,
+      check_out_at: manualForm.check_out_at || undefined,
+      note:         manualForm.note || undefined,
+    })
+  }
+
+  function handleReset() {
+    if (!resetTarget?.record) return
+    deleteMutation.mutate(resetTarget.record.id)
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -296,13 +303,6 @@ export default function AttendancePage() {
 
   return (
     <div>
-      {/* Mock banner */}
-      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(30,64,175,0.07)', border: '1px solid rgba(30,64,175,0.2)', fontSize: '0.72rem', color: '#1e40af', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
-      </div>
-
-      {/* Header removed */}
-
       {/* KPI bar */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
@@ -337,10 +337,11 @@ export default function AttendancePage() {
               key={b.id}
               onClick={() => { setBranch(b.id); setPage(1) }}
               style={{
-                padding: '4px 14px', borderRadius: 99, border: 'none',
+                padding: '4px 14px', borderRadius: 99,
+                border: branchFilter === b.id ? '2px solid #f97316' : '2px solid #f97316',
                 fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                background: branchFilter === b.id ? '#f97316' : '#f1f5f9',
-                color: branchFilter === b.id ? '#fff' : '#64748b',
+                background: branchFilter === b.id ? '#f97316' : '#fff',
+                color: branchFilter === b.id ? '#fff' : '#f97316',
                 transition: 'background 0.15s, color 0.15s',
               }}
             >
@@ -355,7 +356,7 @@ export default function AttendancePage() {
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="🔍 ค้นหาชื่อ / รหัส"
             style={{ ...inp, flex: 1, minWidth: 160, borderRadius: 10 }} />
-          <button onClick={loadData} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
+          <button onClick={() => refetch()} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
         </div>
       </div>
 
@@ -365,7 +366,7 @@ export default function AttendancePage() {
       {!loading && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           {isMobile ? (
-            <div>
+            <div {...swipeHandlers}>
               {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</p>}
               {paginated.map(row => {
                 const s = STATUS_CFG[row.status]
@@ -490,26 +491,30 @@ export default function AttendancePage() {
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderTop: '1px solid #f1f5f9' }}>
-              <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))} 
-                  disabled={page === 1}
-                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-                  disabled={page === totalPages}
-                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  <ChevronRight size={16} />
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                  แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isMobile && (
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#f97316' : '#e5e7eb', transition: 'all 0.2s' }} />
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
+              {isMobile && <span style={{ fontSize: '0.68rem', color: '#d1d5db' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
             </div>
           )}
         </div>

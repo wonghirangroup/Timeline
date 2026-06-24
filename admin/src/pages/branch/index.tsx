@@ -1,9 +1,12 @@
-// [MOCK MODE]
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useSwipePage } from '../../hooks/useSwipePage'
+import { api } from '../../lib/axios'
 
 interface ApiBranch {
   id: string
@@ -31,23 +34,6 @@ const inputStyle: React.CSSProperties = {
   outline: 'none', boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit',
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-let _brSeq = 100
-function genBrId() { return `br-mock-${_brSeq++}` }
-
-const MOCK_BRANCHES_API: ApiBranch[] = [
-  { id: 'br-01', name: 'วงษ์หิรัญ',              location: 'X4X9+QG หมื่นไวย นครราชสีมา',                  lat: '14.999537', lng: '102.118781', gps_radius: 150, geo_mode: 'WARN',  is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 21, shifts: 2 } },
-  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง',     location: '173 ถ.สุรนารี ตำบลในเมือง นครราชสีมา',       lat: '14.976407', lng: '102.095313', gps_radius: 150, geo_mode: 'WARN',  is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 2,  shifts: 1 } },
-  { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม',     location: 'X3GH+PMW ตำบลในเมือง นครราชสีมา',            lat: '14.976832', lng: '102.079170', gps_radius: 150, geo_mode: 'WARN',  is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 2,  shifts: 1 } },
-  { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก',  location: '99 ถ.สวนหมาก นครราชสีมา',                    lat: '14.972300', lng: '102.101200', gps_radius: 150, geo_mode: 'WARN',  is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 6,  shifts: 1 } },
-  { id: 'br-05', name: 'ME Group Enterprise',      location: '500 ถ.มิตรภาพ นครราชสีมา',                   lat: '14.980100', lng: '102.093500', gps_radius: 200, geo_mode: 'BLOCK', is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 0,  shifts: 0 } },
-  { id: 'br-06', name: 'ฟุคุโระ เทิดไท',        location: '12 ถ.เทิดไท ตำบลในเมือง นครราชสีมา',        lat: '14.963400', lng: '102.114300', gps_radius: 150, geo_mode: 'WARN',  is_active: true, created_at: '2024-01-15T00:00:00Z', _count: { employees: 2,  shifts: 1 } },
-]
-const MOCK_SHIFTS_QR: ApiShift[] = [
-  { id: 'sh-01', name: 'กะเช้า', start_time: '08:00', end_time: '17:00' },
-  { id: 'sh-02', name: 'กะบ่าย', start_time: '13:00', end_time: '22:00' },
-  { id: 'sh-05', name: 'กะกลางคืน', start_time: '17:00', end_time: '02:00' },
-]
 
 const QR_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="%23fff"/><rect x="10" y="10" width="50" height="50" rx="4" fill="%23111"/><rect x="18" y="18" width="34" height="34" rx="2" fill="%23fff"/><rect x="24" y="24" width="22" height="22" rx="1" fill="%23111"/><rect x="100" y="10" width="50" height="50" rx="4" fill="%23111"/><rect x="108" y="18" width="34" height="34" rx="2" fill="%23fff"/><rect x="114" y="24" width="22" height="22" rx="1" fill="%23111"/><rect x="10" y="100" width="50" height="50" rx="4" fill="%23111"/><rect x="18" y="108" width="34" height="34" rx="2" fill="%23fff"/><rect x="24" y="114" width="22" height="22" rx="1" fill="%23111"/><rect x="72" y="10" width="8" height="8" fill="%23111"/><rect x="72" y="24" width="8" height="8" fill="%23111"/><rect x="72" y="38" width="8" height="8" fill="%23111"/><rect x="72" y="52" width="8" height="8" fill="%23111"/><rect x="86" y="10" width="8" height="8" fill="%23111"/><rect x="86" y="38" width="8" height="8" fill="%23111"/><rect x="72" y="72" width="8" height="8" fill="%23111"/><rect x="86" y="72" width="8" height="8" fill="%23111"/><rect x="100" y="72" width="8" height="8" fill="%23111"/><rect x="114" y="72" width="8" height="8" fill="%23111"/><rect x="128" y="72" width="8" height="8" fill="%23111"/><rect x="142" y="72" width="8" height="8" fill="%23111"/><rect x="72" y="86" width="8" height="8" fill="%23111"/><rect x="100" y="86" width="8" height="8" fill="%23111"/><rect x="128" y="86" width="8" height="8" fill="%23111"/><rect x="72" y="100" width="8" height="8" fill="%23111"/><rect x="86" y="100" width="8" height="8" fill="%23111"/><rect x="100" y="100" width="8" height="8" fill="%23111"/><rect x="128" y="100" width="8" height="8" fill="%23111"/><rect x="142" y="100" width="8" height="8" fill="%23111"/><rect x="72" y="114" width="8" height="8" fill="%23111"/><rect x="114" y="114" width="8" height="8" fill="%23111"/><rect x="72" y="128" width="8" height="8" fill="%23111"/><rect x="86" y="128" width="8" height="8" fill="%23111"/><rect x="100" y="128" width="8" height="8" fill="%23111"/><rect x="128" y="128" width="8" height="8" fill="%23111"/><rect x="142" y="142" width="8" height="8" fill="%23111"/></svg>`
 
@@ -161,14 +147,38 @@ function BranchTour({ onClose }: { onClose: () => void }) {
 export default function BranchPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const qc = useQueryClient()
+  const swipeHandlers = useSwipePage(
+    () => setPage(p => Math.min(totalPages, p + 1)),
+    () => setPage(p => Math.max(1, p - 1)),
+  )
 
-  const [branches, setBranches]   = useState<ApiBranch[]>(MOCK_BRANCHES_API)
-  const [loading, setLoading]     = useState(false)
+  const { data: branches = [], isLoading: loading } = useQuery<ApiBranch[]>({
+    queryKey: ['branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/branches', body).then(r => r.data.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว`); setModal(null); setSaving(false) },
+    onError: () => { showToast('error', 'เพิ่มสาขาไม่สำเร็จ'); setSaving(false) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/branches/${id}`, body).then(r => r.data.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `บันทึกสาขา "${form.name}" เรียบร้อยแล้ว`); setModal(null); setSaving(false) },
+    onError: () => { showToast('error', 'บันทึกสาขาไม่สำเร็จ'); setSaving(false) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/branches/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `ลบสาขา "${deleteTarget?.name}" เรียบร้อยแล้ว`); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบสาขาไม่สำเร็จ'),
+  })
+
   const [modal, setModal]         = useState<ModalMode>(null)
-  
+
   const [page, setPage]           = useState(1)
   const pageSize                  = 6
-  
+
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
@@ -195,14 +205,8 @@ export default function BranchPage() {
   const leafletLoadedRef  = useRef(false)
 
   // QR state
-  const [shifts, setShifts]         = useState<ApiShift[]>(MOCK_SHIFTS_QR)
-  const [qrShiftId, setQrShiftId]   = useState('')
-  const [qrUrl, setQrUrl]           = useState<string | null>(null)
-  const [qrLoading, setQrLoading]   = useState(false)
-
-  function load() {
-    setBranches(MOCK_BRANCHES_API)
-  }
+  const [qrCopied, setQrCopied] = useState(false)
+  const qrWrapRef = useRef<HTMLDivElement>(null)
 
   const totalPages = Math.ceil(branches.length / pageSize)
   const paginated = branches.slice((page - 1) * pageSize, page * pageSize)
@@ -303,14 +307,71 @@ export default function BranchPage() {
     setModal('edit')
   }
 
-  const openQr = async (b: ApiBranch) => {
+  const openQr = (b: ApiBranch) => {
     setQrTarget(b)
-    setQrUrl(null)
     setModal('qr')
-    setQrLoading(true)
-    await new Promise(r => setTimeout(r, 400))
-    setQrUrl(`https://liff.line.me/1234567890-mockLIFF?branch=${b.id}&mode=qr`)
-    setQrLoading(false)
+  }
+
+  const qrQ = useQuery({
+    queryKey: ['branch-qr', qrTarget?.id],
+    queryFn:  () => api.get(`/api/v1/admin/branches/${qrTarget!.id}/qr`)
+      .then(r => r.data.data ?? null),
+    enabled: modal === 'qr' && !!qrTarget,
+    staleTime: Infinity,   // QR ถาวร ไม่ต้อง refetch
+  })
+
+  const qrPayload = qrQ.data?.payload
+  const qrString  = qrPayload ? JSON.stringify(qrPayload) : ''
+
+  function getQrSvg() { return qrWrapRef.current?.querySelector('svg') ?? null }
+
+  function handleQrDownload() {
+    const svg = getQrSvg(); if (!svg || !qrTarget) return
+    const size = 400
+    const canvas = document.createElement('canvas')
+    canvas.width = size; canvas.height = size
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, size, size)
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const img = new Image()
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size)
+      const a = document.createElement('a')
+      a.href = canvas.toDataURL('image/png')
+      a.download = `QR_${qrTarget!.name}.png`
+      a.click()
+    }
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
+  }
+
+  function handleQrPrint() {
+    const svg = getQrSvg(); if (!svg || !qrTarget) return
+    const b = qrQ.data?.branch
+    const win = window.open('', '_blank')!
+    win.document.write(`<html><head><title>QR — ${qrTarget.name}</title>
+      <style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;padding:40px;background:#fff}
+      .title{font-size:22px;font-weight:800;color:#1e293b;margin:0 0 4px}
+      .sub{font-size:14px;color:#6b7280;margin:0 0 20px}
+      svg{border:2px solid #f3f4f6;border-radius:12px;padding:16px}
+      .meta{margin-top:20px;display:flex;gap:24px;font-size:13px;color:#374151}
+      .expire{margin-top:12px;font-size:11px;color:#9ca3af;text-align:center}</style>
+      </head><body>
+      <div class="title">${qrTarget.name}</div>
+      <div class="sub">${b?.location ?? ''}</div>
+      ${svg.outerHTML}
+      <div class="meta">
+        <span>📍 รัศมี ${b?.gps_radius ?? qrTarget.gps_radius} เมตร</span>
+      </div>
+      <div class="expire">QR Code ถาวร · สแกนผ่าน LINE เพื่อเช็คอิน<br/>ระบบตรวจจับกะอัตโนมัติจากเวลาที่สแกน</div>
+      </body></html>`)
+    win.document.close(); win.print()
+  }
+
+  function handleQrCopy() {
+    if (!qrString) return
+    navigator.clipboard.writeText(qrString)
+    setQrCopied(true); setTimeout(() => setQrCopied(false), 2000)
   }
 
   const getGPS = () => {
@@ -330,28 +391,24 @@ export default function BranchPage() {
   const handleSave = async () => {
     if (!form.name.trim()) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const latNum = parseFloat(form.lat)
-    const lngNum = parseFloat(form.lng)
-    const radiusNum = parseInt(form.gps_radius)
-    if (modal === 'add') {
-      const nb: ApiBranch = { id: genBrId(), name: form.name, location: form.location || null, lat: form.lat || null, lng: form.lng || null, gps_radius: !isNaN(radiusNum) ? radiusNum : 200, geo_mode: form.geo_mode, is_active: true, created_at: new Date().toISOString(), _count: { employees: 0, shifts: 0 } }
-      setBranches(prev => [...prev, nb])
-      showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว`)
-    } else if (editTarget) {
-      setBranches(prev => prev.map(b => b.id === editTarget.id ? { ...b, name: form.name, location: form.location || null, lat: form.lat || null, lng: form.lng || null, gps_radius: !isNaN(radiusNum) ? radiusNum : 200, geo_mode: form.geo_mode } : b))
-      showToast('success', `บันทึกสาขา "${form.name}" เรียบร้อยแล้ว`)
+    const body = {
+      name: form.name,
+      location: form.location || undefined,
+      lat: form.lat ? parseFloat(form.lat) : undefined,
+      lng: form.lng ? parseFloat(form.lng) : undefined,
+      gps_radius: parseInt(form.gps_radius) || 200,
+      geo_mode: form.geo_mode,
     }
-    setModal(null)
-    setSaving(false)
+    if (modal === 'add') {
+      createMutation.mutate(body)
+    } else if (editTarget) {
+      updateMutation.mutate({ id: editTarget.id, body })
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteTarget) return
-    await new Promise(r => setTimeout(r, 400))
-    setBranches(prev => prev.filter(b => b.id !== deleteTarget.id))
-    showToast('success', `ลบสาขา "${deleteTarget.name}" เรียบร้อยแล้ว`)
-    setDeleteTarget(null)
+    deleteMutation.mutate(deleteTarget.id)
   }
 
   const sheetOverlay: React.CSSProperties = {
@@ -372,11 +429,6 @@ export default function BranchPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Mock banner */}
-      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center' }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
-      </div>
-
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
         <button
@@ -392,7 +444,7 @@ export default function BranchPage() {
       </div>
 
       {/* KPI row */}
-      <div data-tour="branch-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+      <div data-tour="branch-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
           { label: 'ทั้งหมด',     value: branches.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
           { label: 'เปิดใช้งาน', value: branches.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -413,7 +465,7 @@ export default function BranchPage() {
 
       {/* Branch cards */}
       {!loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+        <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {branches.length === 0 && (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
               <p style={{ fontSize: '14px', marginBottom: 12 }}>ยังไม่มีสาขา</p>
@@ -479,26 +531,30 @@ export default function BranchPage() {
 
       {/* Pagination Controls */}
       {!loading && totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>
-            แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
-          </span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button 
-              onClick={() => setPage(p => Math.max(1, p - 1))} 
-              disabled={page === 1}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-              disabled={page === totalPages}
-              style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronRight size={16} />
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+              แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isMobile && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#f97316' : '#e5e7eb', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                <ChevronLeft size={16} />
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
+          {isMobile && <span style={{ fontSize: '0.68rem', color: '#d1d5db' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
         </div>
       )}
 
@@ -791,55 +847,80 @@ export default function BranchPage() {
       {/* QR Modal */}
       {modal === 'qr' && qrTarget && (
         <div style={sheetOverlay} onClick={() => setModal(null)}>
-          <div style={{ ...sheetBox(360), padding: '24px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ ...sheetBox(400), padding: '24px' }} onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
-                <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>QR Code เช็คอิน</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', margin: '2px 0 0' }}>{qrTarget.name}</p>
+                <p style={{ fontWeight: 800, fontSize: '15px', color: '#111827', margin: 0 }}>QR Code เช็คอิน</p>
+                <p style={{ fontSize: '12px', color: '#9ca3af', margin: '3px 0 0' }}>{qrTarget.name}</p>
               </div>
               <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
                 <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 16px', lineHeight: 1.5 }}>
-              1 QR ต่อ 1 สาขา — ระบบจะ detect กะโดยอัตโนมัติจากเวลาที่สแกน
-            </p>
+            {/* Info chips */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              <span style={{ background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                📍 รัศมี {qrTarget.gps_radius} เมตร
+              </span>
+              <span style={{ background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                {qrTarget.geo_mode === 'BLOCK' ? '🚫 บล็อกนอกพื้นที่' : '⚠️ แจ้งเตือนนอกพื้นที่'}
+              </span>
+              <span style={{ background: '#f5f3ff', color: '#7c3aed', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                🤖 Auto-detect กะจากเวลา
+              </span>
+            </div>
 
-            {/* QR Image */}
-            <div style={{ textAlign: 'center', minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
-              {qrLoading && (
-                <p style={{ color: '#9ca3af', fontSize: '13px' }}>⏳ กำลังสร้าง QR...</p>
-              )}
-              {!qrLoading && qrUrl && (
+            {/* QR Code */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
+              {qrQ.isLoading ? (
+                <div style={{ width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', borderRadius: 14, color: '#9ca3af', fontSize: '13px' }}>
+                  ⏳ กำลังสร้าง QR…
+                </div>
+              ) : qrQ.isError || !qrString ? (
+                <div style={{ padding: '16px', background: '#fef2f2', borderRadius: 12, color: '#dc2626', fontSize: '13px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
+                  ⚠️ โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
+                </div>
+              ) : (
                 <>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`}
-                    alt="QR Check-in"
-                    style={{ width: 180, height: 180, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                  />
-                  <div style={{ width: '100%', background: '#f9fafb', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    <span style={{ flex: 1, fontSize: '10px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{qrUrl}</span>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(qrUrl); showToast('success', 'คัดลอก URL แล้ว') }}
-                      style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '11px', cursor: 'pointer', color: '#374151', fontWeight: 600 }}>
-                      คัดลอก
-                    </button>
+                  <div ref={qrWrapRef} style={{ padding: 14, background: '#fff', border: '2px solid #e5e7eb', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}>
+                    <QRCodeSVG value={qrString} size={200} level="H" />
                   </div>
-                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>พนักงานสแกน QR นี้เพื่อเช็คอินผ่าน LINE</p>
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
+                    QR Code ถาวร — ไม่มีวันหมดอายุ<br/>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>ระบบตรวจจับกะอัตโนมัติจากเวลาที่สแกน</span>
+                  </p>
                 </>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ปิด</button>
-              {qrUrl && (
-                <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}&format=png`}
-                  download={`qr-checkin-${qrTarget.name}.png`} target="_blank" rel="noreferrer"
-                  style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  ดาวน์โหลด QR
-                </a>
-              )}
+            {/* DEV copy */}
+            {qrString && (
+              <div style={{ marginBottom: 12, padding: '9px 12px', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10 }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400e', marginBottom: 5 }}>🛠 DEV — คัดลอก JSON สำหรับทดสอบ</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input readOnly value={qrString} onClick={e => (e.target as HTMLInputElement).select()}
+                    style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #fbbf24', fontSize: '0.68rem', fontFamily: 'monospace', background: '#fff', minWidth: 0 }} />
+                  <button onClick={handleQrCopy}
+                    style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: qrCopied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s' }}>
+                    {qrCopied ? '✓' : 'คัดลอก'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleQrDownload} disabled={!qrString}
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed' }}>
+                ⬇️ ดาวน์โหลด PNG
+              </button>
+              <button onClick={handleQrPrint} disabled={!qrString}
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: qrString ? '#f97316' : '#d1d5db', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed' }}>
+                🖨️ พิมพ์
+              </button>
             </div>
           </div>
         </div>

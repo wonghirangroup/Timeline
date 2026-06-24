@@ -1,9 +1,11 @@
-// admin/src/pages/leave/index.tsx  [MOCK MODE]
+// admin/src/pages/leave/requests.tsx
 import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, Check, X } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { api } from '../../lib/axios'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'
@@ -28,31 +30,6 @@ interface ApiLeaveRequest {
   employee: { id: string; first_name: string; last_name: string; employee_code: string; branch: { id: string; name: string } }
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-let _lvSeq = 100
-function genLvId() { return `lv-mock-${_lvSeq++}` }
-
-const MOCK_EMPLOYEES_LV: ApiEmployee[] = [
-  { id: 'em-01', first_name: 'สมชาย',    last_name: 'ใจดี',       nickname: 'ชาย',  employee_code: '2567-03-001', branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-02', first_name: 'วิภาวดี',  last_name: 'ศรีสุข',     nickname: 'แนน',  employee_code: '2567-02-002', branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-03', first_name: 'ธนวัฒน์',  last_name: 'มงคล',       nickname: 'วัฒน์',employee_code: '2567-04-003', branch_id: 'br-01', branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'em-04', first_name: 'นันทิชา',  last_name: 'พรหมบุตร',   nickname: 'แพรว', employee_code: '2567-03-004', branch_id: 'br-02', branch: { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' } },
-  { id: 'em-07', first_name: 'บุญมา',    last_name: 'สีดา',        nickname: 'บุญ',  employee_code: '2567-04-007', branch_id: 'br-04', branch: { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก' } },
-]
-const MOCK_BRANCHES_LV: ApiBranch[] = [
-  { id: 'br-01', name: 'วงษ์หิรัญ' },
-  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' },
-  { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' },
-  { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก' },
-  { id: 'br-06', name: 'ฟุคุโระ เทิดไท' },
-]
-const MOCK_LEAVE_REQUESTS: ApiLeaveRequest[] = [
-  { id: 'lv-01', employee_id: 'em-01', leave_type: 'SICK',     start_date: '2026-06-05', end_date: '2026-06-06', days: 2, reason: 'ไข้หวัด',         status: 'PENDING',  reviewed_by: null, reviewed_at: null, reject_note: null, created_at: '2026-06-05T08:00:00Z', employee: MOCK_EMPLOYEES_LV[0] },
-  { id: 'lv-02', employee_id: 'em-02', leave_type: 'PERSONAL', start_date: '2026-06-10', end_date: '2026-06-10', days: 1, reason: 'ธุระส่วนตัว',      status: 'PENDING',  reviewed_by: null, reviewed_at: null, reject_note: null, created_at: '2026-06-04T10:00:00Z', employee: MOCK_EMPLOYEES_LV[1] },
-  { id: 'lv-03', employee_id: 'em-03', leave_type: 'VACATION', start_date: '2026-06-15', end_date: '2026-06-17', days: 3, reason: 'พักผ่อนประจำปี',   status: 'APPROVED', reviewed_by: 'admin-01', reviewed_at: '2026-06-01T09:00:00Z', reject_note: null, created_at: '2026-05-30T09:00:00Z', employee: MOCK_EMPLOYEES_LV[2] },
-  { id: 'lv-04', employee_id: 'em-04', leave_type: 'SICK',     start_date: '2026-06-03', end_date: '2026-06-03', days: 1, reason: 'ปวดท้อง',           status: 'REJECTED', reviewed_by: 'admin-01', reviewed_at: '2026-06-03T11:00:00Z', reject_note: 'พนักงานไม่เพียงพอ', created_at: '2026-06-03T07:30:00Z', employee: MOCK_EMPLOYEES_LV[3] },
-  { id: 'lv-05', employee_id: 'em-07', leave_type: 'PERSONAL', start_date: '2026-06-20', end_date: '2026-06-20', days: 1, reason: null,               status: 'PENDING',  reviewed_by: null, reviewed_at: null, reject_note: null, created_at: '2026-06-06T14:00:00Z', employee: MOCK_EMPLOYEES_LV[4] },
-]
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const TYPE_CFG: Record<LeaveType, { label: string; color: string; bg: string }> = {
@@ -68,12 +45,99 @@ const STATUS_CFG: Record<LeaveStatus, { label: string; color: string; bg: string
 }
 const LEAVE_TYPES: LeaveType[] = ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY']
 
+const HOLIDAY_LABELS = new Set(['หยุด', 'หยุดนักขัตฤกษ์', 'ชดเชย'])
+
+function getTypeCfg(leave_type: LeaveType, reason?: string | null) {
+  const bracket = reason?.match(/^\[(.+?)\]/)?.[1]
+  const base = TYPE_CFG[leave_type]
+  if (!bracket) return { ...base, displayLabel: base.label }
+  if (HOLIDAY_LABELS.has(bracket)) return { color: '#dc2626', bg: '#fee2e2', displayLabel: bracket }
+  return { ...base, displayLabel: bracket }
+}
+
+function cleanReason(reason?: string | null) {
+  if (!reason) return '—'
+  return reason.replace(/^\[.+?\]\s*/, '')
+}
+
 const inp: React.CSSProperties = {
   width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
   fontSize: '0.875rem', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none',
 }
 
 const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const MONTHS_FULL  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+
+function MonthYearPicker({ value, onChange, requests }: {
+  value: string; onChange: (v: string) => void; requests: ApiLeaveRequest[]
+}) {
+  const now = new Date()
+  const [year, setYear] = useState(value ? Number(value.slice(0, 4)) : now.getFullYear())
+  const [open, setOpen] = useState(false)
+
+  const [selY, selM] = value ? value.split('-').map(Number) : [0, 0]
+  const label = value ? `${MONTHS_FULL[selM - 1]} ${selY + 543}` : 'เลือกเดือน'
+
+  const pendingByMonth = (ym: string) =>
+    requests.filter(r => r.start_date.slice(0, 7) === ym && r.status === 'PENDING').length
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 14px', borderRadius: 10,
+        border: `2px solid ${value ? '#f97316' : '#e5e7eb'}`,
+        background: value ? '#fff7ed' : '#fff',
+        color: value ? '#ea580c' : '#6b7280',
+        fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+      }}>
+        📅 {label}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)', padding: 16, minWidth: 280,
+        }}>
+          {/* Year nav */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <button onClick={() => setYear(y => y - 1)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 700 }}>‹</button>
+            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>{year + 543}</span>
+            <button onClick={() => setYear(y => y + 1)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 700 }}>›</button>
+          </div>
+
+          {/* Month grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+            {MONTHS_FULL.map((m, i) => {
+              const ym = `${year}-${String(i + 1).padStart(2, '0')}`
+              const isSelected = ym === value
+              const pending = pendingByMonth(ym)
+              return (
+                <button key={ym} onClick={() => { onChange(ym); setOpen(false) }} style={{
+                  position: 'relative', padding: '8px 4px', borderRadius: 10, cursor: 'pointer',
+                  border: `2px solid ${isSelected ? '#f97316' : '#f3f4f6'}`,
+                  background: isSelected ? '#fff7ed' : '#fafafa',
+                  color: isSelected ? '#ea580c' : '#374151',
+                  fontWeight: isSelected ? 700 : 500, fontSize: '0.78rem',
+                }}>
+                  {MONTHS_SHORT[i]}
+                  {pending > 0 && (
+                    <span style={{
+                      position: 'absolute', top: 2, right: 4,
+                      background: '#f97316', color: '#fff', borderRadius: 99,
+                      fontSize: '0.58rem', fontWeight: 700, padding: '0 4px', lineHeight: '14px',
+                    }}>{pending}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function fmtDate(iso: string) {
   const d = new Date(iso)
@@ -87,16 +151,13 @@ function fmtDate(iso: string) {
 export default function LeaveRequestsTab() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const qc = useQueryClient()
 
-  const [tab, setTab]               = useState<'requests' | 'add'>('requests')
-  const [requests, setRequests]     = useState<ApiLeaveRequest[]>(MOCK_LEAVE_REQUESTS)
-  const [employees, setEmployees]   = useState<ApiEmployee[]>(MOCK_EMPLOYEES_LV)
-  const [branches, setBranches]     = useState<ApiBranch[]>(MOCK_BRANCHES_LV)
-  const [loading, setLoading]       = useState(false)
-
-  const [statusFilter, setStatus]   = useState<'' | LeaveStatus>('')
-  const [branchFilter, setBranch]   = useState('')
-  const [search, setSearch]         = useState('')
+  const [tab, setTab]             = useState<'requests' | 'add'>('requests')
+  const [statusFilter, setStatus] = useState<'' | LeaveStatus>('')
+  const [branchFilter, setBranch] = useState('')
+  const [search, setSearch]       = useState('')
+  const [monthFilter, setMonth]   = useState(() => new Date().toISOString().slice(0, 7))
 
   const [rejectTarget, setRejectTarget]   = useState<ApiLeaveRequest | null>(null)
   const [rejectNote, setRejectNote]       = useState('')
@@ -104,31 +165,100 @@ export default function LeaveRequestsTab() {
   const [deleteTarget, setDeleteTarget]   = useState<ApiLeaveRequest | null>(null)
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
-  const [saving, setSaving]               = useState(false)
+  const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
 
-  // Add form
-  const [addForm, setAddForm] = useState({
-    employee_id: '', leave_type: 'SICK' as LeaveType,
-    start_date: '', end_date: '', days: 1, reason: '',
+  const { data: requests = [], isLoading } = useQuery<ApiLeaveRequest[]>({
+    queryKey: ['admin', 'leave-requests'],
+    queryFn: () => api.get('/api/v1/admin/leave-requests').then(r => r.data.data),
   })
-  const [addSaving, setAddSaving] = useState(false)
 
-  function loadAll() {
-    setRequests(MOCK_LEAVE_REQUESTS)
-    setEmployees(MOCK_EMPLOYEES_LV)
-    setBranches(MOCK_BRANCHES_LV)
-  }
+  const { data: employees = [] } = useQuery<ApiEmployee[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
 
-  // ── Filter ────────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => requests.filter(r => {
-    if (statusFilter && r.status !== statusFilter) return false
-    if (branchFilter && r.employee.branch.id !== branchFilter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code}`.toLowerCase().includes(q)) return false
-    }
-    return true
-  }), [requests, statusFilter, branchFilter, search])
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['admin', 'branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/admin/leave-requests/${id}/approve`).then(r => r.data),
+    onSuccess: () => { invalidate(); showToast('success', `อนุมัติวันลา ${approveTarget?.employee.first_name} สำเร็จ`); setApproveTarget(null) },
+    onError: () => showToast('error', 'อนุมัติไม่สำเร็จ'),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      api.post(`/api/v1/admin/leave-requests/${id}/reject`, { reject_note: note || undefined }).then(r => r.data),
+    onSuccess: () => { invalidate(); showToast('success', `ปฏิเสธวันลา ${rejectTarget?.employee.first_name} แล้ว`); setRejectTarget(null); setRejectNote('') },
+    onError: () => showToast('error', 'ปฏิเสธไม่สำเร็จ'),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) =>
+      api.patch(`/api/v1/admin/leave-requests/${id}`, body).then(r => r.data),
+    onSuccess: () => { invalidate(); showToast('success', 'แก้ไขคำขอวันลาสำเร็จ'); setEditTarget(null) },
+    onError: (err: any) => {
+      if (err.response?.data?.error?.code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกัน')
+      else showToast('error', 'แก้ไขไม่สำเร็จ')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/leave-requests/${id}`).then(r => r.data),
+    onSuccess: () => { invalidate(); showToast('success', `ลบคำขอวันลาของ ${deleteTarget?.employee.first_name} แล้ว`); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+
+  const addMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/leave-requests', body).then(r => r.data),
+    onSuccess: () => {
+      invalidate()
+      showToast('success', 'สร้างคำขอวันลาสำเร็จ')
+      setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '' })
+      setTab('requests')
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกัน')
+      else if (code === 'INSUFFICIENT_BALANCE') showToast('error', 'วันลาคงเหลือไม่เพียงพอ')
+      else showToast('error', 'สร้างไม่สำเร็จ')
+    },
+  })
+
+  const saving = approveMutation.isPending || rejectMutation.isPending || editMutation.isPending || deleteMutation.isPending
+  const addSaving = addMutation.isPending
+  const loading = isLoading
+
+  // รายการเดือนที่มีข้อมูล (สำหรับ tab)
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>()
+    requests.forEach(r => months.add(r.start_date.slice(0, 7)))
+    return [...months].sort().reverse()
+  }, [requests])
+
+  // ── Filter + sort ──────────────────────────────────────────────────────────
+  const STATUS_ORDER: Record<LeaveStatus, number> = { PENDING: 0, APPROVED: 1, REJECTED: 2 }
+  const filtered = useMemo(() => {
+    const list = requests.filter(r => {
+      if (monthFilter && r.start_date.slice(0, 7) !== monthFilter) return false
+      if (statusFilter && r.status !== statusFilter) return false
+      if (branchFilter && r.employee.branch.id !== branchFilter) return false
+      if (search) {
+        const q = search.toLowerCase()
+        if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code}`.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+    // PENDING ก่อน → วันที่ล่าสุด
+    return list.sort((a, b) =>
+      STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+      b.start_date.localeCompare(a.start_date)
+    )
+  }, [requests, monthFilter, statusFilter, branchFilter, search])
 
   const summary = useMemo(() => ({
     pending:  requests.filter(r => r.status === 'PENDING').length,
@@ -136,102 +266,31 @@ export default function LeaveRequestsTab() {
     rejected: requests.filter(r => r.status === 'REJECTED').length,
   }), [requests])
 
-  // ── Approve ───────────────────────────────────────────────────────────────
-  async function handleApprove() {
-    if (!approveTarget) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setRequests(prev => prev.map(r => r.id === approveTarget.id
-      ? { ...r, status: 'APPROVED', reviewed_by: 'admin-mock', reviewed_at: new Date().toISOString() }
-      : r))
-    showToast('success', `อนุมัติวันลา ${approveTarget.employee.first_name} สำเร็จ`)
-    setApproveTarget(null)
-    setSaving(false)
-  }
-
-  // ── Reject ────────────────────────────────────────────────────────────────
-  async function handleReject() {
-    if (!rejectTarget) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setRequests(prev => prev.map(r => r.id === rejectTarget.id
-      ? { ...r, status: 'REJECTED', reviewed_by: 'admin-mock', reviewed_at: new Date().toISOString(), reject_note: rejectNote || null }
-      : r))
-    showToast('success', `ปฏิเสธวันลา ${rejectTarget.employee.first_name} แล้ว`)
-    setRejectTarget(null)
-    setRejectNote('')
-    setSaving(false)
-  }
-
-  // ── Edit ─────────────────────────────────────────────────────────────────
   function openEdit(r: ApiLeaveRequest) {
     setEditForm({
-      leave_type:  r.leave_type,
-      start_date:  r.start_date.slice(0, 10),
-      end_date:    r.end_date.slice(0, 10),
-      days:        r.days,
-      reason:      r.reason ?? '',
+      leave_type: r.leave_type,
+      start_date: r.start_date.slice(0, 10),
+      end_date:   r.end_date.slice(0, 10),
+      days:       r.days,
+      reason:     r.reason ?? '',
     })
     setEditTarget(r)
   }
 
-  async function handleEdit() {
-    if (!editTarget || !editForm.start_date || !editForm.end_date) {
-      showToast('error', 'กรุณากรอกข้อมูลให้ครบ')
-      return
-    }
-    if (editForm.end_date < editForm.start_date) {
-      showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น')
-      return
-    }
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setRequests(prev => prev.map(r => r.id === editTarget.id
-      ? { ...r, leave_type: editForm.leave_type, start_date: editForm.start_date,
-          end_date: editForm.end_date, days: Number(editForm.days), reason: editForm.reason || null }
-      : r))
-    showToast('success', 'แก้ไขคำขอวันลาสำเร็จ')
-    setEditTarget(null)
-    setSaving(false)
+  function handleApprove()  { if (approveTarget) approveMutation.mutate(approveTarget.id) }
+  function handleReject()   { if (rejectTarget)  rejectMutation.mutate({ id: rejectTarget.id, note: rejectNote }) }
+  function handleDelete()   { if (deleteTarget)  deleteMutation.mutate(deleteTarget.id) }
+
+  function handleEdit() {
+    if (!editTarget || !editForm.start_date || !editForm.end_date) { showToast('error', 'กรุณากรอกข้อมูลให้ครบ'); return }
+    if (editForm.end_date < editForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
+    editMutation.mutate({ id: editTarget.id, body: { leave_type: editForm.leave_type, start_date: editForm.start_date, end_date: editForm.end_date, days: Number(editForm.days), reason: editForm.reason || undefined } })
   }
 
-  // ── Delete ───────────────────────────────────────────────────────────────
-  async function handleDelete() {
-    if (!deleteTarget) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 400))
-    setRequests(prev => prev.filter(r => r.id !== deleteTarget.id))
-    showToast('success', `ลบคำขอวันลาของ ${deleteTarget.employee.first_name} แล้ว`)
-    setDeleteTarget(null)
-    setSaving(false)
-  }
-
-  // ── Add leave ─────────────────────────────────────────────────────────────
-  async function handleAddLeave() {
-    if (!addForm.employee_id || !addForm.start_date || !addForm.end_date) {
-      showToast('error', 'กรุณากรอกข้อมูลให้ครบ')
-      return
-    }
-    if (addForm.end_date < addForm.start_date) {
-      showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น')
-      return
-    }
-    setAddSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const emp = employees.find(e => e.id === addForm.employee_id) ?? employees[0]
-    const newReq: ApiLeaveRequest = {
-      id: genLvId(), employee_id: addForm.employee_id, leave_type: addForm.leave_type,
-      start_date: addForm.start_date, end_date: addForm.end_date, days: Number(addForm.days),
-      reason: addForm.reason || null, status: 'PENDING',
-      reviewed_by: null, reviewed_at: null, reject_note: null,
-      created_at: new Date().toISOString(),
-      employee: { id: emp.id, first_name: emp.first_name, last_name: emp.last_name, employee_code: emp.employee_code, branch: emp.branch },
-    }
-    setRequests(prev => [newReq, ...prev])
-    showToast('success', 'สร้างคำขอวันลาสำเร็จ')
-    setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '' })
-    setTab('requests')
-    setAddSaving(false)
+  function handleAddLeave() {
+    if (!addForm.employee_id || !addForm.start_date || !addForm.end_date) { showToast('error', 'กรุณากรอกข้อมูลให้ครบ'); return }
+    if (addForm.end_date < addForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
+    addMutation.mutate({ employee_id: addForm.employee_id, leave_type: addForm.leave_type, start_date: addForm.start_date, end_date: addForm.end_date, days: Number(addForm.days), reason: addForm.reason || undefined })
   }
 
   // ── Auto-calc days ────────────────────────────────────────────────────────
@@ -266,6 +325,27 @@ export default function LeaveRequestsTab() {
           </button>
         ))}
       </div>
+
+      {/* ── Month / Year Picker ── */}
+      {tab === 'requests' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #f3f4f6', flexWrap: 'wrap' }}>
+          <MonthYearPicker value={monthFilter} onChange={setMonth} requests={requests} />
+          {monthFilter && (
+            <button onClick={() => setMonth('')}
+              style={{ fontSize: '0.75rem', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              ดูทั้งหมด
+            </button>
+          )}
+          {monthFilter && (() => {
+            const cnt = requests.filter(r => r.start_date.slice(0, 7) === monthFilter && r.status === 'PENDING').length
+            return cnt > 0 ? (
+              <span style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px' }}>
+                รอพิจารณา {cnt} รายการ
+              </span>
+            ) : null
+          })()}
+        </div>
+      )}
 
       {/* ── Tab: Add Leave ── */}
       {tab === 'add' && (
@@ -359,7 +439,7 @@ export default function LeaveRequestsTab() {
                 <div>
                   {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบรายการ</p>}
                   {filtered.map(r => {
-                    const tc = TYPE_CFG[r.leave_type]
+                    const tc = getTypeCfg(r.leave_type, r.reason)
                     const sc = STATUS_CFG[r.status]
                     return (
                       <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
@@ -371,11 +451,11 @@ export default function LeaveRequestsTab() {
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: r.status === 'PENDING' ? 10 : 0 }}>
-                          <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 600 }}>{tc.label}</span>
+                          <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 600 }}>{tc.displayLabel}</span>
                           <span style={{ fontSize: '0.78rem', color: '#374151' }}>{fmtDate(r.start_date)} – {fmtDate(r.end_date)}</span>
                           <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>{r.days} วัน</span>
                         </div>
-                        {r.reason && <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0 0 10px' }}>{r.reason}</p>}
+                        {r.reason && <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0 0 10px' }}>{cleanReason(r.reason)}</p>}
                         <div style={{ display: 'flex', gap: 8 }}>
                           {r.status === 'PENDING' && <>
                             <button onClick={() => setApproveTarget(r)} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Check size={13}/> อนุมัติ</button>
@@ -405,7 +485,7 @@ export default function LeaveRequestsTab() {
                       <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบรายการ</td></tr>
                     )}
                     {filtered.map((r, i) => {
-                      const tc = TYPE_CFG[r.leave_type]
+                      const tc = getTypeCfg(r.leave_type, r.reason)
                       const sc = STATUS_CFG[r.status]
                       return (
                         <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
@@ -415,14 +495,14 @@ export default function LeaveRequestsTab() {
                           </td>
                           <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                           <td style={{ padding: '11px 14px' }}>
-                            <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600 }}>{tc.label}</span>
+                            <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600 }}>{tc.displayLabel}</span>
                           </td>
                           <td style={{ padding: '11px 14px', fontSize: '0.82rem', color: '#374151', whiteSpace: 'nowrap' }}>
                             {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
                           </td>
                           <td style={{ padding: '11px 14px', fontWeight: 700, color: '#6366f1', textAlign: 'center' }}>{r.days}</td>
                           <td style={{ padding: '11px 14px', fontSize: '0.78rem', color: '#6b7280', maxWidth: 160 }}>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.reason ?? '—'}</div>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanReason(r.reason)}</div>
                           </td>
                           <td style={{ padding: '11px 14px' }}>
                             <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{sc.label}</span>

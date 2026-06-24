@@ -6,8 +6,9 @@ import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
-  checkIn, checkInQR, checkInAuto, checkOut, checkOutAuto, getTodayAttendance, getEmployeeHistory,
+  checkIn, checkInQR, checkInAuto, checkInScan, checkOut, checkOutAuto, checkOutScan, getTodayAttendance, getEmployeeHistory,
 } from './attendance.service'
+import { verifyBranchQrPayload } from '../shift/shift.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
 
@@ -21,7 +22,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
       querystring: {
         type: 'object',
         properties: {
-          date:       { type: 'string', description: 'YYYY-MM-DD' },
+          date:       { type: 'string', description: 'YYYY-MM-DD (วันเดียว)' },
+          startDate:  { type: 'string', description: 'YYYY-MM-DD (ช่วงเริ่ม)' },
+          endDate:    { type: 'string', description: 'YYYY-MM-DD (ช่วงสิ้นสุด)' },
           branchId:   { type: 'string' },
           employeeId: { type: 'string' },
         },
@@ -30,6 +33,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
   }, async (req: any) => {
     const records = await getAttendanceReport(req.tenantId, {
       date:       req.query.date,
+      startDate:  req.query.startDate,
+      endDate:    req.query.endDate,
       branchId:   req.query.branchId,
       employeeId: req.query.employeeId,
     })
@@ -109,6 +114,36 @@ export async function attendanceRoutes(app: FastifyInstance) {
     return ok(null, 'ลบบันทึกสำเร็จ')
   })
 
+  // ── Employee (LIFF): ดูข้อมูล shift ก่อน confirm check-in ─────────
+  app.get('/employee/shift-preview', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูชื่อ/เวลา shift + branch สำหรับแสดงใน confirm screen',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        required: ['shift_id', 'branch_id'],
+        properties: {
+          shift_id:  { type: 'string' },
+          branch_id: { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const shift = await prisma.shift.findFirst({
+      where: { id: req.query.shift_id, tenant_id: req.tenantId, deleted_at: null },
+      include: { branch: { select: { id: true, name: true } } },
+    })
+    if (!shift) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบกะ'))
+    return ok({
+      name:        shift.name,
+      start_time:  shift.start_time,
+      end_time:    shift.end_time,
+      branch_name: shift.branch.name,
+    })
+  })
+
   // ── Employee (LIFF): Check-in ─────────────────────────────────────
   app.post('/employee/attendance/check-in', {
     preHandler: [tenantMiddleware],
@@ -140,6 +175,61 @@ export async function attendanceRoutes(app: FastifyInstance) {
     }
   })
 
+  // ── Employee (LIFF): Check-in ด้วย QR Scan (signed payload) ────
+  app.post('/employee/attendance/check-in-scan', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'เช็คอินด้วย QR Code scan — verify HMAC signature + check-in',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'qr_payload'],
+        properties: {
+          employee_id: { type: 'string' },
+          qr_payload:  { type: 'string', description: 'JSON string จาก QR Code' },
+          gps_lat:     { type: 'number' },
+          gps_lng:     { type: 'number' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      let payload: any
+      try { payload = JSON.parse(req.body.qr_payload) } catch {
+        return reply.code(400).send(fail('INVALID_QR', 'QR Code ไม่ถูกต้อง'))
+      }
+
+      // ตรวจว่า tenant ตรงกัน
+      if (payload.tid !== req.tenantId) {
+        return reply.code(403).send(fail('INVALID_QR', 'QR Code ไม่ใช่ของ tenant นี้'))
+      }
+
+      // Verify HMAC signature (branch-level — ถาวร ไม่มีวันหมดอายุ)
+      if (!verifyBranchQrPayload(payload)) {
+        return reply.code(400).send(fail('INVALID_QR_SIG', 'QR Code ไม่ถูกต้องหรือถูกดัดแปลง'))
+      }
+
+      // Branch QR → auto-detect กะจากเวลา
+      const result = await checkInAuto(req.tenantId, {
+        employee_id: req.body.employee_id,
+        branch_id:   payload.bid,
+        gps_lat:     req.body.gps_lat,
+        gps_lng:     req.body.gps_lng,
+      })
+      return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'ALREADY_CHECKED_IN' || e.code === 'P2002') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
+      if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
+      if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
+      if (e.message === 'NOT_IN_BRANCH')      return reply.code(403).send(fail('NOT_IN_BRANCH', 'คุณไม่ได้สังกัดสาขานี้ — ไม่สามารถเช็คอินได้'))
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบข้อมูลพนักงาน'))
+      if (e.message === 'SHIFT_NOT_IN_TIME')  return reply.code(400).send(fail('SHIFT_NOT_IN_TIME', 'ยังไม่ถึงเวลาเช็คอินกะนี้'))
+      if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(404).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะงานที่กำหนดไว้สำหรับสาขานี้'))
+      throw e
+    }
+  })
+
   // ── Employee (LIFF): Auto check-in จาก QR (branchId เท่านั้น) ───
   app.post('/employee/attendance/check-in-auto', {
     preHandler: [tenantMiddleware],
@@ -166,6 +256,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(400).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะที่เปิดรับเช็คอินในเวลานี้ — อาจเลยเวลาที่กำหนดแล้ว'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
+      if (e.code === 'P2002')                 return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       throw e
     }
   })
@@ -197,6 +288,50 @@ export async function attendanceRoutes(app: FastifyInstance) {
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ — QR นี้ใช้ได้เฉพาะในสาขา'))
       if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): Check-out ด้วย QR Scan ─────────────────────────
+  app.post('/employee/attendance/check-out-scan', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'เช็คเอาต์ด้วย QR Code scan — verify HMAC signature + check-out',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'qr_payload'],
+        properties: {
+          employee_id: { type: 'string' },
+          qr_payload:  { type: 'string', description: 'JSON string จาก QR Code (เดิมกับที่ใช้เช็คอิน)' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      let payload: any
+      try { payload = JSON.parse(req.body.qr_payload) } catch {
+        return reply.code(400).send(fail('INVALID_QR', 'QR Code ไม่ถูกต้อง'))
+      }
+
+      if (payload.tid !== req.tenantId) {
+        return reply.code(403).send(fail('INVALID_QR', 'QR Code ไม่ใช่ของ tenant นี้'))
+      }
+
+      if (!verifyBranchQrPayload(payload)) {
+        return reply.code(400).send(fail('INVALID_QR_SIG', 'QR Code ไม่ถูกต้องหรือถูกดัดแปลง'))
+      }
+
+      const result = await checkOutScan(req.tenantId, req.body.employee_id, payload.bid)
+      return ok(result, 'เช็คเอาต์สำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'NOT_CHECKED_IN')      return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินวันนี้'))
+      if (e.message === 'ALREADY_CHECKED_OUT') return reply.code(409).send(fail('ALREADY_CHECKED_OUT', 'เช็คเอาต์แล้ว'))
+      if (e.message?.startsWith('TOO_EARLY:')) {
+        const time = e.message.split(':')[1]
+        return reply.code(400).send(fail('TOO_EARLY', `ยังเช็คเอาต์ไม่ได้ — เช็คเอาต์ได้หลัง ${time} น.`))
+      }
       throw e
     }
   })

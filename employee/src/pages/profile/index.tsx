@@ -1,28 +1,31 @@
-// employee/src/pages/profile/index.tsx — FinWise layout
+// employee/src/pages/profile/index.tsx
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
-import { MOCK_EMPLOYEE, MOCK_LEAVE_BALANCES } from '../../lib/mock'
 import { COLOR } from '../../components/ui/tokens'
+import { api } from '../../lib/axios'
+import { useAuthStore } from '../../stores/authStore'
 
-function calcTenure(hireDate: string) {
-  const hire = new Date(hireDate), now = new Date()
-  const total = (now.getFullYear() - hire.getFullYear()) * 12 + (now.getMonth() - hire.getMonth())
-  return total < 12 ? `${total} เดือน` : `${Math.floor(total / 12)} ปี ${total % 12} เดือน`
-}
-function formatThaiDate(dateStr: string) {
-  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-  const d = new Date(dateStr)
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`
+interface LeaveBalance {
+  leave_type: string
+  total_days: number
+  used_days: number
+  remaining: number
 }
 
-const WORK_INFO = (emp: typeof MOCK_EMPLOYEE) => [
-  { label: 'รหัสพนักงาน',      value: `EMP${emp.employee_code}`,                            icon: '🪪' },
-  { label: 'สาขา',             value: emp.branch_name,                                       icon: '🏢' },
-  { label: 'กะงาน',            value: `${emp.shift.name}  ${emp.shift.start_time}–${emp.shift.end_time}`, icon: '⏰' },
-  { label: 'วันเริ่มงาน',      value: formatThaiDate(emp.hire_date),                         icon: '📅' },
-  { label: 'อายุงาน',          value: calcTenure(emp.hire_date),                             icon: '⭐' },
-  { label: 'ประเภทเงินเดือน',  value: emp.salary_type === 'MONTHLY' ? 'รายเดือน' : 'รายวัน', icon: '💰' },
-]
+const LEAVE_COLORS: Record<string, string> = {
+  SICK:      '#3b82f6',
+  PERSONAL:  '#8b5cf6',
+  VACATION:  '#f59e0b',
+  MATERNITY: '#ec4899',
+}
+
+const LEAVE_LABELS: Record<string, string> = {
+  SICK:      'ลาป่วย',
+  PERSONAL:  'ลากิจ',
+  VACATION:  'ลาพักร้อน',
+  MATERNITY: 'ลาคลอด',
+}
 
 const MENU_ITEMS = [
   { icon: '⌚', label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot' },
@@ -31,28 +34,47 @@ const MENU_ITEMS = [
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const emp = MOCK_EMPLOYEE
+  const employee = useAuthStore(s => s.employee)
+
+  const { data: balances = [] } = useQuery<LeaveBalance[]>({
+    queryKey: ['employee', 'leave-balances', employee?.id],
+    queryFn: () =>
+      api.get('/employee/leave-balances', { params: { employeeId: employee?.id } })
+         .then(r => r.data.data),
+    enabled: !!employee?.id,
+  })
+
+  if (!employee) {
+    return (
+      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center', color: COLOR.textMuted }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>⏳</div>
+          <div>กำลังโหลด...</div>
+        </div>
+      </div>
+    )
+  }
+
+  const fullName = `${employee.first_name} ${employee.last_name}`
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
 
       {/* ── Orange Gradient Header ──────────────────────────────── */}
       <div className="app-header" style={{ paddingBottom: 64 }}>
-        {/* Bell */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Bell size={18} color="#fff" strokeWidth={1.8} />
           </div>
         </div>
 
-        {/* Avatar + name centered */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-            {emp.full_name.charAt(0)}
+            {employee.first_name.charAt(0)}
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{emp.full_name}</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>{emp.position} · {emp.branch_name}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{fullName}</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>{employee.branch.name}</div>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 14px' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ADE80', display: 'inline-block' }} />
@@ -67,29 +89,39 @@ export default function ProfilePage() {
         {/* ── Leave Balance ───────────────────────────────────── */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 14 }}>วันลาคงเหลือ</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {MOCK_LEAVE_BALANCES.map((b, i) => {
-              const pct = b.entitled_days > 0 ? Math.round((b.used_days / b.entitled_days) * 100) : 0
-              return (
-                <div key={b.leave_type_code} className="animate-slide-up" style={{ animationDelay: `${i * 60}ms`, background: '#F9FAFB', borderRadius: 16, padding: '14px 12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.62rem', color: '#9CA3AF', fontWeight: 600, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.leave_type}</div>
-                  <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.08)', marginBottom: 8 }}>
-                    <div style={{ height: '100%', borderRadius: 99, width: `${pct}%`, background: b.color, transition: 'width 0.6s ease' }} />
+          {balances.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: COLOR.textMuted, fontSize: '0.82rem' }}>ไม่มีข้อมูลวันลา</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {balances.map((b, i) => {
+                const pct = b.total_days > 0 ? Math.round(((b.total_days - b.remaining) / b.total_days) * 100) : 0
+                const color = LEAVE_COLORS[b.leave_type] ?? '#6366f1'
+                return (
+                  <div key={b.leave_type} className="animate-slide-up" style={{ animationDelay: `${i * 60}ms`, background: '#F9FAFB', borderRadius: 16, padding: '14px 12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.62rem', color: '#9CA3AF', fontWeight: 600, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {LEAVE_LABELS[b.leave_type] ?? b.leave_type}
+                    </div>
+                    <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.08)', marginBottom: 8 }}>
+                      <div style={{ height: '100%', borderRadius: 99, width: `${pct}%`, background: color, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1A2B3C' }}>{b.remaining}</span>
+                      <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>/{b.total_days}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1A2B3C' }}>{b.entitled_days - b.used_days}</span>
-                    <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>/{b.entitled_days}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── Work Info ───────────────────────────────────────── */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 4 }}>ข้อมูลการทำงาน</div>
-          {WORK_INFO(emp).map((row, i) => (
+          {[
+            { label: 'รหัสพนักงาน', value: employee.employee_code, icon: '🪪' },
+            { label: 'สาขา',        value: employee.branch.name,    icon: '🏢' },
+          ].map(row => (
             <div key={row.label} className="fw-row">
               <span style={{ fontSize: '1rem', width: 22, textAlign: 'center', flexShrink: 0 }}>{row.icon}</span>
               <span style={{ fontSize: '0.82rem', color: '#6B7D90', flex: 1 }}>{row.label}</span>
@@ -113,11 +145,16 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* ── Change account ──────────────────────────────────── */}
-        <div style={{ textAlign: 'center', paddingTop: 8 }}>
+        <div style={{ textAlign: 'center', paddingTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {import.meta.env.DEV && (
+            <button onClick={() => { localStorage.removeItem('dev_employee_id'); window.location.reload() }}
+              style={{ background: '#fee2e2', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#dc2626', fontWeight: 700, padding: '6px 14px', borderRadius: 8, fontFamily: 'inherit' }}>
+              🛠 DEV: เปลี่ยนพนักงาน
+            </button>
+          )}
           <button onClick={() => navigate('/verify')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#9CA3AF', textDecoration: 'underline', fontFamily: 'inherit' }}>
-            เปลี่ยนบัญชีพนักงาน
+            เปลี่ยนบัญชี LINE
           </button>
         </div>
       </div>

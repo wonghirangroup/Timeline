@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { loginSchema, refreshSchema } from './auth.schema'
 import {
   findUserByEmail,
+  findUserByUsername,
   verifyPassword,
   createAccessToken,
   createRefreshToken,
@@ -34,13 +35,12 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/login', {
     schema: {
       tags: ['Auth'],
-      summary: 'Login ด้วย Email + Password',
+      summary: 'Login ด้วย Username + Password',
       security: [],
       body: {
         type: 'object',
-        required: ['email', 'password'],
         properties: {
-          email:    { type: 'string', format: 'email' },
+          username: { type: 'string' },
           password: { type: 'string' },
         },
       },
@@ -70,23 +70,24 @@ export async function authRoutes(app: FastifyInstance) {
       },
     },
   }, async (request: any, reply) => {
-    const parsed = loginSchema.safeParse(request.body)
+    const body = request.body ?? {}
+    const parsed = loginSchema.safeParse(body)
     if (!parsed.success) {
       reply.code(400)
-      return { success: false, error: { code: 'INVALID_PAYLOAD', message: parsed.error.message } }
+      return { success: false, error: { code: 'INVALID_PAYLOAD', message: 'กรุณากรอก username และ password' } }
     }
 
-    const { email, password } = parsed.data
-    const user = await findUserByEmail(email)
+    const { username, password } = parsed.data
+    const user = await findUserByUsername(username)
     if (!user || !user.is_active) {
       reply.code(401)
-      return { success: false, error: { code: 'AUTH_FAILED', message: 'Invalid credentials' } }
+      return { success: false, error: { code: 'AUTH_FAILED', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' } }
     }
 
     const validPassword = await verifyPassword(password, user.password)
     if (!validPassword) {
       reply.code(401)
-      return { success: false, error: { code: 'AUTH_FAILED', message: 'Invalid credentials' } }
+      return { success: false, error: { code: 'AUTH_FAILED', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' } }
     }
 
     const accessToken = createAccessToken(app, user)

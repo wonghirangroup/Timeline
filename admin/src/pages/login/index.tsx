@@ -11,20 +11,20 @@ const API_URL = import.meta.env.VITE_API_URL ?? ''
 export default function LoginPage() {
   const navigate = useNavigate()
   const setAuth  = useAuthStore(s => s.setAuth)
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [showPwd, setShowPwd]   = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
+  const [username, setUsername]  = useState('')
+  const [password, setPassword]  = useState('')
+  const [showPwd, setShowPwd]    = useState(false)
+  const [loading, setLoading]    = useState(false)
+  const [error, setError]        = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!email || !password) { setError('กรุณากรอกอีเมลและรหัสผ่าน'); return }
+    if (!username || !password) { setError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'); return }
 
     setLoading(true)
     try {
-      const res = await axios.post(`${API_URL}/api/v1/auth/login`, { email, password })
+      const res = await axios.post(`${API_URL}/api/v1/auth/login`, { username, password })
       const { accessToken, user } = res.data.data
 
       // store refresh token in localStorage for later use
@@ -39,7 +39,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.error?.message
-        setError(msg ?? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง')
+        setError(msg ?? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
       } else {
         setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
       }
@@ -48,8 +48,8 @@ export default function LoginPage() {
     }
   }
 
-  function fillDemo(demoEmail: string, demoPassword: string) {
-    setEmail(demoEmail); setPassword(demoPassword); setError('')
+  function fillDemo(demoUsername: string, demoPassword: string) {
+    setUsername(demoUsername); setPassword(demoPassword); setError('')
   }
 
   return (
@@ -81,12 +81,12 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>อีเมล</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>ชื่อผู้ใช้</label>
                 <input
-                  type="email" value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  autoComplete="email"
+                  type="text" value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="username"
+                  autoComplete="username"
                   style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
                   onFocus={e => { e.target.style.borderColor = '#f97316' }}
                   onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
@@ -123,12 +123,12 @@ export default function LoginPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { label: '🏢 Admin',       email: 'admin@wonghiran.com',  pw: 'Password123!', color: '#f97316', bg: '#fff7ed' },
-                { label: '🔐 Super Admin', email: 'admin@timeline.local', pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe' },
+                { label: '🏢 Admin',       username: 'wonghi_admin', pw: 'Password123!', color: '#f97316', bg: '#fff7ed' },
+                { label: '🔐 Super Admin', username: 'superadmin',   pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe' },
               ].map(d => (
-                <button key={d.email} onClick={() => fillDemo(d.email, d.pw)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1px solid ${d.color}25`, background: d.bg, cursor: 'pointer' }}>
+                <button key={d.username} onClick={() => fillDemo(d.username, d.pw)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1px solid ${d.color}25`, background: d.bg, cursor: 'pointer' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: d.color }}>{d.label}</span>
-                  <span style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace' }}>{d.email}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace' }}>{d.username}</span>
                 </button>
               ))}
             </div>

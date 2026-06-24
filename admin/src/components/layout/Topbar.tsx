@@ -32,10 +32,11 @@ function formatDateTime(d: Date) {
 
 interface TopbarProps {
   isMobile: boolean
+  sidebarW: number
   onMenuClick: () => void
 }
 
-export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
+export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { showToast } = useToast()
@@ -310,7 +311,7 @@ export default function Topbar({ isMobile, onMenuClick }: TopbarProps) {
     <>
       <header style={{
         position: 'fixed',
-        left: isMobile ? 0 : 260,
+        left: sidebarW,
         right: 0,
         top: 0,
         height: isMobile ? 56 : 64,

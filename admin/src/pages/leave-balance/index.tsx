@@ -1,7 +1,9 @@
-// admin/src/pages/leave-balance/index.tsx  [MOCK MODE]
+// admin/src/pages/leave-balance/index.tsx
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import { api } from '../../lib/axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LeaveBalance {
@@ -241,36 +243,20 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
 }
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_BALANCES: LeaveBalance[] = [
-  { employee_id: 'e01', employee_code: '58-01-001', full_name: 'ชาตรี วงษ์วิบูลย์สิน',  nickname: 'ตอง',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2015-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 10, used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e02', employee_code: '58-01-002', full_name: 'เกาไพรรา หิรัญประทีป',  nickname: 'ที่จิ๋ว',  branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2015-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 10, used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e03', employee_code: '59-03-001', full_name: 'ศุภนุช จึงอนุวัตร',     nickname: 'พิม',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2016-07-01', sick: { total: 30, used: 2  }, personal: { total: 3, used: 1  }, vacation: { total: 10, used: 4  }, maternity: { total: 0, used: 0 }, compensate: { total: 2,  used: 1  } },
-  { employee_id: 'e04', employee_code: '60-03-001', full_name: 'นวลละออ โพธิ์สูงเนิน',  nickname: 'ปุ้ย',     branch_id: 'br-04', branch_name: 'ฟุคุโระ ไนท์สวนหมาก', hired_at: '2017-01-04', sick: { total: 30, used: 3  }, personal: { total: 3, used: 0  }, vacation: { total: 7,  used: 2  }, maternity: { total: 0, used: 0 }, compensate: { total: 1,  used: 0  } },
-  { employee_id: 'e05', employee_code: '63-03-001', full_name: 'มณเฑียร สว่างเมฆ',      nickname: 'เฟิร์ส',  branch_id: 'br-02', branch_name: 'ฟุคุโระ แม่กิมเฮง',   hired_at: '2020-11-01', sick: { total: 30, used: 5  }, personal: { total: 3, used: 2  }, vacation: { total: 6,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e06', employee_code: '63-04-001', full_name: 'สิรีธร จึงอนุวัตร',     nickname: 'กุล',      branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2020-02-17', sick: { total: 30, used: 1  }, personal: { total: 3, used: 1  }, vacation: { total: 7,  used: 5  }, maternity: { total: 0, used: 0 }, compensate: { total: 3,  used: 2  } },
-  { employee_id: 'e07', employee_code: '64-02-001', full_name: 'อมรรัตน์ โชติมณี',      nickname: 'ปิ๊ว',     branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2021-09-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 6,  used: 3  }, maternity: { total: 0, used: 0 }, compensate: { total: 1,  used: 0  } },
-  { employee_id: 'e08', employee_code: '65-03-001', full_name: 'สนธิญา เลื่อนกระโทก',  nickname: 'มิลส์',   branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2022-01-11', sick: { total: 30, used: 4  }, personal: { total: 3, used: 1  }, vacation: { total: 6,  used: 1  }, maternity: { total: 0, used: 0 }, compensate: { total: 2,  used: 0  } },
-  { employee_id: 'e09', employee_code: '66-03-001', full_name: 'ปัทมา ปลั่งกลาง',       nickname: 'แพร',      branch_id: 'br-03', branch_name: 'ฟุคุโระ ตลาดย่าโม',   hired_at: '2023-03-01', sick: { total: 30, used: 1  }, personal: { total: 3, used: 1  }, vacation: { total: 5,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e10', employee_code: '67-03-002', full_name: 'ลัดดาวัลย์ ปอกระโทก',  nickname: 'แป้ว',     branch_id: 'br-06', branch_name: 'ฟุคุโระ เทิดไท',       hired_at: '2024-01-01', sick: { total: 30, used: 2  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e12', employee_code: '68-03-004', full_name: 'ณัฐธิชา พิมพ์สระเกตุ', nickname: 'สมาย',    branch_id: 'br-01', branch_name: 'วงษ์หิรัญ',             hired_at: '2025-01-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-  { employee_id: 'e13', employee_code: '68-03-006', full_name: 'ศรัญญา ถาวิชัย',        nickname: 'น้ำ สาขา',branch_id: 'br-04', branch_name: 'ฟุคุโระ ไนท์สวนหมาก', hired_at: '2025-03-01', sick: { total: 30, used: 0  }, personal: { total: 3, used: 0  }, vacation: { total: 3,  used: 0  }, maternity: { total: 0, used: 0 }, compensate: { total: 0,  used: 0  } },
-]
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LeaveBalancePage() {
   const { showToast } = useToast()
-  const [balances,    setBalances]    = useState<LeaveBalance[]>(MOCK_BALANCES)
-  const [loading,     setLoading]     = useState(false)
-  const [year,        setYear]        = useState(new Date().getFullYear())
-  const [defaults,    setDefaults]    = useState<Quotas>(DEFAULT_QUOTAS)
-  const [editTarget,  setEditTarget]  = useState<LeaveBalance | null>(null)
-  const [search,      setSearch]      = useState('')
+  const qc = useQueryClient()
+
+  const [year,         setYear]         = useState(new Date().getFullYear())
+  const [defaults,     setDefaults]     = useState<Quotas>(DEFAULT_QUOTAS)
+  const [editTarget,   setEditTarget]   = useState<LeaveBalance | null>(null)
+  const [search,       setSearch]       = useState('')
   const [branchFilter, setBranchFilter] = useState('ALL')
-  const [showDefault, setShowDefault] = useState(true)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDefault,  setShowDefault]  = useState(true)
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
-  const [bulkQuotas,  setBulkQuotas]  = useState<Quotas>(DEFAULT_QUOTAS)
-  const [saving,      setSaving]      = useState(false)
+  const [bulkQuotas,   setBulkQuotas]  = useState<Quotas>(DEFAULT_QUOTAS)
 
   const [seniorityRules, setSeniorityRules] = useState<SeniorityRule[]>([
     { id: 's1', min_years: 0,  max_years: 1,    vacation_days: 6  },
@@ -280,24 +266,25 @@ export default function LeaveBalancePage() {
   ])
   const [showSeniority, setShowSeniority] = useState(false)
 
-  const load = useCallback(() => {
-    setBalances(MOCK_BALANCES)
-  }, [year])
+  const { data: balances = [], isLoading: loading, refetch } = useQuery<LeaveBalance[]>({
+    queryKey: ['admin', 'leave-balances', year],
+    queryFn: () =>
+      api.get('/api/v1/admin/leave-balances/employees', { params: { year } })
+         .then(r => r.data.data),
+  })
 
-  // mock save — update local state
+  const batchMutation = useMutation({
+    mutationFn: (items: { employee_id: string; leave_type: string; total_days: number }[]) =>
+      api.post('/api/v1/admin/leave-balances/batch', { year, items }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] }),
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  const saving = batchMutation.isPending
+
   async function saveBatch(items: { employee_id: string; leave_type: string; total_days: number }[]) {
     if (items.length === 0) return
-    await new Promise(r => setTimeout(r, 500))
-    setBalances(prev => prev.map(b => {
-      const updates = items.filter(i => i.employee_id === b.employee_id)
-      if (updates.length === 0) return b
-      const next = { ...b }
-      for (const u of updates) {
-        const key = u.leave_type.toLowerCase() as LeaveKey
-        if (key in next) (next as any)[key] = { ...(next as any)[key], total: u.total_days }
-      }
-      return next
-    }))
+    await batchMutation.mutateAsync(items)
   }
 
   // Filters
@@ -324,9 +311,7 @@ export default function LeaveBalancePage() {
     })
   ).length
 
-  // Save single employee quota
   async function handleSave(employeeId: string, quotas: Quotas) {
-    setSaving(true)
     try {
       await saveBatch([
         { employee_id: employeeId, leave_type: 'SICK',       total_days: quotas.sick },
@@ -337,12 +322,9 @@ export default function LeaveBalancePage() {
       setEditTarget(null)
       showToast('success', 'บันทึกโควต้าเรียบร้อยแล้ว')
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-    finally { setSaving(false) }
   }
 
-  // Apply default to all
   async function handleApplyAll() {
-    setSaving(true)
     try {
       const items = balances.flatMap(b => [
         { employee_id: b.employee_id, leave_type: 'SICK',       total_days: defaults.sick },
@@ -353,12 +335,9 @@ export default function LeaveBalancePage() {
       await saveBatch(items)
       showToast('success', `ตั้งโควต้า Default ให้พนักงานทั้งหมด ${totalEmployees} คนแล้ว`)
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-    finally { setSaving(false) }
   }
 
-  // Apply default to employees with zero quotas
   async function handleApplyNew() {
-    setSaving(true)
     try {
       const newEmps = balances.filter(b => b.sick.total === 0 && b.personal.total === 0 && b.vacation.total === 0)
       const items = newEmps.flatMap(b => [
@@ -370,12 +349,9 @@ export default function LeaveBalancePage() {
       await saveBatch(items)
       showToast('success', `ตั้งโควต้าให้พนักงานใหม่ ${newEmps.length} คนแล้ว`)
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-    finally { setSaving(false) }
   }
 
-  // Apply seniority rules (vacation days by years of service)
   async function handleApplySeniority() {
-    setSaving(true)
     const today = new Date()
     try {
       const items = balances.flatMap(b => {
@@ -388,12 +364,9 @@ export default function LeaveBalancePage() {
       await saveBatch(items)
       showToast('success', `อัปเดตวันพักร้อนตามอายุงานให้ ${items.length} คนแล้ว`)
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-    finally { setSaving(false) }
   }
 
-  // Bulk edit selected
   async function handleBulkSave() {
-    setSaving(true)
     try {
       const items = [...selectedIds].flatMap(empId => [
         { employee_id: empId, leave_type: 'SICK',       total_days: bulkQuotas.sick },
@@ -406,7 +379,6 @@ export default function LeaveBalancePage() {
       setSelectedIds(new Set())
       setBulkEditOpen(false)
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-    finally { setSaving(false) }
   }
 
   function toggleSelect(id: string) {

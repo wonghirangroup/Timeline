@@ -24,9 +24,10 @@ export async function verifyLiffIdToken(idToken: string, channelId: string): Pro
 }
 
 export async function upsertLineConfig(tenantId: string, data: {
-  line_channel_id:     string
-  line_channel_secret: string
-  line_liff_id:        string
+  line_channel_id:           string
+  line_channel_secret:       string
+  line_channel_access_token?: string
+  line_liff_id:              string
 }) {
   return prisma.tenantLineConfig.upsert({
     where:  { tenant_id: tenantId },

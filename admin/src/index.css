@@ -261,3 +261,109 @@ textarea:focus-visible {
     bottom: 0 !important;
   }
 }
+
+/* ── Mobile Responsive Utilities ─────────────────────────────── */
+
+/* Page header: title left + actions right → stack on mobile */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Filter bar: pills + inputs + buttons → wrap naturally */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.filter-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Responsive table: scroll on mobile */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+.table-wrap table {
+  min-width: 600px;
+}
+
+/* Stat cards: 4 → 2 → 2 → 1 */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1024px) { .stat-cards { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+
+/* Two-col form → single on mobile */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 600px) { .form-grid-2 { grid-template-columns: 1fr; } }
+
+/* Content + sidebar layout → stack on mobile */
+.content-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) { .content-sidebar { grid-template-columns: 1fr; } }
+
+/* Mobile-only hide/show */
+.hide-mobile  { display: block; }
+.show-mobile  { display: none; }
+@media (max-width: 768px) {
+  .hide-mobile  { display: none !important; }
+  .show-mobile  { display: block !important; }
+  .hide-mobile-flex { display: none !important; }
+  .show-mobile-flex { display: flex !important; }
+
+  /* Tighten up page padding on very small screens */
+  .page-header { margin-bottom: 14px; }
+  .filter-bar  { gap: 6px; margin-bottom: 12px; }
+
+  /* Input/select full width on mobile inside filter bar */
+  .filter-bar input,
+  .filter-bar select {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
+
+  /* Stack any inline flex that shouldn't wrap natively */
+  .stack-mobile {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Button full-width on mobile when needed */
+  .btn-full-mobile { width: 100%; }
+
+  /* Card hover transform off on touch */
+  .premium-card:hover {
+    transform: none;
+  }
+}

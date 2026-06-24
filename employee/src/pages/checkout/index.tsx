@@ -1,29 +1,15 @@
-// employee/src/pages/checkout/index.tsx  [MOCK MODE]
-import { useState, useCallback } from 'react'
+// employee/src/pages/checkout/index.tsx
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '../../lib/axios'
+import { useAuthStore } from '../../stores/authStore'
 
-interface EmployeeInfo {
-  id: string; first_name: string; last_name: string
-  employee_code: string; branch: { id: string; name: string }
-}
 interface TodayRecord {
   id: string
   check_in_at:  string | null
   check_out_at: string | null
   shift: { id: string; name: string; start_time: string; end_time: string; min_checkout: string | null }
 }
-
-const MOCK_EMPLOYEE: EmployeeInfo = {
-  id: 'emp-001', first_name: 'สมชาย', last_name: 'ใจดี',
-  employee_code: 'EMP001', branch: { id: 'b-001', name: 'สาขาสุขุมวิท' },
-}
-const MOCK_RECORDS_INIT: TodayRecord[] = [
-  {
-    id: 'att-001',
-    check_in_at:  new Date(new Date().setHours(8, 5, 0, 0)).toISOString(),
-    check_out_at: null,
-    shift: { id: 'sh-001', name: 'กะเช้า', start_time: '08:00', end_time: '17:00', min_checkout: '12:00' },
-  },
-]
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function fmtTime(iso: string | null) {
@@ -37,43 +23,55 @@ function fmtDuration(checkIn: string, checkOut: string) {
 }
 
 export default function CheckoutPage() {
-  const [records,    setRecords]    = useState<TodayRecord[]>(MOCK_RECORDS_INIT)
-  const [loading,    setLoading]    = useState(false)
-  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
+  const employee = useAuthStore(s => s.employee)
+  const qc = useQueryClient()
   const [doneResult, setDoneResult] = useState<{ record: TodayRecord; workMinutes: number } | null>(null)
-  const employee = MOCK_EMPLOYEE
+  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
+
+  const { data: records = [], isLoading } = useQuery<TodayRecord[]>({
+    queryKey: ['employee', 'today', employee?.id],
+    queryFn: () =>
+      api.get('/employee/attendance/today', { params: { employeeId: employee?.id } })
+         .then(r => r.data.data),
+    enabled: !!employee?.id,
+    refetchInterval: 30_000,
+  })
+
+  const checkoutMutation = useMutation({
+    mutationFn: () =>
+      api.post('/employee/attendance/check-out-auto', { employee_id: employee?.id })
+         .then(r => r.data.data),
+    onSuccess: (data) => {
+      setDoneResult(data)
+      qc.invalidateQueries({ queryKey: ['employee', 'today'] })
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'NOT_CHECKED_IN')      setErrorMsg('ยังไม่ได้เช็คอินวันนี้')
+      else if (code === 'ALREADY_CHECKED_OUT') setErrorMsg('เช็คเอาต์แล้ว')
+      else if (code === 'TOO_EARLY') {
+        const msg = err.response?.data?.error?.message ?? 'ยังเช็คเอาต์ไม่ได้'
+        setErrorMsg(msg)
+      } else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    },
+  })
+
+  if (!employee || isLoading) {
+    return (
+      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>⏳</div>
+          <div>กำลังโหลด...</div>
+        </div>
+      </div>
+    )
+  }
 
   const unchecked  = records.filter(r => r.check_in_at && !r.check_out_at)
   const alreadyAll = records.length > 0 && unchecked.length === 0
+  const nextRecord = unchecked[unchecked.length - 1]
 
-  const handleCheckout = useCallback(async () => {
-    const target = unchecked[unchecked.length - 1]
-    if (!target) return
-
-    const now  = new Date()
-    const minCO = target.shift.min_checkout
-    if (minCO) {
-      const [hh, mm] = minCO.split(':').map(Number)
-      const earliest = new Date(); earliest.setHours(hh, mm, 0, 0)
-      if (now < earliest) {
-        setErrorMsg(`ยังเช็คเอาต์ไม่ได้ — รอถึง ${minCO} น.`)
-        return
-      }
-    }
-
-    setLoading(true)
-    setErrorMsg(null)
-    await new Promise(r => setTimeout(r, 700))
-
-    const checkOutAt = now.toISOString()
-    const workMinutes = Math.round((now.getTime() - new Date(target.check_in_at!).getTime()) / 60000)
-    const updated: TodayRecord = { ...target, check_out_at: checkOutAt }
-    setRecords(prev => prev.map(r => r.id === target.id ? updated : r))
-    setDoneResult({ record: updated, workMinutes })
-    setLoading(false)
-  }, [unchecked])
-
-  // ── เช็คเอาต์สำเร็จ ─────────────────────────────────────────────────────────
+  // ── เช็คเอาต์สำเร็จ ────────────────────────────────────────────────────────
   if (doneResult) {
     const r = doneResult.record
     return (
@@ -83,10 +81,6 @@ export default function CheckoutPage() {
           <div className="animate-success-pop" style={{ fontSize: '4rem', lineHeight: 1, marginBottom: 16 }}>✅</div>
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์สำเร็จ!</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>บันทึกเวลาเรียบร้อยแล้ว</div>
-        </div>
-
-        <div style={{ margin: '0 16px 8px', padding: '6px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.72rem', color: '#6366f1', fontWeight: 600, textAlign: 'center' }}>
-          🧪 MOCK MODE
         </div>
 
         <div className="glass-card animate-slide-up" style={{ margin: '8px 16px 0', padding: '24px 20px' }}>
@@ -124,7 +118,7 @@ export default function CheckoutPage() {
     )
   }
 
-  // ── เช็คเอาต์แล้วทั้งหมด ────────────────────────────────────────────────────
+  // ── เช็คเอาต์แล้วทั้งหมด ──────────────────────────────────────────────────
   if (alreadyAll) {
     return (
       <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
@@ -133,9 +127,6 @@ export default function CheckoutPage() {
           <div style={{ fontSize: '4rem', lineHeight: 1, marginBottom: 16 }}>🏁</div>
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์แล้ววันนี้</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>คุณได้เช็คเอาต์ทุกกะแล้ว</div>
-        </div>
-        <div style={{ margin: '0 16px 8px', padding: '6px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.72rem', color: '#6366f1', fontWeight: 600, textAlign: 'center' }}>
-          🧪 MOCK MODE
         </div>
         <div className="glass-card animate-slide-up" style={{ margin: '8px 16px 0', padding: '24px 20px' }}>
           {records.map(r => (
@@ -156,9 +147,8 @@ export default function CheckoutPage() {
     )
   }
 
-  // ── หน้าหลัก ─────────────────────────────────────────────────────────────────
-  const canCheckout = unchecked.length > 0
-  const nextRecord  = unchecked[unchecked.length - 1]
+  // ── หน้าหลัก ──────────────────────────────────────────────────────────────
+  const loading = checkoutMutation.isPending
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
@@ -166,10 +156,6 @@ export default function CheckoutPage() {
         <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 18px' }} />
         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์</div>
         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4 }}>บันทึกเวลาเลิกงาน</div>
-      </div>
-
-      <div style={{ margin: '0 16px 12px', padding: '6px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', fontSize: '0.72rem', color: '#6366f1', fontWeight: 600, textAlign: 'center' }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
       </div>
 
       <div className="glass-card animate-slide-up" style={{ margin: '4px 16px 0', padding: '20px 18px' }}>
@@ -183,13 +169,17 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {nextRecord && (
+        {nextRecord ? (
           <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>เช็คอินวันนี้ — {nextRecord.shift.name}</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 1 }}>{fmtTime(nextRecord.check_in_at)}</div>
             {nextRecord.shift.min_checkout && (
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>เช็คเอาต์ได้ตั้งแต่ {nextRecord.shift.min_checkout} น.</div>
             )}
+          </div>
+        ) : (
+          <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid rgba(0,0,0,0.06)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            ยังไม่มีบันทึกเช็คอินวันนี้
           </div>
         )}
       </div>
@@ -201,8 +191,10 @@ export default function CheckoutPage() {
       )}
 
       <div style={{ margin: '24px 16px 0', textAlign: 'center' }}>
-        <button onClick={handleCheckout} disabled={!canCheckout || loading}
-          style={{ width: '100%', padding: '20px', borderRadius: 20, border: 'none', cursor: canCheckout && !loading ? 'pointer' : 'not-allowed', background: canCheckout && !loading ? 'linear-gradient(135deg, #475569, #1e293b)' : 'rgba(0,0,0,0.08)', color: canCheckout && !loading ? '#fff' : 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 700, boxShadow: canCheckout ? '0 4px 20px rgba(30,41,59,0.3)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+        <button
+          onClick={() => { setErrorMsg(null); checkoutMutation.mutate() }}
+          disabled={unchecked.length === 0 || loading}
+          style={{ width: '100%', padding: '20px', borderRadius: 20, border: 'none', cursor: unchecked.length > 0 && !loading ? 'pointer' : 'not-allowed', background: unchecked.length > 0 && !loading ? 'linear-gradient(135deg, #475569, #1e293b)' : 'rgba(0,0,0,0.08)', color: unchecked.length > 0 && !loading ? '#fff' : 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 700, boxShadow: unchecked.length > 0 ? '0 4px 20px rgba(30,41,59,0.3)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           {loading ? <>⏳ กำลังบันทึก...</> : <>🚪 เช็คเอาต์ตอนนี้</>}
         </button>
       </div>

@@ -22,10 +22,10 @@ const COLORS = [
   'linear-gradient(135deg,#db2777,#f472b6)',
 ]
 
-export default function VerifyPage() {
+export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {}) {
   const navigate  = useNavigate()
   const [step,      setStep]     = useState<Step>('loading')
-  const [profile,   setProfile]  = useState<{ lineUserId: string; displayName: string; pictureUrl?: string } | null>(null)
+  const [profile,   setProfile]  = useState<{ lineUserId: string; displayName: string; pictureUrl?: string; idToken: string } | null>(null)
   const [employees, setEmployees] = useState<EmpItem[]>([])
   const [search,    setSearch]   = useState('')
   const [selected,  setSelected] = useState<EmpItem | null>(null)
@@ -41,7 +41,7 @@ export default function VerifyPage() {
       try {
         await initLiff()
         const p = await getLiffProfile()
-        setProfile({ lineUserId: p.lineUserId, displayName: p.displayName, pictureUrl: p.pictureUrl })
+        setProfile({ lineUserId: p.lineUserId, displayName: p.displayName, pictureUrl: p.pictureUrl, idToken: p.idToken })
 
         const res = await axios.get(`${apiUrl}/employee/list`, {
           params: { line_channel_id: channelId }, headers,
@@ -59,9 +59,8 @@ export default function VerifyPage() {
     if (!selected || !profile) return
     setLinking(true)
     try {
-      const idToken = 'mock-id-token'
       const res = await axios.post(`${apiUrl}/employee/link`, {
-        liff_token:      idToken,
+        liff_token:      profile.idToken,
         line_user_id:    profile.lineUserId,
         line_channel_id: channelId,
         employee_id:     selected.id,
@@ -69,7 +68,10 @@ export default function VerifyPage() {
 
       setJwt(res.data.data.token)
       setStep('success')
-      setTimeout(() => navigate('/checkin'), 2000)
+      setTimeout(() => {
+        if (onLinked) onLinked()
+        else navigate('/checkin')
+      }, 2000)
     } catch (e: any) {
       const code = e?.response?.data?.error?.code
       if (code === 'ALREADY_LINKED') setErrMsg('พนักงานนี้ผูก Line อื่นไปแล้ว กรุณาติดต่อ HR')

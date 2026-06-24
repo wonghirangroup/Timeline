@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useAuthStore } from '../stores/authStore'
 
 const navItems = [
   {
@@ -63,6 +64,7 @@ const pageTitle: Record<string, string> = {
 export default function Layout() {
   const location = useLocation()
   const title = pageTitle[location.pathname] ?? 'TimeLine'
+  const { user, logout } = useAuthStore()
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f1f5f9' }}>
@@ -128,9 +130,16 @@ export default function Layout() {
               color: 'white', fontSize: '10px', fontWeight: 700,
             }}>SA</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Super Admin</p>
-              <p style={{ color: '#475569', fontSize: '10px', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vendor@timeline.co</p>
+              <p style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user ? `${user.first_name} ${user.last_name}` : 'Super Admin'}
+              </p>
+              <p style={{ color: '#475569', fontSize: '10px', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.email ?? 'vendor@timeline.co'}
+              </p>
             </div>
+            <button onClick={logout} title="ออกจากระบบ" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#475569', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
           </div>
         </div>
       </aside>

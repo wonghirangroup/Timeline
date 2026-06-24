@@ -1,0 +1,86 @@
+[
+  {
+    "_id": "9ORmBlKeB9JleGLDezPj",
+    "date": "2026-04-16",
+    "title": "วันสงกรานต์",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": false,
+    "createdAt": "2026-04-09T07:18:49.972Z"
+  },
+  {
+    "_id": "D1y1iH1ckITpSiZedrzL",
+    "date": "2026-01-02",
+    "title": "วันขึ้นปีใหม่",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": true,
+    "createdAt": "2026-01-05T01:50:44.337Z"
+  },
+  {
+    "_id": "HOkWgklI7YUjH7VdAQhd",
+    "title": "วันรัฐธรรมนูญ",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": false,
+    "createdAt": "2025-12-09T04:22:47.987Z",
+    "date": "2025-12-10"
+  },
+  {
+    "_id": "IXk7UWzgp2MNoysxHNWa",
+    "date": "2026-04-14",
+    "title": "วันสงกรานต์",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": false,
+    "createdAt": "2026-04-09T07:18:49.972Z"
+  },
+  {
+    "_id": "fT7bktFCrhuhoVuODtby",
+    "date": "2026-04-15",
+    "title": "วันสงกรานต์",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": false,
+    "createdAt": "2026-04-09T07:18:49.972Z"
+  },
+  {
+    "_id": "gPXAA6EMiXef2YvpCQk8",
+    "date": "2026-04-13",
+    "title": "วันสงกรานต์",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": false,
+    "createdAt": "2026-04-09T07:18:49.971Z"
+  },
+  {
+    "_id": "ni7MTC7oJq4iftwNMnPH",
+    "date": "2026-01-01",
+    "title": "วันขึ้นปีใหม่",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM",
+      "8H1WXjNw7eYtu9yM0bat",
+      "EgSsCy4wrXAQdiZEkY3e",
+      "97gYgC7cagF1qkTnezrP",
+      "vSGIMY6WfXXbsRcxSYcl"
+    ],
+    "allowSales": true,
+    "createdAt": "2026-01-30T05:27:24.150Z"
+  },
+  {
+    "_id": "rtxZ65GWeR7yJQu07PmX",
+    "date": "2025-12-31",
+    "title": "วันสิ้นปี",
+    "targetBranches": [
+      "3hLUNUaRI3TLYZZhlYGM"
+    ],
+    "allowSales": true,
+    "createdAt": "2025-12-09T04:28:43.845Z"
+  }
+]

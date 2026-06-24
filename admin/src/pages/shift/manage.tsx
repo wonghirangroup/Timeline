@@ -1,10 +1,11 @@
-// admin/src/pages/shift/index.tsx  [MOCK MODE]
-import { useState, useMemo, useEffect } from 'react'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle } from 'lucide-react'
-import { useDemoStore } from '../../stores/demoStore'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { api } from '../../lib/axios'
 
 interface ApiBranch { id: string; name: string }
 
@@ -21,29 +22,11 @@ interface ApiShift {
   late_fine_1: string | null
   late_fine_2: string | null
   shift_type: 'REGULAR' | 'SPECIAL'
+  gps_radius: number | null
   is_active: boolean
   branch: { id: string; name: string }
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-let _shSeq = 100
-function genShId() { return `sh-mock-${_shSeq++}` }
-
-const MOCK_BRANCHES_SH: ApiBranch[] = [
-  { id: 'br-01', name: 'วงษ์หิรัญ' },
-  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' },
-  { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' },
-  { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก' },
-  { id: 'br-06', name: 'ฟุคุโระ เทิดไท' },
-]
-const MOCK_SHIFTS_API: ApiShift[] = [
-  { id: 'sh-01', branch_id: 'br-01', name: 'กะเช้า',       start_time: '08:00', end_time: '17:00', min_checkout: '16:55', late_threshold: 5,  late_threshold_1: '08:05', late_threshold_2: '08:20', late_fine_1: '20',  late_fine_2: '50',  shift_type: 'REGULAR', is_active: true, branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'sh-02', branch_id: 'br-01', name: 'กะบ่าย',       start_time: '13:00', end_time: '22:00', min_checkout: '21:55', late_threshold: 5,  late_threshold_1: '13:05', late_threshold_2: '13:20', late_fine_1: '20',  late_fine_2: '50',  shift_type: 'REGULAR', is_active: true, branch: { id: 'br-01', name: 'วงษ์หิรัญ' } },
-  { id: 'sh-03', branch_id: 'br-02', name: 'กะเช้า',       start_time: '09:00', end_time: '18:00', min_checkout: '17:55', late_threshold: 5,  late_threshold_1: '09:05', late_threshold_2: '09:30', late_fine_1: '20',  late_fine_2: '50',  shift_type: 'REGULAR', is_active: true, branch: { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง' } },
-  { id: 'sh-04', branch_id: 'br-03', name: 'กะเช้า',       start_time: '09:00', end_time: '18:00', min_checkout: '17:55', late_threshold: 5,  late_threshold_1: '09:05', late_threshold_2: '09:30', late_fine_1: '20',  late_fine_2: '50',  shift_type: 'REGULAR', is_active: true, branch: { id: 'br-03', name: 'ฟุคุโระ ตลาดย่าโม' } },
-  { id: 'sh-05', branch_id: 'br-04', name: 'กะกลางคืน',   start_time: '17:00', end_time: '02:00', min_checkout: '01:55', late_threshold: 5,  late_threshold_1: '17:05', late_threshold_2: '17:30', late_fine_1: '20',  late_fine_2: '100', shift_type: 'REGULAR', is_active: true, branch: { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก' } },
-  { id: 'sh-06', branch_id: 'br-06', name: 'กะเช้า',       start_time: '09:00', end_time: '18:00', min_checkout: '17:55', late_threshold: 5,  late_threshold_1: '09:05', late_threshold_2: '09:30', late_fine_1: '20',  late_fine_2: '50',  shift_type: 'REGULAR', is_active: true, branch: { id: 'br-06', name: 'ฟุคุโระ เทิดไท' } },
-]
 
 const EMPTY_FORM = {
   branch_id: '',
@@ -56,6 +39,7 @@ const EMPTY_FORM = {
   late_fine_1: '',
   late_fine_2: '',
   shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
+  gps_radius: '' as string | number,
 }
 
 const inputStyle: React.CSSProperties = {
@@ -241,15 +225,192 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ─── QR Modal ─────────────────────────────────────────────────────────────────
+function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void }) {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const [date,    setDate]    = useState(today)
+  const [copied,  setCopied]  = useState(false)
+  const qrWrapRef = useRef<HTMLDivElement>(null)
+
+  const qrQ = useQuery({
+    queryKey: ['shift-qr', shift.id, date],
+    queryFn: () => api.get(`/admin/shifts/${shift.id}/qr`, { params: { date } })
+      .then(r => r.data.data ?? null),
+  })
+
+  const qrString = qrQ.data?.payload ? JSON.stringify(qrQ.data.payload) : ''
+
+  function getSvgEl() { return qrWrapRef.current?.querySelector('svg') ?? null }
+
+  function handleDownload() {
+    const svg = getSvgEl(); if (!svg) return
+    const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
+    a.download = `QR_${shift.name}_${date}.svg`; a.click()
+  }
+
+  function handlePrint() {
+    const svg = getSvgEl(); if (!svg) return
+    const win = window.open('', '_blank')!
+    const radius = shift.gps_radius ? `รัศมี ${shift.gps_radius} เมตร` : 'ไม่จำกัดพื้นที่'
+    win.document.write(`<html><head><title>QR — ${shift.name}</title>
+      <style>
+        body{font-family:'Sarabun',sans-serif;display:flex;flex-direction:column;align-items:center;padding:40px;background:#fff}
+        .title{font-size:22px;font-weight:800;color:#1e293b;margin:0 0 4px}
+        .sub{font-size:14px;color:#6b7280;margin:0 0 20px}
+        svg{border:2px solid #f3f4f6;border-radius:12px;padding:16px}
+        .meta{margin-top:20px;display:flex;gap:24px;font-size:13px;color:#374151}
+        .meta span{display:flex;align-items:center;gap:6px}
+        .expire{margin-top:12px;font-size:11px;color:#9ca3af}
+      </style></head><body>
+      <div class="title">${shift.name}</div>
+      <div class="sub">${shift.branch.name}</div>
+      ${svg.outerHTML}
+      <div class="meta">
+        <span>🕐 ${shift.start_time} – ${shift.end_time}</span>
+        <span>📍 ${radius}</span>
+      </div>
+      <div class="expire">QR นี้ใช้ได้เฉพาะวันที่ ${date} เท่านั้น · พนักงานสแกนผ่าน LINE LIFF</div>
+      </body></html>`)
+    win.document.close(); win.print()
+  }
+
+  function handleCopy() {
+    if (!qrString) return
+    navigator.clipboard.writeText(qrString)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  const radius = shift.gps_radius ? `${shift.gps_radius} เมตร` : 'ไม่จำกัด'
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto' }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 20, padding: '24px 24px 20px', width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', margin: 'auto' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#1e293b' }}>QR เช็คอิน</div>
+            <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>{shift.name} · {shift.branch.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><X size={20}/></button>
+        </div>
+
+        {/* Shift info chips */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          <span style={{ background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+            🕐 {shift.start_time} – {shift.end_time}
+          </span>
+          <span style={{ background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+            📍 รัศมี {radius}
+          </span>
+          {shift.late_threshold_1 && (
+            <span style={{ background: '#fffbeb', color: '#d97706', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              ⚠️ สาย {shift.late_threshold_1}
+            </span>
+          )}
+          {shift.late_threshold_2 && (
+            <span style={{ background: '#fef2f2', color: '#ef4444', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              🚫 ปิดรับ {shift.late_threshold_2}
+            </span>
+          )}
+        </div>
+
+        {/* Date picker */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>วันที่ใช้ QR</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+        </div>
+
+        {/* QR Code */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
+          {qrQ.isLoading ? (
+            <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', background: '#f9fafb', borderRadius: 16 }}>
+              ⏳ กำลังโหลด…
+            </div>
+          ) : qrQ.isError || !qrString ? (
+            <div style={{ padding: '20px', color: '#dc2626', fontSize: '0.85rem', textAlign: 'center', background: '#fef2f2', borderRadius: 12, width: '100%', boxSizing: 'border-box' }}>
+              ⚠️ โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
+            </div>
+          ) : (
+            <>
+              <div ref={qrWrapRef} style={{ padding: 16, background: '#fff', border: '2px solid #e5e7eb', borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                <QRCodeSVG value={qrString} size={210} level="H" />
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', lineHeight: 1.6 }}>
+                ใช้ได้เฉพาะวันที่ <strong style={{ color: '#374151' }}>{date}</strong> เท่านั้น<br/>
+                พนักงานสแกนผ่าน LINE LIFF
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* DEV: copy JSON */}
+        {qrString && (
+          <div style={{ marginBottom: 12, padding: '10px 12px', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10 }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', marginBottom: 6 }}>🛠 DEV — คัดลอก JSON สำหรับทดสอบใน localhost</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input readOnly value={qrString}
+                onClick={e => (e.target as HTMLInputElement).select()}
+                style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #fbbf24', fontSize: '0.7rem', fontFamily: 'monospace', background: '#fff', color: '#374151', minWidth: 0, cursor: 'text' }} />
+              <button onClick={handleCopy}
+                style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: copied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s' }}>
+                {copied ? '✓ คัดลอก!' : 'คัดลอก'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleDownload} disabled={!qrString}
+            style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #d1d5db', background: qrString ? '#f9fafb' : '#f3f4f6', color: qrString ? '#374151' : '#9ca3af', fontSize: '0.82rem', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            ⬇️ ดาวน์โหลด
+          </button>
+          <button onClick={handlePrint} disabled={!qrString}
+            style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: qrString ? 'linear-gradient(135deg,#3b82f6,#2563eb)' : '#d1d5db', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            🖨️ พิมพ์
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ShiftPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const qc = useQueryClient()
 
-  const { employees: storeEmployees, addShift: storeAddShift, updateShift: storeUpdateShift, deleteShift: storeDeleteShift, updateEmployee: storeUpdateEmployee } = useDemoStore()
+  const { data: shifts = [], isLoading: loading } = useQuery<ApiShift[]>({
+    queryKey: ['shifts'],
+    queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
+  })
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+  const { data: allEmployees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; department: string | null; branch_id: string; branch: { id: string; name: string } }[]>({
+    queryKey: ['employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
 
-  const [shifts, setShifts]     = useState<ApiShift[]>(MOCK_SHIFTS_API)
-  const [branches, setBranches] = useState<ApiBranch[]>(MOCK_BRANCHES_SH)
-  const [loading, setLoading]   = useState(false)
+  const createMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/shifts', body).then(r => r.data.data),
+    onSuccess: (_, body: any) => { qc.invalidateQueries({ queryKey: ['shifts'] }); showToast('success', `เพิ่มกะ "${body.name}" สำเร็จ`); setSaving(false); setModal(null) },
+    onError: () => { showToast('error', 'เพิ่มกะไม่สำเร็จ'); setSaving(false) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/shifts/${id}`, body).then(r => r.data.data),
+    onSuccess: (_, { body }: any) => { qc.invalidateQueries({ queryKey: ['shifts'] }); showToast('success', `บันทึกกะ "${body.name}" เรียบร้อย`); setSaving(false); setModal(null) },
+    onError: () => { showToast('error', 'บันทึกกะไม่สำเร็จ'); setSaving(false) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/shifts/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); showToast('success', `ลบกะ "${deleteTarget?.name}" เรียบร้อย`); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบกะไม่สำเร็จ'),
+  })
   const [branchFilter, setBranchFilter] = useState('')
   
   const [page, setPage]         = useState(1)
@@ -271,17 +432,14 @@ export default function ShiftPage() {
   const [form, setForm]         = useState(EMPTY_FORM)
   const [saving, setSaving]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiShift | null>(null)
+  const [qrShift,      setQrShift]      = useState<ApiShift | null>(null)
   const [empViewShift, setEmpViewShift] = useState<ApiShift | null>(null)
   const [empSearch, setEmpSearch] = useState('')
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
 
-  // mutable emp→shift mapping — init จาก demoStore employees เพื่อ sync กับ shift-schedule
-  const [empShiftAssign, setEmpShiftAssign] = useState<Record<string, string | null>>(() => {
-    const m: Record<string, string | null> = {}
-    storeEmployees.forEach(e => { m[e.id] = e.default_shift_id ?? null })
-    return m
-  })
+  // mutable emp→shift mapping — local UI state (ยังไม่มี default_shift_id ใน DB)
+  const [empShiftAssign, setEmpShiftAssign] = useState<Record<string, string | null>>({})
 
   const filtered = shifts.filter(s => !branchFilter || s.branch_id === branchFilter)
   
@@ -292,25 +450,23 @@ export default function ShiftPage() {
   useEffect(() => { setPage(1) }, [pageSize])
 
   const shiftEmpMap = useMemo(() => {
-    const map: Record<string, typeof storeEmployees> = {}
-    storeEmployees.forEach(e => {
+    const map: Record<string, typeof allEmployees> = {}
+    allEmployees.forEach(e => {
       const sid = empShiftAssign[e.id]
       if (!sid) return
       if (!map[sid]) map[sid] = []
       map[sid].push(e)
     })
     return map
-  }, [empShiftAssign, storeEmployees])
+  }, [empShiftAssign, allEmployees])
 
   function assignEmp(empId: string, shiftId: string) {
     setEmpShiftAssign(prev => ({ ...prev, [empId]: shiftId }))
-    storeUpdateEmployee(empId, { default_shift_id: shiftId })
     showToast('success', 'เพิ่มพนักงานเข้ากะแล้ว')
   }
 
   function removeEmp(empId: string, empName: string) {
     setEmpShiftAssign(prev => ({ ...prev, [empId]: null }))
-    storeUpdateEmployee(empId, { default_shift_id: undefined })
     showToast('success', `ย้าย ${empName} ออกจากกะแล้ว`)
   }
 
@@ -331,6 +487,7 @@ export default function ShiftPage() {
       late_fine_1:      s.late_fine_1 ?? '',
       late_fine_2:      s.late_fine_2 ?? '',
       shift_type:       s.shift_type ?? 'REGULAR',
+      gps_radius:       s.gps_radius ?? '',
     })
     setModal({ mode: 'edit', data: s })
   }
@@ -341,43 +498,27 @@ export default function ShiftPage() {
       return
     }
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const br = branches.find(b => b.id === form.branch_id) ?? { id: form.branch_id, name: form.branch_id }
-    if (modal?.mode === 'add') {
-      const newId = genShId()
-      const newShift: ApiShift = {
-        id: newId, branch_id: form.branch_id,
-        name: form.name, start_time: form.start_time, end_time: form.end_time,
-        min_checkout: form.min_checkout || null,
-        late_threshold: 5,
-        late_threshold_1: form.late_threshold_1 || null, late_threshold_2: form.late_threshold_2 || null,
-        late_fine_1: form.late_fine_1 || null, late_fine_2: form.late_fine_2 || null,
-        shift_type: form.shift_type, is_active: true, branch: br,
-      }
-      setShifts(prev => [...prev, newShift])
-      storeAddShift({ id: newId, name: form.name, branch_name: br.name, start_time: form.start_time, end_time: form.end_time, late_threshold_1: form.late_threshold_1 || '', late_threshold_2: form.late_threshold_2 || '', employee_count: 0, shift_type: form.shift_type })
-      showToast('success', `เพิ่มกะ "${form.name}" สำเร็จ`)
-    } else if (modal?.data) {
-      setShifts(prev => prev.map(s => s.id === modal.data!.id
-        ? { ...s, name: form.name, start_time: form.start_time, end_time: form.end_time,
-            min_checkout: form.min_checkout || null, late_threshold_1: form.late_threshold_1 || null,
-            late_threshold_2: form.late_threshold_2 || null, late_fine_1: form.late_fine_1 || null,
-            late_fine_2: form.late_fine_2 || null, shift_type: form.shift_type }
-        : s))
-      storeUpdateShift(modal.data.id, { name: form.name, start_time: form.start_time, end_time: form.end_time, late_threshold_1: form.late_threshold_1 || '', late_threshold_2: form.late_threshold_2 || '', shift_type: form.shift_type })
-      showToast('success', `บันทึกกะ "${form.name}" เรียบร้อย`)
+    const body = {
+      name: form.name, branch_id: form.branch_id,
+      start_time: form.start_time, end_time: form.end_time,
+      min_checkout: form.min_checkout || undefined,
+      late_threshold_1: form.late_threshold_1 || undefined,
+      late_threshold_2: form.late_threshold_2 || undefined,
+      late_fine_1: form.late_fine_1 !== '' ? Number(form.late_fine_1) : null,
+      late_fine_2: form.late_fine_2 !== '' ? Number(form.late_fine_2) : null,
+      shift_type: form.shift_type,
+      gps_radius: form.gps_radius !== '' ? Number(form.gps_radius) : null,
     }
-    setSaving(false)
-    setModal(null)
+    if (modal?.mode === 'add') {
+      createMutation.mutate(body)
+    } else if (modal?.data) {
+      updateMutation.mutate({ id: modal.data.id, body })
+    }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
-    await new Promise(r => setTimeout(r, 400))
-    setShifts(prev => prev.filter(s => s.id !== deleteTarget.id))
-    storeDeleteShift(deleteTarget.id)
-    showToast('success', `ลบกะ "${deleteTarget.name}" เรียบร้อย`)
-    setDeleteTarget(null)
+    deleteMutation.mutate(deleteTarget.id)
   }
 
   const sheetOverlay: React.CSSProperties = {
@@ -393,11 +534,6 @@ export default function ShiftPage() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Mock banner */}
-      <div style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center', marginBottom: 12 }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
-      </div>
-
       {/* Header */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <button
@@ -438,10 +574,10 @@ export default function ShiftPage() {
                 key={b.id}
                 onClick={() => setBranchFilter(b.id)}
                 style={{
-                  padding: '4px 14px', borderRadius: 99, border: 'none',
+                  padding: '4px 14px', borderRadius: 99, border: '2px solid #f97316',
                   fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  background: branchFilter === b.id ? '#f97316' : '#f1f5f9',
-                  color: branchFilter === b.id ? '#fff' : '#64748b',
+                  background: branchFilter === b.id ? '#f97316' : '#fff',
+                  color: branchFilter === b.id ? '#fff' : '#f97316',
                   transition: 'background 0.15s, color 0.15s',
                 }}
               >
@@ -507,8 +643,8 @@ export default function ShiftPage() {
                 <TimeRow icon="🟢" label="เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
                 <TimeRow icon="🔴" label="เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
                 {s.min_checkout && <TimeRow icon="🔒" label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
-                {!isSpecial && s.late_threshold_1 && <TimeRow icon="⚠️" label="สายระดับ 1" value={s.late_threshold_1} color="#d97706" />}
-                {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label="ปิดรับเช็คอิน" value={s.late_threshold_2} color="#dc2626" />}
+                {!isSpecial && s.late_threshold_1 && <TimeRow icon="⚠️" label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
+                {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
                 {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
                 )}
@@ -629,6 +765,34 @@ export default function ShiftPage() {
                 </div>
               </div>
 
+              {/* รัศมีเช็คอิน GPS */}
+              <div>
+                <p style={sectionLabel}>รัศมีเช็คอิน GPS</p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[50, 100, 150, 200, 300].map(r => (
+                    <button key={r} type="button"
+                      onClick={() => setForm(f => ({ ...f, gps_radius: r }))}
+                      style={{
+                        padding: '7px 14px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
+                        border: `1.5px solid ${Number(form.gps_radius) === r ? '#f97316' : '#e5e7eb'}`,
+                        background: Number(form.gps_radius) === r ? '#fff7ed' : '#fff',
+                        color: Number(form.gps_radius) === r ? '#ea580c' : '#4b5563',
+                      }}
+                    >{r}ม.</button>
+                  ))}
+                  <input
+                    type="number"
+                    placeholder="กำหนดเอง"
+                    value={form.gps_radius}
+                    onChange={e => setForm(f => ({ ...f, gps_radius: e.target.value }))}
+                    style={{ ...inputStyle, width: 110 }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                  ปล่อยว่าง = ใช้ค่าเริ่มต้นของสาขา
+                </div>
+              </div>
+
               {/* เกณฑ์การสาย */}
               <div>
                 <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
@@ -639,7 +803,7 @@ export default function ShiftPage() {
                   <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
                     onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
                     sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
-                  <TimeInput label="ปิดรับเช็คอิน" value={form.late_threshold_2}
+                  <TimeInput label="สายระดับ 2 (ปิดรับเช็คอิน)" value={form.late_threshold_2}
                     onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
                     sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
                 </div>
@@ -665,8 +829,8 @@ export default function ShiftPage() {
                   <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, color: '#4338ca' }}>ตัวอย่างกะ "{form.name || '...'}"</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
                     <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
-                    {form.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}</span></>}
-                    {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>ปิดรับเช็คอิน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}</span></>}
+                    {form.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
+                    {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
                     {form.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
                     <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
                   </div>
@@ -684,6 +848,8 @@ export default function ShiftPage() {
           </div>
         </div>
       )}
+
+      {qrShift && <ShiftQRModal shift={qrShift} onClose={() => setQrShift(null)} />}
 
       {deleteTarget && (() => {
         const empCount = (shiftEmpMap[deleteTarget.id] ?? []).length
@@ -707,13 +873,13 @@ export default function ShiftPage() {
         const inShift  = shiftEmpMap[empViewShift.id] ?? []
         const inShiftIds = new Set(inShift.map(e => e.id))
         const q = empSearch.trim().toLowerCase()
-        const notInShift = storeEmployees.filter(e =>
+        const notInShift = allEmployees.filter(e =>
           !inShiftIds.has(e.id) &&
-          e.branches.includes(empViewShift.branch.name) &&
-          (!q || e.full_name.toLowerCase().includes(q) || e.nickname.toLowerCase().includes(q) || e.code.includes(q))
+          e.branch_id === empViewShift.branch_id &&
+          (!q || `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) || (e.nickname ?? '').toLowerCase().includes(q))
         )
         const inShiftFiltered = inShift.filter(e =>
-          !q || e.full_name.toLowerCase().includes(q) || e.nickname.toLowerCase().includes(q) || e.code.includes(q)
+          !q || `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) || (e.nickname ?? '').toLowerCase().includes(q)
         )
         const COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
         const avatarColor = (idx: number) => COLORS[idx % COLORS.length]
@@ -741,7 +907,7 @@ export default function ShiftPage() {
               <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                 {([
                   ['in',  <><Users size={13}/> ในกะนี้ ({inShift.length})</>],
-                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {storeEmployees.filter(e => !inShiftIds.has(e.id) && e.branches.includes(empViewShift.branch.name)).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{storeEmployees.filter(e => !inShiftIds.has(e.id) && e.branches.includes(empViewShift.branch.name)).length}</span>}</>],
+                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length}</span>}</>],
                 ] as const).map(([tab, label]) => (
                   <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch(''); setRemoveConfirm(null) }}
                     style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#f97316' : 'transparent'}`, color: addEmpTab === tab ? '#f97316' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
@@ -770,16 +936,16 @@ export default function ShiftPage() {
                   ) : inShiftFiltered.map((e, idx) => (
                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f8fafc' }}>
                       <div style={{ width: 38, height: 38, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
-                        {e.nickname.slice(0, 2)}
+                        {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.full_name}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>{e.nickname} · {e.department}</div>
+                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>{e.nickname ?? ''} · {e.department ?? ''}</div>
                       </div>
                       {removeConfirm === e.id ? (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
-                            onClick={() => { removeEmp(e.id, e.nickname); setRemoveConfirm(null) }}
+                            onClick={() => { removeEmp(e.id, e.nickname ?? e.first_name ?? ''); setRemoveConfirm(null) }}
                             style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}
                           >ยืนยัน</button>
                           <button
@@ -808,12 +974,12 @@ export default function ShiftPage() {
                     return (
                       <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid #f8fafc' }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
-                          {e.nickname.slice(0, 2)}
+                          {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.full_name}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>
-                            {e.nickname} · {e.department}
+                            {e.nickname ?? ''} · {e.department ?? ''}
                             {curShift && empViewShift.shift_type === 'SPECIAL' && <span style={{ color: '#7c3aed' }}> · กะประจำ: {curShift.name}</span>}
                             {curShift && empViewShift.shift_type !== 'SPECIAL' && <span style={{ color: '#d97706' }}> · กำลังอยู่ใน {curShift.name}</span>}
                           </div>

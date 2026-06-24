@@ -1,11 +1,12 @@
-// admin/src/pages/employee/index.tsx  [MOCK MODE]
 import React, { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { MOCK_EMPLOYEES as LIB_EMPLOYEES, MOCK_BRANCHES as LIB_BRANCHES } from '../../lib/mock'
+import { useSwipePage } from '../../hooks/useSwipePage'
+import { api } from '../../lib/axios'
 
 interface ApiBranch {
   id: string
@@ -28,36 +29,6 @@ interface ApiEmployee {
   branch: { id: string; name: string }
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-let _emSeq = 100
-function genEmId() { return `em-mock-${_emSeq++}` }
-let _codeSeq = 42
-function genCode(dept: string) {
-  const d = dept ? dept.slice(0, 2) : 'EX'
-  return `2567-${d}-${String(++_codeSeq).padStart(3, '0')}`
-}
-
-const MOCK_BRANCHES_EM: ApiBranch[] = LIB_BRANCHES.map(b => ({ id: b.id, name: b.name }))
-
-const MOCK_EMPLOYEES: ApiEmployee[] = LIB_EMPLOYEES.map(e => {
-  const branchName = e.branches[0] ?? ''
-  const branch = LIB_BRANCHES.find(b => b.name === branchName)
-  return {
-    id: e.id,
-    employee_code: e.code,
-    first_name: e.full_name.split(' ')[0],
-    last_name: e.full_name.split(' ').slice(1).join(' '),
-    nickname: e.nickname,
-    department: e.department,
-    phone: e.phone,
-    hired_at: e.hire_date,
-    line_user_id: e.line_user_id,
-    is_active: e.status === 'ACTIVE',
-    created_at: e.hire_date + 'T00:00:00Z',
-    branch_id: branch?.id ?? 'br-01',
-    branch: { id: branch?.id ?? 'br-01', name: branchName }
-  }
-})
 
 const DEPARTMENTS = [
   '01 ผู้บริหาร',
@@ -89,10 +60,20 @@ export default function EmployeePage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+  const swipeHandlers = useSwipePage(
+    () => setPage(p => Math.min(totalPages, p + 1)),
+    () => setPage(p => Math.max(1, p - 1)),
+  )
+  const qc = useQueryClient()
 
-  const [employees, setEmployees]     = useState<ApiEmployee[]>(MOCK_EMPLOYEES)
-  const [branches, setBranches]       = useState<ApiBranch[]>(MOCK_BRANCHES_EM)
-  const [loading, setLoading]         = useState(false)
+  const { data: employees = [], isLoading: loading } = useQuery<ApiEmployee[]>({
+    queryKey: ['employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
 
   const [search, setSearch]           = useState('')
   const [branchFilter, setBranchFilter] = useState('')
@@ -128,11 +109,6 @@ export default function EmployeePage() {
   })
   const af = addForm
   const setAf = (patch: Partial<typeof addForm>) => setAddForm(f => ({ ...f, ...patch }))
-
-  function loadAll() {
-    setBranches(MOCK_BRANCHES_EM)
-    setEmployees(MOCK_EMPLOYEES)
-  }
 
   const filtered = useMemo(() => employees.filter(e => {
     if (branchFilter && e.branch_id !== branchFilter) return false
@@ -192,25 +168,51 @@ export default function EmployeePage() {
     return { first_name: parts[0] ?? '', last_name: parts.slice(1).join(' ') }
   }
 
+  const addMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/employees', body).then(r => r.data.data),
+    onSuccess: (_, vars: any) => {
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', `เพิ่ม "${vars.first_name} ${vars.last_name}" สำเร็จ — ส่งลิงก์ยืนยัน Line ให้พนักงานด้วย`)
+      setSaving(false); setModal(null)
+    },
+    onError: () => { showToast('error', 'เพิ่มพนักงานไม่สำเร็จ'); setSaving(false) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/employees/${id}`, body).then(r => r.data.data),
+    onSuccess: (_, { body }: any) => {
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', `บันทึกข้อมูลเรียบร้อย`)
+      setSaving(false); setModal(null)
+    },
+    onError: () => { showToast('error', 'บันทึกไม่สำเร็จ'); setSaving(false) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/employees/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', `ลบพนักงาน "${deleteTarget?.first_name} ${deleteTarget?.last_name}" เรียบร้อย`)
+      setDeleteTarget(null)
+    },
+    onError: () => showToast('error', 'ลบพนักงานไม่สำเร็จ'),
+  })
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/api/v1/admin/employees/${id}`, { is_active }),
+    onSuccess: (_, { is_active }) => { qc.invalidateQueries({ queryKey: ['employees'] }) },
+  })
+
   async function handleAddSave() {
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const br = af.branch_accesses[0]
-      ? { id: af.branch_accesses[0].branch_id, name: af.branch_accesses[0].branch_name }
-      : { id: branches[0]?.id ?? 'br-01', name: branches[0]?.name ?? '' }
-    const fullName = `${af.first_name} ${af.last_name}`.trim() || 'พนักงานใหม่'
-    const newEm: ApiEmployee = {
-      id: genEmId(), employee_code: genCode(af.department),
-      first_name: af.first_name || 'พนักงาน', last_name: af.last_name || 'ใหม่',
-      nickname: af.nickname || null, department: af.department || null,
-      phone: af.phone || null, hired_at: af.hired_at || null,
-      line_user_id: null, is_active: true,
-      created_at: new Date().toISOString(), branch_id: br.id, branch: br,
+    const branchId = af.branch_accesses[0]?.branch_id ?? branches[0]?.id ?? ''
+    const body = {
+      branch_id: branchId,
+      first_name: af.first_name || 'พนักงาน',
+      last_name: af.last_name || 'ใหม่',
+      nickname: af.nickname || undefined,
+      department: af.department || undefined,
+      phone: af.phone || undefined,
+      hired_at: af.hired_at || undefined,
     }
-    setEmployees(prev => [...prev, newEm])
-    showToast('success', `เพิ่ม "${fullName}" สำเร็จ — ส่งลิงก์ยืนยัน Line ให้พนักงานด้วย`)
-    setSaving(false)
-    setModal(null)
+    addMutation.mutate(body)
   }
 
   async function handleSave() {
@@ -220,23 +222,19 @@ export default function EmployeePage() {
     }
     const { first_name, last_name } = parseName(form.full_name)
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const br = branches.find(b => b.id === form.branch_id) ?? { id: form.branch_id, name: form.branch_id }
     if (editTarget) {
-      setEmployees(prev => prev.map(e => e.id === editTarget.id
-        ? { ...e, first_name, last_name, nickname: form.nickname || null,
-            department: form.department || null, phone: form.phone || null,
-            hired_at: form.hired_at || null, branch_id: form.branch_id, branch: br }
-        : e))
-      showToast('success', `บันทึกข้อมูล "${form.full_name}" เรียบร้อย`)
+      updateMutation.mutate({ id: editTarget.id, body: {
+        branch_id: form.branch_id, first_name, last_name,
+        nickname: form.nickname || undefined,
+        department: form.department || undefined,
+        phone: form.phone || undefined,
+        hired_at: form.hired_at || undefined,
+      }})
     }
-    setSaving(false)
-    setModal(null)
   }
 
   async function handleToggleStatus(e: ApiEmployee) {
-    await new Promise(r => setTimeout(r, 300))
-    setEmployees(prev => prev.map(em => em.id === e.id ? { ...em, is_active: !em.is_active } : em))
+    toggleMutation.mutate({ id: e.id, is_active: !e.is_active })
     showToast('success', `${e.first_name} ${e.last_name} — ${!e.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}แล้ว`)
   }
 
@@ -249,10 +247,7 @@ export default function EmployeePage() {
 
   async function handleDelete() {
     if (!deleteTarget) return
-    await new Promise(r => setTimeout(r, 400))
-    setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id))
-    showToast('success', `ลบพนักงาน "${deleteTarget.first_name} ${deleteTarget.last_name}" เรียบร้อย`)
-    setDeleteTarget(null)
+    deleteMutation.mutate(deleteTarget.id)
   }
 
   const filterInput: React.CSSProperties = {
@@ -272,11 +267,6 @@ export default function EmployeePage() {
 
   return (
     <div>
-      {/* Mock banner */}
-      <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.72rem', color: '#f97316', fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>
-        🧪 MOCK MODE — ข้อมูลจำลอง ยังไม่ต่อ API จริง
-      </div>
-
       {/* Header - Title removed */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
         <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
@@ -285,7 +275,7 @@ export default function EmployeePage() {
       </div>
 
       {/* KPI mini row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 8 : 10, marginBottom: 20 }}>
         {[
           { label: 'ทั้งหมด',    value: employees.length,                                icon: <Users size={15}/>,        color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
           { label: 'ใช้งาน',     value: employees.filter(e => e.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
@@ -311,10 +301,10 @@ export default function EmployeePage() {
                 key={b.id}
                 onClick={() => setBranchFilter(b.id)}
                 style={{
-                  padding: '4px 14px', borderRadius: 99, border: 'none',
+                  padding: '4px 14px', borderRadius: 99, border: '2px solid #f97316',
                   fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  background: branchFilter === b.id ? '#f97316' : '#f1f5f9',
-                  color: branchFilter === b.id ? '#fff' : '#64748b',
+                  background: branchFilter === b.id ? '#f97316' : '#fff',
+                  color: branchFilter === b.id ? '#fff' : '#f97316',
                   transition: 'background 0.15s, color 0.15s',
                 }}
               >
@@ -383,7 +373,7 @@ export default function EmployeePage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
               {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
                 <button key={b.id} onClick={() => setBranchFilter(b.id)}
-                  style={{ padding: '6px 16px', borderRadius: 99, border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: branchFilter === b.id ? '#f97316' : '#f1f5f9', color: branchFilter === b.id ? '#fff' : '#64748b' }}>
+                  style={{ padding: '6px 16px', borderRadius: 99, border: '2px solid #f97316', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: branchFilter === b.id ? '#f97316' : '#fff', color: branchFilter === b.id ? '#fff' : '#f97316' }}>
                   {b.name}
                 </button>
               ))}
@@ -504,7 +494,7 @@ export default function EmployeePage() {
 
       {/* Mobile cards */}
       {!loading && isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div {...swipeHandlers} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.length === 0 && (
             <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 0', fontSize: '13px' }}>ไม่พบพนักงาน</p>
           )}
@@ -539,24 +529,29 @@ export default function EmployeePage() {
           
           {/* Mobile Pagination Controls */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '12px 0' }}>
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))} 
-                disabled={page === 1}
-                style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>
-                {page} / {totalPages}
-              </span>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-                disabled={page === totalPages}
-                style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 20 : 8, height: 8, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#f97316' : '#e5e7eb', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              <span style={{ fontSize: '0.68rem', color: '#d1d5db' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>
             </div>
           )}
         </div>

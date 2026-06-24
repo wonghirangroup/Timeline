@@ -1,7 +1,9 @@
-// admin/src/pages/holiday/index.tsx  [MOCK MODE]
-import { useState, useRef, useEffect, useCallback } from 'react'
+// admin/src/pages/holiday/index.tsx
+import { useState, useRef, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, X, Check, Pin, Repeat2, CheckCircle2, Save } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import { api } from '../../lib/axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
@@ -46,36 +48,13 @@ const COMPANY_EXTRA: Omit<Holiday, 'id'>[] = [
   { date: '2026-12-28', name: 'วันหยุดพักผ่อนบริษัท',     type: 'COMPANY', recurring: false },
 ]
 
-let _idSeq = 1
-function makeId() { return `hol-${_idSeq++}` }
-
-const INIT_HOLIDAYS: Holiday[] = [
-  ...THAI_NATIONAL_2026.map(h => ({ ...h, id: makeId() })),
-  ...COMPANY_EXTRA.map(h => ({ ...h, id: makeId() })),
-]
-
-// วันหยุดพื้นฐาน: ปีใหม่ + สงกรานต์ (สำหรับสาขาที่ไม่ได้สิทธิ์ทุกวัน)
+// วันหยุดพื้นฐาน: ปีใหม่ + สงกรานต์
 const BASE_HOLIDAY_DATES = new Set([
   '2026-01-01','2026-01-02',
   '2026-04-13','2026-04-14','2026-04-15','2026-04-16',
 ])
 
-// ── Branch mock data ──────────────────────────────────────────────────────────
-const MOCK_BRANCHES: MockBranch[] = [
-  { id: 'br-01', name: 'วงษ์หิรัญ',              desc: 'สาขาหลัก — สำนักงาน + คลังสินค้า' },
-  { id: 'br-02', name: 'ฟุคุโระ แม่กิมเฮง',      desc: 'หน้าร้านค้า — พนักงานขาย/ขนส่ง' },
-  { id: 'br-04', name: 'ฟุคุโระ ไนท์สวนหมาก',   desc: 'หน้าร้านค้า — พนักงานขาย/ขนส่ง' },
-]
-
-// Initial branch override: br-01 ได้ทุกวัน, br-02/br-04 ได้เฉพาะปีใหม่+สงกรานต์
-function initBranchOverrides(holidays: Holiday[]): Record<string, Set<string>> {
-  const allDates = new Set(holidays.map(h => h.date))
-  return {
-    'br-01': new Set(allDates),
-    'br-02': new Set(BASE_HOLIDAY_DATES),
-    'br-04': new Set(BASE_HOLIDAY_DATES),
-  }
-}
+interface MockBranch { id: string; name: string; desc: string }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const TYPE_CFG: Record<HolidayType, { label: string; color: string; bg: string; dot: string }> = {
@@ -239,14 +218,15 @@ function HolidayModal({ initial, onSave, onClose }: ModalProps) {
 
 // ── Branch Override View ──────────────────────────────────────────────────────
 function BranchOverrideView({
-  holidays, branchOverrides, onToggle, onSave,
+  holidays, branches, branchOverrides, onToggle, onSave,
 }: {
   holidays: Holiday[]
+  branches: MockBranch[]
   branchOverrides: Record<string, Set<string>>
   onToggle: (branchId: string, date: string) => void
   onSave: () => void
 }) {
-  const [selBranch, setSelBranch] = useState(MOCK_BRANCHES[0].id)
+  const [selBranch, setSelBranch] = useState(() => branches[0]?.id ?? '')
 
   const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date))
   const branchSet = branchOverrides[selBranch] ?? new Set()
@@ -277,7 +257,7 @@ function BranchOverrideView({
 
       {/* Branch selector */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {MOCK_BRANCHES.map(b => {
+        {branches.map(b => {
           const isActive = selBranch === b.id
           const cnt = [...(branchOverrides[b.id] ?? new Set())].length
           return (
@@ -295,10 +275,10 @@ function BranchOverrideView({
         <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>
-              {MOCK_BRANCHES.find(b => b.id === selBranch)?.name}
+              {branches.find(b => b.id === selBranch)?.name}
             </div>
             <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>
-              {MOCK_BRANCHES.find(b => b.id === selBranch)?.desc}
+              {branches.find(b => b.id === selBranch)?.desc}
               {' '}— ได้ <strong style={{ color: '#4f46e5' }}>{checkedCount}</strong>/{sorted.length} วันหยุด
             </div>
           </div>
@@ -362,20 +342,72 @@ function BranchOverrideView({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function HolidayPage() {
   const { showToast } = useToast()
-  const [year, setYear]       = useState(new Date().getFullYear())
-  const [holidays, setHolidays] = useState<Holiday[]>(INIT_HOLIDAYS)
-  const [saving,   setSaving]   = useState(false)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [modal, setModal]       = useState<{ mode: 'add'; date?: string } | { mode: 'edit'; holiday: Holiday } | null>(null)
+  const qc = useQueryClient()
+
+  const [year,          setYear]          = useState(new Date().getFullYear())
+  const [selectedDate,  setSelectedDate]  = useState<string | null>(null)
+  const [modal,         setModal]         = useState<{ mode: 'add'; date?: string } | { mode: 'edit'; holiday: Holiday } | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Holiday | null>(null)
-  const [filterType, setFilterType]       = useState<HolidayType | 'ALL'>('ALL')
+  const [filterType,    setFilterType]    = useState<HolidayType | 'ALL'>('ALL')
   const [importConfirm, setImportConfirm] = useState(false)
-  const [pageView, setPageView] = useState<PageView>('calendar')
+  const [pageView,      setPageView]      = useState<PageView>('calendar')
+  const [branchOverrides, setBranchOverrides] = useState<Record<string, Set<string>>>({})
 
-  // Branch override state
-  const [branchOverrides, setBranchOverrides] = useState<Record<string, Set<string>>>(() => initBranchOverrides(INIT_HOLIDAYS))
+  const { data: holidays = [] } = useQuery<Holiday[]>({
+    queryKey: ['admin', 'holidays', year],
+    queryFn: () =>
+      api.get('/api/v1/super-admin/holidays', { params: { year } })
+         .then(r => (r.data.data as any[]).map((h: any) => ({
+           ...h,
+           date: h.date?.slice(0, 10) ?? h.date,
+         }))),
+  })
 
-  const load = useCallback(() => { setHolidays(INIT_HOLIDAYS) }, [year])
+  const { data: apiBranches = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['admin', 'branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const branches: MockBranch[] = apiBranches.map(b => ({ id: b.id, name: b.name, desc: '' }))
+
+  function invalidate() { qc.invalidateQueries({ queryKey: ['admin', 'holidays', year] }) }
+
+  const addMutation = useMutation({
+    mutationFn: (data: Omit<Holiday, 'id'>) =>
+      api.post('/api/v1/super-admin/holidays', data).then(r => r.data),
+    onSuccess: (_, data) => { invalidate(); showToast('success', `เพิ่ม "${data.name}" เรียบร้อยแล้ว`); setModal(null) },
+    onError: () => showToast('error', 'เพิ่มไม่สำเร็จ'),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Omit<Holiday, 'id'> }) =>
+      api.patch(`/api/v1/super-admin/holidays/${id}`, data).then(r => r.data),
+    onSuccess: (_, { data }) => { invalidate(); showToast('success', `แก้ไข "${data.name}" เรียบร้อยแล้ว`); setModal(null) },
+    onError: () => showToast('error', 'แก้ไขไม่สำเร็จ'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.delete(`/api/v1/super-admin/holidays/${id}`).then(r => r.data),
+    onSuccess: (_, id) => {
+      const h = holidays.find(x => x.id === id)
+      invalidate(); showToast('success', `ลบ "${h?.name}" เรียบร้อยแล้ว`); setDeleteConfirm(null); setSelectedDate(null)
+    },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+
+  const importMutation = useMutation({
+    mutationFn: (items: Omit<Holiday, 'id'>[]) =>
+      api.post('/api/v1/super-admin/holidays/batch', { items }).then(r => r.data),
+    onSuccess: (res) => {
+      invalidate()
+      showToast('success', res.data?.count > 0 ? `นำเข้าวันหยุดนักขัตฤกษ์ ${res.data.count} รายการ` : 'ไม่มีวันหยุดใหม่ (มีครบแล้ว)')
+      setImportConfirm(false)
+    },
+    onError: () => showToast('error', 'นำเข้าไม่สำเร็จ'),
+  })
+
+  const saving = addMutation.isPending || editMutation.isPending || deleteMutation.isPending || importMutation.isPending
 
   const yearHolidays = holidays.filter(h => h.date.startsWith(`${year}-`))
   const holidayMap = new Map<string, Holiday[]>()
@@ -391,45 +423,17 @@ export default function HolidayPage() {
 
   const selectedHols = selectedDate ? (holidayMap.get(selectedDate) ?? []) : []
 
-  async function handleAdd(data: Omit<Holiday, 'id'>) {
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setHolidays(prev => [...prev, { ...data, id: makeId() }])
-    showToast('success', `เพิ่ม "${data.name}" เรียบร้อยแล้ว`)
-    setModal(null)
-    setSaving(false)
-  }
+  function handleAdd(data: Omit<Holiday, 'id'>) { addMutation.mutate(data) }
 
-  async function handleEdit(data: Omit<Holiday, 'id'>) {
+  function handleEdit(data: Omit<Holiday, 'id'>) {
     if (modal?.mode !== 'edit') return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
-    setHolidays(prev => prev.map(h => h.id === (modal as any).holiday.id ? { ...h, ...data } : h))
-    showToast('success', `แก้ไข "${data.name}" เรียบร้อยแล้ว`)
-    setModal(null)
-    setSaving(false)
+    editMutation.mutate({ id: (modal as any).holiday.id, data })
   }
 
-  async function handleDelete(id: string) {
-    const h = holidays.find(x => x.id === id)
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 400))
-    setHolidays(prev => prev.filter(x => x.id !== id))
-    showToast('success', `ลบ "${h?.name}" เรียบร้อยแล้ว`)
-    setDeleteConfirm(null)
-    setSelectedDate(null)
-    setSaving(false)
-  }
+  function handleDelete(id: string) { deleteMutation.mutate(id) }
 
-  async function handleImport() {
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const existing = new Set(holidays.map(h => h.date))
-    const newItems = THAI_NATIONAL_2026.filter(h => !existing.has(h.date)).map(h => ({ ...h, id: makeId() }))
-    setHolidays(prev => [...prev, ...newItems])
-    showToast('success', newItems.length > 0 ? `นำเข้าวันหยุดนักขัตฤกษ์ ${newItems.length} รายการ` : 'ไม่มีวันหยุดใหม่ (มีครบแล้ว)')
-    setImportConfirm(false)
-    setSaving(false)
+  function handleImport() {
+    importMutation.mutate([...THAI_NATIONAL_2026, ...COMPANY_EXTRA])
   }
 
   function handleBranchToggle(branchId: string, date: string) {
@@ -441,11 +445,8 @@ export default function HolidayPage() {
     })
   }
 
-  async function handleSaveBranchOverride() {
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 500))
+  function handleSaveBranchOverride() {
     showToast('success', 'บันทึกสิทธิ์วันหยุดต่อสาขาเรียบร้อยแล้ว')
-    setSaving(false)
   }
 
   function thDate(d: string) {
@@ -485,7 +486,8 @@ export default function HolidayPage() {
       {/* ── Branch Override View ── */}
       {pageView === 'branch-override' && (
         <BranchOverrideView
-          holidays={yearHolidays.length > 0 ? yearHolidays : INIT_HOLIDAYS}
+          holidays={yearHolidays}
+          branches={branches}
           branchOverrides={branchOverrides}
           onToggle={handleBranchToggle}
           onSave={handleSaveBranchOverride}

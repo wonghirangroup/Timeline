@@ -51,9 +51,10 @@ enum GeoMode {
 model TenantLineConfig {
   id                  String   @id @default(uuid())
   tenant_id           String   @unique
-  line_channel_id     String
-  line_channel_secret String   // encrypted
-  line_liff_id        String
+  line_channel_id           String
+  line_channel_secret       String
+  line_channel_access_token String?
+  line_liff_id              String
   rich_menu_id        String?
   logo_url            String?  // white-label
   primary_color       String?  // white-label
@@ -149,10 +150,11 @@ model Branch {
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
-  tenant    Tenant          @relation(fields: [tenant_id], references: [id])
-  employees Employee[]
-  shifts    Shift[]
-  managers  BranchManager[]
+  tenant          Tenant             @relation(fields: [tenant_id], references: [id])
+  employees       Employee[]
+  shifts          Shift[]
+  managers        BranchManager[]
+  weekly_off_periods WeeklyOffPeriod[]
 
   @@index([tenant_id])
   @@map("branches")
@@ -188,6 +190,7 @@ model Shift {
   late_fine_1      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 1 (บาท)
   late_fine_2      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 2 (บาท)
   shift_type       ShiftType @default(REGULAR)
+  gps_radius       Int?      // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
   allow_overlap    Boolean   @default(false)
   day_off_quota   Int       @default(1)
   is_active       Boolean   @default(true)
@@ -222,6 +225,7 @@ model AttendanceRecord {
   gps_lat          Decimal?            @db.Decimal(10, 8)
   gps_lng          Decimal?            @db.Decimal(11, 8)
   is_outside_area  Boolean             @default(false)   // true = เช็คอินนอกรัศมี (WARN mode)
+  is_outside_shift Boolean             @default(false)   // true = สแกน QR นอกช่วงเวลากะ
   attachment_url   String?             // Phase 4: selfie fallback
   note             String?
   created_at       DateTime            @default(now())
@@ -365,6 +369,28 @@ model WeeklyOffRequest {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("weekly_off_requests")
+}
+
+// ─────────────────────────────────────────────
+// WEEKLY OFF PERIOD (เปิด/ปิดการจองต่อสาขาต่อเดือน)
+// ─────────────────────────────────────────────
+
+model WeeklyOffPeriod {
+  id         String    @id @default(uuid())
+  tenant_id  String
+  branch_id  String
+  month      String                    // YYYY-MM
+  is_open    Boolean   @default(true)
+  deadline   DateTime?                 // null = ไม่มี deadline
+  note       String?                   // หมายเหตุถึงพนักงาน
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  branch Branch @relation(fields: [branch_id], references: [id])
+
+  @@unique([tenant_id, branch_id, month])
+  @@index([tenant_id])
+  @@map("weekly_off_periods")
 }
 
 // ─────────────────────────────────────────────
