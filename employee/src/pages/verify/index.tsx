@@ -86,9 +86,12 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
 
   // ── Loading ──
   if (step === 'loading') return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
-      <div className="animate-spin" style={{ fontSize: '2.5rem' }}>⏳</div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>กำลังโหลด…</div>
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)', padding: '0 40px' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#fb923c,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', boxShadow: '0 6px 24px rgba(251,146,60,0.30)' }}>⏰</div>
+      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1a2b3c' }}>กำลังโหลด…</div>
+      <div style={{ width: 140, height: 4, borderRadius: 99, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg,#fb923c,#ea580c)', borderRadius: 99, animation: 'tl-progress 1.4s ease-in-out infinite' }} />
+      </div>
     </div>
   )
 

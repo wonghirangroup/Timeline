@@ -26,13 +26,27 @@ function SplashScreen() {
   return (
     <div style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 16,
+      alignItems: 'center', justifyContent: 'center', gap: 20,
       background: 'linear-gradient(160deg, #fff7f3 0%, #fff 60%)',
+      padding: '0 40px',
     }}>
-      <div style={{ fontSize: '3rem', animation: 'spin 1.2s linear infinite' }}>⏳</div>
-      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#374151' }}>กำลังเข้าสู่ระบบ…</div>
-      <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>TimeLine HR</div>
-      <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+      <div style={{
+        width: 80, height: 80, borderRadius: '50%',
+        background: 'linear-gradient(135deg,#fb923c,#ea580c)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '2.2rem', boxShadow: '0 8px 32px rgba(251,146,60,0.32)',
+      }}>⏰</div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a2b3c', marginBottom: 4 }}>กำลังเข้าสู่ระบบ…</div>
+        <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>TimeLine HR</div>
+      </div>
+      <div style={{ width: 180, height: 5, borderRadius: 99, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', width: '45%', background: 'linear-gradient(90deg,#fb923c,#ea580c)',
+          borderRadius: 99, animation: 'tl-progress 1.4s ease-in-out infinite',
+        }} />
+      </div>
+      <style>{`@keyframes tl-progress{0%{transform:translateX(-110%)}60%{transform:translateX(160%)}100%{transform:translateX(160%)}}`}</style>
     </div>
   )
 }
@@ -101,7 +115,11 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
         style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #fed7aa', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: 14, outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>กำลังโหลด…</div>
+        <div style={{ padding: '32px 0' }}>
+          <div style={{ width: '100%', height: 4, borderRadius: 99, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg,#fb923c,#ea580c)', borderRadius: 99, animation: 'tl-progress 1.4s ease-in-out infinite' }} />
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>ไม่พบพนักงาน</div>
       ) : (

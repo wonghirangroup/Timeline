@@ -234,5 +234,52 @@ export function QuickStatCard({ icon, label, value, color = COLOR.primary }: {
   )
 }
 
+// ─── ProgressBar (indeterminate) ─────────────────────────────────
+interface ProgressBarProps {
+  height?: number
+  rounded?: boolean
+  style?: CSSProperties
+}
+export function ProgressBar({ height = 4, rounded = true, style }: ProgressBarProps) {
+  return (
+    <div style={{
+      width: '100%', height, borderRadius: rounded ? 99 : 0,
+      background: 'rgba(251,146,60,0.18)', overflow: 'hidden', ...style,
+    }}>
+      <div style={{
+        height: '100%', width: '45%',
+        background: `linear-gradient(90deg, ${COLOR.primary}, ${COLOR.primaryEnd})`,
+        borderRadius: 99,
+        animation: 'tl-progress 1.4s ease-in-out infinite',
+      }} />
+      <style>{`@keyframes tl-progress{0%{transform:translateX(-110%)}60%{transform:translateX(160%)}100%{transform:translateX(160%)}}`}</style>
+    </div>
+  )
+}
+
+// ─── PageLoader (full-page centered) ─────────────────────────────
+export function PageLoader({ title = 'กำลังโหลด...', sub }: { title?: string; sub?: string }) {
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 20,
+      background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)',
+      padding: '0 40px',
+    }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
+        background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '2rem', boxShadow: '0 8px 32px rgba(251,146,60,0.32)',
+      }}>⏰</div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1a2b3c', marginBottom: 4 }}>{title}</div>
+        {sub && <div style={{ fontSize: '0.78rem', color: COLOR.textMuted }}>{sub}</div>}
+      </div>
+      <ProgressBar height={5} style={{ width: 180 }} />
+    </div>
+  )
+}
+
 // re-export tokens
 export { COLOR, RADIUS, SHADOW, FONT, STATUS }
