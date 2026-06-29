@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Bell, X, Camera, Image } from 'lucide-react'
 import jsQR from 'jsqr'
-import { COLOR } from '../../components/ui/tokens'
+import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 import liff from '@line/liff'
@@ -504,19 +504,7 @@ export default function CheckinPage() {
     }
   }, [preview, employee, loadToday])
 
-  if (!employee) {
-    return (
-      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#fb923c,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', boxShadow: '0 6px 24px rgba(251,146,60,0.30)' }}>⏰</div>
-          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: COLOR.textPrimary }}>กำลังโหลด...</div>
-          <div style={{ width: 140, height: 4, borderRadius: 99, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg,#fb923c,#ea580c)', borderRadius: 99, animation: 'tl-progress 1.4s ease-in-out infinite' }} />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (!employee) return <PageLoader />
 
   const busy = showScanner || !!preview
 

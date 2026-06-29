@@ -1,8 +1,23 @@
 // employee/src/components/ui/index.tsx — Component Library
 // ใช้ import { Button, Card, Badge, ... } from '../../components/ui'
 
+import { useState, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { Clock, Loader2 } from 'lucide-react'
 import { COLOR, RADIUS, SHADOW, FONT, STATUS } from './tokens'
+
+function useSimProgress() {
+  const [pct, setPct] = useState(0)
+  useEffect(() => {
+    const start = Date.now()
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start
+      setPct(Math.min(90, Math.round(100 * (1 - Math.exp(-elapsed / 900)))))
+    }, 40)
+    return () => clearInterval(id)
+  }, [])
+  return pct
+}
 
 // ─── Button ───────────────────────────────────────────────────────
 interface BtnProps {
@@ -234,49 +249,64 @@ export function QuickStatCard({ icon, label, value, color = COLOR.primary }: {
   )
 }
 
-// ─── ProgressBar (indeterminate) ─────────────────────────────────
+// ─── ProgressBar ─────────────────────────────────────────────────
 interface ProgressBarProps {
+  value?: number        // 0-100; omit = indeterminate sliding animation
   height?: number
   rounded?: boolean
   style?: CSSProperties
+  showLabel?: boolean
 }
-export function ProgressBar({ height = 4, rounded = true, style }: ProgressBarProps) {
+export function ProgressBar({ value, height = 4, rounded = true, style, showLabel }: ProgressBarProps) {
+  const deterministic = value !== undefined
   return (
-    <div style={{
-      width: '100%', height, borderRadius: rounded ? 99 : 0,
-      background: 'rgba(251,146,60,0.18)', overflow: 'hidden', ...style,
-    }}>
-      <div style={{
-        height: '100%', width: '45%',
-        background: `linear-gradient(90deg, ${COLOR.primary}, ${COLOR.primaryEnd})`,
-        borderRadius: 99,
-        animation: 'tl-progress 1.4s ease-in-out infinite',
-      }} />
-      <style>{`@keyframes tl-progress{0%{transform:translateX(-110%)}60%{transform:translateX(160%)}100%{transform:translateX(160%)}}`}</style>
+    <div style={{ width: '100%', ...style }}>
+      {showLabel && deterministic && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: FONT.xs, color: COLOR.textMuted }}>โหลดข้อมูล...</span>
+          <span style={{ fontSize: FONT.xs, fontWeight: 700, color: COLOR.primary }}>{value}%</span>
+        </div>
+      )}
+      <div style={{ width: '100%', height, borderRadius: rounded ? 99 : 0, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 99,
+          background: `linear-gradient(90deg,${COLOR.primary},${COLOR.primaryEnd})`,
+          ...(deterministic
+            ? { width: `${value}%`, transition: 'width 0.08s linear' }
+            : { width: '45%', animation: 'tl-progress 1.4s ease-in-out infinite' }),
+        }} />
+      </div>
     </div>
   )
 }
 
-// ─── PageLoader (full-page centered) ─────────────────────────────
-export function PageLoader({ title = 'กำลังโหลด...', sub }: { title?: string; sub?: string }) {
+// ─── PageLoader ───────────────────────────────────────────────────
+interface PageLoaderProps {
+  title?: string
+  sub?: string
+  fullPage?: boolean
+}
+export function PageLoader({ title = 'กำลังโหลด...', sub, fullPage = true }: PageLoaderProps) {
+  const pct = useSimProgress()
   return (
     <div style={{
-      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 20,
-      background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)',
-      padding: '0 40px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 20, padding: '40px',
+      ...(fullPage ? { minHeight: '100dvh', background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)' } : {}),
     }}>
       <div style={{
-        width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
+        width: 68, height: 68, borderRadius: '50%', flexShrink: 0,
         background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '2rem', boxShadow: '0 8px 32px rgba(251,146,60,0.32)',
-      }}>⏰</div>
+        boxShadow: '0 8px 32px rgba(251,146,60,0.28)',
+      }}>
+        <Clock size={30} color="#fff" strokeWidth={1.8} />
+      </div>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1a2b3c', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1a2b3c', marginBottom: sub ? 4 : 0 }}>{title}</div>
         {sub && <div style={{ fontSize: '0.78rem', color: COLOR.textMuted }}>{sub}</div>}
       </div>
-      <ProgressBar height={5} style={{ width: 180 }} />
+      <ProgressBar value={pct} height={5} showLabel style={{ width: 200 }} />
     </div>
   )
 }

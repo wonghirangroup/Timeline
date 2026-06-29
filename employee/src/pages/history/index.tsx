@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
-import { COLOR } from '../../components/ui/tokens'
+import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -119,15 +119,7 @@ export default function HistoryPage() {
         </div>
 
         {/* Loading */}
-        {isLoading && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '48px 0' }}>
-            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#fb923c,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', boxShadow: '0 4px 16px rgba(251,146,60,0.28)' }}>⏰</div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: COLOR.textMuted }}>กำลังโหลด...</div>
-            <div style={{ width: 120, height: 4, borderRadius: 99, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg,#fb923c,#ea580c)', borderRadius: 99, animation: 'tl-progress 1.4s ease-in-out infinite' }} />
-            </div>
-          </div>
-        )}
+        {isLoading && <PageLoader fullPage={false} />}
 
         {/* Record list */}
         {!isLoading && (
