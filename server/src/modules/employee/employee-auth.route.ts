@@ -74,10 +74,9 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
 
     const employees = await prisma.employee.findMany({
       where: {
-        tenant_id:    config.tenant.id,
-        line_user_id: null,            // เฉพาะที่ยังไม่ผูก
-        deleted_at:   null,
-        is_active:    true,
+        tenant_id:  config.tenant.id,
+        deleted_at: null,
+        is_active:  true,
       },
       select: {
         id: true, first_name: true, last_name: true,
