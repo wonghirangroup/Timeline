@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -69,6 +69,29 @@ const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string
   upcoming: { label: 'ยังไม่เริ่ม', color: '#d97706', bg: '#fef3c7', dot: '◷' },
   active:   { label: 'กำลังทำงาน',  color: '#16a34a', bg: '#dcfce7', dot: '●' },
   done:     { label: 'เลิกงานแล้ว', color: '#6366f1', bg: '#eef2ff', dot: '✓' },
+}
+
+const SHIFT_EMPTY = {
+  name: '', start_time: '08:00', end_time: '18:00',
+  min_checkout: '17:55', late_threshold_1: '08:05', late_threshold_2: '08:30',
+  late_fine_1: '', late_fine_2: '',
+  shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
+  gps_radius: '' as string | number,
+}
+
+const shiftInputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
+  fontSize: '0.875rem', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit',
+}
+const shiftLabelStyle: React.CSSProperties = {
+  fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block',
+}
+
+function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+function timeDiffLabel(base: string, target: string): string {
+  if (!base || !target) return ''
+  const d = toMins(target) - toMins(base)
+  return d > 0 ? `+${d} นาทีหลังเริ่มงาน` : ''
 }
 
 const card: React.CSSProperties = {
@@ -232,6 +255,21 @@ export default function BranchPage() {
 
   const [modal, setModal]         = useState<ModalMode>(null)
   const [detailShift, setDetailShift] = useState<ApiShift | null>(null)
+  const [addShiftBranch, setAddShiftBranch] = useState<ApiBranch | null>(null)
+  const [shiftForm, setShiftForm] = useState(SHIFT_EMPTY)
+  const [shiftSaving, setShiftSaving] = useState(false)
+
+  const createShiftMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/shifts', body).then(r => r.data.data),
+    onSuccess: (_, body: any) => {
+      qc.invalidateQueries({ queryKey: ['shifts'] })
+      qc.invalidateQueries({ queryKey: ['branches'] })
+      showToast('success', `เพิ่มกะ "${body.name}" สำเร็จ`)
+      setShiftSaving(false)
+      setAddShiftBranch(null)
+    },
+    onError: () => { showToast('error', 'เพิ่มกะไม่สำเร็จ'); setShiftSaving(false) },
+  })
 
   const [page, setPage]           = useState(1)
   const pageSize                  = 6
@@ -245,7 +283,7 @@ export default function BranchPage() {
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
 
   React.useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDetailShift(null); setModal(null); setMapModal(false); setTourActive(false) } }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDetailShift(null); setAddShiftBranch(null); setModal(null); setMapModal(false); setTourActive(false) } }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [])
@@ -569,11 +607,18 @@ export default function BranchPage() {
               {/* Shift chips */}
               {(() => {
                 const branchShifts = allShifts.filter(s => s.branch_id === b.id)
-                if (branchShifts.length === 0) return null
                 return (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                      กะทำงาน ({branchShifts.length})
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        กะทำงาน ({branchShifts.length})
+                      </div>
+                      <button
+                        onClick={() => { setShiftForm(SHIFT_EMPTY); setAddShiftBranch(b) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 6, border: '1px dashed #f97316', background: '#fff7ed', color: '#ea580c', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <Plus size={10} /> เพิ่มกะ
+                      </button>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {branchShifts.map(s => {
@@ -601,6 +646,9 @@ export default function BranchPage() {
                           </button>
                         )
                       })}
+                      {branchShifts.length === 0 && (
+                        <span style={{ fontSize: '12px', color: '#d1d5db', fontStyle: 'italic' }}>ยังไม่มีกะ</span>
+                      )}
                     </div>
                   </div>
                 )
@@ -1033,6 +1081,158 @@ export default function BranchPage() {
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
         />
+      )}
+
+      {/* Add Shift Modal */}
+      {addShiftBranch && (
+        <div style={sheetOverlay} onClick={() => setAddShiftBranch(null)}>
+          <div style={{ ...sheetBox(480), display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827' }}>+ เพิ่มกะใหม่</div>
+                <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Building2 size={11} /> {addShiftBranch.name}
+                </div>
+              </div>
+              <button onClick={() => setAddShiftBranch(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={18}/></button>
+            </div>
+
+            {/* Form */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* ชื่อกะ */}
+              <div>
+                <label style={shiftLabelStyle}>ชื่อกะ *</label>
+                <input value={shiftForm.name} onChange={e => setShiftForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="เช่น กะเช้า, กะบ่าย, กะดึก" style={shiftInputStyle} autoFocus />
+              </div>
+
+              {/* เวลาเข้า-ออก */}
+              <div>
+                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>เข้า–ออกงาน</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'เวลาเริ่มงาน', key: 'start_time' as const },
+                    { label: 'เวลาเลิกงาน', key: 'end_time' as const },
+                    { label: 'เช็คเอาท์ตั้งแต่', key: 'min_checkout' as const },
+                  ].map(({ label, key }) => (
+                    <div key={key}>
+                      <label style={shiftLabelStyle}>{label}</label>
+                      <input type="time" value={shiftForm[key] as string}
+                        onChange={e => setShiftForm(f => ({ ...f, [key]: e.target.value }))}
+                        style={shiftInputStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ประเภทกะ */}
+              <div>
+                <label style={shiftLabelStyle}>ประเภทกะ</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['REGULAR', 'SPECIAL'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setShiftForm(f => ({ ...f, shift_type: t }))}
+                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `2px solid ${shiftForm.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: shiftForm.shift_type === t ? '#ede9fe' : '#fff', color: shiftForm.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                      {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* เกณฑ์การสาย */}
+              <div>
+                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>เกณฑ์การสาย & ค่าปรับ</label>
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
+                  ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={shiftLabelStyle}>สายระดับ 1</label>
+                    <input type="time" value={shiftForm.late_threshold_1}
+                      onChange={e => setShiftForm(f => ({ ...f, late_threshold_1: e.target.value }))}
+                      style={shiftInputStyle} />
+                    {shiftForm.late_threshold_1 && shiftForm.start_time && (
+                      <div style={{ fontSize: '0.7rem', color: '#d97706', marginTop: 3 }}>
+                        {timeDiffLabel(shiftForm.start_time, shiftForm.late_threshold_1)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={shiftLabelStyle}>สายระดับ 2 (ปิดรับ)</label>
+                    <input type="time" value={shiftForm.late_threshold_2}
+                      onChange={e => setShiftForm(f => ({ ...f, late_threshold_2: e.target.value }))}
+                      style={shiftInputStyle} />
+                    {shiftForm.late_threshold_2 && shiftForm.start_time && (
+                      <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 3 }}>
+                        {timeDiffLabel(shiftForm.start_time, shiftForm.late_threshold_2)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={shiftLabelStyle}>ค่าปรับระดับ 1 (บาท)</label>
+                    <input type="number" min="0" step="50" value={shiftForm.late_fine_1}
+                      onChange={e => setShiftForm(f => ({ ...f, late_fine_1: e.target.value }))}
+                      placeholder="เช่น 50" style={shiftInputStyle} />
+                  </div>
+                  <div>
+                    <label style={shiftLabelStyle}>ค่าปรับระดับ 2 (บาท)</label>
+                    <input type="number" min="0" step="50" value={shiftForm.late_fine_2}
+                      onChange={e => setShiftForm(f => ({ ...f, late_fine_2: e.target.value }))}
+                      placeholder="เช่น 200" style={shiftInputStyle} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              {shiftForm.start_time && (
+                <div style={{ background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#4338ca', marginBottom: 8 }}>
+                    ตัวอย่างกะ "{shiftForm.name || '...'}" · {addShiftBranch.name}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
+                    <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{shiftForm.start_time}</span>
+                    {shiftForm.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {shiftForm.late_threshold_1}{shiftForm.late_fine_1 ? ` (฿${shiftForm.late_fine_1})` : ''}</span></>}
+                    {shiftForm.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {shiftForm.late_threshold_2}{shiftForm.late_fine_2 ? ` (฿${shiftForm.late_fine_2})` : ''}</span></>}
+                    {shiftForm.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{shiftForm.min_checkout}</span></>}
+                    <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{shiftForm.end_time}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+              <button onClick={() => setAddShiftBranch(null)}
+                style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>
+                ยกเลิก
+              </button>
+              <button
+                disabled={shiftSaving}
+                onClick={() => {
+                  if (!shiftForm.name.trim()) { showToast('error', 'กรุณากรอกชื่อกะ'); return }
+                  setShiftSaving(true)
+                  createShiftMutation.mutate({
+                    name: shiftForm.name,
+                    branch_id: addShiftBranch.id,
+                    start_time: shiftForm.start_time,
+                    end_time: shiftForm.end_time,
+                    min_checkout: shiftForm.min_checkout || undefined,
+                    late_threshold_1: shiftForm.late_threshold_1 || undefined,
+                    late_threshold_2: shiftForm.late_threshold_2 || undefined,
+                    late_fine_1: shiftForm.late_fine_1 !== '' ? Number(shiftForm.late_fine_1) : null,
+                    late_fine_2: shiftForm.late_fine_2 !== '' ? Number(shiftForm.late_fine_2) : null,
+                    shift_type: shiftForm.shift_type,
+                    gps_radius: shiftForm.gps_radius !== '' ? Number(shiftForm.gps_radius) : null,
+                  })
+                }}
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: shiftSaving ? 'not-allowed' : 'pointer', opacity: shiftSaving ? 0.7 : 1 }}>
+                {shiftSaving ? 'กำลังบันทึก...' : '+ เพิ่มกะ'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {tourActive && <BranchTour onClose={() => setTourActive(false)} />}
