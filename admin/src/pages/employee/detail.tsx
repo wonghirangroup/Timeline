@@ -1,7 +1,7 @@
 // admin/src/pages/employee/detail.tsx
 import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api as axios } from '../../lib/axios'
 import {
   Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft,
@@ -398,7 +398,7 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
 }
 
 // ── Info Tab ──────────────────────────────────────────────────────────────────
-function InfoTab({ emp }: { emp: any }) {
+function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
   const rows = [
     { label: 'รหัสพนักงาน',   value: emp.employee_code,  mono: true },
     { label: 'ชื่อ-สกุล',     value: `${emp.first_name} ${emp.last_name}` },
@@ -432,6 +432,12 @@ function InfoTab({ emp }: { emp: any }) {
                 <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#94a3b8' }}>
                   {emp.line_user_id.slice(0, 8)}••••{emp.line_user_id.slice(-4)}
                 </span>
+                <button
+                  onClick={onResetLine}
+                  style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Reset LINE
+                </button>
               </>
             ) : (
               <>
@@ -450,8 +456,10 @@ function InfoTab({ emp }: { emp: any }) {
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('overview')
   const [inviteSent, setInviteSent] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['employee', id],
@@ -464,6 +472,19 @@ export default function EmployeeDetailPage() {
   function handleSendInvite() {
     setInviteSent(true)
     setTimeout(() => setInviteSent(false), 3000)
+  }
+
+  async function handleResetLine() {
+    if (!window.confirm(`ยืนยันการ Reset LINE ของ ${emp?.first_name} ${emp?.last_name}?\n\nพนักงานจะต้องผูกบัญชีใหม่อีกครั้งผ่าน LIFF`)) return
+    setResetting(true)
+    try {
+      await axios.delete(`/api/v1/admin/employees/${id}/line`)
+      queryClient.invalidateQueries({ queryKey: ['employee', id] })
+    } catch {
+      alert('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    } finally {
+      setResetting(false)
+    }
   }
 
   if (isLoading) {
@@ -525,9 +546,18 @@ export default function EmployeeDetailPage() {
                 color: emp.is_active ? '#059669' : '#dc2626',
               }}>{emp.is_active ? '● ปฏิบัติงาน' : '○ ไม่ได้ปฏิบัติงาน'}</span>
               {emp.line_user_id ? (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}>
-                  ✓ ผูก Line แล้ว
-                </span>
+                <>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}>
+                    ✓ ผูก Line แล้ว
+                  </span>
+                  <button
+                    onClick={handleResetLine}
+                    disabled={resetting}
+                    style={{ padding: '3px 10px', borderRadius: 99, border: '1px solid #fca5a5', background: '#fff5f5', color: '#dc2626', fontSize: '0.72rem', fontWeight: 700, cursor: resetting ? 'not-allowed' : 'pointer', opacity: resetting ? 0.6 : 1 }}
+                  >
+                    {resetting ? '...' : 'Reset LINE'}
+                  </button>
+                </>
               ) : (
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
                   ⚠ ยังไม่ผูก Line
@@ -592,7 +622,7 @@ export default function EmployeeDetailPage() {
         {tab === 'overview'   && <OverviewTab   employeeId={emp.id} />}
         {tab === 'attendance' && <AttendanceTab employeeId={emp.id} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}
-        {tab === 'info'       && <InfoTab       emp={emp} />}
+        {tab === 'info'       && <InfoTab       emp={emp} onResetLine={handleResetLine} />}
       </div>
     </div>
   )

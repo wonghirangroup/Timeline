@@ -118,6 +118,25 @@ export async function employeeRoutes(app: FastifyInstance) {
     return { success: true, data: employee }
   })
 
+  // DELETE /api/v1/admin/employees/:id/line — reset LINE binding
+  app.delete('/employees/:id/line', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ยกเลิกการผูก Line account ของพนักงาน (reset)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const { prisma } = await import('../../common/utils/prisma')
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, tenant_id: req.tenantId, deleted_at: null },
+    })
+    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    await prisma.employee.update({ where: { id: employee.id }, data: { line_user_id: null } })
+    return ok(null, 'ยกเลิกการผูก Line สำเร็จ')
+  })
+
   // DELETE /api/v1/admin/employees/:id
   app.delete('/employees/:id', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
