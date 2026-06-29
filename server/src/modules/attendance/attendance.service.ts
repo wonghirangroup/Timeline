@@ -349,13 +349,20 @@ export async function checkIn(tenantId: string, data: {
   let late_minutes = 0
 
   if (shift) {
-    const [h, m] = shift.start_time.split(':').map(Number)
-    const now = new Date()
-    const shiftStartMs = new Date().setHours(h, m, 0, 0)
-    const thresholdMs  = shiftStartMs + shift.late_threshold * 60 * 1000
-    is_late = now.getTime() > thresholdMs
-    if (is_late) {
-      late_minutes = Math.floor((now.getTime() - shiftStartMs) / 60000)
+    const nowMins    = getNowBangkokMins()
+    const startMins  = toMins(shift.start_time)
+    const late1Mins  = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
+    const late2Mins  = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+
+    if (nowMins > startMins) {
+      late_minutes = nowMins - startMins
+      if (late2Mins && nowMins >= late2Mins) {
+        is_late = true
+      } else if (late1Mins && nowMins >= late1Mins) {
+        is_late = true
+      } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
+        is_late = true
+      }
     }
   }
 
@@ -434,11 +441,21 @@ export async function checkInQR(tenantId: string, data: {
   let late_minutes = 0
 
   if (shift) {
-    const [h, m] = shift.start_time.split(':').map(Number)
-    const shiftStartMs = new Date().setHours(h, m, 0, 0)
-    const thresholdMs = shiftStartMs + shift.late_threshold * 60 * 1000
-    is_late = Date.now() > thresholdMs
-    if (is_late) late_minutes = Math.floor((Date.now() - shiftStartMs) / 60000)
+    const nowMins   = getNowBangkokMins()
+    const startMins = toMins(shift.start_time)
+    const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
+    const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+
+    if (nowMins > startMins) {
+      late_minutes = nowMins - startMins
+      if (late2Mins && nowMins >= late2Mins) {
+        is_late = true
+      } else if (late1Mins && nowMins >= late1Mins) {
+        is_late = true
+      } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
+        is_late = true
+      }
+    }
   }
 
   return prisma.attendanceRecord.create({
