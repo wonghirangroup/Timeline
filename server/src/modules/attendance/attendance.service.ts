@@ -34,7 +34,7 @@ export async function getAttendanceReport(tenantId: string, filters: {
           branch: { select: { id: true, name: true } },
         },
       },
-      shift: { select: { id: true, name: true, start_time: true, end_time: true } },
+      shift: { select: { id: true, name: true, start_time: true, end_time: true, late_threshold_1: true, late_threshold_2: true } },
     },
     orderBy: [{ date: 'asc' }, { check_in_at: 'asc' }],
   })
