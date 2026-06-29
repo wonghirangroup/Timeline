@@ -1051,17 +1051,22 @@ export default function BranchPage() {
           : st === 'active' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#1e293b,#334155)'
 
         return (
-          <>
-            <div onClick={() => setDetailShift(null)}
-              style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:500,backdropFilter:'blur(2px)' }}
-            />
-            <div style={{
-              position:'fixed',top:0,right:0,bottom:0,
-              width: isMobile ? '100%' : 420,
-              background:'#fff',zIndex:501,
-              display:'flex',flexDirection:'column',
-              boxShadow:'-8px 0 40px rgba(0,0,0,0.15)',
-            }}>
+          <div
+            onClick={() => setDetailShift(null)}
+            style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:isMobile?'flex-end':'center',justifyContent:'center',padding:isMobile?0:16 }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background:'#fff',
+                borderRadius: isMobile ? '20px 20px 0 0' : 16,
+                width:'100%', maxWidth:520,
+                maxHeight: isMobile ? '90vh' : '82vh',
+                display:'flex',flexDirection:'column',
+                boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+                overflow:'hidden',
+              }}
+            >
               {/* Header */}
               <div style={{ background: headerGrad, padding:'20px 20px 16px', flexShrink:0 }}>
                 <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:8 }}>
@@ -1165,7 +1170,7 @@ export default function BranchPage() {
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )
       })()}
     </div>

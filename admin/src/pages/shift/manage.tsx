@@ -1034,21 +1034,22 @@ export default function ShiftPage() {
         const avatarColor = (idx: number) => COLORS[idx % COLORS.length]
 
         return (
-          <>
-            {/* Backdrop */}
+          <div
+            onClick={() => setDetailShift(null)}
+            style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:400,display:'flex',alignItems:isMobile?'flex-end':'center',justifyContent:'center',padding:isMobile?0:16 }}
+          >
             <div
-              onClick={() => setDetailShift(null)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 400, backdropFilter: 'blur(2px)' }}
-            />
-
-            {/* Drawer panel */}
-            <div style={{
-              position: 'fixed', top: 0, right: 0, bottom: 0,
-              width: isMobile ? '100%' : 420,
-              background: '#fff', zIndex: 401,
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '-8px 0 40px rgba(0,0,0,0.15)',
-            }}>
+              onClick={e => e.stopPropagation()}
+              style={{
+                background:'#fff',
+                borderRadius: isMobile ? '20px 20px 0 0' : 16,
+                width:'100%', maxWidth:520,
+                maxHeight: isMobile ? '90vh' : '82vh',
+                display:'flex',flexDirection:'column',
+                boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+                overflow:'hidden',
+              }}
+            >
               {/* Header */}
               <div style={{
                 background: isSpec ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : st === 'active' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#1e293b,#334155)',
@@ -1189,7 +1190,7 @@ export default function ShiftPage() {
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )
       })()}
     </div>
