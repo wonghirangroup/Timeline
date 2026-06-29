@@ -243,6 +243,7 @@ model AttendanceRecord {
 enum ShiftType {
   REGULAR  // กะทั่วไป auto-detect จากเวลา
   SPECIAL  // กะพิเศษ เงื่อนไขเฉพาะ
+  OFFSITE  // งานนอกสถานที่ / Sale / Event — ไม่ check GPS แต่บันทึกพิกัด
 }
 
 enum CheckInMethod {

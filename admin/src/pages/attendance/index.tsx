@@ -1,7 +1,7 @@
 // admin/src/pages/attendance/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
@@ -22,6 +22,8 @@ interface ApiRecord {
   is_late:         boolean
   late_minutes:    number
   is_outside_area: boolean
+  gps_lat: number | null
+  gps_lng: number | null
   note: string | null
   employee: {
     id: string; first_name: string; last_name: string
@@ -397,6 +399,12 @@ export default function AttendancePage() {
                       {row.record?.is_outside_area && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={10}/>นอกพื้นที่</span>
                       )}
+                      {row.record?.gps_lat && row.record?.gps_lng && (
+                        <a href={`https://maps.google.com/?q=${row.record.gps_lat},${row.record.gps_lng}`} target="_blank" rel="noreferrer"
+                          style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
+                          <MapPin size={10}/>ดูพิกัด
+                        </a>
+                      )}
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                         {row.record ? (
                           <>
@@ -458,10 +466,18 @@ export default function AttendancePage() {
                             : <span style={{ color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null) || '—'}</span>}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          {row.record?.check_in_method ? (() => {
-                            const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
-                            return <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
-                          })() : <span style={{ color: '#d1d5db' }}>—</span>}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                            {row.record?.check_in_method ? (() => {
+                              const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
+                              return <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
+                            })() : <span style={{ color: '#d1d5db' }}>—</span>}
+                            {row.record?.gps_lat && row.record?.gps_lng && (
+                              <a href={`https://maps.google.com/?q=${row.record.gps_lat},${row.record.gps_lng}`} target="_blank" rel="noreferrer"
+                                style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
+                                <MapPin size={10}/>ดูพิกัด
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '11px 14px', fontSize: '0.78rem' }}>
                           {row.record?.is_late

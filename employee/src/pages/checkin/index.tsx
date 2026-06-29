@@ -1,6 +1,6 @@
 // employee/src/pages/checkin/index.tsx
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Bell, X, Camera, Image } from 'lucide-react'
+import { Bell, X, Camera, Image, MapPin, Navigation } from 'lucide-react'
 import jsQR from 'jsqr'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
@@ -20,6 +20,12 @@ interface CheckInResult {
   fine:             number
   is_outside_area:  boolean
   is_outside_shift: boolean
+  gps_lat?:         number
+  gps_lng?:         number
+}
+
+interface OffsiteShift {
+  id: string; name: string; start_time: string; end_time: string
 }
 
 interface CheckOutResult {
@@ -75,10 +81,14 @@ function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () 
     { color: COLOR.error,   bg: COLOR.errorBg,   border: COLOR.errorBorder,   label: 'มาสายระดับ 2', icon: '🚨' },
   ][result.late_level]
 
+  const mapsUrl = result.gps_lat && result.gps_lng
+    ? `https://maps.google.com/?q=${result.gps_lat},${result.gps_lng}`
+    : null
+
   const rows = [
     { label: 'เวลาเช็คอิน', value: fmtHHMM(result.record.check_in_at) + ' น.', bold: true },
-    { label: 'สาขา',        value: result.branch.name },
     { label: 'กะ',          value: `${result.shift.name} (${result.shift.start_time}–${result.shift.end_time})` },
+    ...(result.branch?.name ? [{ label: 'สาขา', value: result.branch.name }] : []),
     ...(result.is_outside_shift ? [{ label: 'สถานะ', value: '🕐 เข้างานนอกช่วงเวลากะ', bold: false }] : []),
     ...(result.is_outside_area  ? [{ label: 'พื้นที่', value: '⚠️ นอกรัศมีสาขา', bold: false }] : []),
   ]
@@ -112,6 +122,12 @@ function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () 
           </div>
         )}
 
+        {mapsUrl && (
+          <a href={mapsUrl} target="_blank" rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 16, border: '1.5px solid #d1fae5', background: '#ecfdf5', color: '#065f46', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', marginBottom: 12 }}>
+            <MapPin size={16} /> ดูพิกัดที่เช็คอินใน Google Maps
+          </a>
+        )}
         <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
           รับทราบ
         </button>
@@ -397,14 +413,16 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function CheckinPage() {
   const employee = useAuthStore(s => s.employee)
-  const [showScanner,    setShowScanner]    = useState(false)
-  const [scanAction,     setScanAction]     = useState<'checkin' | 'checkout'>('checkin')
-  const [preview,        setPreview]        = useState<ShiftPreview | null>(null)
-  const [confirming,     setConfirming]     = useState(false)
-  const [checkinResult,  setCheckinResult]  = useState<CheckInResult | null>(null)
-  const [checkoutResult, setCheckoutResult] = useState<CheckOutResult | null>(null)
-  const [todayRecords,   setTodayRecords]   = useState<TodayRecord[]>([])
-  const [error,          setError]          = useState<string | null>(null)
+  const [showScanner,       setShowScanner]       = useState(false)
+  const [scanAction,        setScanAction]        = useState<'checkin' | 'checkout'>('checkin')
+  const [preview,           setPreview]           = useState<ShiftPreview | null>(null)
+  const [confirming,        setConfirming]        = useState(false)
+  const [checkinResult,     setCheckinResult]     = useState<CheckInResult | null>(null)
+  const [checkoutResult,    setCheckoutResult]    = useState<CheckOutResult | null>(null)
+  const [todayRecords,      setTodayRecords]      = useState<TodayRecord[]>([])
+  const [error,             setError]             = useState<string | null>(null)
+  const [offsiteShifts,     setOffsiteShifts]     = useState<OffsiteShift[]>([])
+  const [offsiteConfirming, setOffsiteConfirming] = useState(false)
   const { th, en } = getGreeting()
 
   // ── โหลด today records ─────────────────────────────────────────────────────
@@ -417,6 +435,46 @@ export default function CheckinPage() {
   }, [employee])
 
   useEffect(() => { loadToday() }, [loadToday])
+
+  // โหลดกะ OFFSITE ของสาขา
+  useEffect(() => {
+    if (!employee) return
+    api.get('/employee/attendance/offsite-shifts', { params: { branchId: employee.branch.id } })
+      .then(r => setOffsiteShifts(r.data.data ?? []))
+      .catch(() => {})
+  }, [employee])
+
+  const handleOffsiteCheckin = useCallback(async () => {
+    if (!employee || offsiteConfirming) return
+    setError(null)
+    setOffsiteConfirming(true)
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000, enableHighAccuracy: true })
+      ).catch(() => null)
+
+      if (!pos) {
+        setError('กรุณาเปิดอนุญาต GPS ก่อนเช็คอินออกนอกสถานที่')
+        return
+      }
+
+      const res = await api.post('/employee/attendance/check-in-offsite', {
+        employee_id: employee.id,
+        gps_lat: pos.coords.latitude,
+        gps_lng: pos.coords.longitude,
+      })
+      setCheckinResult(res.data.data)
+      await loadToday()
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code
+      const msg  = err?.response?.data?.error?.message
+      if (code === 'ALREADY_CHECKED_IN')  setError('เช็คอินในกะนี้ไปแล้ว')
+      else if (code === 'NO_SHIFT_AVAILABLE') setError('ไม่มีกะงาน Event ในขณะนี้ — ติดต่อ Admin')
+      else setError(msg ?? 'เกิดข้อผิดพลาด')
+    } finally {
+      setOffsiteConfirming(false)
+    }
+  }, [employee, offsiteConfirming, loadToday])
 
   // มี record ที่ check-in แล้วยังไม่ check-out
   const hasOpenRecord = todayRecords.some(r => r.check_in_at && !r.check_out_at)
@@ -636,7 +694,38 @@ export default function CheckinPage() {
             </div>
           )}
         </div>
+
+        {/* OFFSITE Check-in */}
+        {offsiteShifts.length > 0 && !allCheckedOut && (
+          <div style={{ margin: '24px 0 0', padding: '20px', borderRadius: 20, background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1.5px solid #86efac' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#16a34a,#15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Navigation size={20} color="#fff" strokeWidth={2} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#14532d' }}>งาน Event / ออกนอกสถานที่</div>
+                <div style={{ fontSize: '0.72rem', color: '#16a34a', marginTop: 1 }}>ระบบบันทึกพิกัด GPS ณ เวลาเช็คอิน</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {offsiteShifts.map(s => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.7)' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: '#166534' }}>{s.name}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#4ade80', background: '#166534', padding: '2px 8px', borderRadius: 99, fontWeight: 600 }}>{s.start_time}–{s.end_time}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleOffsiteCheckin}
+              disabled={offsiteConfirming || hasOpenRecord}
+              style={{ width: '100%', padding: '14px', borderRadius: 16, border: 'none', cursor: (offsiteConfirming || hasOpenRecord) ? 'not-allowed' : 'pointer', background: (offsiteConfirming || hasOpenRecord) ? '#d1d5db' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <MapPin size={16} />
+              {offsiteConfirming ? 'กำลังระบุพิกัด…' : hasOpenRecord ? 'เช็คอินแล้ว' : 'เช็คอินงาน Event'}
+            </button>
+          </div>
+        )}
       </div>
+    </div>
 
       {/* Overlays */}
       {showScanner && (

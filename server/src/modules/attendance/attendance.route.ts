@@ -6,7 +6,8 @@ import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime,
-  checkIn, checkInQR, checkInAuto, checkInScan, checkOut, checkOutAuto, checkOutScan, getTodayAttendance, getEmployeeHistory,
+  checkIn, checkInQR, checkInAuto, checkInScan, checkInOffsite, checkOut, checkOutAuto, checkOutScan,
+  getTodayAttendance, getEmployeeHistory, getOffsiteShifts,
 } from './attendance.service'
 import { verifyBranchQrPayload } from '../shift/shift.service'
 
@@ -397,6 +398,50 @@ export async function attendanceRoutes(app: FastifyInstance) {
     } catch (e: any) {
       if (e.message === 'NOT_CHECKED_IN')      return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินในกะนี้'))
       if (e.message === 'ALREADY_CHECKED_OUT') return reply.code(409).send(fail('ALREADY_CHECKED_OUT', 'เช็คเอาต์แล้ว'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ดูกะ OFFSITE ของสาขา ──────────────────────
+  app.get('/employee/attendance/offsite-shifts', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูกะ OFFSITE ที่ active สำหรับสาขาพนักงาน',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['branchId'], properties: { branchId: { type: 'string' } } },
+    },
+  }, async (req: any) => {
+    const shifts = await getOffsiteShifts(req.tenantId, req.query.branchId)
+    return ok(shifts)
+  })
+
+  // ── Employee (LIFF): Check-in OFFSITE (งานนอกสถานที่) ──────────
+  app.post('/employee/attendance/check-in-offsite', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'เช็คอินงานนอกสถานที่ — บันทึกพิกัด GPS แต่ไม่มี geofence',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'gps_lat', 'gps_lng'],
+        properties: {
+          employee_id: { type: 'string' },
+          gps_lat:     { type: 'number' },
+          gps_lng:     { type: 'number' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await checkInOffsite(req.tenantId, req.body)
+      return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบพนักงาน'))
+      if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(400).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะงานออกนอกสถานที่ในขณะนี้'))
+      if (e.message === 'NOT_OFFSITE_SHIFT')  return reply.code(400).send(fail('NOT_OFFSITE_SHIFT', 'กะนี้ไม่ใช่กะออกนอกสถานที่'))
+      if (e.code === 'P2002')                 return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       throw e
     }
   })

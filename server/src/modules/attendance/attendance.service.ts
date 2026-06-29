@@ -545,6 +545,71 @@ export async function checkInScan(tenantId: string, data: {
   }
 }
 
+export async function checkInOffsite(tenantId: string, data: {
+  employee_id: string
+  gps_lat: number
+  gps_lng: number
+}) {
+  const employee = await prisma.employee.findFirst({
+    where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null },
+    select: { branch_id: true },
+  })
+  if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
+
+  const detected = await autoDetectShift(tenantId, employee.branch_id, data.employee_id)
+  if (!detected) throw new Error('NO_SHIFT_AVAILABLE')
+
+  const { shift } = detected
+  if ((shift as any).shift_type !== 'OFFSITE') throw new Error('NOT_OFFSITE_SHIFT')
+
+  const nowMins   = getNowBangkokMins()
+  const startMins = toMins(shift.start_time)
+  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
+  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+
+  let is_late = false, late_level: 0 | 1 | 2 = 0, late_minutes = 0, fine = 0
+  if (nowMins > startMins) {
+    late_minutes = nowMins - startMins
+    if (late2Mins && nowMins >= late2Mins) {
+      is_late = true; late_level = 2; fine = shift.late_fine_2 ? Number(shift.late_fine_2) : 0
+    } else if (late1Mins && nowMins >= late1Mins) {
+      is_late = true; late_level = 1; fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
+    }
+  }
+
+  const today = getTodayBangkok()
+  const record = await prisma.attendanceRecord.create({
+    data: {
+      tenant_id:       tenantId,
+      employee_id:     data.employee_id,
+      shift_id:        shift.id,
+      date:            today,
+      check_in_at:     new Date(),
+      check_in_method: 'OFFSITE',
+      is_late, late_minutes,
+      gps_lat:         data.gps_lat,
+      gps_lng:         data.gps_lng,
+      is_outside_area: false,
+    },
+  })
+
+  return {
+    record,
+    shift: { id: shift.id, name: shift.name, start_time: shift.start_time, end_time: shift.end_time },
+    late_level, late_minutes, fine,
+    gps_lat: data.gps_lat,
+    gps_lng: data.gps_lng,
+  }
+}
+
+export async function getOffsiteShifts(tenantId: string, branchId: string) {
+  return prisma.shift.findMany({
+    where: { tenant_id: tenantId, branch_id: branchId, shift_type: 'OFFSITE', is_active: true, deleted_at: null },
+    select: { id: true, name: true, start_time: true, end_time: true },
+    orderBy: { start_time: 'asc' },
+  })
+}
+
 export async function checkOut(tenantId: string, data: {
   employee_id: string
   shift_id: string
