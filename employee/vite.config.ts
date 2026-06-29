@@ -10,13 +10,22 @@ export default defineConfig(({ mode }) => {
     server: externalHost
       ? {
           host: true,
-          hmr: {
-            protocol: 'wss',
-            host: externalHost,
-            clientPort: 443,
-          },
+          hmr: { protocol: 'wss', host: externalHost, clientPort: 443 },
           allowedHosts: [externalHost],
         }
       : { host: true },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-query': ['@tanstack/react-query', 'zustand', 'axios'],
+            'vendor-ui':    ['lucide-react', 'dayjs'],
+            'liff':         ['@line/liff'],
+            'qr':           ['jsqr'],
+          },
+        },
+      },
+    },
   }
 })

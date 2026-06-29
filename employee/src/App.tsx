@@ -1,21 +1,22 @@
 // employee/src/App.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import './index.css'
 import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
-import CheckinPage  from './pages/checkin'
-import CheckoutPage from './pages/checkout'
-import HistoryPage  from './pages/history'
-import LeavePage    from './pages/leave'
-import OtPage       from './pages/ot'
-import FeedbackPage from './pages/feedback'
-import ProfilePage  from './pages/profile'
-import VerifyPage   from './pages/verify'
-import UiKitPage    from './pages/ui-kit'
 import { useAuthStore } from './stores/authStore'
 import { devLogin, liffLogin } from './lib/axios'
 import { initLiff, getLiffProfile, getChannelId } from './lib/liff'
+
+const CheckinPage  = lazy(() => import('./pages/checkin'))
+const CheckoutPage = lazy(() => import('./pages/checkout'))
+const HistoryPage  = lazy(() => import('./pages/history'))
+const LeavePage    = lazy(() => import('./pages/leave'))
+const OtPage       = lazy(() => import('./pages/ot'))
+const FeedbackPage = lazy(() => import('./pages/feedback'))
+const ProfilePage  = lazy(() => import('./pages/profile'))
+const VerifyPage   = lazy(() => import('./pages/verify'))
+const UiKitPage    = lazy(() => import('./pages/ui-kit'))
 
 // ─── Auth states ─────────────────────────────────────────────────────────────
 type BootState = 'loading' | 'dev-pick' | 'authed' | 'need-verify' | 'error'
@@ -206,28 +207,30 @@ export default function App() {
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <Routes>
-        {bootState === 'need-verify' ? (
-          // ยังไม่ผูก LINE → บังคับไป verify
-          <>
-            <Route path="/verify" element={<VerifyPage onLinked={() => setBootState('authed')} />} />
-            <Route path="*" element={<Navigate to="/verify" replace />} />
-          </>
-        ) : (
-          // ผูกแล้ว → เข้าแอปปกติ
-          <>
-            <Route path="/checkin"  element={<CheckinPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/history"  element={<HistoryPage />} />
-            <Route path="/leave"    element={<LeavePage />} />
-            <Route path="/ot"       element={<OtPage />} />
-            <Route path="/feedback" element={<FeedbackPage />} />
-            <Route path="/profile"  element={<ProfilePage />} />
-            <Route path="/ui-kit"   element={<UiKitPage />} />
-            <Route path="*"         element={<Navigate to="/checkin" replace />} />
-          </>
-        )}
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {bootState === 'need-verify' ? (
+            // ยังไม่ผูก LINE → บังคับไป verify
+            <>
+              <Route path="/verify" element={<VerifyPage onLinked={() => setBootState('authed')} />} />
+              <Route path="*" element={<Navigate to="/verify" replace />} />
+            </>
+          ) : (
+            // ผูกแล้ว → เข้าแอปปกติ
+            <>
+              <Route path="/checkin"  element={<CheckinPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/history"  element={<HistoryPage />} />
+              <Route path="/leave"    element={<LeavePage />} />
+              <Route path="/ot"       element={<OtPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
+              <Route path="/profile"  element={<ProfilePage />} />
+              <Route path="/ui-kit"   element={<UiKitPage />} />
+              <Route path="*"         element={<Navigate to="/checkin" replace />} />
+            </>
+          )}
+        </Routes>
+      </Suspense>
       {bootState === 'authed' && <BottomNav />}
     </BrowserRouter>
   )

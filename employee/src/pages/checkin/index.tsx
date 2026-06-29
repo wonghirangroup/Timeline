@@ -5,7 +5,7 @@ import jsQR from 'jsqr'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
-import liff from '@line/liff'
+import { isInLiff, liffScanCodeV2 } from '../../lib/liff'
 
 interface QrPayload {
   v: 1; tid: string; bid: string; sig: string
@@ -444,9 +444,9 @@ export default function CheckinPage() {
     if (!employee || preview) return
     setError(null)
     setScanAction(action)
-    if (liff.isInClient()) {
+    if (await isInLiff()) {
       try {
-        const res = await liff.scanCodeV2()
+        const res = await liffScanCodeV2()
         if (res.value) handleQrRaw(res.value, action)
       } catch (e: any) {
         if (e?.code !== 'CANCEL') setError('ไม่สามารถเปิดกล้องได้ — ลองใหม่อีกครั้ง')
