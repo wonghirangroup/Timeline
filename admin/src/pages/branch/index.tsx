@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle } from 'lucide-react'
+import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -21,7 +21,55 @@ interface ApiBranch {
   _count: { employees: number; shifts: number }
 }
 
-interface ApiShift { id: string; name: string; start_time: string; end_time: string }
+interface ApiShift {
+  id: string
+  branch_id: string
+  name: string
+  start_time: string
+  end_time: string
+  min_checkout: string | null
+  late_threshold: number
+  late_threshold_1: string | null
+  late_threshold_2: string | null
+  late_fine_1: string | null
+  late_fine_2: string | null
+  shift_type: 'REGULAR' | 'SPECIAL'
+  gps_radius: number | null
+  is_active: boolean
+  branch: { id: string; name: string }
+}
+
+interface ApiEmployee {
+  id: string
+  first_name: string
+  last_name: string
+  nickname: string | null
+  department: string | null
+  branch_id: string
+  branch: { id: string; name: string }
+}
+
+type ShiftStatus = 'inactive' | 'upcoming' | 'active' | 'done'
+
+function getShiftStatus(s: ApiShift): ShiftStatus {
+  if (!s.is_active) return 'inactive'
+  const now = new Date()
+  const cur = now.getHours() * 60 + now.getMinutes()
+  const [sh, sm] = s.start_time.split(':').map(Number)
+  const [eh, em] = s.end_time.split(':').map(Number)
+  const start = sh * 60 + sm
+  const end   = eh * 60 + em
+  if (cur < start) return 'upcoming'
+  if (cur <= end)  return 'active'
+  return 'done'
+}
+
+const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string; dot: string }> = {
+  inactive: { label: 'ปิดใช้งาน',   color: '#9ca3af', bg: '#f3f4f6', dot: '○' },
+  upcoming: { label: 'ยังไม่เริ่ม', color: '#d97706', bg: '#fef3c7', dot: '◷' },
+  active:   { label: 'กำลังทำงาน',  color: '#16a34a', bg: '#dcfce7', dot: '●' },
+  done:     { label: 'เลิกงานแล้ว', color: '#6366f1', bg: '#eef2ff', dot: '✓' },
+}
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 16,
@@ -157,6 +205,14 @@ export default function BranchPage() {
     queryKey: ['branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
+  const { data: allShifts = [] } = useQuery<ApiShift[]>({
+    queryKey: ['shifts'],
+    queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
+  })
+  const { data: allEmployees = [] } = useQuery<ApiEmployee[]>({
+    queryKey: ['employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
 
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/branches', body).then(r => r.data.data),
@@ -175,6 +231,7 @@ export default function BranchPage() {
   })
 
   const [modal, setModal]         = useState<ModalMode>(null)
+  const [detailShift, setDetailShift] = useState<ApiShift | null>(null)
 
   const [page, setPage]           = useState(1)
   const pageSize                  = 6
@@ -188,7 +245,7 @@ export default function BranchPage() {
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
 
   React.useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setModal(null); setMapModal(false); setTourActive(false) } }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDetailShift(null); setModal(null); setMapModal(false); setTourActive(false) } }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [])
@@ -502,12 +559,52 @@ export default function BranchPage() {
                 </p>
               )}
               {b.lat && b.lng && (
-                <p style={{ fontSize: '11px', margin: '0 0 12px' }}>
+                <p style={{ fontSize: '11px', margin: '0 0 8px' }}>
                   <span style={{ padding: '2px 7px', borderRadius: 99, fontWeight: 600, fontSize: '11px', background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
                     {b.geo_mode === 'BLOCK' ? '🚫 BLOCK' : '⚠️ WARN'}
                   </span>
                 </p>
               )}
+
+              {/* Shift chips */}
+              {(() => {
+                const branchShifts = allShifts.filter(s => s.branch_id === b.id)
+                if (branchShifts.length === 0) return null
+                return (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                      กะทำงาน ({branchShifts.length})
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {branchShifts.map(s => {
+                        const st = getShiftStatus(s)
+                        const cfg = STATUS_CFG[st]
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setDetailShift(s)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 5,
+                              padding: '5px 10px', borderRadius: 8,
+                              border: `1px solid ${st === 'active' ? '#86efac' : '#e5e7eb'}`,
+                              background: st === 'active' ? '#f0fdf4' : '#f9fafb',
+                              cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                              color: st === 'active' ? '#15803d' : '#374151',
+                            }}
+                          >
+                            <Clock size={11} color={cfg.color} />
+                            {s.name}
+                            <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 400 }}>
+                              {s.start_time}–{s.end_time}
+                            </span>
+                            <ChevronsRight size={11} color="#cbd5e1" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <button data-tour={idx === 0 ? 'branch-qr-0' : undefined} onClick={() => openQr(b)}
@@ -939,6 +1036,147 @@ export default function BranchPage() {
       )}
 
       {tourActive && <BranchTour onClose={() => setTourActive(false)} />}
+
+      {/* Shift Detail Drawer */}
+      {detailShift && (() => {
+        const s        = detailShift
+        const st       = getShiftStatus(s)
+        const cfg      = STATUS_CFG[st]
+        const isSpec   = s.shift_type === 'SPECIAL'
+        const branchEmps = allEmployees.filter(e => e.branch_id === s.branch_id)
+        const COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
+        const avatarColor = (i: number) => COLORS[i % COLORS.length]
+        const headerGrad = isSpec
+          ? 'linear-gradient(135deg,#7c3aed,#6d28d9)'
+          : st === 'active' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#1e293b,#334155)'
+
+        return (
+          <>
+            <div onClick={() => setDetailShift(null)}
+              style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:500,backdropFilter:'blur(2px)' }}
+            />
+            <div style={{
+              position:'fixed',top:0,right:0,bottom:0,
+              width: isMobile ? '100%' : 420,
+              background:'#fff',zIndex:501,
+              display:'flex',flexDirection:'column',
+              boxShadow:'-8px 0 40px rgba(0,0,0,0.15)',
+            }}>
+              {/* Header */}
+              <div style={{ background: headerGrad, padding:'20px 20px 16px', flexShrink:0 }}>
+                <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:8 }}>
+                  <div>
+                    <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                      {isSpec && <span style={{ background:'rgba(255,255,255,0.2)',color:'#fff',borderRadius:6,padding:'2px 8px',fontSize:'11px',fontWeight:700 }}>⭐ พิเศษ</span>}
+                      <span style={{ background:cfg.bg,color:cfg.color,borderRadius:99,padding:'2px 10px',fontSize:'0.7rem',fontWeight:700 }}>
+                        {cfg.dot} {cfg.label}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight:800,fontSize:'1.2rem',color:'#fff',lineHeight:1.2 }}>{s.name}</div>
+                    <div style={{ fontSize:'0.8rem',color:'rgba(255,255,255,0.75)',marginTop:2 }}>{s.branch.name}</div>
+                  </div>
+                  <button onClick={() => setDetailShift(null)}
+                    style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:6,cursor:'pointer',color:'#fff',display:'flex' }}>
+                    <X size={18}/>
+                  </button>
+                </div>
+
+                {/* Time chips */}
+                <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginTop:10 }}>
+                  <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                    🟢 {s.start_time} – {s.end_time} 🔴
+                  </span>
+                  {s.late_threshold_1 && (
+                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      ⚠️ สาย {s.late_threshold_1}
+                    </span>
+                  )}
+                  {s.late_threshold_2 && (
+                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      🚫 ปิดรับ {s.late_threshold_2}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Scrollable content */}
+              <div style={{ flex:1,overflowY:'auto',overscrollBehavior:'contain' }}>
+
+                {/* Shift details */}
+                <div style={{ padding:'16px 20px',borderBottom:'1px solid #f1f5f9' }}>
+                  <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12 }}>รายละเอียดกะ</div>
+                  <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px 20px' }}>
+                    <BranchInfoItem label="🟢 เวลาเริ่มงาน"   value={s.start_time}  color="#15803d" />
+                    <BranchInfoItem label="🔴 เวลาเลิกงาน"   value={s.end_time}    color="#dc2626" />
+                    {s.min_checkout && <BranchInfoItem label="🔒 เช็คเอาท์ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
+                    {s.gps_radius   && <BranchInfoItem label="📍 รัศมี GPS"         value={`${s.gps_radius} ม.`} color="#0891b2" />}
+                    {!isSpec && s.late_threshold_1 && (
+                      <BranchInfoItem label={`⚠️ สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />
+                    )}
+                    {!isSpec && s.late_threshold_2 && (
+                      <BranchInfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                    )}
+                    {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
+                      <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                    )}
+                  </div>
+                  {isSpec && (
+                    <div style={{ marginTop:10,padding:'8px 12px',background:'#f5f3ff',borderRadius:8,fontSize:'0.78rem',color:'#7c3aed' }}>
+                      ⭐ กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
+                    </div>
+                  )}
+                </div>
+
+                {/* Employee list */}
+                <div style={{ padding:'16px 20px' }}>
+                  <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12 }}>
+                    พนักงานในสาขา ({branchEmps.length} คน)
+                  </div>
+                  {branchEmps.length === 0 ? (
+                    <div style={{ textAlign:'center',padding:'24px 0',color:'#9ca3af',fontSize:'0.85rem' }}>ยังไม่มีพนักงานในสาขานี้</div>
+                  ) : (
+                    <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
+                      {branchEmps.map((e, idx) => (
+                        <div key={e.id} style={{
+                          display:'flex',alignItems:'center',gap:12,
+                          padding:'10px 12px',borderRadius:10,
+                          background:'#f9fafb',border:'1px solid #f1f5f9',
+                        }}>
+                          <div style={{
+                            width:36,height:36,borderRadius:'50%',
+                            background:avatarColor(idx),color:'#fff',
+                            display:'flex',alignItems:'center',justifyContent:'center',
+                            fontWeight:800,fontSize:'0.8rem',flexShrink:0,
+                          }}>
+                            {(e.nickname ?? e.first_name ?? '').slice(0,2)}
+                          </div>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontWeight:700,fontSize:'0.875rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
+                              {e.first_name} {e.last_name}
+                            </div>
+                            <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginTop:1 }}>
+                              {e.nickname ?? ''}{e.department ? ` · ${e.department}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      })()}
+    </div>
+  )
+}
+
+function BranchInfoItem({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div>
+      <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginBottom:2 }}>{label}</div>
+      <div style={{ fontWeight:700,color,fontSize:'1.05rem',fontVariantNumeric:'tabular-nums' }}>{value}</div>
     </div>
   )
 }
