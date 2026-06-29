@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -424,7 +424,7 @@ export default function ShiftPage() {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setModal(null); setEmpViewShift(null); setEmpSearch(''); setRemoveConfirm(null); setTourActive(false) }
+      if (e.key === 'Escape') { setModal(null); setDetailShift(null); setEmpViewShift(null); setEmpSearch(''); setRemoveConfirm(null); setTourActive(false) }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -433,6 +433,7 @@ export default function ShiftPage() {
   const [saving, setSaving]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiShift | null>(null)
   const [qrShift,      setQrShift]      = useState<ApiShift | null>(null)
+  const [detailShift, setDetailShift] = useState<ApiShift | null>(null)
   const [empViewShift, setEmpViewShift] = useState<ApiShift | null>(null)
   const [empSearch, setEmpSearch] = useState('')
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
@@ -624,6 +625,11 @@ export default function ShiftPage() {
             return (
             <div key={s.id} data-tour={idx === 0 ? 'shift-card-0' : undefined} style={{ background: '#fff', borderRadius: 16, border: `1px solid ${cardBorder}`, overflow: 'hidden', boxShadow: cardShadow, display: 'flex', flexDirection: 'column' }}>
 
+              {/* Clickable area — card header + time grid */}
+              <div
+                onClick={() => setDetailShift(s)}
+                style={{ cursor: 'pointer' }}
+              >
               {/* Card header */}
               <div style={{ background: headerBg, padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
@@ -633,9 +639,12 @@ export default function ShiftPage() {
                   </div>
                   <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 1 }}>{s.branch.name}</div>
                 </div>
-                <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span>{cfg.dot}</span>{cfg.label}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span>{cfg.dot}</span>{cfg.label}
+                  </span>
+                  <ChevronsRight size={14} style={{ color: '#cbd5e1' }} />
+                </div>
               </div>
 
               {/* Time grid — flex:1 ทำให้ card สูงเท่ากัน */}
@@ -654,6 +663,7 @@ export default function ShiftPage() {
                   </div>
                 )}
               </div>
+              </div>{/* end clickable area */}
 
               {/* Actions — อยู่ล่างสุดเสมอ */}
               <div data-tour={idx === 0 ? 'shift-actions-0' : undefined} style={{ padding: '10px 16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
@@ -1010,6 +1020,178 @@ export default function ShiftPage() {
 
       {/* Guided tour */}
       {tourActive && <ShiftTour onClose={() => setTourActive(false)} />}
+
+      {/* Shift Detail Drawer */}
+      {detailShift && (() => {
+        const s       = detailShift
+        const st      = getShiftStatus(s)
+        const cfg     = STATUS_CFG[st]
+        const isSpec  = s.shift_type === 'SPECIAL'
+        const branchEmps = allEmployees.filter(e => e.branch_id === s.branch_id)
+        const inShift    = shiftEmpMap[s.id] ?? []
+        const inShiftIds = new Set(inShift.map(e => e.id))
+        const COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
+        const avatarColor = (idx: number) => COLORS[idx % COLORS.length]
+
+        return (
+          <>
+            {/* Backdrop */}
+            <div
+              onClick={() => setDetailShift(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 400, backdropFilter: 'blur(2px)' }}
+            />
+
+            {/* Drawer panel */}
+            <div style={{
+              position: 'fixed', top: 0, right: 0, bottom: 0,
+              width: isMobile ? '100%' : 420,
+              background: '#fff', zIndex: 401,
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '-8px 0 40px rgba(0,0,0,0.15)',
+            }}>
+              {/* Header */}
+              <div style={{
+                background: isSpec ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : st === 'active' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#1e293b,#334155)',
+                padding: '20px 20px 16px', flexShrink: 0,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      {isSpec && <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>⭐ พิเศษ</span>}
+                      <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 700 }}>
+                        {cfg.dot} {cfg.label}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff', lineHeight: 1.2 }}>{s.name}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{s.branch.name}</div>
+                  </div>
+                  <button
+                    onClick={() => setDetailShift(null)}
+                    style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center' }}
+                  ><X size={18}/></button>
+                </div>
+
+                {/* Quick time chips */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                  <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    🟢 {s.start_time} – {s.end_time} 🔴
+                  </span>
+                  {s.late_threshold_1 && (
+                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      ⚠️ สาย {s.late_threshold_1}
+                    </span>
+                  )}
+                  {s.late_threshold_2 && (
+                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      🚫 ปิดรับ {s.late_threshold_2}
+                    </span>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <button
+                    onClick={() => { setDetailShift(null); setQrShift(s) }}
+                    style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  ><QrCode size={13}/> QR</button>
+                  <button
+                    onClick={() => { setDetailShift(null); openEdit(s) }}
+                    style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  ><Pencil size={13}/> แก้ไข</button>
+                  <button
+                    onClick={() => { setDetailShift(null); setDeleteTarget(s) }}
+                    style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                  ><Trash2 size={13}/></button>
+                </div>
+              </div>
+
+              {/* Detail + Employee list — scrollable */}
+              <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain' }}>
+
+                {/* Shift detail section */}
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>รายละเอียดกะ</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>
+                    <InfoItem label="🟢 เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
+                    <InfoItem label="🔴 เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
+                    {s.min_checkout && <InfoItem label="🔒 เช็คเอาท์ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
+                    {s.gps_radius && <InfoItem label="📍 รัศมี GPS" value={`${s.gps_radius} ม.`} color="#0891b2" />}
+                    {!isSpec && s.late_threshold_1 && (
+                      <InfoItem label={`⚠️ สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />
+                    )}
+                    {!isSpec && s.late_threshold_2 && (
+                      <InfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                    )}
+                    {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
+                      <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                    )}
+                  </div>
+                  {isSpec && (
+                    <div style={{ marginTop: 10, padding: '8px 12px', background: '#f5f3ff', borderRadius: 8, fontSize: '0.78rem', color: '#7c3aed' }}>
+                      ⭐ กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
+                    </div>
+                  )}
+                </div>
+
+                {/* Employee list section */}
+                <div style={{ padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      พนักงานในสาขา ({branchEmps.length} คน)
+                    </div>
+                    <button
+                      onClick={() => { setDetailShift(null); setEmpViewShift(s); setAddEmpTab('in') }}
+                      style={{ fontSize: '0.72rem', padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', cursor: 'pointer', fontWeight: 600 }}
+                    >จัดการ</button>
+                  </div>
+
+                  {branchEmps.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '0.85rem' }}>
+                      ยังไม่มีพนักงานในสาขานี้
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {branchEmps.map((e, idx) => {
+                        const isAssigned = inShiftIds.has(e.id)
+                        return (
+                          <div key={e.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: '10px 12px', borderRadius: 10,
+                            background: isAssigned ? '#f0fdf4' : '#f9fafb',
+                            border: `1px solid ${isAssigned ? '#bbf7d0' : '#f1f5f9'}`,
+                          }}>
+                            <div style={{
+                              width: 36, height: 36, borderRadius: '50%',
+                              background: avatarColor(idx), color: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 800, fontSize: '0.8rem', flexShrink: 0,
+                            }}>
+                              {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {e.first_name} {e.last_name}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>
+                                {e.nickname ?? ''}{e.department ? ` · ${e.department}` : ''}
+                              </div>
+                            </div>
+                            {isAssigned && (
+                              <span style={{ fontSize: '0.68rem', background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontWeight: 700, flexShrink: 0 }}>
+                                ✓ ในกะ
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }
@@ -1019,6 +1201,15 @@ function TimeRow({ icon, label, value, color }: { icon: string; label: string; v
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{icon} {label}</span>
       <span style={{ fontWeight: 700, color, fontSize: '1rem', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+    </div>
+  )
+}
+
+function InfoItem({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontWeight: 700, color, fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   )
 }
