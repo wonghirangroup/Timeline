@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { initLiff, getLiffProfile } from '../../lib/liff'
+import { initLiff, getLiffProfile, getChannelId } from '../../lib/liff'
 import { setJwt } from '../../lib/axios'
 import { PageLoader } from '../../components/ui'
 
@@ -34,7 +34,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   const [errMsg,    setErrMsg]   = useState('')
 
   const apiUrl    = import.meta.env.VITE_API_URL as string
-  const channelId = import.meta.env.VITE_LINE_CHANNEL_ID as string
+  const channelId = getChannelId()
   const headers   = { 'ngrok-skip-browser-warning': 'true' }
 
   useEffect(() => {
