@@ -19,13 +19,13 @@ const prisma = new PrismaClient()
 const TENANT_ID         = 'tenant-demo-001'           // tenant ที่จะ import เข้า
 const SERVICE_ACCOUNT   = path.join(__dirname, '../../firebase-service-account.json')
 
-// map เลข shift จาก Firebase → shift_id ใน MySQL
-// แก้ตรงนี้ให้ตรงกับ shift จริงใน DB
-// วิธีดู: SELECT id, name FROM shifts WHERE tenant_id = 'tenant-demo-001';
-const SHIFT_MAP: Record<number, string> = {
-  1: 'SHIFT_ID_FOR_1',   // ← แทนด้วย UUID จริง
-  2: 'SHIFT_ID_FOR_2',   // ← แทนด้วย UUID จริง
-  3: 'SHIFT_ID_FOR_3',   // ← แทนด้วย UUID จริง (ถ้ามี)
+// map: branchName → shiftNumber → shift_id ใน MySQL
+const BRANCH_SHIFT_MAP: Record<string, Record<number, string>> = {
+  'วงษ์หิรัญ':              { 1: '6e720e67-1f0a-49e6-b97e-d269e3b731ba', 2: '6af8d713-c052-4414-847a-e7caa44fd0bc' },
+  'ฟุคุโระ ไนท์สวนหมาก':    { 1: 'b39dc56c-b241-47aa-b1a8-c060f5c9f69b', 2: '7f965bca-e070-457a-9df5-c3eb1d029997' },
+  'ฟุคุโระ แม่กิมเฮง':      { 1: '648e7323-4048-4833-a174-067ada9050b0', 2: 'efc9adb5-1fc8-4eaa-97af-aa29b402a2f3' },
+  'ฟุคุโระ ตลาดย่าโม':      { 1: 'a0c4bbbe-33db-4a74-86c3-a37eb9555995', 2: '6f6b085e-508b-428f-8204-5693825a1c1c' },
+  'ฟุคุโระ เทิดไท':         { 1: '10662a51-2da0-46c9-8741-b394740288dd', 2: '0f4e65f6-60cf-4b6c-8bd9-4253a915d018' },
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -115,6 +115,18 @@ async function migrateEmployees(
   return employeeMap
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+function buildNote(d: any): string | null {
+  const parts: string[] = []
+  if (d.status === 'มาสาย (ระดับ 1)')  parts.push('สาย ระดับ 1')
+  if (d.status === 'มาสาย (ระดับ 2)')  parts.push('สาย ระดับ 2')
+  if (d.status === 'ขาดงาน/สายมาก')   parts.push('สาย ระดับ 2')
+  if (d.status === 'นอกพื้นที่')        parts.push('นอกพื้นที่')
+  if (d.status === 'ขาดงาน')           parts.push('ขาดงาน')
+  if (d.fine > 0)                       parts.push(`ค่าปรับ: ${d.fine}`)
+  return parts.length > 0 ? parts.join(' | ') : null
+}
+
 // ── step 3: import check-in records ──────────────────────────────────────────
 async function migrateCheckins(
   db: FirebaseFirestore.Firestore,
@@ -128,15 +140,15 @@ async function migrateCheckins(
   for (const doc of snap.docs) {
     const d = doc.data()
     const employeeId = employeeMap.get(d.employeeId)
-    const shiftId    = SHIFT_MAP[Number(d.shift)]
+    const branchShifts = BRANCH_SHIFT_MAP[d.branch]
+    const shiftId = branchShifts?.[Number(d.shift)]
 
     if (!employeeId) {
-      // พนักงานไม่มีใน DB (อาจถูก skip ตอน migrate employees)
       skipped++
       continue
     }
-    if (!shiftId || shiftId.startsWith('SHIFT_ID_FOR')) {
-      console.warn(`⚠️  shift ${d.shift} ยังไม่ได้ map — ข้าม ${d.employeeId} วันที่ ${d.date}`)
+    if (!shiftId) {
+      console.warn(`⚠️  ไม่พบ shift ${d.shift} สำหรับสาขา "${d.branch}" — ข้าม ${d.employeeId} ${d.date}`)
       skipped++
       continue
     }
@@ -147,10 +159,11 @@ async function migrateCheckins(
       await prisma.attendanceRecord.upsert({
         where:  { employee_id_shift_id_date: { employee_id: employeeId, shift_id: shiftId, date } },
         update: {
-          check_in_at:  d.timestamp    ? parseThaiDateTime(d.timestamp)        : null,
-          check_out_at: d.checkoutTimestamp ? parseThaiDateTime(d.checkoutTimestamp) : null,
-          is_late:      d.status === 'มาสาย',
-          note:         d.fine > 0 ? `ค่าปรับ: ${d.fine}` : null,
+          check_in_at:     d.timestamp         ? parseThaiDateTime(d.timestamp)         : null,
+          check_out_at:    d.checkoutTimestamp  ? parseThaiDateTime(d.checkoutTimestamp) : null,
+          is_late:         d.status === 'มาสาย (ระดับ 1)' || d.status === 'มาสาย (ระดับ 2)' || d.status === 'ขาดงาน/สายมาก',
+          is_outside_area: d.status === 'นอกพื้นที่',
+          note:            buildNote(d),
         },
         create: {
           id:              uuid(),
@@ -158,12 +171,13 @@ async function migrateCheckins(
           employee_id:     employeeId,
           shift_id:        shiftId,
           date,
-          check_in_at:     d.timestamp    ? parseThaiDateTime(d.timestamp)        : null,
-          check_out_at:    d.checkoutTimestamp ? parseThaiDateTime(d.checkoutTimestamp) : null,
+          check_in_at:     d.timestamp         ? parseThaiDateTime(d.timestamp)         : null,
+          check_out_at:    d.checkoutTimestamp  ? parseThaiDateTime(d.checkoutTimestamp) : null,
           check_in_method: 'LIFF',
-          is_late:         d.status === 'มาสาย',
+          is_late:         d.status === 'มาสาย (ระดับ 1)' || d.status === 'มาสาย (ระดับ 2)' || d.status === 'ขาดงาน/สายมาก',
+          is_outside_area: d.status === 'นอกพื้นที่',
           late_minutes:    0,
-          note:            d.fine > 0 ? `ค่าปรับ: ${d.fine}` : null,
+          note:            buildNote(d),
         },
       })
       created++

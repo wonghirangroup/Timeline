@@ -39,7 +39,9 @@ export async function getLiffProfile(): Promise<{
 }
 
 export function getChannelId(): string {
-  return import.meta.env.VITE_LINE_CHANNEL_ID as string
+  // ดึง channel ID จาก LIFF ID อัตโนมัติ (ส่วนแรกก่อน "-")
+  // เช่น "2010116873-1vqjroj0" → "2010116873"
+  return (import.meta.env.VITE_LIFF_ID as string)?.split('-')[0] ?? ''
 }
 
 export async function isInLiff(): Promise<boolean> {

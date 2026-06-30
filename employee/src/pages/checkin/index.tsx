@@ -725,7 +725,6 @@ export default function CheckinPage() {
           </div>
         )}
       </div>
-    </div>
 
       {/* Overlays */}
       {showScanner && (

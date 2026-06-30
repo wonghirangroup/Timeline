@@ -134,12 +134,16 @@ export default function ReportPage() {
     const leaveType = leaveMap.get(empId)?.get(dateKey)
 
     if (leaveType) {
-      if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์')
-        return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: leaveType, status: 'leave' }
+      if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์' || leaveType === 'COMPENSATE')
+        return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType, status: 'leave' }
       if (leaveType === 'SICK' || leaveType === 'ลาป่วย')
         return { bg: '#fee2e2', label: '🤒', color: '#dc2626', tip: 'ลาป่วย', status: 'sick' }
       if (leaveType === 'VACATION' || leaveType === 'พักร้อน' || leaveType === 'ลาพักร้อน')
         return { bg: '#fef9c3', label: '🌴', color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+      if (leaveType === 'PERSONAL' || leaveType === 'ลากิจ')
+        return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'หยุด/ลากิจ', status: 'leave' }
+      if (leaveType === 'MATERNITY')
+        return { bg: '#fce7f3', label: '👶', color: '#be185d', tip: 'ลาคลอด', status: 'leave' }
       return { bg: '#e0f2fe', label: '📋', color: '#0369a1', tip: leaveType, status: 'leave' }
     }
 

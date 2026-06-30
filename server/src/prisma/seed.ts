@@ -215,7 +215,26 @@ async function main() {
   })
   console.log(`✅ Leave Requests: 2 รายการ (PENDING)`)
 
-  // ── 10. Dev user (Swagger UI) ────────────────────────────────────────
+  // ── 10. TenantLineConfig ────────────────────────────────────────────
+  await prisma.tenantLineConfig.upsert({
+    where:  { tenant_id: tenant.id },
+    update: {
+      line_channel_id:           process.env.LINE_CHANNEL_ID     ?? '2010117174',
+      line_channel_secret:       process.env.LINE_CHANNEL_SECRET ?? '9180e3632da04317b9400c386fa216ed',
+      line_channel_access_token: null,
+      line_liff_id:              process.env.LINE_LIFF_ID        ?? '2010116873-1vqjroj0',
+    },
+    create: {
+      tenant_id:                 tenant.id,
+      line_channel_id:           process.env.LINE_CHANNEL_ID     ?? '2010117174',
+      line_channel_secret:       process.env.LINE_CHANNEL_SECRET ?? '9180e3632da04317b9400c386fa216ed',
+      line_channel_access_token: null,
+      line_liff_id:              process.env.LINE_LIFF_ID        ?? '2010116873-1vqjroj0',
+    },
+  })
+  console.log(`✅ TenantLineConfig: channel_id=${process.env.LINE_CHANNEL_ID ?? '2010117174'}`)
+
+  // ── 11. Dev user (Swagger UI) ────────────────────────────────────────
   const devPwd = await bcrypt.hash('netdev99', 10)
   const devUser = await prisma.user.upsert({
     where: { email: 'netdev' },
