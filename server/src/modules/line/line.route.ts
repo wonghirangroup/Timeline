@@ -30,7 +30,6 @@ export async function lineRoutes(app: FastifyInstance) {
 
       // หา tenant จาก destination (line_user_id ของ OA)
       const lineConfig = await prisma.tenantLineConfig.findFirst({
-        where: { deleted_at: null },
         select: { tenant_id: true, line_channel_secret: true },
       })
       if (!lineConfig) return
