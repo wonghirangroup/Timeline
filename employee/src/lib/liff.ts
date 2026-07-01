@@ -1,8 +1,6 @@
 // employee/src/lib/liff.ts
 type LiffType = typeof import('@line/liff').default
 
-const LIFF_ID = import.meta.env.VITE_LIFF_ID as string
-
 let _liff: LiffType | null = null
 let _initialized = false
 
@@ -14,10 +12,21 @@ async function _get(): Promise<LiffType> {
   return _liff
 }
 
+/** อ่าน LIFF ID จาก ?lid= ใน URL ก่อน fallback ไป env var */
+export function getLiffId(): string {
+  const fromUrl = new URLSearchParams(window.location.search).get('lid')
+  return fromUrl ?? (import.meta.env.VITE_LIFF_ID as string) ?? ''
+}
+
+/** ดึง Channel ID จาก LIFF ID (ส่วนแรกก่อน "-") */
+export function getChannelId(): string {
+  return getLiffId().split('-')[0] ?? ''
+}
+
 export async function initLiff(): Promise<void> {
   if (_initialized) return
   const liff = await _get()
-  await liff.init({ liffId: LIFF_ID })
+  await liff.init({ liffId: getLiffId() })
   _initialized = true
 }
 
@@ -30,7 +39,6 @@ export async function getLiffProfile(): Promise<{
   const liff = await _get()
   if (!liff.isLoggedIn()) {
     liff.login({ redirectUri: window.location.href })
-    // login() navigates away — suspend execution until redirect returns
     await new Promise(() => {})
   }
   const profile = await liff.getProfile()
@@ -38,18 +46,11 @@ export async function getLiffProfile(): Promise<{
   return { lineUserId: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl, idToken }
 }
 
-export function getChannelId(): string {
-  // ดึง channel ID จาก LIFF ID อัตโนมัติ (ส่วนแรกก่อน "-")
-  // เช่น "2010116873-1vqjroj0" → "2010116873"
-  return (import.meta.env.VITE_LIFF_ID as string)?.split('-')[0] ?? ''
-}
-
 export async function isInLiff(): Promise<boolean> {
   const liff = await _get()
   return liff.isInClient()
 }
 
-// ให้ checkin page ใช้โดยไม่ต้อง import @line/liff โดยตรง
 export async function liffScanCodeV2() {
   const liff = await _get()
   return liff.scanCodeV2()
