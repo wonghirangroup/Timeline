@@ -12,10 +12,18 @@ async function _get(): Promise<LiffType> {
   return _liff
 }
 
-/** อ่าน LIFF ID จาก ?lid= ใน URL ก่อน fallback ไป env var */
+const SESSION_KEY = 'tl_liff_id'
+
+/** อ่าน LIFF ID จาก ?lid= → sessionStorage → env var (ตามลำดับ) */
 export function getLiffId(): string {
   const fromUrl = new URLSearchParams(window.location.search).get('lid')
-  return fromUrl ?? (import.meta.env.VITE_LIFF_ID as string) ?? ''
+  if (fromUrl) {
+    // บันทึกก่อน LINE OAuth redirect จะกิน URL ทิ้ง
+    sessionStorage.setItem(SESSION_KEY, fromUrl)
+    return fromUrl
+  }
+  // หลัง redirect กลับมา lid หายจาก URL แต่ยังอยู่ใน sessionStorage
+  return sessionStorage.getItem(SESSION_KEY) ?? (import.meta.env.VITE_LIFF_ID as string) ?? ''
 }
 
 /** ดึง Channel ID จาก LIFF ID (ส่วนแรกก่อน "-") */
@@ -38,7 +46,11 @@ export async function getLiffProfile(): Promise<{
 }> {
   const liff = await _get()
   if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.href })
+    // สร้าง redirectUri ที่มี ?lid= เสมอ เพื่อให้ getChannelId() ยังทำงานได้หลัง redirect
+    const liffId = getLiffId()
+    const base = `${window.location.origin}${window.location.pathname}`
+    const redirectUri = liffId ? `${base}?lid=${liffId}` : window.location.href
+    liff.login({ redirectUri })
     await new Promise(() => {})
   }
   const profile = await liff.getProfile()
