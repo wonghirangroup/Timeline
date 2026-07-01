@@ -2,8 +2,17 @@
 import { prisma } from '../../common/utils/prisma'
 
 export async function getTenantByChannelId(channelId: string) {
-  return prisma.tenantLineConfig.findFirst({
+  // ลอง match direct channel_id ก่อน
+  const byChannel = await prisma.tenantLineConfig.findFirst({
     where: { line_channel_id: channelId },
+    include: { tenant: { select: { id: true, name: true, is_active: true } } },
+  })
+  if (byChannel) return byChannel
+
+  // Fallback: LIFF อาจถูกสร้างบน channel ที่ต่างจาก Messaging API channel
+  // เช่น LIFF ID "2010564267-xxx" แต่ line_channel_id ที่บันทึกคือ "2010564253"
+  return prisma.tenantLineConfig.findFirst({
+    where: { line_liff_id: { startsWith: `${channelId}-` } },
     include: { tenant: { select: { id: true, name: true, is_active: true } } },
   })
 }
