@@ -97,6 +97,33 @@ export async function tenantRoutes(app: FastifyInstance) {
     return ok(tenant, 'อัปเดต Tenant สำเร็จ')
   })
 
+  // POST /api/v1/super-admin/tenants/:id/line-config
+  app.post('/tenants/:id/line-config', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ตั้งค่า LINE OA สำหรับ Tenant',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['line_channel_id', 'line_channel_secret', 'line_liff_id'],
+        properties: {
+          line_channel_id:     { type: 'string' },
+          line_channel_secret: { type: 'string' },
+          line_liff_id:        { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const config = await upsertLineConfig(req.params.id, {
+      line_channel_id:     req.body.line_channel_id,
+      line_channel_secret: req.body.line_channel_secret,
+      line_liff_id:        req.body.line_liff_id,
+    })
+    return ok(config, 'บันทึก LINE config สำเร็จ')
+  })
+
   // DELETE /api/v1/super-admin/tenants/:id
   app.delete('/tenants/:id', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],

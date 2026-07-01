@@ -96,8 +96,30 @@ export default function TenantsPage() {
     await loadTenants()
   }
 
-  // Line OA modal (local only for now)
-  const [lineModal, setLineModal]   = useState<ApiTenant | null>(null)
+  const [lineModal, setLineModal] = useState<ApiTenant | null>(null)
+
+  async function handleSaveLineConfig() {
+    if (!lineModal) return
+    if (!lineForm.line_channel_id || !lineForm.line_channel_secret || !lineForm.liff_id) {
+      setLineSaveErr('กรุณากรอกข้อมูลให้ครบทุกช่อง')
+      return
+    }
+    setLineSaving(true)
+    setLineSaveErr(null)
+    try {
+      await api.post(`/api/v1/super-admin/tenants/${lineModal.id}/line-config`, {
+        line_channel_id:     lineForm.line_channel_id,
+        line_channel_secret: lineForm.line_channel_secret,
+        line_liff_id:        lineForm.liff_id,
+      })
+      setLineModal(null)
+      await loadTenants()
+    } catch (e: any) {
+      setLineSaveErr(e.response?.data?.error?.message ?? 'บันทึกไม่สำเร็จ')
+    } finally {
+      setLineSaving(false)
+    }
+  }
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -111,6 +133,8 @@ export default function TenantsPage() {
   const [lineForm, setLineForm]     = useState({ line_channel_id: '', line_channel_secret: '', liff_id: '' })
   const [showSecret, setShowSecret] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [lineSaving, setLineSaving] = useState(false)
+  const [lineSaveErr, setLineSaveErr] = useState<string | null>(null)
 
   async function loadTenants() {
     try {
@@ -315,7 +339,7 @@ export default function TenantsPage() {
                         ? <span style={{ color: 'var(--success-text)', fontSize: '0.78rem', fontWeight: 700 }}>✓ ตั้งค่าแล้ว</span>
                         : <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>— ยังไม่ตั้งค่า</span>}
                       <br />
-                      <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult('idle'); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
+                      <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult('idle'); setLineSaveErr(null); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
                         style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontSize: '0.72rem', fontWeight: 600, marginTop: 4 }}>
                         {t.line_config ? '⚙ แก้ไข' : '+ ตั้งค่า'}
                       </button>
@@ -611,6 +635,11 @@ export default function TenantsPage() {
                   {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret'}
                 </div>
               )}
+              {lineSaveErr && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: 'var(--error-text)' }}>
+                  {lineSaveErr}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 22 }}>
@@ -618,7 +647,10 @@ export default function TenantsPage() {
                 style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600 }}>🔌 Test</button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setLineModal(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ปิด</button>
-                <button onClick={() => setLineModal(null)} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700 }}>💾 บันทึก</button>
+                <button onClick={handleSaveLineConfig} disabled={lineSaving}
+                  style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: lineSaving ? 'not-allowed' : 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: lineSaving ? 0.7 : 1 }}>
+                  {lineSaving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+                </button>
               </div>
             </div>
           </div>
