@@ -37,15 +37,23 @@ function splitName(fullName: string): { first_name: string; last_name: string } 
   }
 }
 
-/** "2025-12-30 09:50:59" → Date object (Asia/Bangkok → UTC) */
-function parseThaiDateTime(s: string): Date {
-  // ต้องบวก 7 ชั่วโมงเพราะ MySQL เก็บ UTC
+/** "2025-12-30 09:50:59" หรือ Firestore Timestamp → Date object */
+function parseThaiDateTime(s: any): Date {
+  if (typeof s !== 'string') {
+    return s?.toDate ? s.toDate() : new Date(s)
+  }
   const [datePart, timePart] = s.split(' ')
   return new Date(`${datePart}T${timePart}+07:00`)
 }
 
-function parseThaiDate(s: string): Date {
-  return new Date(`${s}T00:00:00+07:00`)
+function parseThaiDate(s: any): Date {
+  if (typeof s !== 'string') {
+    // Firestore Timestamp object
+    const dt: Date = s?.toDate ? s.toDate() : new Date(s)
+    return new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()))
+  }
+  const [y, mo, d] = s.split('-').map(Number)
+  return new Date(Date.UTC(y, mo - 1, d))
 }
 
 // ── step 1: map branch name → branch_id ──────────────────────────────────────
@@ -141,7 +149,9 @@ async function migrateCheckins(
     const d = doc.data()
     const employeeId = employeeMap.get(d.employeeId)
     const branchShifts = BRANCH_SHIFT_MAP[d.branch]
-    const shiftId = branchShifts?.[Number(d.shift)]
+    // fallback to shift 1 (กะเช้า) when shift field is undefined/null
+    const shiftNum = d.shift !== undefined && d.shift !== null ? Number(d.shift) : 1
+    const shiftId = branchShifts?.[shiftNum] ?? branchShifts?.[1]
 
     if (!employeeId) {
       skipped++
@@ -182,8 +192,13 @@ async function migrateCheckins(
       })
       created++
     } catch (e: any) {
-      console.error(`❌ checkin ${d.employeeId} ${d.date}:`, e.message)
-      errors++
+      // unique constraint = duplicate (timezone mismatch with existing records) — skip silently
+      if (e.code === 'P2002' || (e.message as string).includes('Unique constraint')) {
+        skipped++
+      } else {
+        console.error(`❌ checkin ${d.employeeId} ${d.date}:`, e.message)
+        errors++
+      }
     }
   }
 

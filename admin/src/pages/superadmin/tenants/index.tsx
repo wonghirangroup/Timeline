@@ -547,39 +547,72 @@ export default function TenantsPage() {
       {/* ── Line OA Modal (local state for now) ── */}
       {lineModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setLineModal(null) }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="line-oa-modal-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 520, maxWidth: '90vw' }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="line-oa-modal-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <span style={{ fontSize: '1.4rem' }}>💚</span>
-              <h3 id="line-oa-modal-title" style={{ margin: 0, fontWeight: 700 }}>ตั้งค่า Line OA</h3>
+              <h3 id="line-oa-modal-title" style={{ margin: 0, fontWeight: 700 }}>ตั้งค่า LINE OA</h3>
             </div>
-            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>{lineModal.name}</p>
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.7 }}>
-              <strong>Webhook URL:</strong><br />
-              <code style={{ fontSize: '0.75rem' }}>{`https://api.timeline.app/api/v1/line/webhook/${lineModal.id}`}</code>
+            <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>{lineModal.name}</p>
+
+            {/* Step guide */}
+            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '14px 16px', marginBottom: 18, fontSize: '0.8rem', color: '#0369a1', lineHeight: 1.8 }}>
+              <strong style={{ display: 'block', marginBottom: 6 }}>📋 วิธีหาข้อมูล — LINE Developers Console</strong>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                <li>เปิด <strong>developers.line.biz</strong> → Login → เลือก Provider</li>
+                <li>เลือก Channel ประเภท <strong>Messaging API</strong> ที่ใช้กับ OA นี้</li>
+                <li>แท็บ <strong>Basic settings</strong> → คัดลอก <em>Channel ID</em> และ <em>Channel Secret</em></li>
+                <li>แท็บ <strong>LIFF</strong> → เลือก LIFF App → คัดลอก <em>LIFF ID</em></li>
+              </ol>
             </div>
+
+            {/* Webhook URL */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.7 }}>
+              <strong>Webhook URL</strong> — ใส่ใน LINE Developers → Messaging API → Webhook settings<br />
+              <code style={{ fontSize: '0.73rem', background: '#dcfce7', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginTop: 4, wordBreak: 'break-all' }}>
+                {`https://timeline-52hp.onrender.com/api/v1/line/webhook`}
+              </code>
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Channel ID */}
               <div>
-                <label style={labelSt}>Line Channel ID</label>
-                <input value={lineForm.line_channel_id} onChange={e => setLineForm(f => ({ ...f, line_channel_id: e.target.value }))} placeholder="เช่น 2006123456" style={inputSt} />
+                <label style={labelSt}>Channel ID <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input value={lineForm.line_channel_id} onChange={e => setLineForm(f => ({ ...f, line_channel_id: e.target.value }))} placeholder="เช่น 2010057364" style={inputSt} />
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → เลือก Channel → แท็บ <strong>Basic settings</strong> → <em>Channel ID</em>
+                </p>
               </div>
+
+              {/* Channel Secret */}
               <div>
-                <label style={labelSt}>Line Channel Secret</label>
+                <label style={labelSt}>Channel Secret <span style={{ color: 'var(--error-text)' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <input type={showSecret ? 'text' : 'password'} value={lineForm.line_channel_secret}
-                    onChange={e => setLineForm(f => ({ ...f, line_channel_secret: e.target.value }))} style={{ ...inputSt, paddingRight: 44 }} />
+                    onChange={e => setLineForm(f => ({ ...f, line_channel_secret: e.target.value }))}
+                    placeholder="ตัวอักษร 32 หลัก" style={{ ...inputSt, paddingRight: 44 }} />
                   <button onClick={() => setShowSecret(s => !s)} type="button" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>{showSecret ? '🙈' : '👁'}</button>
                 </div>
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → แท็บ <strong>Basic settings</strong> → <em>Channel secret</em> → กด Issue ถ้ายังไม่มี
+                </p>
               </div>
+
+              {/* LIFF ID */}
               <div>
-                <label style={labelSt}>LIFF ID</label>
-                <input value={lineForm.liff_id} onChange={e => setLineForm(f => ({ ...f, liff_id: e.target.value }))} placeholder="เช่น 2006123456-AbCdEfGh" style={inputSt} />
+                <label style={labelSt}>LIFF ID <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input value={lineForm.liff_id} onChange={e => setLineForm(f => ({ ...f, liff_id: e.target.value }))} placeholder="เช่น 2010057364-BtB7eW1f" style={inputSt} />
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → แท็บ <strong>LIFF</strong> → เลือก LIFF App → <em>LIFF ID</em> (รูปแบบ: ChannelID-XXXXXXXX)
+                </p>
               </div>
+
               {testResult !== 'idle' && (
                 <div style={{ background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)' }}>
                   {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret'}
                 </div>
               )}
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 22 }}>
               <button onClick={() => { setTestResult('idle'); setTimeout(() => setTestResult(lineForm.line_channel_id && lineForm.line_channel_secret ? 'ok' : 'fail'), 1200) }}
                 style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600 }}>🔌 Test</button>

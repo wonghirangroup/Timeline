@@ -6,24 +6,27 @@ async function generateEmployeeCode(
   hiredAt: string | undefined,
   department: string | undefined,
 ): Promise<string> {
-  // BE year (พ.ศ.) 2 หลักท้าย เช่น 2568 → "68"
   const date   = hiredAt ? new Date(hiredAt) : new Date()
   const year   = date.getFullYear()
-  // ถ้าปีเกิน 2500 = user ส่ง พ.ศ. มาตรง ไม่ต้องบวก 543 อีก
   const beYear = year > 2500 ? year : year + 543
   const beYY   = String(beYear).slice(-2)
 
   // รหัสแผนก = 2 ตัวแรกของ department เช่น "01 ผู้บริหาร" → "01"
   const deptCode = department ? department.slice(0, 2).trim() : '00'
+  const prefix   = `${beYY}-${deptCode}-`
 
-  const prefix = `${beYY}-${deptCode}-`
-
-  // นับพนักงานที่มี prefix เดียวกันใน tenant นี้ (ไม่รวม deleted)
-  const count = await prisma.employee.count({
-    where: { tenant_id: tenantId, employee_code: { startsWith: prefix } },
+  // หา running number สูงสุดใน prefix นี้ (รวม deleted เพื่อป้องกันซ้ำ)
+  const existing = await prisma.employee.findMany({
+    where:  { tenant_id: tenantId, employee_code: { startsWith: prefix } },
+    select: { employee_code: true },
   })
 
-  return `${prefix}${String(count + 1).padStart(3, '0')}`
+  const maxSeq = existing.reduce((max, e) => {
+    const seq = parseInt(e.employee_code.slice(prefix.length), 10)
+    return isNaN(seq) ? max : Math.max(max, seq)
+  }, 0)
+
+  return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`
 }
 
 export async function listEmployees(tenantId: string, branchId?: string) {

@@ -55,7 +55,7 @@ export async function tenantRoutes(app: FastifyInstance) {
           plan:             { type: 'string', enum: ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'] },
           max_employees:    { type: 'integer' },
           max_branches:     { type: 'integer' },
-          admin_email:      { type: 'string', format: 'email' },
+          admin_email:      { type: 'string' },
           admin_password:   { type: 'string' },
           admin_first_name: { type: 'string' },
           admin_last_name:  { type: 'string' },

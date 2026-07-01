@@ -1,20 +1,18 @@
 // admin/src/pages/shift/index.tsx
 import { useState } from 'react'
-import { Clock, AlignLeft, ClipboardCheck } from 'lucide-react'
-import ManageShiftTab from './manage'
+import { AlignLeft, ClipboardCheck } from 'lucide-react'
 import ShiftScheduleTab from '../shift-schedule'
 import AttendanceTab from '../attendance'
 
-type ShiftTab = 'manage' | 'schedule' | 'attendance'
+type ShiftTab = 'schedule' | 'attendance'
 
 const TABS: { id: ShiftTab; label: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
-  { id: 'manage',     label: 'จัดการกะ',     icon: <Clock size={15}/>,          color: '#f97316', activeBg: '#fff7ed', activeBorder: '#f97316' },
   { id: 'schedule',   label: 'ตารางกะ',      icon: <AlignLeft size={15}/>,      color: '#2563eb', activeBg: '#eff6ff', activeBorder: '#3b82f6' },
   { id: 'attendance', label: 'เช็คอินวันนี้', icon: <ClipboardCheck size={15}/>, color: '#16a34a', activeBg: '#f0fdf4', activeBorder: '#22c55e' },
 ]
 
 export default function ShiftHubPage() {
-  const [activeTab, setActiveTab] = useState<ShiftTab>('manage')
+  const [activeTab, setActiveTab] = useState<ShiftTab>('schedule')
 
   function renderTab(t: typeof TABS[0]) {
     const isActive = activeTab === t.id
@@ -53,9 +51,6 @@ export default function ShiftHubPage() {
       </div>
 
       {/* Content */}
-      <div style={{ display: activeTab === 'manage' ? 'block' : 'none' }}>
-        <ManageShiftTab />
-      </div>
       <div style={{ display: activeTab === 'schedule' ? 'block' : 'none' }}>
         <ShiftScheduleTab />
       </div>

@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
+import ManageShiftTab from '../shift/manage'
 
 interface ApiBranch {
   id: string
@@ -216,6 +217,7 @@ function BranchTour({ onClose }: { onClose: () => void }) {
 }
 
 export default function BranchPage() {
+  const [activeTab, setActiveTab] = useState<'branch' | 'shift'>('branch')
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const qc = useQueryClient()
@@ -239,7 +241,15 @@ export default function BranchPage() {
 
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/branches', body).then(r => r.data.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว`); setModal(null); setSaving(false) },
+    onSuccess: async (branch: any) => {
+      for (const s of pendingShifts) {
+        await api.post('/api/v1/admin/shifts', { ...s, branch_id: branch.id }).catch(() => {})
+      }
+      qc.invalidateQueries({ queryKey: ['branches'] })
+      qc.invalidateQueries({ queryKey: ['shifts'] })
+      showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว${pendingShifts.length > 0 ? ` พร้อม ${pendingShifts.length} กะ` : ''}`)
+      setModal(null); setSaving(false); setPendingShifts([])
+    },
     onError: () => { showToast('error', 'เพิ่มสาขาไม่สำเร็จ'); setSaving(false) },
   })
   const updateMutation = useMutation({
@@ -290,6 +300,8 @@ export default function BranchPage() {
   const [saving, setSaving]       = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [step, setStep]           = useState(1)
+  const [pendingShifts, setPendingShifts] = useState<Array<{ name: string; start_time: string; end_time: string; shift_type: 'REGULAR' | 'SPECIAL' }>>([])
+  const [wShift, setWShift]       = useState({ name: '', start_time: '08:00', end_time: '17:00', shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL' })
   const [showInfo, setShowInfo]   = useState(false)
   const [mapModal, setMapModal]   = useState(false)
   const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -391,6 +403,8 @@ export default function BranchPage() {
     setEditTarget(null)
     setStep(1)
     setShowInfo(false)
+    setPendingShifts([])
+    setWShift({ name: '', start_time: '08:00', end_time: '17:00', shift_type: 'REGULAR' })
     setModal('add')
   }
 
@@ -523,6 +537,36 @@ export default function BranchPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 4, overflowX: 'auto' }}>
+        {([
+          { id: 'branch', label: 'สาขา',      icon: <Building2 size={15}/>, color: '#f97316', activeBg: '#fff7ed', activeBorder: '#f97316' },
+          { id: 'shift',  label: 'จัดการกะ',  icon: <Clock size={15}/>,     color: '#6366f1', activeBg: '#eef2ff', activeBorder: '#6366f1' },
+        ] as const).map(t => {
+          const isActive = activeTab === t.id
+          return (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 20px', border: 'none', cursor: 'pointer',
+              fontSize: '14px', fontWeight: isActive ? 700 : 600,
+              color: isActive ? t.color : 'var(--text-muted)',
+              background: isActive ? t.activeBg : 'transparent',
+              borderBottom: `3px solid ${isActive ? t.activeBorder : 'transparent'}`,
+              borderRadius: '8px 8px 0 0', marginBottom: -4, transition: 'all 0.2s', whiteSpace: 'nowrap',
+            }}>
+              <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* จัดการกะ tab */}
+      {activeTab === 'shift' && <ManageShiftTab />}
+
+      {/* สาขา tab */}
+      {activeTab === 'branch' && <>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
@@ -705,11 +749,10 @@ export default function BranchPage() {
 
       {/* Add/Edit Modal — Stepper */}
       {(modal === 'add' || modal === 'edit') && (() => {
-        const STEPS = [
-          { n: 1, label: 'ข้อมูลสาขา' },
-          { n: 2, label: 'ตำแหน่ง GPS' },
-          { n: 3, label: 'Geofencing' },
-        ]
+        const maxStep = modal === 'add' ? 4 : 3
+        const STEPS = modal === 'add'
+          ? [{ n: 1, label: 'ข้อมูลสาขา' }, { n: 2, label: 'ตำแหน่ง GPS' }, { n: 3, label: 'Geofencing' }, { n: 4, label: 'เพิ่มกะ' }]
+          : [{ n: 1, label: 'ข้อมูลสาขา' }, { n: 2, label: 'ตำแหน่ง GPS' }, { n: 3, label: 'Geofencing' }]
         const dot = (n: number): React.CSSProperties => ({
           width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '13px', fontWeight: 700, flexShrink: 0,
@@ -733,7 +776,7 @@ export default function BranchPage() {
                     {modal === 'add' ? 'เพิ่มสาขาใหม่' : `แก้ไข: ${editTarget?.name}`}
                   </p>
                   <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
-                    ขั้นตอน {step} จาก 3 — {STEPS[step - 1].label}
+                    ขั้นตอน {step} จาก {maxStep} — {STEPS[step - 1].label}
                   </p>
                 </div>
                 <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
@@ -869,6 +912,75 @@ export default function BranchPage() {
                   </>
                 )}
 
+                {/* ── Step 4: เพิ่มกะ (add mode only) ── */}
+                {step === 4 && (
+                  <>
+                    <div style={{ padding: '12px 16px', background: '#eef2ff', borderRadius: 10, border: '1px solid #c7d2fe', fontSize: '13px', color: '#3730a3', lineHeight: 1.6 }}>
+                      เพิ่มกะทำงานสำหรับสาขา <strong>{form.name}</strong> — สามารถเพิ่มได้หลายกะ หรือข้ามก็ได้
+                    </div>
+
+                    {/* form เพิ่มกะ */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div style={{ gridColumn: '1/-1' }}>
+                        <label style={shiftLabelStyle}>ชื่อกะ <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input value={wShift.name} onChange={e => setWShift(f => ({ ...f, name: e.target.value }))}
+                          placeholder="เช่น กะเช้า, กะบ่าย" style={shiftInputStyle} />
+                      </div>
+                      <div>
+                        <label style={shiftLabelStyle}>เวลาเริ่ม</label>
+                        <input type="time" value={wShift.start_time} onChange={e => setWShift(f => ({ ...f, start_time: e.target.value }))} style={shiftInputStyle} />
+                      </div>
+                      <div>
+                        <label style={shiftLabelStyle}>เวลาเลิก</label>
+                        <input type="time" value={wShift.end_time} onChange={e => setWShift(f => ({ ...f, end_time: e.target.value }))} style={shiftInputStyle} />
+                      </div>
+                      <div style={{ gridColumn: '1/-1' }}>
+                        <label style={shiftLabelStyle}>ประเภทกะ</label>
+                        <select value={wShift.shift_type} onChange={e => setWShift(f => ({ ...f, shift_type: e.target.value as 'REGULAR' | 'SPECIAL' }))} style={shiftInputStyle}>
+                          <option value="REGULAR">🕐 ปกติ (REGULAR)</option>
+                          <option value="SPECIAL">⭐ พิเศษ / Event (SPECIAL)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (!wShift.name.trim()) { showToast('error', 'กรุณาระบุชื่อกะ'); return }
+                        setPendingShifts(prev => [...prev, { ...wShift }])
+                        setWShift({ name: '', start_time: '08:00', end_time: '17:00', shift_type: 'REGULAR' })
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', borderRadius: 8, border: '1.5px dashed #6366f1', background: '#eef2ff', color: '#4338ca', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <Plus size={14} /> เพิ่มกะนี้
+                    </button>
+
+                    {/* รายการกะที่เพิ่มแล้ว */}
+                    {pendingShifts.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <p style={{ fontSize: '12px', fontWeight: 700, color: '#374151', margin: 0 }}>กะที่จะสร้าง ({pendingShifts.length})</p>
+                        {pendingShifts.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Clock size={13} color="#16a34a" />
+                              <span style={{ fontWeight: 600, fontSize: '13px', color: '#15803d' }}>{s.name}</span>
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>{s.start_time}–{s.end_time}</span>
+                              {s.shift_type === 'SPECIAL' && <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: 99, padding: '1px 6px', fontWeight: 600 }}>SPECIAL</span>}
+                            </div>
+                            <button onClick={() => setPendingShifts(prev => prev.filter((_, j) => j !== i))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2, display: 'flex' }}>
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {pendingShifts.length === 0 && (
+                      <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', margin: 0 }}>ยังไม่มีกะ — กดเพิ่มกะด้านบน หรือกด "เพิ่มสาขา" เพื่อข้าม</p>
+                    )}
+                  </>
+                )}
+
                 {/* ── Step 3: Geofencing ── */}
                 {step === 3 && (
                   <>
@@ -924,12 +1036,12 @@ export default function BranchPage() {
                 </button>
 
                 <div style={{ display: 'flex', gap: 4 }}>
-                  {[1, 2, 3].map(n => (
+                  {Array.from({ length: maxStep }, (_, i) => i + 1).map(n => (
                     <div key={n} style={{ width: n === step ? 18 : 6, height: 6, borderRadius: 99, background: n === step ? '#f97316' : n < step ? '#fdba74' : '#e5e7eb', transition: 'all 0.25s' }} />
                   ))}
                 </div>
 
-                {step < 3 ? (
+                {step < maxStep ? (
                   <button onClick={() => { if (step === 1 && !form.name.trim()) { showToast('error', 'กรุณาระบุชื่อสาขาก่อน'); return }; setStep(s => s + 1) }}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                     ถัดไป <ChevronRight size={14} />
@@ -937,7 +1049,7 @@ export default function BranchPage() {
                 ) : (
                   <button onClick={handleSave} disabled={saving}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-                    {saving ? 'กำลังบันทึก...' : (modal === 'add' ? 'เพิ่มสาขา' : 'บันทึก')}
+                    {saving ? 'กำลังบันทึก...' : (modal === 'add' ? `เพิ่มสาขา${pendingShifts.length > 0 ? ` + ${pendingShifts.length} กะ` : ''}` : 'บันทึก')}
                   </button>
                 )}
               </div>
@@ -1373,6 +1485,8 @@ export default function BranchPage() {
           </div>
         )
       })()}
+    </>}
+
     </div>
   )
 }

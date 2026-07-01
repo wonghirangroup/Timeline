@@ -25,6 +25,21 @@ function yearsFrom(d: string | null | undefined) {
   if (!d) return 0
   return Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 365))
 }
+function tenureFrom(d: string | null | undefined) {
+  if (!d) return '—'
+  const start = new Date(d)
+  const now   = new Date()
+  let years  = now.getFullYear() - start.getFullYear()
+  let months = now.getMonth()    - start.getMonth()
+  let days   = now.getDate()     - start.getDate()
+  if (days < 0)   { months--; days += new Date(now.getFullYear(), now.getMonth(), 0).getDate() }
+  if (months < 0) { years--;  months += 12 }
+  const parts: string[] = []
+  if (years  > 0) parts.push(`${years} ปี`)
+  if (months > 0) parts.push(`${months} เดือน`)
+  if (days   > 0) parts.push(`${days} วัน`)
+  return parts.join(' ') || 'น้อยกว่า 1 วัน'
+}
 function fmtTime(dt: string | null | undefined) {
   if (!dt) return null
   const d = new Date(dt)
@@ -407,7 +422,7 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
     { label: 'สาขา',          value: emp.branch?.name ?? '—' },
     { label: 'เบอร์โทร',      value: emp.phone ?? '—', mono: true },
     { label: 'วันที่เริ่มงาน', value: thDate(emp.hired_at) },
-    { label: 'อายุงาน',       value: `${yearsFrom(emp.hired_at)} ปี` },
+    { label: 'อายุงาน',       value: tenureFrom(emp.hired_at) },
     { label: 'สถานะ',         value: emp.is_active ? 'ปฏิบัติงานอยู่' : 'ไม่ได้ปฏิบัติงาน' },
   ]
 
@@ -569,7 +584,7 @@ export default function EmployeeDetailPage() {
               <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', background: '#f1f5f9', padding: '3px 10px', borderRadius: 7, color: '#374151', fontWeight: 600 }}>{emp.employee_code}</span>
               {emp.department && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Folder size={13}/>{emp.department}</span>}
               {emp.phone && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={13}/>{emp.phone}</span>}
-              {emp.hired_at && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={13}/>เริ่มงาน {thDate(emp.hired_at)} ({yearsFrom(emp.hired_at)} ปี)</span>}
+              {emp.hired_at && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={13}/>เริ่มงาน {thDate(emp.hired_at)} ({tenureFrom(emp.hired_at)})</span>}
             </div>
 
             {emp.branch && (

@@ -23,6 +23,7 @@ interface AttendanceRecord {
 }
 
 interface Branch { id: string; name: string }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 
 interface LeaveRequest {
   id: string
@@ -73,7 +74,7 @@ export default function ReportPage() {
     queryFn:  () => api.get('/api/v1/admin/branches').then((r: any) => r.data.data),
   })
 
-  const { data: records = [], isLoading, refetch } = useQuery<AttendanceRecord[]>({
+  const { data: records = [], isLoading: loadingRecords, refetch } = useQuery<AttendanceRecord[]>({
     queryKey: ['admin', 'attendance-report', year, month, branch],
     queryFn:  () => api.get('/api/v1/admin/attendance', {
       params: { startDate, endDate, ...(branch ? { branchId: branch } : {}) },
@@ -86,6 +87,15 @@ export default function ReportPage() {
       params: { ...(branch ? { branchId: branch } : {}) },
     }).then((r: any) => r.data.data),
   })
+
+  const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
+    queryKey: ['admin', 'employees', branch],
+    queryFn:  () => api.get('/api/v1/admin/employees', {
+      params: { ...(branch ? { branchId: branch } : {}) },
+    }).then((r: any) => r.data.data),
+  })
+
+  const isLoading = loadingRecords || loadingEmployees
 
   const leaveMap = useMemo(() => {
     const m = new Map<string, Map<string, string>>()
@@ -116,7 +126,10 @@ export default function ReportPage() {
   }, [records])
 
   const employees = useMemo(() => {
-    const list = [...empMap.values()]
+    const list = allEmployees.map(emp => ({
+      info: emp,
+      byDate: empMap.get(emp.id)?.byDate ?? new Map<string, AttendanceRecord[]>(),
+    }))
     if (!search.trim()) return list
     const q = search.toLowerCase()
     return list.filter(e =>
@@ -125,7 +138,7 @@ export default function ReportPage() {
       (e.info.nickname ?? '').toLowerCase().includes(q) ||
       e.info.employee_code.toLowerCase().includes(q)
     )
-  }, [empMap, search])
+  }, [allEmployees, empMap, search])
 
   function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, day: number) {
     const dow     = new Date(year, month - 1, day).getDay()
@@ -262,7 +275,7 @@ export default function ReportPage() {
       </div>
 
       {/* Stats row */}
-      {!isLoading && records.length > 0 && (
+      {!isLoading && employees.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ background: '#dcfce7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}>✓ มา {totalPresent} ครั้ง</span>
           <span style={{ background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {totalLate}</span>
@@ -285,7 +298,7 @@ export default function ReportPage() {
       {isLoading && <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>กำลังโหลด...</div>}
       {!isLoading && employees.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
-          {records.length === 0 ? 'ไม่พบข้อมูลเดือนนี้' : 'ไม่พบพนักงานที่ค้นหา'}
+          {search.trim() ? 'ไม่พบพนักงานที่ค้นหา' : 'ไม่พบข้อมูลพนักงาน'}
         </div>
       )}
 
