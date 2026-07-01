@@ -260,7 +260,8 @@ export async function checkInAuto(tenantId: string, data: {
   let late_minutes = 0
   let fine = 0
 
-  if (!isOutsideShift && nowMins > startMins) {
+  // คำนวณ late เสมอ แม้ isOutsideShift = true (เช็คอินหลังปิดกะ = สายแน่นอน)
+  if (nowMins > startMins) {
     late_minutes = nowMins - startMins
     if (late2Mins && nowMins >= late2Mins) {
       is_late = true; late_level = 2
@@ -268,6 +269,9 @@ export async function checkInAuto(tenantId: string, data: {
     } else if (late1Mins && nowMins >= late1Mins) {
       is_late = true; late_level = 1
       fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
+    } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
+      // fallback: ใช้ integer late_threshold (นาที) เมื่อไม่ได้กำหนด threshold_1/2
+      is_late = true; late_level = 1
     }
   }
 
