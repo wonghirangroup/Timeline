@@ -77,7 +77,6 @@ function fmtMonthTH(ym: string) {
 }
 function getDaysInMonth(ym: string) { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm, 0).getDate() }
 function getFirstDow(ym: string)    { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm - 1, 1).getDay() }
-function weekRow(day: number, firstDow: number) { return Math.floor((day - 1 + firstDow) / 7) }
 function toDateStr(ym: string, d: number) { return `${ym}-${String(d).padStart(2, '0')}` }
 
 type Tab = 'calendar' | 'booking' | 'request'
@@ -363,121 +362,150 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Monthly Off Booking Tab (real API)
+// Weekly Off Booking Tab
 // ═══════════════════════════════════════════════════════════════════════════════
-function MonthlyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
-  const today      = new Date().toISOString().slice(0, 10)
-  const todayMonth = today.slice(0, 7)
-  const qc         = useQueryClient()
 
-  const [month,      setMonth]   = useState(todayMonth)
-  const [selDate,    setSelDate] = useState('')
-  const [errorMsg,   setErrorMsg] = useState<string | null>(null)
-  const [successMsg, setSuccess]  = useState(false)
+const DISPLAY_TO_DOW = [1, 2, 3, 4, 5, 6, 0]  // display col (Mon→Sun) → backend day_of_week
+const DAYS_DISPLAY   = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา']
 
-  const isPastMonth = month < todayMonth
+function getThisWeekMonday(): string {
+  const bkk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+  const dow  = bkk.getDay()
+  bkk.setDate(bkk.getDate() + (dow === 0 ? -6 : 1 - dow))
+  return `${bkk.getFullYear()}-${pad(bkk.getMonth() + 1)}-${pad(bkk.getDate())}`
+}
+function addWeeks(mondayStr: string, n: number): string {
+  const d = new Date(mondayStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n * 7)
+  return d.toISOString().slice(0, 10)
+}
+function getWeekDays(mondayStr: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mondayStr + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+}
+function fmtWeekRange(mondayStr: string): string {
+  const days = getWeekDays(mondayStr)
+  const m0 = new Date(days[0] + 'T00:00:00Z')
+  const m6 = new Date(days[6] + 'T00:00:00Z')
+  if (m0.getUTCMonth() === m6.getUTCMonth()) {
+    return `${m0.getUTCDate()}–${m6.getUTCDate()} ${MONTHS_TH[m0.getUTCMonth()]} ${m0.getUTCFullYear() + 543}`
+  }
+  return `${m0.getUTCDate()} ${MONTHS_TH[m0.getUTCMonth()]} – ${m6.getUTCDate()} ${MONTHS_TH[m6.getUTCMonth()]} ${m6.getUTCFullYear() + 543}`
+}
 
-  function changeMonth(delta: number) {
-    setMonth(m => addMonths(m, delta))
-    setSelDate(''); setErrorMsg(null); setSuccess(false)
+function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
+  const qc          = useQueryClient()
+  const thisMonday  = getThisWeekMonday()
+  const [weekStart, setWeekStart] = useState(thisMonday)
+  const [selDow,    setSelDow]    = useState<number | null>(null)
+  const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+
+  const isCurrentWeek = weekStart === thisMonday
+  const isPastWeek    = weekStart < thisMonday
+  const month         = weekStart.slice(0, 7)
+
+  function changeWeek(delta: number) {
+    setWeekStart(w => addWeeks(w, delta))
+    setSelDow(null); setErrorMsg(null); setSubmitted(false)
+  }
+
+  const navBtnStyle: React.CSSProperties = {
+    width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
+    background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
   }
 
   const periodQ = useQuery<PeriodStatus>({
     queryKey: ['employee', 'weekly-off-period', branchId, month],
-    queryFn: () => api.get('/employee/weekly-off/period-status', { params: { branchId, month } }).then((r: any) => r.data.data),
-    enabled: !!branchId,
+    queryFn:  () => api.get('/employee/weekly-off/period-status', { params: { branchId, month } }).then((r: any) => r.data.data),
+    enabled:  !!branchId,
   })
-  const viewQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+  const historyQ = useQuery<WeeklyOffRecord[]>({
+    queryKey: ['employee', 'weekly-off-history', employeeId],
+    queryFn:  () => api.get('/employee/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
+  })
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
     queryKey: ['employee', 'weekly-off-view', employeeId, month],
-    queryFn: () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
-    enabled: !!employeeId,
+    queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
   })
 
-  const isOpen    = periodQ.data?.is_open ?? false
-  const ownOff    = viewQ.data?.own?.[0] ?? null
-  const colleagues = viewQ.data?.colleagues ?? []
-  const ownDate   = ownOff ? resolveDate(ownOff.week_start, ownOff.day_of_week) : null
-
-  // Colleague map: date → ColleagueOff[]
-  const colleagueMap = new Map<string, ColleagueOff[]>()
-  colleagues.forEach(c => {
-    const d = resolveDate(c.week_start, c.day_of_week)
-    if (!colleagueMap.has(d)) colleagueMap.set(d, [])
-    colleagueMap.get(d)!.push(c)
-  })
+  const isOpen      = periodQ.data?.is_open ?? false
+  const allOwn      = historyQ.data ?? []
+  const weekDays    = getWeekDays(weekStart)
+  const mondayMonth = new Date(weekStart + 'T00:00:00Z').getUTCMonth()
+  const thisWeekOwn = allOwn.find(r => r.week_start.slice(0, 10) === weekStart)
+  const colleagues  = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
 
   const submitMutation = useMutation({
-    mutationFn: () => api.post('/employee/weekly-off/monthly', { employee_id: employeeId, date: selDate }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view', employeeId, month] })
-      setSelDate(''); setSuccess(true); setErrorMsg(null)
+    mutationFn: () => api.post('/employee/weekly-off', { employee_id: employeeId, week_start: weekStart, day_of_week: selDow }),
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setSubmitted(true); setErrorMsg(null)
     },
     onError: (err: any) => {
-      const code = err.response?.data?.error?.code
-      setErrorMsg(code === 'ALREADY_REQUESTED' ? 'คุณมีการจองวันหยุดเดือนนี้แล้ว' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      setErrorMsg(err.response?.data?.error?.code === 'ALREADY_REQUESTED'
+        ? 'คุณจองวันหยุดสัปดาห์นี้แล้ว' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })
   const cancelMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/employee/weekly-off/${id}`, { params: { employeeId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view', employeeId, month] })
-      setSuccess(false)
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setSubmitted(false)
     },
-    onError: () => setErrorMsg('ยกเลิกไม่สำเร็จ'),
   })
 
-  const totalDays  = getDaysInMonth(month)
-  const firstDow   = getFirstDow(month)
-  const totalWeeks = Math.ceil((firstDow + totalDays) / 7)
-  const navBtnStyle: React.CSSProperties = {
-    width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)',
-    background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  }
+  const canBook = isCurrentWeek && isOpen && !thisWeekOwn && !submitted
 
   return (
     <div>
-      {/* Month navigator */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <button style={navBtnStyle} onClick={() => changeMonth(-1)}>
+      {/* ── Week navigator ──────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button onClick={() => changeWeek(-1)} style={navBtnStyle}>
           <ChevronLeft size={18} color="#6B7D90" />
         </button>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
-          <div style={{ fontSize: '0.68rem', color: isOpen ? '#16A34A' : '#DC2626', marginTop: 2, fontWeight: 600 }}>
-            {isOpen ? '🟢 เปิดรับการจอง' : '🔴 ปิดการจองแล้ว'}
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1A2B3C' }}>{fmtWeekRange(weekStart)}</div>
+          <div style={{ fontSize: '0.68rem', marginTop: 2, fontWeight: 600,
+            color: isCurrentWeek ? (isOpen ? '#16A34A' : '#DC2626') : '#9CA3AF' }}>
+            {isCurrentWeek
+              ? (isOpen ? '🟢 เปิดรับการจอง' : '🔴 ยังไม่เปิดรับการจอง')
+              : isPastWeek ? 'สัปดาห์ที่ผ่านมา' : 'สัปดาห์หน้า'}
           </div>
         </div>
-        <button style={navBtnStyle} onClick={() => changeMonth(1)}>
+        <button onClick={() => changeWeek(1)} disabled={isCurrentWeek} style={{ ...navBtnStyle, opacity: isCurrentWeek ? 0.3 : 1 }}>
           <ChevronRight size={18} color="#6B7D90" />
         </button>
       </div>
 
-      {/* Period note from admin */}
-      {periodQ.data?.note && (
+      {/* ── Admin note ──────────────────────────────────────────── */}
+      {periodQ.data?.note && isCurrentWeek && (
         <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600 }}>
           📋 {periodQ.data.note}
         </div>
       )}
 
-      {/* Period closed banner */}
-      {!isOpen && !periodQ.isLoading && (
-        <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
-          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
-          <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองเดือนนี้</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะครับ</div>
-        </div>
-      )}
-
-      {/* Own booking badge */}
-      {ownOff && ownDate && (
-        <div style={{ background: ownOff.status === 'APPROVED' ? '#F0FDF4' : '#FFFBEB', border: `1px solid ${ownOff.status === 'APPROVED' ? 'rgba(22,163,74,0.25)' : '#FDE68A'}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: ownOff.status === 'APPROVED' ? '#16A34A' : '#D97706' }}>
-              {ownOff.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : '⏳ รอพิจารณา'}
+      {/* ── Already booked this week ───────────────────────────── */}
+      {thisWeekOwn && (
+        <div style={{
+          background: thisWeekOwn.status === 'APPROVED' ? '#F0FDF4' : '#FFFBEB',
+          border: `1px solid ${thisWeekOwn.status === 'APPROVED' ? 'rgba(22,163,74,0.25)' : '#FDE68A'}`,
+          borderRadius: 16, padding: '16px', marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706' }}>
+              {thisWeekOwn.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : '⏳ รอพิจารณา'}
             </div>
-            {ownOff.status === 'PENDING' && (
-              <button onClick={() => cancelMutation.mutate(ownOff.id)} disabled={cancelMutation.isPending}
+            {thisWeekOwn.status === 'PENDING' && isCurrentWeek && (
+              <button onClick={() => cancelMutation.mutate(thisWeekOwn.id)} disabled={cancelMutation.isPending}
                 style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {cancelMutation.isPending ? '...' : 'ยกเลิก'}
               </button>
@@ -486,158 +514,178 @@ function MonthlyBooking({ employeeId, branchId }: { employeeId: string; branchId
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: '1.8rem' }}>🏖️</span>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A2B3C' }}>วันหยุดเดือนนี้</div>
-              <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>{fmtDate(ownDate)}</div>
+              <div style={{ fontWeight: 700, color: '#1A2B3C' }}>
+                หยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(thisWeekOwn.day_of_week)]}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>
+                {fmtDate(resolveDate(thisWeekOwn.week_start, thisWeekOwn.day_of_week))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Success flash */}
-      {successMsg && !ownOff && (
+      {/* ── Period closed banner (current week, no booking) ────── */}
+      {isCurrentWeek && !isOpen && !thisWeekOwn && !periodQ.isLoading && (
+        <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
+          <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองสัปดาห์นี้</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
+        </div>
+      )}
+
+      {/* ── Submitted flash ─────────────────────────────────────── */}
+      {submitted && !thisWeekOwn && (
         <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, marginBottom: 14, textAlign: 'center', fontWeight: 700, color: '#16A34A', fontSize: '0.88rem' }}>
           📨 ส่งคำขอแล้ว รอผู้จัดการพิจารณา
         </div>
       )}
 
-      {/* Calendar (visible only when period open and no existing booking) */}
-      {isOpen && !ownOff && (
-      <div style={{ background: '#F9FAFB', borderRadius: 18, padding: '14px 10px', marginBottom: 16, border: '1px solid rgba(0,0,0,0.05)' }}>
+      {/* ── 7-day selector (current week, open, not yet booked) ── */}
+      {canBook && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
+            เลือกวันที่ต้องการหยุด — 1 วัน/สัปดาห์
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
+            {weekDays.map((dateStr, displayIdx) => {
+              const dow  = DISPLAY_TO_DOW[displayIdx]
+              const d    = new Date(dateStr + 'T00:00:00Z')
+              const day  = d.getUTCDate()
+              const mon  = MONTHS_TH[d.getUTCMonth()]
+              const spanMonth = d.getUTCMonth() !== mondayMonth
+              const isSel = selDow === dow
+              const isSat = displayIdx === 5
+              const isSun = displayIdx === 6
+              const hasColleague = colleagues.some(c => c.day_of_week === dow)
 
-        {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: '20px repeat(7, 1fr)', marginBottom: 6 }}>
-          <div />
-          {DAYS_SHORT.map((d, i) => (
-            <div key={i} style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 700, padding: '3px 0',
-              color: i === 0 ? '#EF4444' : i === 6 ? '#3B82F6' : '#9CA3AF' }}>
-              {d}
+              return (
+                <button key={displayIdx} onClick={() => setSelDow(p => p === dow ? null : dow)}
+                  style={{
+                    borderRadius: 14, border: isSel ? `2.5px solid ${COLOR.primary}` : '1.5px solid #E5E7EB',
+                    background: isSel ? COLOR.primary : isSat || isSun ? '#F9FAFB' : '#fff',
+                    padding: '10px 2px 8px', cursor: 'pointer', textAlign: 'center',
+                    fontFamily: 'inherit', transition: 'all 0.12s', position: 'relative',
+                    boxShadow: isSel ? `0 4px 12px ${COLOR.primary}44` : '0 1px 3px rgba(0,0,0,0.05)',
+                  }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, lineHeight: 1,
+                    color: isSel ? 'rgba(255,255,255,0.8)' : isSun ? '#EF4444' : isSat ? '#3B82F6' : '#9CA3AF' }}>
+                    {DAYS_DISPLAY[displayIdx]}
+                  </div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: isSel ? '#fff' : isSat || isSun ? '#6B7280' : '#1A2B3C', marginTop: 4, lineHeight: 1 }}>
+                    {day}
+                  </div>
+                  {spanMonth && (
+                    <div style={{ fontSize: '0.52rem', color: isSel ? 'rgba(255,255,255,0.7)' : '#9CA3AF', marginTop: 3 }}>
+                      {mon}
+                    </div>
+                  )}
+                  {hasColleague && (
+                    <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: isSel ? 'rgba(255,255,255,0.7)' : '#F59E0B' }} />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {selDow !== null && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: `${COLOR.primary}0C`, border: `1px solid ${COLOR.primary}22`, borderRadius: 12 }}>
+              <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700 }}>
+                📅 เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
+              </span>
             </div>
-          ))}
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingLeft: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} />
+              <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>เพื่อนจองแล้ว</span>
+            </div>
+          </div>
         </div>
-
-        {/* Week rows */}
-        {Array.from({ length: totalWeeks }).map((_, wIdx) => {
-          const _unused = wIdx
-
-          return (
-            <div key={wIdx} style={{ marginBottom: 4 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '20px repeat(7, 1fr)', gap: 2, alignItems: 'center', borderRadius: 10, padding: '2px 0' }}>
-                <div style={{ fontSize: '8px', fontWeight: 800, textAlign: 'center', lineHeight: 1.2, color: '#D1D5DB' }}>ส{wIdx + 1}</div>
-                {Array.from({ length: 7 }).map((_, dow) => {
-                  const day = wIdx * 7 + dow - firstDow + 1
-                  if (day < 1 || day > totalDays) return <div key={dow} />
-                  const dateStr    = `${month}-${pad(day)}`
-                  const isPast     = dateStr < today || isPastMonth
-                  const isToday    = dateStr === today
-                  const isSelected = selDate === dateStr
-                  const collegues  = colleagueMap.get(dateStr) ?? []
-                  const dayColor   = dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : '#1A2B3C'
-
-                  let cellBg = isPast ? 'transparent' : 'rgba(255,107,53,0.04)'
-                  let cellBorder = isPast ? '1.5px solid transparent' : `1.5px solid ${COLOR.primary}22`
-                  let numColor = isPast ? '#D1D5DB' : dayColor
-
-                  if (isSelected) { cellBg = COLOR.primary; cellBorder = `1.5px solid ${COLOR.primary}`; numColor = '#fff' }
-                  else if (isToday) { cellBorder = `1.5px solid ${COLOR.primary}66` }
-
-                  return (
-                    <button key={dow}
-                      onClick={() => { if (!isPast) setSelDate(p => p === dateStr ? '' : dateStr) }}
-                      style={{ position: 'relative', border: cellBorder, borderRadius: 8, background: cellBg, padding: '5px 1px 4px', cursor: isPast ? 'default' : 'pointer', textAlign: 'center', transition: 'all 0.12s', opacity: isPast ? 0.25 : 1, minHeight: 42 }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: isSelected ? 700 : 400, color: numColor, lineHeight: 1 }}>{day}</div>
-                      {collegues.length > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 3, flexWrap: 'wrap' }}>
-                          {collegues.slice(0, 3).map((c, ci) => (
-                            <div key={ci} style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.8)' : c.status === 'APPROVED' ? '#16A34A' : '#D97706' }} />
-                          ))}
-                          {collegues.length > 3 && <span style={{ fontSize: '7px', color: '#9CA3AF' }}>+{collegues.length - 3}</span>}
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
-          {[
-            { el: <div style={{ width: 12, height: 12, borderRadius: 4, background: COLOR.primary }} />, label: 'เลือกแล้ว' },
-            { el: <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A' }} />, label: 'เพื่อน(ok)' },
-            { el: <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706' }} />, label: 'เพื่อน(รอ)' },
-          ].map((l, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              {l.el}
-              <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>{l.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
       )}
 
-      {/* Selected date confirm box */}
-      {isOpen && !ownOff && selDate && (
-        <div style={{ background: `${COLOR.primary}08`, border: `1px solid ${COLOR.primary}22`, borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: COLOR.primary }}>📅 เลือกวันที่ {fmtDate(selDate)}</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>กดยืนยันเพื่อส่งคำขอหยุด 1 วัน</div>
-        </div>
+      {/* ── Submit button ───────────────────────────────────────── */}
+      {canBook && (
+        <button onClick={() => submitMutation.mutate()} disabled={selDow === null || submitMutation.isPending}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
+            cursor: selDow !== null ? 'pointer' : 'not-allowed',
+            background: selDow !== null ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)',
+            color: selDow !== null ? '#fff' : '#9CA3AF',
+            fontSize: '1rem', fontWeight: 700,
+            boxShadow: selDow !== null ? `0 4px 16px ${COLOR.primary}44` : 'none',
+            transition: 'all 0.2s', marginBottom: 16,
+          }}>
+          {submitMutation.isPending ? '⏳ กำลังส่ง...'
+            : selDow !== null ? `✅ ยืนยันจองวัน${DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]}`
+            : 'กดเลือกวันที่ต้องการหยุด'}
+        </button>
       )}
 
       {errorMsg && (
-        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 12 }}>
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14 }}>
           ⚠️ {errorMsg}
         </div>
       )}
 
-      {/* Submit button */}
-      {isOpen && !ownOff && (
-        <button
-          onClick={() => submitMutation.mutate()}
-          disabled={!selDate || submitMutation.isPending || isPastMonth}
-          style={{
-            width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
-            cursor: selDate && !isPastMonth ? 'pointer' : 'not-allowed',
-            background: selDate && !isPastMonth
-              ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`
-              : 'rgba(0,0,0,0.08)',
-            color: selDate && !isPastMonth ? '#fff' : '#9CA3AF',
-            fontSize: '1rem', fontWeight: 700,
-            boxShadow: selDate && !isPastMonth ? `0 4px 16px ${COLOR.primary}44` : 'none',
-            transition: 'all 0.2s',
-          }}
-        >
-          {submitMutation.isPending ? '⏳ กำลังส่ง...'
-            : isPastMonth ? 'เดือนที่ผ่านมาแล้ว'
-            : selDate ? `📅 ขอหยุด ${fmtDate(selDate)}`
-            : 'กดเลือกวันจากปฏิทิน'}
-        </button>
-      )}
-
-      {/* Colleague list */}
+      {/* ── Colleagues this week ────────────────────────────────── */}
       {colleagues.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 10 }}>เพื่อนร่วมสาขาเดือนนี้</div>
-          {colleagues.map((c, i) => {
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>
+            👥 เพื่อนร่วมสาขาที่หยุดสัปดาห์นี้
+          </div>
+          {colleagues.map(c => {
             const cfg  = STATUS_CFG[c.status]
-            const name = c.employee.nickname ?? `${c.employee.first_name} ${c.employee.last_name}`
-            const date = resolveDate(c.week_start, c.day_of_week)
+            const name = c.employee.nickname ?? c.employee.first_name
             return (
-              <div key={c.id} className="fw-row" style={{ animationDelay: `${i * 40}ms` }}>
-                <div className="icon-bubble icon-bubble-blue" style={{ borderRadius: 14, width: 40, height: 40 }}>
-                  <span style={{ fontSize: '0.95rem', color: '#fff', fontWeight: 700 }}>{name.charAt(0)}</span>
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#F9FAFB', borderRadius: 10, marginBottom: 6 }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#6C89F5,#5B6CF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {c.employee.first_name.charAt(0)}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1A2B3C' }}>{name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#6C89F5', marginTop: 2 }}>{fmtDate(date)}</div>
-                </div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: cfg.color, background: cfg.bg, borderRadius: 99, padding: '3px 10px', whiteSpace: 'nowrap' }}>
-                  {cfg.label}
+                <div style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#1A2B3C' }}>{name}</div>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: cfg.color, background: cfg.bg, padding: '2px 8px', borderRadius: 99 }}>
+                  วัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(c.day_of_week)]}
                 </span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF' }}>{cfg.label}</span>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── History ─────────────────────────────────────────────── */}
+      {allOwn.length > 0 && (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#6B7D90', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            ประวัติการจองวันหยุด
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[...allOwn].reverse().map(r => {
+              const cfg   = STATUS_CFG[r.status]
+              const range = fmtWeekRange(r.week_start.slice(0, 10))
+              const date  = resolveDate(r.week_start, r.day_of_week)
+              const dLabel = DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(r.day_of_week)]
+              return (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+                    🏖️
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>
+                      หยุดวัน{dLabel} {fmtDate(date)}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: 2 }}>{range}</div>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: cfg.color, background: cfg.bg, padding: '3px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+                    {cfg.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -830,7 +878,7 @@ export default function LeavePage() {
 
         {/* ── จองหยุด ─────────────────────────────────────────── */}
         {tab === 'booking' && (
-          <MonthlyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+          <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
         )}
       </div>
     </div>
