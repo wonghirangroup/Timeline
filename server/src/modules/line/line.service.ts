@@ -24,10 +24,14 @@ export async function verifyLiffIdToken(idToken: string, channelId: string): Pro
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ id_token: idToken, client_id: channelId }),
     })
-    if (!res.ok) return null
-    const data = await res.json() as { sub?: string; error?: string }
-    return data.sub ?? null  // sub = lineUserId
-  } catch {
+    const data = await res.json() as { sub?: string; error?: string; error_description?: string }
+    if (!res.ok) {
+      console.error(`[LIFF verify] failed client_id=${channelId} status=${res.status} error=${data.error} desc=${data.error_description}`)
+      return null
+    }
+    return data.sub ?? null
+  } catch (e) {
+    console.error('[LIFF verify] exception:', e)
     return null
   }
 }
