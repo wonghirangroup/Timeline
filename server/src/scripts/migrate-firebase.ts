@@ -26,6 +26,11 @@ const BRANCH_SHIFT_MAP: Record<string, Record<number, string>> = {
   'ฟุคุโระ แม่กิมเฮง':      { 1: '648e7323-4048-4833-a174-067ada9050b0', 2: 'efc9adb5-1fc8-4eaa-97af-aa29b402a2f3' },
   'ฟุคุโระ ตลาดย่าโม':      { 1: 'a0c4bbbe-33db-4a74-86c3-a37eb9555995', 2: '6f6b085e-508b-428f-8204-5693825a1c1c' },
   'ฟุคุโระ เทิดไท':         { 1: '10662a51-2da0-46c9-8741-b394740288dd', 2: '0f4e65f6-60cf-4b6c-8bd9-4253a915d018' },
+  // "ME Group Enterprise Co,. Ltd." ไม่ใช่ branch จริงแยกต่างหากใน MySQL —
+  // เป็นแค่ tag สาขาที่สองของพนักงานคนเดียว (68-02-004 จิรพงศ์ ศรีอำไพ,
+  // สาขาหลัก วงษ์หิรัญ, branches: [วงษ์หิรัญ, ME Group...]) เลย map ไปที่
+  // กะเดียวกับวงษ์หิรัญแทนการสร้าง Branch/Shift ปลอมใหม่
+  'ME Group Enterprise Co,. Ltd.': { 1: '6e720e67-1f0a-49e6-b97e-d269e3b731ba', 2: '6af8d713-c052-4414-847a-e7caa44fd0bc' },
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -168,12 +173,24 @@ async function migrateCheckins(
 
     const date = parseThaiDate(d.date)
 
+    // "timestamp" ใน Firebase ไม่ใช่เวลาเช็คอินเสมอไป — สำหรับ record ที่เป็น
+    // placeholder (isManual/isAutoAbsent เช่น status ขาดงาน/วันหยุด/พักร้อน/ลากิจ)
+    // checkinTime/checkoutTime จะเป็น "-" และ timestamp คือเวลาที่ record ถูก
+    // สร้าง/แก้ (audit metadata) ไม่ใช่เวลาเข้า-ออกงานจริง ต้องเช็ค checkinTime/
+    // checkoutTime ก่อนเสมอ ไม่งั้นจะได้ check_in_at ปลอมที่พนักงานไม่ได้เช็คอินจริง
+    const hasCheckin  = d.checkinTime  && d.checkinTime  !== '-'
+    const hasCheckout = d.checkoutTime && d.checkoutTime !== '-'
+    const checkInAt   = hasCheckin  && d.timestamp         ? parseThaiDateTime(d.timestamp)         : null
+    const checkOutAt  = hasCheckout && d.checkoutTimestamp ? parseThaiDateTime(d.checkoutTimestamp) : null
+    const method       = d.isManual ? 'ADMIN' : 'LIFF'
+
     try {
       await prisma.attendanceRecord.upsert({
         where:  { employee_id_shift_id_date: { employee_id: employeeId, shift_id: shiftId, date } },
         update: {
-          check_in_at:     d.timestamp         ? parseThaiDateTime(d.timestamp)         : null,
-          check_out_at:    d.checkoutTimestamp  ? parseThaiDateTime(d.checkoutTimestamp) : null,
+          check_in_at:     checkInAt,
+          check_out_at:    checkOutAt,
+          check_in_method: method,
           is_late:         d.status === 'มาสาย (ระดับ 1)' || d.status === 'มาสาย (ระดับ 2)' || d.status === 'ขาดงาน/สายมาก',
           is_outside_area: d.status === 'นอกพื้นที่',
           note:            buildNote(d),
@@ -184,9 +201,9 @@ async function migrateCheckins(
           employee_id:     employeeId,
           shift_id:        shiftId,
           date,
-          check_in_at:     d.timestamp         ? parseThaiDateTime(d.timestamp)         : null,
-          check_out_at:    d.checkoutTimestamp  ? parseThaiDateTime(d.checkoutTimestamp) : null,
-          check_in_method: 'LIFF',
+          check_in_at:     checkInAt,
+          check_out_at:    checkOutAt,
+          check_in_method: method,
           is_late:         d.status === 'มาสาย (ระดับ 1)' || d.status === 'มาสาย (ระดับ 2)' || d.status === 'ขาดงาน/สายมาก',
           is_outside_area: d.status === 'นอกพื้นที่',
           late_minutes:    0,
