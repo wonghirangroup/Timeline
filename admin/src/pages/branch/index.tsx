@@ -1198,7 +1198,7 @@ export default function BranchPage() {
       {/* Add Shift Modal */}
       {addShiftBranch && (
         <div style={sheetOverlay} onClick={() => setAddShiftBranch(null)}>
-          <div style={{ ...sheetBox(480), display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...sheetBox(480), width: isMobile ? '100%' : 'clamp(480px, 60vw, 780px)', maxWidth: isMobile ? '100%' : '92vw', display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
 
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
