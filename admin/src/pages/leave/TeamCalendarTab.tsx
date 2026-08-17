@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -20,6 +20,8 @@ interface Holiday { date: string; name: string }
 // ─── Config ───────────────────────────────────────────────────────────────────
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
+
+const STATUS_LABEL_TH: Record<string, string> = { PENDING: 'รอพิจารณา', APPROVED: 'อนุมัติ', REJECTED: 'ปฏิเสธ' }
 
 const LEAVE_CFG: Record<string, { label: string; color: string; light: string; icon: React.ReactNode }> = {
   SICK:      { label: 'ลาป่วย',    color: '#3B82F6', light: '#EFF6FF', icon: <Stethoscope size={12}/> },
@@ -206,22 +208,35 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
         </div>
       )}
 
-      {/* Leave dots */}
-      {totalLeave > 0 && (
-        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-          {evLeaves.filter(l => l.status !== 'REJECTED').slice(0, 3).map(l => {
-            const cfg = getLeaveCfg(l)
-            return (
-              <div key={l.id} title={`${l.display_label} — ${l.name}`} style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: cfg.color,
-                border: l.status === 'PENDING' ? `2px dashed ${cfg.color}` : `2px solid ${cfg.color}`,
-                flexShrink: 0,
-              }} />
-            )
-          })}
-        </div>
-      )}
+      {/* Leave name chips */}
+      {totalLeave > 0 && (() => {
+        const activeLeaves = evLeaves.filter(l => l.status !== 'REJECTED')
+        const LEAVE_MAX_SHOW = 3
+        const shownLeaves = activeLeaves.slice(0, LEAVE_MAX_SHOW)
+        const leaveOverflow = activeLeaves.length - LEAVE_MAX_SHOW
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {shownLeaves.map(l => {
+              const cfg  = getLeaveCfg(l)
+              const short = l.nickname || l.name.split(' ')[0]
+              return (
+                <div key={l.id} title={`${l.display_label} — ${l.name}`} style={{
+                  fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
+                  padding: '0px 5px', borderRadius: 5,
+                  background: cfg.light, color: cfg.color,
+                  border: l.status === 'PENDING' ? `1px dashed ${cfg.color}` : `1px solid ${cfg.color}55`,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {short}
+                </div>
+              )
+            })}
+            {leaveOverflow > 0 && (
+              <div style={{ fontSize: '0.56rem', color: '#9ca3af', fontWeight: 700, paddingLeft: 2 }}>+{leaveOverflow} คน</div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Pending indicator */}
       {pendingCount > 0 && (
@@ -417,6 +432,55 @@ export default function TeamCalendarTab() {
   })
   const pendingCount = [...allDayOffsThisMonth, ...allLeavesThisMonth].filter(e => (e as any).status === 'PENDING').length
 
+  const branchLabel = branchFilter === 'all' ? 'ทุกสาขา' : (branches.find(b => b.id === branchFilter)?.name ?? 'ทุกสาขา')
+
+  function exportExcel() {
+    const header = ['วันที่', 'ประเภท', 'พนักงาน', 'สาขา', 'รายละเอียด', 'สถานะ']
+    const rows: string[][] = []
+    for (const d of [...allDayOffsThisMonth].sort((a, b) => a.date.localeCompare(b.date))) {
+      rows.push([d.date, 'หยุดประจำ', d.name, d.branch_name, '', STATUS_LABEL_TH[d.status]])
+    }
+    for (const l of [...allLeavesThisMonth].sort((a, b) => a.start_date.localeCompare(b.start_date))) {
+      const range = l.start_date === l.end_date ? l.start_date : `${l.start_date} – ${l.end_date}`
+      rows.push([range, 'วันลา', l.name, l.branch_name, l.display_label, STATUS_LABEL_TH[l.status]])
+    }
+    const csv = '﻿' + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `ปฏิทินรวม_${month}.csv`; a.click()
+  }
+
+  function exportPdf() {
+    const win = window.open('', '_blank'); if (!win) return
+    const dayOffRows = [...allDayOffsThisMonth].sort((a, b) => a.date.localeCompare(b.date)).map(d =>
+      `<tr><td>${fmtDateFull(d.date)}</td><td>${d.name}</td><td>${d.branch_name}</td><td>${STATUS_LABEL_TH[d.status]}</td></tr>`
+    ).join('')
+    const leaveRows = [...allLeavesThisMonth].sort((a, b) => a.start_date.localeCompare(b.start_date)).map(l => {
+      const range = l.start_date === l.end_date ? fmtDateFull(l.start_date) : `${fmtDateFull(l.start_date)} – ${fmtDateFull(l.end_date)}`
+      return `<tr><td>${range}</td><td>${l.name}</td><td>${l.branch_name}</td><td>${l.display_label}</td><td>${STATUS_LABEL_TH[l.status]}</td></tr>`
+    }).join('')
+    win.document.write(`<html><head><title>ปฏิทินรวม — ${fmtMonthTH(month)}</title>
+      <style>
+        body{font-family:'Sarabun',sans-serif;padding:32px;color:#1e293b}
+        h1{font-size:20px;margin:0 0 2px}
+        .sub{font-size:13px;color:#6b7280;margin:0 0 20px}
+        h2{font-size:15px;margin:24px 0 8px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #e5e7eb;padding:6px 10px;text-align:left}
+        th{background:#f9fafb}
+      </style></head><body>
+      <h1>ปฏิทินรวม — ${fmtMonthTH(month)}</h1>
+      <div class="sub">${branchLabel}</div>
+      <h2>วันหยุดประจำ (${allDayOffsThisMonth.length} รายการ)</h2>
+      <table><thead><tr><th>วันที่</th><th>พนักงาน</th><th>สาขา</th><th>สถานะ</th></tr></thead>
+      <tbody>${dayOffRows || '<tr><td colspan="4">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+      <h2>วันลา (${allLeavesThisMonth.length} รายการ)</h2>
+      <table><thead><tr><th>วันที่</th><th>พนักงาน</th><th>สาขา</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
+      <tbody>${leaveRows || '<tr><td colspan="5">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+      </body></html>`)
+    win.document.close(); win.print()
+  }
+
   function handleDayClick(day: number) {
     const dateStr = toDateStr(month, day)
     setSelectedDate(prev => prev === dateStr ? null : dateStr)
@@ -464,6 +528,18 @@ export default function TeamCalendarTab() {
           </span>
           <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
             <ChevronRight size={16} color="#374151" />
+          </button>
+        </div>
+
+        {/* Export */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={exportExcel} title="Export Excel (CSV)"
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <FileSpreadsheet size={14} /> Excel
+          </button>
+          <button onClick={exportPdf} title="Export PDF (Print)"
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Printer size={14} /> PDF
           </button>
         </div>
       </div>
