@@ -1,12 +1,52 @@
 // admin/src/pages/shift-schedule/index.tsx
-// ตารางกะ — Default Shift + Override เฉพาะวัน
+// ตารางกะ — กะประจำ + override เฉพาะวัน (ต่อ API จริงแล้ว — ไม่ใช้ demoStore อีกต่อไป)
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useDemoStore } from '../../stores/demoStore'
+import { api } from '../../lib/axios'
+import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
-import type { ShiftAssignment, ShiftAssignmentType, Employee, ShiftDef } from '../../types'
+
+// ── API types ────────────────────────────────────────────────────────────────
+interface ApiEmployee {
+  id: string; employee_code: string; first_name: string; last_name: string
+  nickname: string | null; branch_id: string; branch: { id: string; name: string }
+  default_shift_id: string | null; department: string | null
+}
+interface ApiBranch { id: string; name: string }
+interface ApiShift {
+  id: string; branch_id: string; name: string
+  start_time: string; end_time: string; shift_type: 'REGULAR' | 'SPECIAL'
+}
+type ShiftAssignmentTypeValue = 'WORK' | 'DAY_OFF' | 'WEEKLY_OFF' | 'HOLIDAY'
+interface ApiShiftAssignment {
+  id: string; employee_id: string; date: string; shift_id: string | null
+  type: ShiftAssignmentTypeValue; note: string | null
+}
+interface ApiLeaveRequest {
+  id: string; employee_id: string; start_date: string; end_date: string; status: string
+}
+interface ApiWeeklyOff {
+  id: string; employee_id: string; week_start: string; day_of_week: number; status: string
+}
+interface ApiHoliday {
+  id: string; date: string; name: string
+  target_branches: string[] | null; target_departments: string[] | null
+}
+
+// เช็คว่า holiday นี้ใช้กับพนักงานคนนี้ไหม — mirror ของ holidayAppliesTo() ฝั่ง backend
+// (server/src/modules/tenant/holiday.service.ts) department เก็บไม่ตรงกันระหว่าง
+// สร้างผ่าน Admin UI ("03 พนักงานขาย") กับ migrate จาก Firebase ("03") — match 2 ตัวแรกเสมอ
+function holidayAppliesTo(holiday: ApiHoliday, emp: ApiEmployee): boolean {
+  const branches    = holiday.target_branches    ?? []
+  const departments = holiday.target_departments ?? []
+  const branchOk = branches.length === 0 || branches.includes(emp.branch_id)
+  const empDeptCode = emp.department?.slice(0, 2).trim() ?? ''
+  const deptOk = departments.length === 0 || departments.some(d => d.slice(0, 2).trim() === empDeptCode)
+  return branchOk && deptOk
+}
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function getMondayOf(d: string) {
@@ -24,64 +64,72 @@ function getDaysInMonth(y: number, m: number) {
   return Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) =>
     `${y}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`)
 }
+// week_start (จันทร์) + day_of_week → วันที่จริง
+function resolveWeeklyOffDate(weekStart: string, dayOfWeek: number): string {
+  const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
+  if (d.getUTCDay() === dayOfWeek) return weekStart.slice(0, 10)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString().slice(0, 10)
+}
 
 const DAY_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
 const MONTH_FULL = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 
-const TYPE_CFG: Record<ShiftAssignmentType, { label: string; short: string; bg: string; color: string; border: string }> = {
+type EffectiveType = ShiftAssignmentTypeValue | 'LEAVE'
+
+const TYPE_CFG: Record<EffectiveType, { label: string; short: string; bg: string; color: string; border: string }> = {
   WORK:       { label: 'ทำงาน',            short: 'W',   bg: '#dcfce7', color: '#15803d', border: '#86efac' },
   DAY_OFF:    { label: 'หยุดพัก',          short: '–',   bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
   WEEKLY_OFF: { label: 'หยุดประจำสัปดาห์', short: 'OFF', bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   HOLIDAY:    { label: 'หยุดนักขัตฤกษ์',  short: 'H',   bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
+  LEAVE:      { label: 'ลา',               short: 'L',   bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
 }
 
-// ── Effective assignment (default fallback) ────────────────────────────────────
-type EffectiveResult = {
-  assignment: Omit<ShiftAssignment, 'id'> & { id: string }
-  isDefault: boolean   // true = ใช้กะประจำ (ไม่มี override)
-  isOff: boolean       // true = วันหยุด (ตาม default_work_days)
-} | null
+// ── Effective assignment ────────────────────────────────────────────────────────
+// ลำดับความสำคัญ: 1) manual override (ShiftAssignment) 2) วันลาที่อนุมัติแล้ว
+// 3) วันหยุดประจำสัปดาห์/เดือนที่อนุมัติแล้ว 4) วันหยุดนักขัตฤกษ์ 5) กะประจำของพนักงาน
+// — ไม่ใช้ default_work_days แบบ mock เดิม (จ-ศ ตายตัว) เพราะธุรกิจนี้เป็นกะหมุนเวียน
+// รายสาขา ไม่ใช่ office 5 วัน/สัปดาห์ — "หยุด" ที่แท้จริงมาจาก WeeklyOffRequest/LeaveRequest
+type EffectiveResult = { type: EffectiveType; shift_id: string | null; isDefault: boolean } | null
 
 function getEffective(
   empId: string, date: string,
-  shiftAssignments: ShiftAssignment[],
-  employees: Employee[],
+  overrides: ApiShiftAssignment[], employees: ApiEmployee[],
+  leaves: ApiLeaveRequest[], weeklyOffs: ApiWeeklyOff[], holidays: ApiHoliday[],
 ): EffectiveResult {
-  // 1. มี override เฉพาะวันนี้ → ใช้เลย
-  const specific = shiftAssignments.find(a => a.employee_id === empId && a.date === date)
-  if (specific) return { assignment: specific, isDefault: false, isOff: specific.type !== 'WORK' }
+  const override = overrides.find(a => a.employee_id === empId && a.date.slice(0, 10) === date)
+  if (override) return { type: override.type, shift_id: override.shift_id, isDefault: false }
 
-  // 2. ดู default shift ของพนักงาน
+  const onLeave = leaves.some(l =>
+    l.employee_id === empId && l.status === 'APPROVED' &&
+    l.start_date.slice(0, 10) <= date && l.end_date.slice(0, 10) >= date)
+  if (onLeave) return { type: 'LEAVE', shift_id: null, isDefault: true }
+
+  const onWeeklyOff = weeklyOffs.some(w =>
+    w.employee_id === empId && w.status === 'APPROVED' && resolveWeeklyOffDate(w.week_start, w.day_of_week) === date)
+  if (onWeeklyOff) return { type: 'WEEKLY_OFF', shift_id: null, isDefault: true }
+
   const emp = employees.find(e => e.id === empId)
-  if (!emp?.default_shift_id) return null
 
-  const dow      = new Date(date).getDay()
-  const workDays = emp.default_work_days ?? [1,2,3,4,5]
+  const onHoliday = emp && holidays.some(h => h.date.slice(0, 10) === date && holidayAppliesTo(h, emp))
+  if (onHoliday) return { type: 'HOLIDAY', shift_id: null, isDefault: true }
 
-  if (!workDays.includes(dow)) {
-    // วันนอก work_days → หยุดตามปกติ (default off)
-    return {
-      assignment: { id: `def-off-${empId}-${date}`, employee_id: empId, date, shift_id: null, type: 'DAY_OFF' },
-      isDefault: true, isOff: true,
-    }
-  }
+  if (emp?.default_shift_id) return { type: 'WORK', shift_id: emp.default_shift_id, isDefault: true }
 
-  // วันทำงาน → กะประจำ
-  return {
-    assignment: { id: `def-${empId}-${date}`, employee_id: empId, date, shift_id: emp.default_shift_id, type: 'WORK' },
-    isDefault: true, isOff: false,
-  }
+  return null
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function ShiftSchedulePage() {
   const isMobile = useIsMobile()
+  const { showToast } = useToast()
+  const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const swipeHandlers = useSwipePage(
     () => setPage(p => Math.min(totalPages, p + 1)),
     () => setPage(p => Math.max(1, p - 1)),
   )
-  const { employees, branches, shifts, shiftAssignments, upsertShiftAssignment, deleteShiftAssignment } = useDemoStore()
 
   const TODAY = new Date().toISOString().slice(0, 10)
   const [viewMode, setViewMode]   = useState<'week'|'month'>('week')
@@ -100,18 +148,93 @@ export default function ShiftSchedulePage() {
   const weekDates  = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const monthDates = getDaysInMonth(selMonth.y, selMonth.m)
   const displayDates = viewMode === 'week' ? weekDates : monthDates
+  // เดือนที่ต้องดึง override/weekly-off มา — ครอบคลุมทั้งเดือนของ weekStart กับวันสุดท้ายที่แสดง
+  // (สัปดาห์ท้ายเดือนอาจคาบเกี่ยวเดือนถัดไป — เป็น edge case เล็กน้อยที่ยอมรับได้)
+  const queryMonth  = displayDates[0].slice(0, 7)
+  const queryMonth2 = displayDates[displayDates.length - 1].slice(0, 7)
+  const queryYear   = Number(displayDates[0].slice(0, 4))
+  const queryYear2  = Number(displayDates[displayDates.length - 1].slice(0, 4))
+
+  const { data: employees = [] } = useQuery<ApiEmployee[]>({
+    queryKey: ['employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const { data: branches = [] } = useQuery<ApiBranch[]>({
+    queryKey: ['branches'],
+    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+  const { data: shifts = [] } = useQuery<ApiShift[]>({
+    queryKey: ['shifts'],
+    queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
+  })
+  const { data: overridesA = [] } = useQuery<ApiShiftAssignment[]>({
+    queryKey: ['admin', 'shift-assignments', queryMonth],
+    queryFn: () => api.get('/api/v1/admin/shift-assignments', { params: { month: queryMonth } }).then(r => r.data.data),
+  })
+  const { data: overridesB = [] } = useQuery<ApiShiftAssignment[]>({
+    queryKey: ['admin', 'shift-assignments', queryMonth2],
+    queryFn: () => api.get('/api/v1/admin/shift-assignments', { params: { month: queryMonth2 } }).then(r => r.data.data),
+    enabled: queryMonth2 !== queryMonth,
+  })
+  const overrides = queryMonth2 !== queryMonth ? [...overridesA, ...overridesB] : overridesA
+  const { data: leaves = [] } = useQuery<ApiLeaveRequest[]>({
+    queryKey: ['admin', 'leave-requests', 'APPROVED'],
+    queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { status: 'APPROVED' } }).then(r => r.data.data),
+  })
+  const { data: weeklyOffsA = [] } = useQuery<ApiWeeklyOff[]>({
+    queryKey: ['admin', 'weekly-off', queryMonth],
+    queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { month: queryMonth } }).then(r => r.data.data),
+  })
+  const { data: weeklyOffsB = [] } = useQuery<ApiWeeklyOff[]>({
+    queryKey: ['admin', 'weekly-off', queryMonth2],
+    queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { month: queryMonth2 } }).then(r => r.data.data),
+    enabled: queryMonth2 !== queryMonth,
+  })
+  const weeklyOffs = queryMonth2 !== queryMonth ? [...weeklyOffsA, ...weeklyOffsB] : weeklyOffsA
+  const { data: holidaysA = [] } = useQuery<ApiHoliday[]>({
+    queryKey: ['admin', 'holidays', queryYear],
+    queryFn: () => api.get('/api/v1/super-admin/holidays', { params: { year: queryYear } }).then(r => r.data.data),
+  })
+  const { data: holidaysB = [] } = useQuery<ApiHoliday[]>({
+    queryKey: ['admin', 'holidays', queryYear2],
+    queryFn: () => api.get('/api/v1/super-admin/holidays', { params: { year: queryYear2 } }).then(r => r.data.data),
+    enabled: queryYear2 !== queryYear,
+  })
+  const holidays = queryYear2 !== queryYear ? [...holidaysA, ...holidaysB] : holidaysA
+
+  const saveMutation = useMutation({
+    mutationFn: (body: { employee_id: string; date: string; shift_id: string | null; type: ShiftAssignmentTypeValue }) =>
+      api.put('/api/v1/admin/shift-assignments', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'shift-assignments'] })
+      setEditCell(null)
+    },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+  const resetMutation = useMutation({
+    mutationFn: ({ employeeId, date }: { employeeId: string; date: string }) =>
+      api.delete(`/api/v1/admin/shift-assignments/${employeeId}/${date}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'shift-assignments'] })
+      setEditCell(null)
+    },
+    onError: () => showToast('error', 'ยกเลิก override ไม่สำเร็จ'),
+  })
 
   const filteredEmps = filterBranch === 'ALL'
-    ? employees.filter(e => e.status === 'ACTIVE')
-    : employees.filter(e => e.status === 'ACTIVE' && e.branches.includes(filterBranch))
+    ? employees
+    : employees.filter(e => e.branch_id === filterBranch)
 
   const totalPages = Math.ceil(filteredEmps.length / pageSize)
   const paginatedEmps = filteredEmps.slice((page - 1) * pageSize, page * pageSize)
 
   useEffect(() => { setPage(1) }, [filterBranch, viewMode, weekStart, selMonth])
 
-  function getShiftsForEmp(emp: Employee): ShiftDef[] {
-    return shifts.filter(s => emp.branches.includes(s.branch_name))
+  function getShiftsForEmp(emp: ApiEmployee): ApiShift[] {
+    return shifts.filter(s => s.branch_id === emp.branch_id)
+  }
+  function eff(empId: string, date: string) {
+    return getEffective(empId, date, overrides, employees, leaves, weeklyOffs, holidays)
   }
 
   // nav
@@ -153,24 +276,21 @@ export default function ShiftSchedulePage() {
     setEditCell({ empId, date })
   }
 
-  function handleSave(empId: string, date: string, type: ShiftAssignmentType, shiftId: string|null) {
-    // ตรวจว่า override ตรงกับ default หรือเปล่า → ถ้าตรง ไม่ต้องบันทึก (ล้างออก)
-    upsertShiftAssignment({ id: `sa-${empId}-${date}`, employee_id: empId, date, shift_id: shiftId, type })
-    setEditCell(null)
+  function handleSave(empId: string, date: string, type: ShiftAssignmentTypeValue, shiftId: string|null) {
+    saveMutation.mutate({ employee_id: empId, date, shift_id: shiftId, type })
   }
 
-  // ล้าง override → กลับใช้กะประจำ
+  // ล้าง override → กลับใช้กะประจำ (คำนวณจาก default/leave/weekly-off/holiday จริง)
   function handleResetToDefault(empId: string, date: string) {
-    deleteShiftAssignment(`sa-${empId}-${date}`)
-    setEditCell(null)
+    resetMutation.mutate({ employeeId: empId, date })
   }
 
   // ── Edit Popup ────────────────────────────────────────────────────────────
   function EditPopup({ empId, date }: { empId: string; date: string }) {
     const emp       = employees.find(e => e.id === empId)
     const empShifts = emp ? getShiftsForEmp(emp) : []
-    const effective = getEffective(empId, date, shiftAssignments, employees)
-    const hasOverride = shiftAssignments.some(a => a.employee_id === empId && a.date === date)
+    const effective = eff(empId, date)
+    const hasOverride = overrides.some(a => a.employee_id === empId && a.date.slice(0, 10) === date)
     const defaultShift = emp?.default_shift_id ? shifts.find(s => s.id === emp.default_shift_id) : null
 
     return (
@@ -182,13 +302,28 @@ export default function ShiftSchedulePage() {
         {/* Header */}
         <div style={{ padding:'4px 14px 8px', borderBottom:'1px solid #f3f4f6' }}>
           <div style={{ fontWeight:600, color:'#374151' }}>
-            {emp?.nickname} · {fmt(date, { day:'numeric', month:'short', weekday:'short' })}
+            {emp?.nickname || emp?.first_name} · {fmt(date, { day:'numeric', month:'short', weekday:'short' })}
           </div>
           {/* แสดงสถานะปัจจุบัน */}
-          {effective?.isDefault && !effective.isOff && (
+          {effective?.type === 'WORK' && effective.isDefault && (
             <div style={{ fontSize:11, color:'#6366f1', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
               <span>◌</span>
               <span>กะประจำ: {defaultShift?.name} {defaultShift?.start_time}</span>
+            </div>
+          )}
+          {effective?.type === 'LEAVE' && (
+            <div style={{ fontSize:11, color:'#1d4ed8', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+              <span>🗓</span><span>กำลังลา (จากระบบวันลา — อนุมัติแล้ว)</span>
+            </div>
+          )}
+          {effective?.type === 'WEEKLY_OFF' && effective.isDefault && (
+            <div style={{ fontSize:11, color:'#c2410c', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+              <span>🏖</span><span>หยุดประจำ (จากระบบจองวันหยุด — อนุมัติแล้ว)</span>
+            </div>
+          )}
+          {effective?.type === 'HOLIDAY' && effective.isDefault && (
+            <div style={{ fontSize:11, color:'#b91c1c', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+              <span>🎌</span><span>วันหยุดนักขัตฤกษ์</span>
             </div>
           )}
           {hasOverride && (
@@ -204,10 +339,10 @@ export default function ShiftSchedulePage() {
           <>
             <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>กะทำงาน</div>
             {empShifts.map(sh => {
-              const isActive = effective?.assignment.shift_id === sh.id
+              const isActive = effective?.shift_id === sh.id
               const isDefault = isActive && effective?.isDefault
               return (
-                <button key={sh.id} onClick={() => handleSave(empId, date, 'WORK', sh.id)} style={{
+                <button key={sh.id} onClick={() => handleSave(empId, date, 'WORK', sh.id)} disabled={saveMutation.isPending} style={{
                   display:'flex', alignItems:'center', gap:8, width:'100%',
                   padding:'7px 14px', border:'none',
                   background: isActive ? (sh.shift_type === 'SPECIAL' ? '#f5f3ff' : '#f0fdf4') : 'transparent',
@@ -227,13 +362,13 @@ export default function ShiftSchedulePage() {
           </>
         )}
 
-        {/* ประเภทวัน */}
-        <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>ตั้งเป็นวันหยุด</div>
-        {(['DAY_OFF','WEEKLY_OFF','HOLIDAY'] as ShiftAssignmentType[]).map(t => {
+        {/* ประเภทวัน (manual override เท่านั้น — วันลา/หยุดจริงมาจากระบบลา/จองวันหยุดโดยอัตโนมัติอยู่แล้ว) */}
+        <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>ตั้งเป็นวันหยุด (แก้เฉพาะวันนี้)</div>
+        {(['DAY_OFF','WEEKLY_OFF','HOLIDAY'] as ShiftAssignmentTypeValue[]).map(t => {
           const cfg = TYPE_CFG[t]
-          const isActive = effective?.assignment.type === t && !effective.assignment.shift_id
+          const isActive = effective?.type === t && !effective.shift_id
           return (
-            <button key={t} onClick={() => handleSave(empId, date, t, null)} style={{
+            <button key={t} onClick={() => handleSave(empId, date, t, null)} disabled={saveMutation.isPending} style={{
               display:'flex', alignItems:'center', gap:8, width:'100%',
               padding:'6px 14px', border:'none', background: isActive ? '#f9fafb' : 'transparent', cursor:'pointer', textAlign:'left',
             }}>
@@ -247,12 +382,12 @@ export default function ShiftSchedulePage() {
         {hasOverride && (
           <>
             <div style={{ borderTop:'1px solid #f3f4f6', margin:'4px 0' }} />
-            <button onClick={() => handleResetToDefault(empId, date)} style={{
+            <button onClick={() => handleResetToDefault(empId, date)} disabled={resetMutation.isPending} style={{
               display:'flex', alignItems:'center', gap:8, width:'100%',
               padding:'7px 14px', border:'none', background:'transparent', cursor:'pointer',
               color:'#6366f1', fontSize:13, fontWeight:600,
             }}>
-              ↩ กลับกะประจำ
+              ↩ กลับค่าอัตโนมัติ
               {defaultShift && <span style={{ fontSize:11, color:'#9ca3af', fontWeight:400, marginLeft:4 }}>({defaultShift.name} {defaultShift.start_time})</span>}
             </button>
           </>
@@ -262,48 +397,45 @@ export default function ShiftSchedulePage() {
   }
 
   // ── Week Cell ─────────────────────────────────────────────────────────────
-  function WeekCell({ emp, date }: { emp: Employee; date: string }) {
-    const eff = getEffective(emp.id, date, shiftAssignments, employees)
+  function WeekCell({ emp, date }: { emp: ApiEmployee; date: string }) {
+    const e = eff(emp.id, date)
     const isToday    = date === TODAY
     const isEditOpen = editCell?.empId === emp.id && editCell?.date === date
 
     let content: React.ReactNode
-    if (!eff) {
+    if (!e) {
       content = <span style={{ color:'#e5e7eb', fontSize:11 }}>—</span>
-    } else if (eff.isOff && eff.isDefault) {
-      // วันหยุดตาม default (ไม่แสดงอะไร)
-      content = <span style={{ color:'#e5e7eb', fontSize:11 }}>—</span>
-    } else if (eff.assignment.type === 'WORK' && eff.assignment.shift_id) {
-      const sh         = shifts.find(s => s.id === eff.assignment.shift_id)
+    } else if (e.type === 'WORK' && e.shift_id) {
+      const sh         = shifts.find(s => s.id === e.shift_id)
       const isSpecial  = sh?.shift_type === 'SPECIAL'
-      const bg  = isSpecial ? (eff.isDefault ? '#f5f3ff' : '#ede9fe') : eff.isDefault ? '#f0fdf4' : '#dcfce7'
-      const brd = isSpecial ? (eff.isDefault ? '1px dashed #c4b5fd' : '1px solid #c4b5fd') : eff.isDefault ? '1px dashed #86efac' : '1px solid #86efac'
+      const bg  = isSpecial ? (e.isDefault ? '#f5f3ff' : '#ede9fe') : e.isDefault ? '#f0fdf4' : '#dcfce7'
+      const brd = isSpecial ? (e.isDefault ? '1px dashed #c4b5fd' : '1px solid #c4b5fd') : e.isDefault ? '1px dashed #86efac' : '1px solid #86efac'
       const clr = isSpecial ? '#7c3aed' : '#15803d'
       content = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
           <span style={{ padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:clr, border:brd, whiteSpace:'nowrap' }}>
             {isSpecial && '⭐ '}{sh?.name ?? 'กะ'}
           </span>
-          {eff.isDefault
+          {e.isDefault
             ? <span style={{ fontSize:9, color: isSpecial ? '#a78bfa' : '#a5b4fc' }}>ประจำ</span>
             : <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
         </div>
       )
     } else {
-      const cfg = TYPE_CFG[eff.assignment.type]
+      const cfg = TYPE_CFG[e.type]
       content = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
           <span style={{ padding:'2px 5px', borderRadius:5, fontSize:11, fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}`, whiteSpace:'nowrap' }}>
-            {eff.assignment.type==='DAY_OFF'?'หยุด':eff.assignment.type==='WEEKLY_OFF'?'OFF':'หยุดฯ'}
+            {cfg.label}
           </span>
-          {!eff.isDefault && <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
+          {!e.isDefault && <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
         </div>
       )
     }
 
     return (
       <td style={{ padding:4, textAlign:'center', verticalAlign:'middle', background:isToday?'#fefce8':isEditOpen?'#f5f3ff':undefined, borderRight:'1px solid #f3f4f6', minWidth: isMobile ? 60 : 84 }}>
-        <button onClick={e => openEdit(e, emp.id, date)} style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:6, padding:'4px 2px', width:'100%', minHeight:40, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <button onClick={ev => openEdit(ev, emp.id, date)} style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:6, padding:'4px 2px', width:'100%', minHeight:40, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {content}
         </button>
       </td>
@@ -311,30 +443,30 @@ export default function ShiftSchedulePage() {
   }
 
   // ── Month Cell (compact) ─────────────────────────────────────────────────
-  function MonthCell({ emp, date }: { emp: Employee; date: string }) {
-    const eff     = getEffective(emp.id, date, shiftAssignments, employees)
-    const hasOver = shiftAssignments.some(a => a.employee_id === emp.id && a.date === date)
+  function MonthCell({ emp, date }: { emp: ApiEmployee; date: string }) {
+    const e       = eff(emp.id, date)
+    const hasOver = overrides.some(a => a.employee_id === emp.id && a.date.slice(0, 10) === date)
     const isToday = date === TODAY
     const dow     = new Date(date).getDay()
 
     let inner: React.ReactNode
-    if (!eff || (eff.isOff && eff.isDefault)) {
+    if (!e) {
       inner = <span style={{ color:'#e5e7eb', fontSize:9 }}>·</span>
-    } else if (eff.assignment.type === 'WORK') {
-      const sh        = shifts.find(s => s.id === eff.assignment.shift_id)
+    } else if (e.type === 'WORK') {
+      const sh        = shifts.find(s => s.id === e.shift_id)
       const isSpecial = sh?.shift_type === 'SPECIAL'
       inner = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-          <span style={{ width:6, height:6, borderRadius:'50%', background: isSpecial ? (eff.isDefault ? '#c4b5fd' : '#7c3aed') : eff.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
-          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : eff.isDefault ? '#6b7280' : '#15803d', fontWeight: eff.isDefault ? 400 : 700, lineHeight:1 }}>
+          <span style={{ width:6, height:6, borderRadius:'50%', background: isSpecial ? (e.isDefault ? '#c4b5fd' : '#7c3aed') : e.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
+          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : e.isDefault ? '#6b7280' : '#15803d', fontWeight: e.isDefault ? 400 : 700, lineHeight:1 }}>
             {isSpecial ? '⭐' : (sh?.name?.slice(0,3) ?? 'W')}
           </span>
           {hasOver && <span style={{ fontSize:8, color:'#f97316' }}>✏</span>}
         </div>
       )
     } else {
-      const cfg = TYPE_CFG[eff.assignment.type]
-      inner = <span style={{ fontSize:10, fontWeight:700, color:cfg.color }}>{TYPE_CFG[eff.assignment.type].short}</span>
+      const cfg = TYPE_CFG[e.type]
+      inner = <span style={{ fontSize:10, fontWeight:700, color:cfg.color }}>{cfg.short}</span>
     }
 
     return (
@@ -344,8 +476,8 @@ export default function ShiftSchedulePage() {
         borderRight:'1px solid #f3f4f6',
         borderLeft: dow===1 ? '2px solid #e5e7eb' : undefined,
       }}>
-        <button onClick={e => openEdit(e, emp.id, date)}
-          title={`${emp.nickname} · ${fmt(date, { day:'numeric', month:'short', weekday:'short' })}`}
+        <button onClick={ev => openEdit(ev, emp.id, date)}
+          title={`${emp.nickname || emp.first_name} · ${fmt(date, { day:'numeric', month:'short', weekday:'short' })}`}
           style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:4, padding:'3px 1px', width:'100%', minHeight:28, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {inner}
         </button>
@@ -354,12 +486,12 @@ export default function ShiftSchedulePage() {
   }
 
   // ── Stats ────────────────────────────────────────────────────────────────
-  // นับจาก effective (รวมทั้ง default และ override)
+  // นับจาก effective (รวมทั้งค่า default/leave/weekly-off/holiday และ override)
   const workCount = filteredEmps.reduce((sum, emp) =>
-    sum + displayDates.filter(d => { const e=getEffective(emp.id,d,shiftAssignments,employees); return e?.assignment.type==='WORK' }).length, 0)
+    sum + displayDates.filter(d => eff(emp.id, d)?.type === 'WORK').length, 0)
   const offCount  = filteredEmps.reduce((sum, emp) =>
-    sum + displayDates.filter(d => { const e=getEffective(emp.id,d,shiftAssignments,employees); return e && e.assignment.type!=='WORK' }).length, 0)
-  const overrideCount = shiftAssignments.filter(a => displayDates.includes(a.date) && filteredEmps.some(e=>e.id===a.employee_id)).length
+    sum + displayDates.filter(d => { const e = eff(emp.id, d); return e && e.type !== 'WORK' }).length, 0)
+  const overrideCount = overrides.filter(a => displayDates.includes(a.date.slice(0, 10)) && filteredEmps.some(e=>e.id===a.employee_id)).length
 
   return (
     <div style={{ maxWidth: viewMode==='month'?1400:1100, margin:'0 auto' }}>
@@ -378,7 +510,7 @@ export default function ShiftSchedulePage() {
           <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)}
             style={{ padding:'6px 10px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:13, background:'#fff', cursor:'pointer' }}>
             <option value="ALL">ทุกสาขา</option>
-            {branches.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}
+            {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </div>
       </div>
@@ -437,13 +569,12 @@ export default function ShiftSchedulePage() {
                 <td style={{ padding:'8px 14px', borderRight:'2px solid #e5e7eb', position:'sticky', left:0, background: isHighlighted ? '#faf5ff' : (idx%2===0?'#fff':'#fafafa'), zIndex:1, transition:'background 0.5s' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                     <div style={{ width:28, height:28, borderRadius:'50%', background: isHighlighted?'#ede9fe':'#e0e7ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color: isHighlighted?'#7c3aed':'#6366f1', flexShrink:0, boxShadow: isHighlighted?'0 0 0 2px #a78bfa':undefined }}>
-                      {emp.nickname.slice(0,1)}
+                      {(emp.nickname || emp.first_name || '').slice(0,1)}
                     </div>
                     <div>
                       <div style={{ fontSize:13, fontWeight:600, color: isHighlighted?'#6d28d9':'#111827', whiteSpace:'nowrap' }}>
-                        {emp.nickname}
+                        {emp.nickname || emp.first_name}
                         {isHighlighted && <span style={{ marginLeft:6, fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'1px 5px', borderRadius:4, fontWeight:700 }}>◀ จากพนักงาน</span>}
-                        {emp.pay_type!=='MONTHLY' && <span style={{ marginLeft:4, padding:'0 4px', fontSize:10, background: emp.pay_type==='HOURLY'?'#fef3c7':'#f0fdf4', color: emp.pay_type==='HOURLY'?'#92400e':'#15803d', borderRadius:4, fontWeight:700 }}>{emp.pay_type==='HOURLY'?'ชม.':'วัน'}</span>}
                       </div>
                       {/* แสดงกะประจำ */}
                       {emp.default_shift_id && (() => {
@@ -467,7 +598,7 @@ export default function ShiftSchedulePage() {
         </table>
         {editCell && <EditPopup empId={editCell.empId} date={editCell.date} />}
       </div>
-      
+
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 12 }}>
@@ -501,7 +632,7 @@ export default function ShiftSchedulePage() {
       <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>
         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
           <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#f0fdf4', color:'#15803d', border:'1px dashed #86efac', fontWeight:600 }}>กะเช้า</span>
-          <span style={{ color:'#6b7280' }}>= กะประจำ (ไม่ได้ตั้ง)</span>
+          <span style={{ color:'#6b7280' }}>= อัตโนมัติ (กะประจำ/วันลา/วันหยุด — ไม่ได้ตั้งเอง)</span>
         </span>
         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
           <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
@@ -509,7 +640,7 @@ export default function ShiftSchedulePage() {
           <span style={{ color:'#6b7280' }}>= มี override วันนี้</span>
         </span>
         <span style={{ color:'#9ca3af' }}>· คลิกเพื่อแก้</span>
-        <span style={{ color:'#9ca3af' }}>· "↩ กลับกะประจำ" เพื่อยกเลิก override</span>
+        <span style={{ color:'#9ca3af' }}>· "↩ กลับค่าอัตโนมัติ" เพื่อยกเลิก override</span>
       </div>
     </div>
   )

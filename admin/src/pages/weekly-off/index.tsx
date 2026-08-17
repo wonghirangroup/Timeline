@@ -41,6 +41,12 @@ function fmtDate(iso: string) {
   const d = new Date(iso.slice(0, 10) + 'T00:00:00')
   return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear() + 543}`
 }
+// ช่วงวันที่ของเดือนนั้น (1 ถึงวันสุดท้าย) — "เปิดจอง" ตอนนี้เปิดทั้งเดือนเสมอ ไม่มีเปิดเฉพาะบางสัปดาห์
+function monthRangeLabel(ym: string) {
+  const [y, m] = ym.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return `${fmtDate(`${ym}-01`)} – ${fmtDate(`${ym}-${String(lastDay).padStart(2, '0')}`)}`
+}
 
 // แปลง week_start + day_of_week → วันที่จริง
 // ถ้า week_start ตรงกับ day_of_week (monthly-off) ใช้ตรงๆ
@@ -58,6 +64,19 @@ const STATUS_CFG = {
   APPROVED: { label: 'อนุมัติ',   color: '#16a34a', bg: '#dcfce7' },
   REJECTED: { label: 'ปฏิเสธ',   color: '#dc2626', bg: '#fee2e2' },
 }
+
+const WEEKLY_OFF_MODE_LABEL: Record<'WEEKLY' | 'MONTHLY_BATCH', string> = {
+  WEEKLY:        'รายสัปดาห์ (จองทีละสัปดาห์)',
+  MONTHLY_BATCH: 'รายเดือน (ต้องจองครบทุกสัปดาห์)',
+}
+
+// แผนก — สำเนาจาก employee/index.tsx (ตามธรรมเนียมของโปรเจกต์นี้ที่ define ค่าคงที่ต่อไฟล์)
+const DEPARTMENTS = [
+  '01 ผู้บริหาร',
+  '02 Office',
+  '03 พนักงานขาย',
+  '04 พนักงานขนส่ง',
+]
 
 // ─── Mini calendar picker ──────────────────────────────────────────────────────
 function DatePicker({ month, value, onChange, disabledDates = [] }: {
@@ -96,6 +115,50 @@ function DatePicker({ month, value, onChange, disabledDates = [] }: {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ─── Bulk: ตั้งค่าโหมดจองวันหยุดทั้งแผนก ───────────────────────────────────────
+function BulkModePanel() {
+  const { showToast } = useToast()
+  const qc = useQueryClient()
+  const isMobile = useIsMobile()
+  const [bulkDept, setBulkDept] = useState('')
+  const [bulkMode, setBulkMode] = useState<'WEEKLY' | 'MONTHLY_BATCH'>('MONTHLY_BATCH')
+
+  const bulkModeMutation = useMutation({
+    mutationFn: () => api.patch('/api/v1/admin/employees/bulk-weekly-off-mode', { department: bulkDept, mode: bulkMode }).then(r => r.data.data),
+    onSuccess: (data: { count: number }) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', `ตั้งค่าโหมดจองวันหยุดให้ ${data.count} คนสำเร็จ`)
+      setBulkDept('')
+    },
+    onError: () => showToast('error', 'ตั้งค่าไม่สำเร็จ'),
+  })
+
+  const selectStyle = { padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' as const, width: 'auto', flex: isMobile ? '1 1 100%' : 'none', minWidth: 160 }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>⚙️ ตั้งค่าโหมดจองวันหยุดทั้งแผนก:</span>
+      <select value={bulkDept} onChange={e => setBulkDept(e.target.value)} style={selectStyle}>
+        <option value="">— เลือกแผนก —</option>
+        <option value="ALL">— ทุกแผนก (ทั้งบริษัท) —</option>
+        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+      </select>
+      <select value={bulkMode} onChange={e => setBulkMode(e.target.value as any)} style={{ ...selectStyle, minWidth: 200 }}>
+        <option value="MONTHLY_BATCH">{WEEKLY_OFF_MODE_LABEL.MONTHLY_BATCH}</option>
+        <option value="WEEKLY">{WEEKLY_OFF_MODE_LABEL.WEEKLY}</option>
+      </select>
+      <button onClick={() => {
+          if (bulkDept === 'ALL' && !window.confirm(`ยืนยันตั้งค่าโหมดจองวันหยุดเป็น "${WEEKLY_OFF_MODE_LABEL[bulkMode]}" ให้พนักงานทุกคนในบริษัท (ทุกแผนก)?`)) return
+          bulkModeMutation.mutate()
+        }} disabled={!bulkDept || bulkModeMutation.isPending}
+        style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: !bulkDept ? '#d1d5db' : bulkDept === 'ALL' ? '#dc2626' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !bulkDept ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+        {bulkModeMutation.isPending ? 'กำลังบันทึก...' : bulkDept === 'ALL' ? 'ใช้กับพนักงานทั้งหมด' : 'ใช้กับทั้งแผนกนี้'}
+      </button>
     </div>
   )
 }
@@ -149,6 +212,9 @@ function PeriodManager({ month }: { month: string }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.branch.name}</div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                  📅 {monthRangeLabel(p.month)}
+                </div>
                 {p.deadline && (
                   <div style={{ fontSize: '0.72rem', color: deadlinePast ? '#dc2626' : '#6b7280', marginTop: 2 }}>
                     {deadlinePast ? '⛔ หมดเวลาแล้ว' : `⏰ deadline: ${fmtDate(p.deadline.slice(0, 10))}`}
@@ -366,7 +432,12 @@ export default function WeeklyOffPage() {
       </div>
 
       {/* Periods tab */}
-      {tab === 'periods' && <PeriodManager month={month} />}
+      {tab === 'periods' && (
+        <>
+          <BulkModePanel />
+          <PeriodManager month={month} />
+        </>
+      )}
 
       {/* Requests tab content below */}
       {tab === 'requests' && <>

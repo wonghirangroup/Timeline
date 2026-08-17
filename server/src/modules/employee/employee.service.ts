@@ -91,6 +91,7 @@ export async function updateEmployee(
     line_user_id?: string | null
     is_active?: boolean
     weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
+    default_shift_id?: string | null
   },
 ) {
   const { hired_at, ...rest } = data
@@ -110,12 +111,17 @@ export async function bulkSetWeeklyOffMode(
   department: string,
   mode: 'WEEKLY' | 'MONTHLY_BATCH',
 ) {
+  // department = 'ALL' → ใช้กับพนักงานทุกแผนก ไม่กรอง
   // department เก็บไม่ตรงกันระหว่างพนักงานที่สร้างผ่าน Admin UI ("03 พนักงานขาย")
   // กับที่ migrate มาจาก Firebase (แค่ "03") — match ด้วยรหัส 2 ตัวแรกเสมอ
   // (แบบเดียวกับ generateEmployeeCode() ตอนสร้างรหัสพนักงาน)
   const deptCode = department.slice(0, 2).trim()
   const result = await prisma.employee.updateMany({
-    where: { tenant_id: tenantId, department: { startsWith: deptCode }, deleted_at: null },
+    where: {
+      tenant_id: tenantId,
+      deleted_at: null,
+      ...(department === 'ALL' ? {} : { department: { startsWith: deptCode } }),
+    },
     data: { weekly_off_mode: mode },
   })
   return result.count

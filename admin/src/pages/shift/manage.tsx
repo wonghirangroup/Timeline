@@ -58,7 +58,8 @@ function TimeInput({ label, value, onChange, sublabel }: { label: string; value:
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      {sublabel && <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 4 }}>{sublabel}</div>}
+      {/* จองพื้นที่ไว้เสมอ (2 บรรทัด) ไม่งั้นช่องที่ไม่มี sublabel จะสูงน้อยกว่า ทำให้ input แถวเดียวกันเยื้องกัน */}
+      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 4, minHeight: '2.6em', lineHeight: 1.3 }}>{sublabel || ' '}</div>
       <input type="time" value={value} onChange={e => onChange(e.target.value)} style={inputStyle} />
     </div>
   )
@@ -528,8 +529,8 @@ export default function ShiftPage() {
   }
   const sheetBox: React.CSSProperties = {
     background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16,
-    width: isMobile ? '100%' : 520, maxWidth: '92vw',
-    maxHeight: isMobile ? '92vh' : '90vh', overflowY: 'auto',
+    width: isMobile ? '100%' : 'clamp(640px, 65vw, 880px)', maxWidth: '92vw',
+    maxHeight: isMobile ? '92vh' : '94vh', overflowY: 'auto',
     boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
   }
 
@@ -748,92 +749,100 @@ export default function ShiftPage() {
                   placeholder="เช่น กะเช้า, กะบ่าย, กะดึก" style={inputStyle} />
               </div>
 
-              {/* เวลาเข้า-ออก */}
-              <div>
-                <p style={sectionLabel}>เข้า–ออกงาน</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  <TimeInput label="เวลาเริ่มงาน" value={form.start_time} onChange={v => setForm(f => ({ ...f, start_time: v }))} />
-                  <TimeInput label="เวลาเลิกงาน" value={form.end_time} onChange={v => setForm(f => ({ ...f, end_time: v }))} />
-                  <TimeInput label="เช็คเอาท์ได้ตั้งแต่" value={form.min_checkout} onChange={v => setForm(f => ({ ...f, min_checkout: v }))}
-                    sublabel={timeDiff(form.end_time, form.min_checkout, 'before') || 'กำหนดเวลาเร็วสุดที่เช็คเอาท์ได้'} />
-                </div>
-              </div>
+              {/* 2 คอลัมน์ ซ้าย-ขวา กันเนื้อหายาวเกินต้อง scroll */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
-              {/* ประเภทกะ */}
-              <div>
-                <label style={labelStyle}>ประเภทกะ</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {(['REGULAR', 'SPECIAL'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setForm(f => ({ ...f, shift_type: t }))}
-                      style={{ flex: 1, padding: '9px', borderRadius: 8, border: `2px solid ${form.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: form.shift_type === t ? '#ede9fe' : '#fff', color: form.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
-                      {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 6 }}>
-                  {form.shift_type === 'REGULAR' ? 'Auto-detect จากเวลาสแกน — ไม่ทับซ้อนกับกะอื่น' : 'เงื่อนไขพิเศษ เช่น OT หรืองานนอกสถานที่'}
-                </div>
-              </div>
-
-              {/* รัศมีเช็คอิน GPS */}
-              <div>
-                <p style={sectionLabel}>รัศมีเช็คอิน GPS</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {[50, 100, 150, 200, 300].map(r => (
-                    <button key={r} type="button"
-                      onClick={() => setForm(f => ({ ...f, gps_radius: r }))}
-                      style={{
-                        padding: '7px 14px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
-                        border: `1.5px solid ${Number(form.gps_radius) === r ? '#f97316' : '#e5e7eb'}`,
-                        background: Number(form.gps_radius) === r ? '#fff7ed' : '#fff',
-                        color: Number(form.gps_radius) === r ? '#ea580c' : '#4b5563',
-                      }}
-                    >{r}ม.</button>
-                  ))}
-                  <input
-                    type="number"
-                    placeholder="กำหนดเอง"
-                    value={form.gps_radius}
-                    onChange={e => setForm(f => ({ ...f, gps_radius: e.target.value }))}
-                    style={{ ...inputStyle, width: 110 }}
-                  />
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-                  ปล่อยว่าง = ใช้ค่าเริ่มต้นของสาขา
-                </div>
-              </div>
-
-              {/* เกณฑ์การสาย */}
-              <div>
-                <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                  ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong> (หลังจากนี้ถือว่าขาด)
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
-                    sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
-                  <TimeInput label="สายระดับ 2 (ปิดรับเช็คอิน)" value={form.late_threshold_2}
-                    onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
-                    sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                {/* ซ้าย: เวลา + ประเภทกะ */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* เวลาเข้า-ออก */}
                   <div>
-                    <label style={labelStyle}>ค่าปรับสายระดับ 1 (บาท)</label>
-                    <input type="number" min="0" step="50" value={form.late_fine_1}
-                      onChange={e => setForm(f => ({ ...f, late_fine_1: e.target.value }))}
-                      placeholder="เช่น 50" style={inputStyle} />
+                    <p style={sectionLabel}>เข้า–ออกงาน</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <TimeInput label="เวลาเริ่มงาน" value={form.start_time} onChange={v => setForm(f => ({ ...f, start_time: v }))} />
+                      <TimeInput label="เวลาเลิกงาน" value={form.end_time} onChange={v => setForm(f => ({ ...f, end_time: v }))} />
+                      <TimeInput label="เช็คเอาท์ได้ตั้งแต่" value={form.min_checkout} onChange={v => setForm(f => ({ ...f, min_checkout: v }))}
+                        sublabel={timeDiff(form.end_time, form.min_checkout, 'before') || 'กำหนดเวลาเร็วสุดที่เช็คเอาท์ได้'} />
+                    </div>
                   </div>
+
+                  {/* ประเภทกะ */}
                   <div>
-                    <label style={labelStyle}>ค่าปรับสายระดับ 2 (บาท)</label>
-                    <input type="number" min="0" step="50" value={form.late_fine_2}
-                      onChange={e => setForm(f => ({ ...f, late_fine_2: e.target.value }))}
-                      placeholder="เช่น 200" style={inputStyle} />
+                    <label style={labelStyle}>ประเภทกะ</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {(['REGULAR', 'SPECIAL'] as const).map(t => (
+                        <button key={t} type="button" onClick={() => setForm(f => ({ ...f, shift_type: t }))}
+                          style={{ flex: 1, padding: '9px', borderRadius: 8, border: `2px solid ${form.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: form.shift_type === t ? '#ede9fe' : '#fff', color: form.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                          {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 6 }}>
+                      {form.shift_type === 'REGULAR' ? 'Auto-detect จากเวลาสแกน — ไม่ทับซ้อนกับกะอื่น' : 'เงื่อนไขพิเศษ เช่น OT หรืองานนอกสถานที่'}
+                    </div>
+                  </div>
+
+                  {/* รัศมีเช็คอิน GPS */}
+                  <div>
+                    <p style={sectionLabel}>รัศมีเช็คอิน GPS</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {[50, 100, 150, 200, 300].map(r => (
+                        <button key={r} type="button"
+                          onClick={() => setForm(f => ({ ...f, gps_radius: r }))}
+                          style={{
+                            padding: '7px 14px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
+                            border: `1.5px solid ${Number(form.gps_radius) === r ? '#f97316' : '#e5e7eb'}`,
+                            background: Number(form.gps_radius) === r ? '#fff7ed' : '#fff',
+                            color: Number(form.gps_radius) === r ? '#ea580c' : '#4b5563',
+                          }}
+                        >{r}ม.</button>
+                      ))}
+                      <input
+                        type="number"
+                        placeholder="กำหนดเอง"
+                        value={form.gps_radius}
+                        onChange={e => setForm(f => ({ ...f, gps_radius: e.target.value }))}
+                        style={{ ...inputStyle, width: 110 }}
+                      />
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                      ปล่อยว่าง = ใช้ค่าเริ่มต้นของสาขา
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Preview */}
+                {/* ขวา: เกณฑ์การสาย + Preview */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* เกณฑ์การสาย */}
+                  <div>
+                    <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
+                      ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong> (หลังจากนี้ถือว่าขาด)
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
+                        onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
+                        sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
+                      <TimeInput label="สายระดับ 2 (ปิดรับเช็คอิน)" value={form.late_threshold_2}
+                        onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
+                        sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                      <div>
+                        <label style={labelStyle}>ค่าปรับสายระดับ 1 (บาท)</label>
+                        <input type="number" min="0" step="50" value={form.late_fine_1}
+                          onChange={e => setForm(f => ({ ...f, late_fine_1: e.target.value }))}
+                          placeholder="เช่น 50" style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>ค่าปรับสายระดับ 2 (บาท)</label>
+                        <input type="number" min="0" step="50" value={form.late_fine_2}
+                          onChange={e => setForm(f => ({ ...f, late_fine_2: e.target.value }))}
+                          placeholder="เช่น 200" style={inputStyle} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview */}
               {form.start_time && (
                 <div style={{ background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '12px 14px' }}>
                   <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, color: '#4338ca' }}>ตัวอย่างกะ "{form.name || '...'}"</p>
@@ -846,6 +855,8 @@ export default function ShiftPage() {
                   </div>
                 </div>
               )}
+                </div>
+              </div>
             </div>
 
             <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>

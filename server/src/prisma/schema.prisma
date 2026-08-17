@@ -116,23 +116,27 @@ model Employee {
   status        EmployeeStatus @default(ACTIVE)
   status_reason String?   // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
   weekly_off_mode WeeklyOffMode @default(WEEKLY)  // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
+  default_shift_id String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
 
   tenant              Tenant              @relation(fields: [tenant_id], references: [id])
   branch              Branch              @relation(fields: [branch_id], references: [id])
+  default_shift       Shift?              @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
   attendance_records  AttendanceRecord[]
   leave_requests      LeaveRequest[]
   leave_balances      LeaveBalance[]
   ot_requests         OtRequest[]
   weekly_off_requests WeeklyOffRequest[]
   status_logs         EmployeeStatusLog[]
+  shift_assignments   ShiftAssignment[]
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
   @@index([tenant_id])
   @@index([branch_id])
+  @@index([default_shift_id])
   @@map("employees")
 }
 
@@ -229,10 +233,43 @@ model Shift {
   tenant             Tenant             @relation(fields: [tenant_id], references: [id])
   branch             Branch             @relation(fields: [branch_id], references: [id])
   attendance_records AttendanceRecord[]
+  default_employees  Employee[]         @relation("EmployeeDefaultShift")
+  shift_assignments  ShiftAssignment[]
 
   @@index([tenant_id])
   @@index([branch_id])
   @@map("shifts")
+}
+
+// ─────────────────────────────────────────────
+// SHIFT ASSIGNMENT (ตารางกะ — override รายวันของแอดมิน)
+// ─────────────────────────────────────────────
+
+enum ShiftAssignmentType {
+  WORK        // ทำงาน (ผูกกับ shift_id)
+  DAY_OFF     // หยุดพัก (manual correction — ไม่ใช่ WEEKLY_OFF/LEAVE ที่มาจากระบบจริง)
+  WEEKLY_OFF  // หยุดประจำสัปดาห์ (manual override — ปกติมาจาก WeeklyOffRequest)
+  HOLIDAY     // หยุดนักขัตฤกษ์ (manual override — ปกติมาจาก Holiday)
+}
+
+model ShiftAssignment {
+  id          String              @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  date        DateTime            @db.Date
+  shift_id    String?             // null เมื่อ type != WORK
+  type        ShiftAssignmentType @default(WORK)
+  note        String?
+  created_by  String?             // user_id ของ admin ที่แก้
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+  shift    Shift?   @relation(fields: [shift_id], references: [id], onDelete: SetNull)
+
+  @@unique([employee_id, date])
+  @@index([tenant_id])
+  @@map("shift_assignments")
 }
 
 // ─────────────────────────────────────────────
@@ -432,13 +469,15 @@ model WeeklyOffPeriod {
 // ─────────────────────────────────────────────
 
 model Holiday {
-  id         String      @id @default(uuid())
-  tenant_id  String
-  name       String
-  date       DateTime    @db.Date
-  type       HolidayType @default(NATIONAL)
-  recurring  Boolean     @default(false)
-  created_at DateTime    @default(now())
+  id                 String      @id @default(uuid())
+  tenant_id          String
+  name               String
+  date               DateTime    @db.Date
+  type               HolidayType @default(NATIONAL)
+  recurring          Boolean     @default(false)
+  target_branches    Json?       // string[] ของ branch_id — null/[] = ทุกสาขา
+  target_departments Json?       // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
+  created_at         DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 

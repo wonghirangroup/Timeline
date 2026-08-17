@@ -48,6 +48,7 @@ interface ApiEmployee {
   department: string | null
   branch_id: string
   branch: { id: string; name: string }
+  default_shift_id: string | null
 }
 
 type ShiftStatus = 'inactive' | 'upcoming' | 'active' | 'done'
@@ -265,6 +266,9 @@ export default function BranchPage() {
 
   const [modal, setModal]         = useState<ModalMode>(null)
   const [detailShift, setDetailShift] = useState<ApiShift | null>(null)
+  const [showAddEmpToShift, setShowAddEmpToShift] = useState(false)
+  const [shiftEmpSearch, setShiftEmpSearch] = useState('')
+  const [selectedAddIds, setSelectedAddIds] = useState<Set<string>>(new Set())
   const [addShiftBranch, setAddShiftBranch] = useState<ApiBranch | null>(null)
   const [shiftForm, setShiftForm] = useState(SHIFT_EMPTY)
   const [shiftSaving, setShiftSaving] = useState(false)
@@ -279,6 +283,24 @@ export default function BranchPage() {
       setAddShiftBranch(null)
     },
     onError: () => { showToast('error', 'เพิ่มกะไม่สำเร็จ'); setShiftSaving(false) },
+  })
+
+  // ตั้ง/ถอด "กะที่สังกัด" ของพนักงาน — informational เท่านั้น ไม่กระทบการเช็คอินจริง
+  const assignShiftMutation = useMutation({
+    mutationFn: ({ employeeId, shiftId }: { employeeId: string; shiftId: string | null }) =>
+      api.patch(`/api/v1/admin/employees/${employeeId}`, { default_shift_id: shiftId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onError: () => showToast('error', 'อัปเดตพนักงานไม่สำเร็จ'),
+  })
+  const bulkAssignShiftMutation = useMutation({
+    mutationFn: ({ employeeIds, shiftId }: { employeeIds: string[]; shiftId: string }) =>
+      Promise.all(employeeIds.map(id => api.patch(`/api/v1/admin/employees/${id}`, { default_shift_id: shiftId }))),
+    onSuccess: (_, { employeeIds }) => {
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', `เพิ่ม ${employeeIds.length} คนเข้ากะแล้ว`)
+      setSelectedAddIds(new Set())
+    },
+    onError: () => showToast('error', 'เพิ่มพนักงานไม่สำเร็จ'),
   })
 
   const [page, setPage]           = useState(1)
@@ -668,10 +690,11 @@ export default function BranchPage() {
                       {branchShifts.map(s => {
                         const st = getShiftStatus(s)
                         const cfg = STATUS_CFG[st]
+                        const assignedCount = allEmployees.filter(e => e.default_shift_id === s.id).length
                         return (
                           <button
                             key={s.id}
-                            onClick={() => setDetailShift(s)}
+                            onClick={() => { setDetailShift(s); setShowAddEmpToShift(false); setShiftEmpSearch(''); setSelectedAddIds(new Set()) }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: 5,
                               padding: '5px 10px', borderRadius: 8,
@@ -686,6 +709,11 @@ export default function BranchPage() {
                             <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 400 }}>
                               {s.start_time}–{s.end_time}
                             </span>
+                            {assignedCount > 0 && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: '10px', color: '#6366f1', fontWeight: 700 }}>
+                                <Users size={10} /> {assignedCount}
+                              </span>
+                            )}
                             <ChevronsRight size={11} color="#cbd5e1" />
                           </button>
                         )
@@ -1444,42 +1472,144 @@ export default function BranchPage() {
                   )}
                 </div>
 
-                {/* Employee list */}
-                <div style={{ padding:'16px 20px' }}>
-                  <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12 }}>
-                    พนักงานในสาขา ({branchEmps.length} คน)
-                  </div>
-                  {branchEmps.length === 0 ? (
-                    <div style={{ textAlign:'center',padding:'24px 0',color:'#9ca3af',fontSize:'0.85rem' }}>ยังไม่มีพนักงานในสาขานี้</div>
-                  ) : (
-                    <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
-                      {branchEmps.map((e, idx) => (
-                        <div key={e.id} style={{
-                          display:'flex',alignItems:'center',gap:12,
-                          padding:'10px 12px',borderRadius:10,
-                          background:'#f9fafb',border:'1px solid #f1f5f9',
-                        }}>
-                          <div style={{
-                            width:36,height:36,borderRadius:'50%',
-                            background:avatarColor(idx),color:'#fff',
-                            display:'flex',alignItems:'center',justifyContent:'center',
-                            fontWeight:800,fontSize:'0.8rem',flexShrink:0,
-                          }}>
-                            {(e.nickname ?? e.first_name ?? '').slice(0,2)}
-                          </div>
-                          <div style={{ flex:1,minWidth:0 }}>
-                            <div style={{ fontWeight:700,fontSize:'0.875rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
-                              {e.first_name} {e.last_name}
-                            </div>
-                            <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginTop:1 }}>
-                              {e.nickname ?? ''}{e.department ? ` · ${e.department}` : ''}
-                            </div>
-                          </div>
+                {/* Employee assignment — informational เท่านั้น ไม่กระทบการเช็คอินจริง */}
+                {(() => {
+                  const inShiftEmps  = branchEmps.filter(e => e.default_shift_id === s.id)
+                  const otherEmps    = branchEmps.filter(e => e.default_shift_id !== s.id)
+                  const q            = shiftEmpSearch.trim().toLowerCase()
+                  const searchedOtherEmps = q
+                    ? otherEmps.filter(e => `${e.first_name} ${e.last_name} ${e.nickname ?? ''}`.toLowerCase().includes(q))
+                    : otherEmps
+                  const shiftNameOf = (shiftId: string | null) => shiftId ? (allShifts.find(sh => sh.id === shiftId)?.name ?? null) : null
+
+                  return (
+                    <div style={{ padding:'16px 20px' }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                        <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em' }}>
+                          พนักงานในกะนี้ ({inShiftEmps.length} คน)
                         </div>
-                      ))}
+                        <button onClick={() => { setShowAddEmpToShift(v => !v); setShiftEmpSearch('') }}
+                          style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 9px', borderRadius:6, border:'1px dashed #f97316', background:'#fff7ed', color:'#ea580c', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
+                          <Plus size={10} /> {showAddEmpToShift ? 'ปิด' : 'เพิ่มพนักงาน'}
+                        </button>
+                      </div>
+
+                      {inShiftEmps.length === 0 ? (
+                        <div style={{ textAlign:'center',padding:'24px 0',color:'#9ca3af',fontSize:'0.85rem' }}>ยังไม่มีพนักงานในกะนี้</div>
+                      ) : (
+                        <div style={{ display:'flex',flexDirection:'column',gap:2, marginBottom: showAddEmpToShift ? 16 : 0 }}>
+                          {inShiftEmps.map((e, idx) => (
+                            <div key={e.id} style={{
+                              display:'flex',alignItems:'center',gap:12,
+                              padding:'10px 12px',borderRadius:10,
+                              background:'#f9fafb',border:'1px solid #f1f5f9',
+                            }}>
+                              <div style={{
+                                width:36,height:36,borderRadius:'50%',
+                                background:avatarColor(idx),color:'#fff',
+                                display:'flex',alignItems:'center',justifyContent:'center',
+                                fontWeight:800,fontSize:'0.8rem',flexShrink:0,
+                              }}>
+                                {(e.nickname ?? e.first_name ?? '').slice(0,2)}
+                              </div>
+                              <div style={{ flex:1,minWidth:0 }}>
+                                <div style={{ fontWeight:700,fontSize:'0.875rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
+                                  {e.nickname || `${e.first_name} ${e.last_name}`}
+                                </div>
+                                <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginTop:1 }}>
+                                  {e.branch.name}{e.department ? ` · ${e.department}` : ''}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => assignShiftMutation.mutate({ employeeId: e.id, shiftId: null })}
+                                disabled={assignShiftMutation.isPending}
+                                style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', fontSize:'11px', fontWeight:700, cursor:'pointer', flexShrink:0 }}>
+                                ย้ายออก
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {showAddEmpToShift && (() => {
+                        const allVisibleIds  = searchedOtherEmps.map(e => e.id)
+                        const allSelected    = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedAddIds.has(id))
+                        function toggleOne(id: string) {
+                          setSelectedAddIds(prev => {
+                            const next = new Set(prev)
+                            next.has(id) ? next.delete(id) : next.add(id)
+                            return next
+                          })
+                        }
+                        function toggleAll() {
+                          setSelectedAddIds(prev => {
+                            if (allSelected) return new Set([...prev].filter(id => !allVisibleIds.includes(id)))
+                            return new Set([...prev, ...allVisibleIds])
+                          })
+                        }
+                        return (
+                          <div style={{ borderTop:'1px dashed #e5e7eb', paddingTop:12 }}>
+                            <input value={shiftEmpSearch} onChange={e => setShiftEmpSearch(e.target.value)}
+                              placeholder="ค้นหาชื่อ / ชื่อเล่น..." autoFocus
+                              style={{ width:'100%', padding:'7px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:'0.8rem', marginBottom:8, boxSizing:'border-box', fontFamily:'inherit' }} />
+
+                            {searchedOtherEmps.length === 0 ? (
+                              <div style={{ textAlign:'center',padding:'16px 0',color:'#9ca3af',fontSize:'0.8rem' }}>ไม่พบพนักงาน</div>
+                            ) : (
+                              <>
+                                <label style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 4px 8px', fontSize:'0.75rem', color:'#6b7280', cursor:'pointer', userSelect:'none' }}>
+                                  <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ width:14, height:14, cursor:'pointer' }} />
+                                  เลือกทั้งหมด ({searchedOtherEmps.length})
+                                </label>
+                                <div style={{ display:'flex',flexDirection:'column',gap:2, maxHeight:220, overflowY:'auto' }}>
+                                  {searchedOtherEmps.map((e, idx) => {
+                                    const curShiftName = shiftNameOf(e.default_shift_id)
+                                    const checked = selectedAddIds.has(e.id)
+                                    return (
+                                      <div key={e.id} onClick={() => toggleOne(e.id)}
+                                        style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:10,background: checked ? '#f0fdf4' : '#fff',border:`1px solid ${checked ? '#86efac' : '#f1f5f9'}`, cursor:'pointer' }}>
+                                        <input type="checkbox" checked={checked} onChange={() => toggleOne(e.id)} onClick={ev => ev.stopPropagation()}
+                                          style={{ width:15, height:15, cursor:'pointer', flexShrink:0 }} />
+                                        <div style={{
+                                          width:32,height:32,borderRadius:'50%',
+                                          background:avatarColor(idx),color:'#fff',
+                                          display:'flex',alignItems:'center',justifyContent:'center',
+                                          fontWeight:800,fontSize:'0.75rem',flexShrink:0,
+                                        }}>
+                                          {(e.nickname ?? e.first_name ?? '').slice(0,2)}
+                                        </div>
+                                        <div style={{ flex:1,minWidth:0 }}>
+                                          <div style={{ fontWeight:700,fontSize:'0.85rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
+                                            {e.nickname || `${e.first_name} ${e.last_name}`}
+                                          </div>
+                                          <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginTop:1 }}>
+                                            {e.branch.name} · {curShiftName ? `อยู่กะ ${curShiftName}` : 'ยังไม่มีกะ'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <button
+                                  onClick={() => bulkAssignShiftMutation.mutate({ employeeIds: [...selectedAddIds], shiftId: s.id })}
+                                  disabled={selectedAddIds.size === 0 || bulkAssignShiftMutation.isPending}
+                                  style={{
+                                    width:'100%', marginTop:10, padding:'9px', borderRadius:8, border:'none',
+                                    background: selectedAddIds.size === 0 ? '#e5e7eb' : '#16a34a',
+                                    color: selectedAddIds.size === 0 ? '#9ca3af' : '#fff',
+                                    fontSize:'0.82rem', fontWeight:700,
+                                    cursor: selectedAddIds.size === 0 ? 'not-allowed' : 'pointer',
+                                  }}>
+                                  {bulkAssignShiftMutation.isPending ? 'กำลังเพิ่ม...' : `+ เพิ่มที่เลือก (${selectedAddIds.size})`}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
             </div>
           </div>

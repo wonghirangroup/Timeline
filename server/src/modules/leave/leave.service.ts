@@ -15,7 +15,7 @@ export async function listLeaveRequests(tenantId: string, filters: {
     },
     include: {
       employee: {
-        select: { id: true, first_name: true, last_name: true, employee_code: true, branch: { select: { id: true, name: true } } },
+        select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } },
       },
     },
     orderBy: { created_at: 'desc' },
@@ -27,7 +27,7 @@ export async function getLeaveRequest(tenantId: string, id: string) {
     where: { id, tenant_id: tenantId },
     include: {
       employee: {
-        select: { id: true, first_name: true, last_name: true, employee_code: true },
+        select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true },
       },
     },
   })

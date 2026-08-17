@@ -1,13 +1,12 @@
 // admin/src/pages/holiday/index.tsx
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Check, Pin, Repeat2, CheckCircle2, Save } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Repeat2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
-type PageView = 'calendar' | 'branch-override'
 
 interface Holiday {
   id: string
@@ -15,9 +14,18 @@ interface Holiday {
   name: string
   type: HolidayType
   recurring: boolean
+  target_branches?: string[] | null
+  target_departments?: string[] | null
 }
 
-interface MockBranch { id: string; name: string; desc: string }
+// แผนก — สำเนาจาก employee/index.tsx (ตามธรรมเนียมของโปรเจกต์นี้ที่ define ค่าคงที่ต่อไฟล์)
+const DEPARTMENTS = [
+  '01 ผู้บริหาร',
+  '02 Office',
+  '03 พนักงานขาย',
+  '04 พนักงานขนส่ง',
+]
+function deptCode(d: string) { return d.slice(0, 2).trim() }
 
 // ── Thai National Holidays 2026 ───────────────────────────────────────────────
 const THAI_NATIONAL_2026: Omit<Holiday, 'id'>[] = [
@@ -47,14 +55,6 @@ const COMPANY_EXTRA: Omit<Holiday, 'id'>[] = [
   { date: '2026-04-16', name: 'หยุดพิเศษสงกรานต์',        type: 'COMPANY', recurring: false },
   { date: '2026-12-28', name: 'วันหยุดพักผ่อนบริษัท',     type: 'COMPANY', recurring: false },
 ]
-
-// วันหยุดพื้นฐาน: ปีใหม่ + สงกรานต์
-const BASE_HOLIDAY_DATES = new Set([
-  '2026-01-01','2026-01-02',
-  '2026-04-13','2026-04-14','2026-04-15','2026-04-16',
-])
-
-interface MockBranch { id: string; name: string; desc: string }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const TYPE_CFG: Record<HolidayType, { label: string; color: string; bg: string; dot: string }> = {
@@ -141,16 +141,26 @@ function MiniMonth({
 // ── Add/Edit Modal ────────────────────────────────────────────────────────────
 interface ModalProps {
   initial?: Partial<Holiday>
+  branches: { id: string; name: string }[]
   onSave: (h: Omit<Holiday, 'id'>) => void
   onClose: () => void
 }
 
-function HolidayModal({ initial, onSave, onClose }: ModalProps) {
+function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
   const [date,      setDate]      = useState(initial?.date ?? '')
   const [name,      setName]      = useState(initial?.name ?? '')
   const [type,      setType]      = useState<HolidayType>(initial?.type ?? 'NATIONAL')
   const [recurring, setRecurring] = useState(initial?.recurring ?? false)
+  const [targetBranches,    setTargetBranches]    = useState<Set<string>>(new Set(initial?.target_branches ?? []))
+  const [targetDepartments, setTargetDepartments] = useState<Set<string>>(new Set(initial?.target_departments ?? []))
   const overlayRef = useRef<HTMLDivElement>(null)
+
+  function toggleBranch(id: string) {
+    setTargetBranches(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleDept(d: string) {
+    setTargetDepartments(prev => { const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n })
+  }
 
   useEffect(() => {
     function h(e: MouseEvent) { if (overlayRef.current === e.target) onClose() }
@@ -162,15 +172,15 @@ function HolidayModal({ initial, onSave, onClose }: ModalProps) {
 
   return (
     <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-      <div style={{ background: '#fff', borderRadius: 18, width: 420, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: '#fff', borderRadius: 18, width: 480, maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{initial?.id ? 'แก้ไขวันหยุด' : '➕ เพิ่มวันหยุด'}</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>กรอกข้อมูลวันหยุดที่ต้องการเพิ่ม</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
         </div>
-        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>วันที่ <span style={{ color: '#dc2626' }}>*</span></label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -203,10 +213,49 @@ function HolidayModal({ initial, onSave, onClose }: ModalProps) {
               <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 1 }}>ระบบจะเพิ่มวันนี้ให้อัตโนมัติในปีถัดไป</div>
             </div>
           </label>
+
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>สาขาที่ให้หยุด</label>
+            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 8 }}>ไม่เลือก = หยุดทุกสาขา</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {branches.map(b => {
+                const active = targetBranches.has(b.id)
+                return (
+                  <button key={b.id} type="button" onClick={() => toggleBranch(b.id)}
+                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${active ? '#4f46e5' : '#e2e8f0'}`, background: active ? '#eef2ff' : '#fff', color: active ? '#4f46e5' : '#64748b' }}>
+                    {active && <Check size={11} style={{ verticalAlign: -1, marginRight: 3 }}/>}{b.name}
+                  </button>
+                )
+              })}
+              {branches.length === 0 && <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>ไม่มีสาขา</span>}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>แผนกที่ให้หยุด</label>
+            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 8 }}>ไม่เลือก = หยุดทุกแผนก</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {DEPARTMENTS.map(d => {
+                const active = targetDepartments.has(d)
+                return (
+                  <button key={d} type="button" onClick={() => toggleDept(d)}
+                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${active ? '#4f46e5' : '#e2e8f0'}`, background: active ? '#eef2ff' : '#fff', color: active ? '#4f46e5' : '#64748b' }}>
+                    {active && <Check size={11} style={{ verticalAlign: -1, marginRight: 3 }}/>}{d}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
-          <button onClick={() => canSave && onSave({ date, name: name.trim(), type, recurring })} disabled={!canSave}
+          <button onClick={() => canSave && onSave({
+              date, name: name.trim(), type, recurring,
+              target_branches:    targetBranches.size    > 0 ? [...targetBranches]    : null,
+              target_departments: targetDepartments.size > 0 ? [...targetDepartments] : null,
+            })} disabled={!canSave}
             style={{ padding: '9px 22px', borderRadius: 9, border: 'none', fontSize: '0.875rem', fontWeight: 700, cursor: canSave ? 'pointer' : 'not-allowed', background: canSave ? '#4f46e5' : '#e2e8f0', color: canSave ? '#fff' : '#94a3b8' }}>
             บันทึก
           </button>
@@ -216,128 +265,6 @@ function HolidayModal({ initial, onSave, onClose }: ModalProps) {
   )
 }
 
-// ── Branch Override View ──────────────────────────────────────────────────────
-function BranchOverrideView({
-  holidays, branches, branchOverrides, onToggle, onSave,
-}: {
-  holidays: Holiday[]
-  branches: MockBranch[]
-  branchOverrides: Record<string, Set<string>>
-  onToggle: (branchId: string, date: string) => void
-  onSave: () => void
-}) {
-  const [selBranch, setSelBranch] = useState(() => branches[0]?.id ?? '')
-
-  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date))
-  const branchSet = branchOverrides[selBranch] ?? new Set()
-  const checkedCount = sorted.filter(h => branchSet.has(h.date)).length
-
-  function selectAll() {
-    sorted.forEach(h => { if (!branchSet.has(h.date)) onToggle(selBranch, h.date) })
-  }
-  function deselectAll() {
-    sorted.forEach(h => { if (branchSet.has(h.date)) onToggle(selBranch, h.date) })
-  }
-  function setBaseOnly() {
-    // เลือกเฉพาะปีใหม่ + สงกรานต์
-    sorted.forEach(h => {
-      const shouldHave = BASE_HOLIDAY_DATES.has(h.date)
-      const hasNow = branchSet.has(h.date)
-      if (shouldHave !== hasNow) onToggle(selBranch, h.date)
-    })
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Info banner */}
-      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 16px', fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.6 }}>
-        <strong>สิทธิ์วันหยุดตามสาขา</strong> — กำหนดว่าพนักงานแต่ละสาขาได้หยุดวันไหนบ้าง<br />
-        พนักงานที่ทำงานในวันที่สาขาตัวเองควรหยุด → Admin สามารถ approve วันชดเชยได้
-      </div>
-
-      {/* Branch selector */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {branches.map(b => {
-          const isActive = selBranch === b.id
-          const cnt = [...(branchOverrides[b.id] ?? new Set())].length
-          return (
-            <button key={b.id} onClick={() => setSelBranch(b.id)}
-              style={{ padding: '8px 16px', borderRadius: 10, border: `2px solid ${isActive ? '#4f46e5' : '#e2e8f0'}`, background: isActive ? '#eef2ff' : '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: isActive ? 700 : 500, color: isActive ? '#4f46e5' : '#374151' }}>{b.name}</div>
-              <div style={{ fontSize: '0.7rem', color: isActive ? '#6366f1' : '#9ca3af', marginTop: 1 }}>{cnt} วันหยุด · {b.desc.split('—')[0].trim()}</div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Branch detail + quick actions */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>
-              {branches.find(b => b.id === selBranch)?.name}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>
-              {branches.find(b => b.id === selBranch)?.desc}
-              {' '}— ได้ <strong style={{ color: '#4f46e5' }}>{checkedCount}</strong>/{sorted.length} วันหยุด
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={selectAll} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #d1fae5', background: '#ecfdf5', color: '#059669', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>เลือกทั้งหมด</button>
-            <button onClick={setBaseOnly} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>ปีใหม่+สงกรานต์</button>
-            <button onClick={deselectAll} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>ล้างทั้งหมด</button>
-          </div>
-        </div>
-
-        {/* Holiday checklist */}
-        <div style={{ maxHeight: 420, overflowY: 'auto' }}>
-          {sorted.map((h, idx) => {
-            const tc = TYPE_CFG[h.type]
-            const isChecked = branchSet.has(h.date)
-            const isBase = BASE_HOLIDAY_DATES.has(h.date)
-            return (
-              <div key={h.id} onClick={() => onToggle(selBranch, h.date)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', borderBottom: idx < sorted.length - 1 ? '1px solid #f8fafc' : 'none', background: isChecked ? '#fafbff' : '#fff', transition: 'background 0.1s' }}
-                onMouseEnter={e => e.currentTarget.style.background = isChecked ? '#f5f3ff' : '#f9fafb'}
-                onMouseLeave={e => e.currentTarget.style.background = isChecked ? '#fafbff' : '#fff'}>
-                {/* Checkbox */}
-                <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${isChecked ? '#4f46e5' : '#d1d5db'}`, background: isChecked ? '#4f46e5' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
-                  {isChecked && <Check size={12} color="#fff" strokeWidth={3}/>}
-                </div>
-                {/* Date */}
-                <div style={{ width: 48, textAlign: 'center', flexShrink: 0 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: tc.color, lineHeight: 1 }}>{h.date.slice(8)}</div>
-                  <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{MONTH_TH[Number(h.date.slice(5,7))-1].slice(0,3)}</div>
-                </div>
-                {/* Info */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: isChecked ? '#111827' : '#6b7280' }}>{h.name}</div>
-                  <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
-                    <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: tc.bg, color: tc.color, fontWeight: 600 }}>{tc.label}</span>
-                    {isBase && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#eff6ff', color: '#2563eb', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Pin size={9}/>วันหยุดพื้นฐาน</span>}
-                    {h.recurring && <span style={{ fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Repeat2 size={9}/>ประจำปี</span>}
-                  </div>
-                </div>
-                {/* Status badge */}
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: isChecked ? '#fff7ed' : '#f3f4f6', color: isChecked ? '#ea580c' : '#9ca3af', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  {isChecked ? <><CheckCircle2 size={11}/>ได้หยุด</> : '— ไม่หยุด'}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Save button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={onSave}
-          style={{ padding: '10px 28px', borderRadius: 10, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <Save size={15}/>บันทึกสิทธิ์วันหยุด
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function HolidayPage() {
@@ -350,8 +277,6 @@ export default function HolidayPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Holiday | null>(null)
   const [filterType,    setFilterType]    = useState<HolidayType | 'ALL'>('ALL')
   const [importConfirm, setImportConfirm] = useState(false)
-  const [pageView,      setPageView]      = useState<PageView>('calendar')
-  const [branchOverrides, setBranchOverrides] = useState<Record<string, Set<string>>>({})
 
   const { data: holidays = [] } = useQuery<Holiday[]>({
     queryKey: ['admin', 'holidays', year],
@@ -367,8 +292,6 @@ export default function HolidayPage() {
     queryKey: ['admin', 'branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
-
-  const branches: MockBranch[] = apiBranches.map(b => ({ id: b.id, name: b.name, desc: '' }))
 
   function invalidate() { qc.invalidateQueries({ queryKey: ['admin', 'holidays', year] }) }
 
@@ -436,17 +359,14 @@ export default function HolidayPage() {
     importMutation.mutate([...THAI_NATIONAL_2026, ...COMPANY_EXTRA])
   }
 
-  function handleBranchToggle(branchId: string, date: string) {
-    setBranchOverrides(prev => {
-      const newSet = new Set(prev[branchId] ?? [])
-      if (newSet.has(date)) newSet.delete(date)
-      else newSet.add(date)
-      return { ...prev, [branchId]: newSet }
-    })
-  }
-
-  function handleSaveBranchOverride() {
-    showToast('success', 'บันทึกสิทธิ์วันหยุดต่อสาขาเรียบร้อยแล้ว')
+  // label เล็กๆ บอกว่าวันหยุดนี้จำกัดสาขา/แผนกไหมสำหรับแสดงในรายการ
+  function targetLabel(h: Holiday): string | null {
+    const branchNames = (h.target_branches ?? []).map(id => apiBranches.find(b => b.id === id)?.name ?? id)
+    const deptCount = (h.target_departments ?? []).length
+    const parts: string[] = []
+    if (branchNames.length > 0) parts.push(branchNames.length === 1 ? branchNames[0] : `${branchNames.length} สาขา`)
+    if (deptCount > 0) parts.push(`${deptCount} แผนก`)
+    return parts.length > 0 ? parts.join(' · ') : null
   }
 
   function thDate(d: string) {
@@ -465,44 +385,12 @@ export default function HolidayPage() {
 
   return (
     <div>
-      {/* ── Page tab bar ── */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #f1f5f9', marginBottom: 20 }}>
-        {([
-          { id: 'calendar'       as PageView, label: '📅 วันหยุดประจำปี' },
-          { id: 'branch-override' as PageView, label: '🏢 สิทธิ์ตามสาขา' },
-        ] as const).map(v => {
-          const isActive = pageView === v.id
-          return (
-            <button key={v.id} onClick={() => setPageView(v.id)}
-              style={{ padding: '8px 18px', border: 'none', cursor: 'pointer', fontSize: '0.84rem', fontWeight: isActive ? 700 : 400,
-                color: isActive ? '#4f46e5' : '#6b7280', background: isActive ? '#eef2ff' : 'transparent',
-                borderBottom: `2px solid ${isActive ? '#6366f1' : 'transparent'}`, borderRadius: '6px 6px 0 0', marginBottom: -2, whiteSpace: 'nowrap' }}>
-              {v.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ── Branch Override View ── */}
-      {pageView === 'branch-override' && (
-        <BranchOverrideView
-          holidays={yearHolidays}
-          branches={branches}
-          branchOverrides={branchOverrides}
-          onToggle={handleBranchToggle}
-          onSave={handleSaveBranchOverride}
-        />
-      )}
-
-      {/* ── Calendar View ── */}
-      {pageView === 'calendar' && (
-        <>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>วันหยุดประจำปี</h1>
               <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-                จัดการวันหยุดนักขัตฤกษ์และวันหยุดบริษัท — ไปที่แท็บ "สิทธิ์ตามสาขา" เพื่อตั้งค่าสิทธิ์ต่อสาขา
+                จัดการวันหยุดนักขัตฤกษ์และวันหยุดบริษัท — กดแก้ไขวันหยุดเพื่อเลือกสาขา/แผนกที่จะให้หยุด
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -582,9 +470,10 @@ export default function HolidayPage() {
                           <div key={h.id} style={{ padding: '8px 10px', borderRadius: 8, marginBottom: 4, background: tc.bg, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: '0.84rem', fontWeight: 700, color: tc.color }}>{h.name}</div>
-                              <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: tc.color, fontWeight: 600 }}>{tc.label}</span>
                                 {h.recurring && <span style={{ fontSize: '0.68rem', background: 'rgba(124,58,237,0.1)', padding: '1px 6px', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}>🔁 ทำซ้ำ</span>}
+                                {targetLabel(h) && <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: '#374151', fontWeight: 600 }}>🎯 {targetLabel(h)}</span>}
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -627,9 +516,10 @@ export default function HolidayPage() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</div>
-                          <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: tc.bg, color: tc.color }}>{tc.label}</span>
                             {h.recurring && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}>🔁</span>}
+                            {targetLabel(h) && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}>🎯 {targetLabel(h)}</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
@@ -653,12 +543,10 @@ export default function HolidayPage() {
               </div>
             </div>
           </div>
-        </>
-      )}
 
       {/* Add / Edit Modal */}
-      {modal?.mode === 'add' && <HolidayModal initial={modal.date ? { date: modal.date } : undefined} onSave={handleAdd} onClose={() => setModal(null)} />}
-      {modal?.mode === 'edit' && <HolidayModal initial={modal.holiday} onSave={handleEdit} onClose={() => setModal(null)} />}
+      {modal?.mode === 'add' && <HolidayModal initial={modal.date ? { date: modal.date } : undefined} branches={apiBranches} onSave={handleAdd} onClose={() => setModal(null)} />}
+      {modal?.mode === 'edit' && <HolidayModal initial={modal.holiday} branches={apiBranches} onSave={handleEdit} onClose={() => setModal(null)} />}
 
       {/* Delete confirm */}
       {deleteConfirm && (

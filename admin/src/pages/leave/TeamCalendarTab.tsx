@@ -9,13 +9,13 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; branch: { id: string; name: string } }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
 interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; employee: ApiEmployee }
-interface ApiHoliday { id: string; date: string; name: string }
+interface ApiHoliday { id: string; date: string; name: string; target_branches: string[] | null; target_departments: string[] | null }
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
 interface DayOff { date: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
 interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
-interface Holiday { date: string; name: string }
+interface Holiday { date: string; name: string; target_branches: string[] | null }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
@@ -112,7 +112,10 @@ function getEventsForDate(date: string, branchFilter: string, dayOffs: DayOff[],
     l.start_date <= date && l.end_date >= date &&
     (branchFilter === 'all' || l.branch_id === branchFilter)
   )
-  const holiday = holidays.find(h => h.date.slice(0, 10) === date)
+  const holiday = holidays.find(h =>
+    h.date.slice(0, 10) === date &&
+    (branchFilter === 'all' || !h.target_branches?.length || h.target_branches.includes(branchFilter))
+  )
   return { dayOffs: filteredDayOffs, leaves: filteredLeaves, holiday }
 }
 
@@ -421,7 +424,7 @@ export default function TeamCalendarTab() {
 
   const dayOffs: DayOff[]    = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
   const leaves: LeaveReq[]   = rawLeaves.map(toDisplayLeave)
-  const holidays: Holiday[]  = rawHolidays.map(h => ({ date: h.date.slice(0, 10), name: h.name }))
+  const holidays: Holiday[]  = rawHolidays.map(h => ({ date: h.date.slice(0, 10), name: h.name, target_branches: h.target_branches }))
 
   const daysInMonth = getDaysInMonth(month)
   const firstDow    = getFirstDow(month)

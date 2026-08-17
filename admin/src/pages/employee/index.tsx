@@ -118,7 +118,7 @@ export default function EmployeePage() {
 
   // ── Add stepper state ────────────────────────────────────────────────────────
   const [addStep, setAddStep] = useState(1)
-  const [addErrors, setAddErrors] = useState<{ first_name?: string; last_name?: string }>({})
+  const [addErrors, setAddErrors] = useState<{ first_name?: string; last_name?: string; department?: string }>({})
   const [showOptionalFields, setShowOptionalFields] = useState(false)
   const [addForm, setAddForm] = useState({
     prefix: '', first_name: '', last_name: '', nickname: '',
@@ -222,16 +222,6 @@ export default function EmployeePage() {
     onError: () => showToast('error', 'ลบพนักงานไม่สำเร็จ'),
   })
   const [statusModalTarget, setStatusModalTarget] = useState<ApiEmployee | null>(null)
-  const [bulkDept, setBulkDept] = useState('')
-  const [bulkMode, setBulkMode] = useState<'WEEKLY' | 'MONTHLY_BATCH'>('MONTHLY_BATCH')
-  const bulkModeMutation = useMutation({
-    mutationFn: () => api.patch('/api/v1/admin/employees/bulk-weekly-off-mode', { department: bulkDept, mode: bulkMode }).then(r => r.data.data),
-    onSuccess: (data: { count: number }) => {
-      qc.invalidateQueries({ queryKey: ['employees'] })
-      showToast('success', `ตั้งค่าโหมดจองวันหยุดให้ ${data.count} คนสำเร็จ`)
-    },
-    onError: () => showToast('error', 'ตั้งค่าไม่สำเร็จ'),
-  })
 
   async function handleAddSave() {
     setSaving(true)
@@ -301,23 +291,6 @@ export default function EmployeePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
         <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
           + เพิ่มพนักงาน
-        </button>
-      </div>
-
-      {/* Bulk: ตั้งค่าโหมดจองวันหยุดทั้งแผนก */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px', marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>ตั้งค่าโหมดจองวันหยุดทั้งแผนก:</span>
-        <select value={bulkDept} onChange={e => setBulkDept(e.target.value)} style={{ ...input, width: 'auto', flex: isMobile ? '1 1 100%' : 'none', minWidth: 160 }}>
-          <option value="">— เลือกแผนก —</option>
-          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select value={bulkMode} onChange={e => setBulkMode(e.target.value as any)} style={{ ...input, width: 'auto', flex: isMobile ? '1 1 100%' : 'none', minWidth: 200 }}>
-          <option value="MONTHLY_BATCH">{WEEKLY_OFF_MODE_LABEL.MONTHLY_BATCH}</option>
-          <option value="WEEKLY">{WEEKLY_OFF_MODE_LABEL.WEEKLY}</option>
-        </select>
-        <button onClick={() => bulkModeMutation.mutate()} disabled={!bulkDept || bulkModeMutation.isPending}
-          style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: !bulkDept ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !bulkDept ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-          {bulkModeMutation.isPending ? 'กำลังบันทึก...' : 'ใช้กับทั้งแผนกนี้'}
         </button>
       </div>
 
@@ -877,11 +850,14 @@ export default function EmployeePage() {
                       <input type="number" value={af.salary} onChange={e => setAf({ salary: e.target.value })} placeholder="18000" style={inp} min="0" />
                     </div>
                     <div>
-                      <label style={lbl}>แผนก</label>
-                      <select value={af.department} onChange={e => setAf({ department: e.target.value })} style={inp}>
+                      <label style={lbl}>แผนก <span style={required}>*</span></label>
+                      <select value={af.department}
+                        onChange={e => { setAf({ department: e.target.value }); if (e.target.value) setAddErrors(er => ({ ...er, department: undefined })) }}
+                        style={{ ...inp, ...(addErrors.department ? { border: '1.5px solid #ef4444', background: '#fff5f5' } : {}) }}>
                         <option value="">เลือกแผนก</option>
                         {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
+                      {addErrors.department && <p style={{ fontSize: '11px', color: '#ef4444', margin: '3px 0 0' }}>{addErrors.department}</p>}
                     </div>
                     <div>
                       <label style={lbl}>สถานะบัญชี</label>
@@ -980,8 +956,12 @@ export default function EmployeePage() {
                         const errs: { first_name?: string; last_name?: string } = {}
                         if (!af.first_name.trim()) errs.first_name = 'กรุณากรอกชื่อจริง'
                         if (!af.last_name.trim()) errs.last_name = 'กรุณากรอกนามสกุล'
-                        if (Object.keys(errs).length) { setAddErrors(errs); return }
-                        setAddErrors({})
+                        if (Object.keys(errs).length) { setAddErrors(er => ({ ...er, ...errs })); return }
+                        setAddErrors(er => ({ ...er, first_name: undefined, last_name: undefined }))
+                      }
+                      if (addStep === 4) {
+                        if (!af.department) { setAddErrors(er => ({ ...er, department: 'กรุณาเลือกแผนก' })); return }
+                        setAddErrors(er => ({ ...er, department: undefined }))
                       }
                       setAddStep(s => s + 1)
                     }}

@@ -87,6 +87,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           line_user_id: { type: 'string' },
           is_active:    { type: 'boolean' },
           weekly_off_mode: { type: 'string', enum: ['WEEKLY', 'MONTHLY_BATCH'] },
+          default_shift_id: { type: ['string', 'null'] },
         },
       },
     },
