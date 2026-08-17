@@ -192,18 +192,25 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
         </div>
       )}
 
-      {/* Day-off avatar chips */}
+      {/* Day-off name chips */}
       {totalOff > 0 && (
-        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 3 }}>
-          {shown.map(d => <AvatarChip key={d.employee_id} name={d.name} isPending={d.status === 'PENDING'} />)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 3 }}>
+          {shown.map(d => {
+            const short = d.nickname || d.name.split(' ')[0]
+            return (
+              <div key={d.employee_id} title={d.name} style={{
+                fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
+                padding: '0px 5px', borderRadius: 5,
+                background: '#FFF7ED', color: '#c2410c',
+                border: d.status === 'PENDING' ? '1px dashed #ea580c' : '1px solid #ea580c55',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {short}
+              </div>
+            )
+          })}
           {overflow > 0 && (
-            <div style={{
-              width: 24, height: 24, borderRadius: '50%', fontSize: '0.58rem',
-              fontWeight: 700, color: '#6b7280', background: '#f3f4f6',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              +{overflow}
-            </div>
+            <div style={{ fontSize: '0.56rem', color: '#9ca3af', fontWeight: 700, paddingLeft: 2 }}>+{overflow} คน</div>
           )}
         </div>
       )}
@@ -452,31 +459,71 @@ export default function TeamCalendarTab() {
 
   function exportPdf() {
     const win = window.open('', '_blank'); if (!win) return
-    const dayOffRows = [...allDayOffsThisMonth].sort((a, b) => a.date.localeCompare(b.date)).map(d =>
-      `<tr><td>${fmtDateFull(d.date)}</td><td>${d.name}</td><td>${d.branch_name}</td><td>${STATUS_LABEL_TH[d.status]}</td></tr>`
-    ).join('')
-    const leaveRows = [...allLeavesThisMonth].sort((a, b) => a.start_date.localeCompare(b.start_date)).map(l => {
-      const range = l.start_date === l.end_date ? fmtDateFull(l.start_date) : `${fmtDateFull(l.start_date)} – ${fmtDateFull(l.end_date)}`
-      return `<tr><td>${range}</td><td>${l.name}</td><td>${l.branch_name}</td><td>${l.display_label}</td><td>${STATUS_LABEL_TH[l.status]}</td></tr>`
-    }).join('')
+
+    function cellHtml(day: number): string {
+      if (day < 1 || day > daysInMonth) return '<td class="empty"></td>'
+      const dateStr = toDateStr(month, day)
+      const dow = (firstDow + day - 1) % 7
+      const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(dateStr, branchFilter, dayOffs, leaves, holidays)
+      const activeOffs   = evDayOffs.filter(d => d.status !== 'REJECTED')
+      const activeLeaves = evLeaves.filter(l => l.status !== 'REJECTED')
+      const offChips = activeOffs.map(d => {
+        const short = d.nickname || d.name.split(' ')[0]
+        return `<div class="chip off${d.status === 'PENDING' ? ' pending' : ''}">${short}</div>`
+      }).join('')
+      const leaveChips = activeLeaves.map(l => {
+        const cfg   = getLeaveCfg(l)
+        const short = l.nickname || l.name.split(' ')[0]
+        return `<div class="chip" style="background:${cfg.light};color:${cfg.color};border-color:${cfg.color}">${short}</div>`
+      }).join('')
+      const holidayHtml = holiday ? `<div class="holiday">🎌 ${holiday.name}</div>` : ''
+      return `<td class="${dow === 0 ? 'sun' : dow === 6 ? 'sat' : ''}${holiday ? ' hol' : ''}">
+        <div class="daynum">${day}</div>${holidayHtml}${offChips}${leaveChips}
+      </td>`
+    }
+
+    const weeks: string[] = []
+    for (let w = 0; w < totalCells / 7; w++) {
+      const cells = Array.from({ length: 7 }, (_, c) => cellHtml(w * 7 + c - firstDow + 1)).join('')
+      weeks.push(`<tr>${cells}</tr>`)
+    }
+
+    const legendItems = [
+      ['#ea580c', 'หยุดประจำ'],
+      ...Object.values(LEAVE_CFG).map(c => [c.color, c.label] as [string, string]),
+    ]
+
     win.document.write(`<html><head><title>ปฏิทินรวม — ${fmtMonthTH(month)}</title>
       <style>
-        body{font-family:'Sarabun',sans-serif;padding:32px;color:#1e293b}
+        @page { size: landscape; margin: 14mm; }
+        body{font-family:'Sarabun',sans-serif;padding:16px;color:#1e293b}
         h1{font-size:20px;margin:0 0 2px}
-        .sub{font-size:13px;color:#6b7280;margin:0 0 20px}
-        h2{font-size:15px;margin:24px 0 8px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{border:1px solid #e5e7eb;padding:6px 10px;text-align:left}
-        th{background:#f9fafb}
+        .sub{font-size:13px;color:#6b7280;margin:0 0 16px}
+        table{width:100%;border-collapse:collapse;table-layout:fixed}
+        thead th{font-size:11px;color:#6b7280;font-weight:700;padding:4px 0;border-bottom:1px solid #e5e7eb}
+        td{border:1px solid #e5e7eb;vertical-align:top;height:80px;padding:3px;font-size:9px;overflow:hidden}
+        td.empty{background:#fafafa;border-color:#f3f4f6}
+        td.sun .daynum{color:#dc2626}
+        td.sat .daynum{color:#2563eb}
+        td.hol{background:#fef2f2}
+        .daynum{font-size:11px;font-weight:700;margin-bottom:2px}
+        .holiday{font-size:8px;color:#dc2626;font-weight:700;margin-bottom:2px}
+        .chip{font-size:8px;font-weight:700;line-height:1.5;padding:0 4px;border-radius:4px;border:1px solid;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .chip.off{background:#FFF7ED;color:#c2410c;border-color:#ea580c}
+        .chip.off.pending{border-style:dashed}
+        .legend{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap}
+        .legend span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#374151}
+        .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
       </style></head><body>
       <h1>ปฏิทินรวม — ${fmtMonthTH(month)}</h1>
       <div class="sub">${branchLabel}</div>
-      <h2>วันหยุดประจำ (${allDayOffsThisMonth.length} รายการ)</h2>
-      <table><thead><tr><th>วันที่</th><th>พนักงาน</th><th>สาขา</th><th>สถานะ</th></tr></thead>
-      <tbody>${dayOffRows || '<tr><td colspan="4">ไม่มีข้อมูล</td></tr>'}</tbody></table>
-      <h2>วันลา (${allLeavesThisMonth.length} รายการ)</h2>
-      <table><thead><tr><th>วันที่</th><th>พนักงาน</th><th>สาขา</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
-      <tbody>${leaveRows || '<tr><td colspan="5">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+      <table>
+        <thead><tr>${DAYS_SHORT.map(d => `<th>${d}</th>`).join('')}</tr></thead>
+        <tbody>${weeks.join('')}</tbody>
+      </table>
+      <div class="legend">
+        ${legendItems.map(([color, label]) => `<span><span class="dot" style="background:${color}"></span>${label}</span>`).join('')}
+      </div>
       </body></html>`)
     win.document.close(); win.print()
   }
