@@ -26,7 +26,7 @@ export async function liffLogin(params: {
   liff_token: string
   line_user_id: string
   line_channel_id: string
-}): Promise<{ token: string; employee: { id: string; first_name: string; last_name: string; employee_code: string; branch: { id: string; name: string } } }> {
+}): Promise<{ token: string; employee: { id: string; first_name: string; last_name: string; employee_code: string; branch: { id: string; name: string }; weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH' } }> {
   const res = await axios.post(
     `${BASE}/employee/auth/liff`,
     params,

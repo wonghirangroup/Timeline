@@ -7,6 +7,7 @@ export interface EmployeeProfile {
   last_name: string
   employee_code: string
   branch: { id: string; name: string }
+  weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
 }
 
 interface AuthStore {

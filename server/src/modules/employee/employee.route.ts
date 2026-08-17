@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee } from './employee.service'
+import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode } from './employee.service'
 
 const TAG = 'Admin'
 
@@ -86,6 +86,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           hired_at:     { type: 'string', description: 'YYYY-MM-DD' },
           line_user_id: { type: 'string' },
           is_active:    { type: 'boolean' },
+          weekly_off_mode: { type: 'string', enum: ['WEEKLY', 'MONTHLY_BATCH'] },
         },
       },
     },
@@ -93,6 +94,27 @@ export async function employeeRoutes(app: FastifyInstance) {
     const employee = await updateEmployee(req.tenantId, req.params.id, req.body)
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
     return ok(employee, 'อัปเดตพนักงานสำเร็จ')
+  })
+
+  // PATCH /api/v1/admin/employees/bulk-weekly-off-mode — ตั้งค่าโหมดจองวันหยุดทั้งแผนกในคราวเดียว
+  app.patch('/employees/bulk-weekly-off-mode', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ตั้งค่า weekly_off_mode ให้พนักงานทั้งแผนกในคราวเดียว',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['department', 'mode'],
+        properties: {
+          department: { type: 'string' },
+          mode:       { type: 'string', enum: ['WEEKLY', 'MONTHLY_BATCH'] },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const count = await bulkSetWeeklyOffMode(req.tenantId, req.body.department, req.body.mode)
+    return ok({ count }, `อัปเดต ${count} คนสำเร็จ`)
   })
 
   // GET /api/v1/admin/employees/:id/profile (Employee self profile via LIFF)

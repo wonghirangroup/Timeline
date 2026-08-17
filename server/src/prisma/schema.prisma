@@ -113,6 +113,7 @@ model Employee {
   hired_at      DateTime? @db.Date
   line_user_id  String?   // mapped after Line verify
   is_active     Boolean   @default(true)
+  weekly_off_mode WeeklyOffMode @default(WEEKLY)  // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
@@ -350,6 +351,11 @@ model OtRequest {
 // ─────────────────────────────────────────────
 // WEEKLY OFF REQUEST
 // ─────────────────────────────────────────────
+
+enum WeeklyOffMode {
+  WEEKLY         // จองทีละสัปดาห์ (เดิม) — ใช้ POST /employee/weekly-off
+  MONTHLY_BATCH  // ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว — ใช้ POST /employee/weekly-off/monthly-batch
+}
 
 model WeeklyOffRequest {
   id          String          @id @default(uuid())

@@ -110,7 +110,57 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
   })
 }
 
-// ── Monthly Off ─────────────────────────────────────────────────────────────
+// ── Monthly Batch Off (weekly_off_mode = MONTHLY_BATCH) ──────────────────────
+// พนักงาน mode นี้ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว (1 วัน/สัปดาห์ x 4-5 สัปดาห์)
+// ไม่บังคับจำนวนตายตัวเป็น 4 — คำนวณจากจำนวนวันจันทร์จริงในเดือนนั้น (บางเดือนมี 5)
+
+function getWeeksOfMonth(month: string): string[] {
+  const [y, m] = month.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const mondays = new Set<string>()
+  for (let day = 1; day <= lastDay; day++) {
+    const dateStr = `${month}-${String(day).padStart(2, '0')}`
+    mondays.add(getMondayOf(dateStr).toISOString().slice(0, 10))
+  }
+  return [...mondays].sort()
+}
+
+export async function createMonthlyBatchOff(tenantId: string, data: {
+  employee_id: string
+  month: string       // YYYY-MM
+  dates: string[]      // YYYY-MM-DD — 1 วันต่อสัปดาห์ ต้องครบทุกสัปดาห์ของเดือน
+}) {
+  const requiredWeeks = getWeeksOfMonth(data.month)
+
+  const picked = data.dates.map(dateStr => ({
+    dateStr,
+    weekStart: getMondayOf(dateStr).toISOString().slice(0, 10),
+  }))
+  const pickedWeeks = new Set(picked.map(p => p.weekStart))
+
+  if (pickedWeeks.size !== picked.length) throw new Error('DUPLICATE_WEEK')
+  if (picked.length !== requiredWeeks.length || requiredWeeks.some(w => !pickedWeeks.has(w))) {
+    throw new Error('INCOMPLETE_MONTH')
+  }
+
+  try {
+    return await prisma.$transaction(
+      picked.map(p => {
+        const week_start = new Date(p.weekStart + 'T00:00:00Z')
+        const day_of_week = new Date(p.dateStr + 'T00:00:00Z').getUTCDay()
+        return prisma.weeklyOffRequest.create({
+          data: { tenant_id: tenantId, employee_id: data.employee_id, week_start, day_of_week },
+          include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } } },
+        })
+      }),
+    )
+  } catch (e: any) {
+    if (e.code === 'P2002') throw new Error('ALREADY_REQUESTED')
+    throw e
+  }
+}
+
+// ── Monthly Off (เดิม — ยังไม่มี frontend เรียกใช้) ───────────────────────────
 
 export async function createMonthlyOff(tenantId: string, data: {
   employee_id: string

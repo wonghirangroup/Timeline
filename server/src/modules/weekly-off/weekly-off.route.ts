@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
+import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
 
@@ -279,6 +279,35 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดเดือนนี้แล้ว'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ขอวันหยุดทั้งเดือนรวดเดียว (weekly_off_mode = MONTHLY_BATCH) ──
+  app.post('/employee/weekly-off/monthly-batch', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ขอวันหยุดครบทุกสัปดาห์ในเดือนรวดเดียว (LIFF) — สำหรับ employee ที่ weekly_off_mode = MONTHLY_BATCH',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'month', 'dates'],
+        properties: {
+          employee_id: { type: 'string' },
+          month:       { type: 'string', description: 'YYYY-MM' },
+          dates:       { type: 'array', items: { type: 'string' }, description: 'YYYY-MM-DD หนึ่งวันต่อสัปดาห์ ต้องครบทุกสัปดาห์ของเดือน' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await createMonthlyBatchOff(req.tenantId, req.body)
+      return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดทั้งเดือนสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว'))
+      if (e.message === 'INCOMPLETE_MONTH')  return reply.code(400).send(fail('INCOMPLETE_MONTH', 'ต้องเลือกวันหยุดให้ครบทุกสัปดาห์ของเดือนก่อนส่ง'))
+      if (e.message === 'DUPLICATE_WEEK')    return reply.code(400).send(fail('DUPLICATE_WEEK', 'เลือกวันหยุดซ้ำสัปดาห์เดียวกัน'))
       throw e
     }
   })

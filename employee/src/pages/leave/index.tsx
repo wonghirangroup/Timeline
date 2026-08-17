@@ -396,6 +396,232 @@ function fmtWeekRange(mondayStr: string): string {
   return `${m0.getUTCDate()} ${MONTHS_TH[m0.getUTCMonth()]} – ${m6.getUTCDate()} ${MONTHS_TH[m6.getUTCMonth()]} ${m6.getUTCFullYear() + 543}`
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Monthly Batch Booking Tab (weekly_off_mode = MONTHLY_BATCH)
+// ต้องเลือกให้ครบทุกสัปดาห์ของเดือนก่อนถึงจะส่งคำขอได้ (all-or-nothing)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getTodayStr(): string {
+  const bkk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+  return `${bkk.getFullYear()}-${pad(bkk.getMonth() + 1)}-${pad(bkk.getDate())}`
+}
+function getMondayOfDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  const day = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day))
+  return d.toISOString().slice(0, 10)
+}
+function getWeeksOfMonth(month: string): string[] {
+  const days = getDaysInMonth(month)
+  const mondays = new Set<string>()
+  for (let day = 1; day <= days; day++) mondays.add(getMondayOfDate(toDateStr(month, day)))
+  return [...mondays].sort()
+}
+
+function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
+  const qc = useQueryClient()
+  const todayStr  = getTodayStr()
+  const thisMonth = todayStr.slice(0, 7)
+  const [month, setMonth] = useState(thisMonth)
+  const [picks, setPicks] = useState<Record<string, string>>({})   // mondayISO → dateStr เลือกไว้
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const requiredWeeks = getWeeksOfMonth(month)
+  const daysInMonth   = getDaysInMonth(month)
+  const firstDow      = getFirstDow(month)
+  const totalCells    = Math.ceil((daysInMonth + firstDow) / 7) * 7
+
+  const periodQ = useQuery<PeriodStatus>({
+    queryKey: ['employee', 'weekly-off-period', branchId, month],
+    queryFn:  () => api.get('/employee/weekly-off/period-status', { params: { branchId, month } }).then((r: any) => r.data.data),
+    enabled:  !!branchId,
+  })
+  const historyQ = useQuery<WeeklyOffRecord[]>({
+    queryKey: ['employee', 'weekly-off-history', employeeId],
+    queryFn:  () => api.get('/employee/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
+  })
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+    queryKey: ['employee', 'weekly-off-view', employeeId, month],
+    queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
+  })
+
+  const isOpen     = periodQ.data?.is_open ?? false
+  const allOwn     = historyQ.data ?? []
+  const ownThisMonth = allOwn.filter(r => requiredWeeks.includes(r.week_start.slice(0, 10)))
+  const colleagues = colleagueQ.data?.colleagues ?? []
+  const pickedCount = Object.keys(picks).length
+  const complete     = pickedCount === requiredWeeks.length
+
+  const submitMutation = useMutation({
+    mutationFn: () => api.post('/employee/weekly-off/monthly-batch', { employee_id: employeeId, month, dates: Object.values(picks) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setPicks({}); setErrorMsg(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(
+        code === 'ALREADY_REQUESTED' ? 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว' :
+        code === 'INCOMPLETE_MONTH'  ? 'กรุณาเลือกวันหยุดให้ครบทุกสัปดาห์ก่อนส่ง' :
+        'เกิดข้อผิดพลาด กรุณาลองใหม่'
+      )
+    },
+  })
+  const cancelAllMutation = useMutation({
+    mutationFn: () => Promise.all(ownThisMonth.map(r => api.delete(`/employee/weekly-off/${r.id}`, { params: { employeeId } }))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+    },
+  })
+
+  function changeMonth(delta: number) {
+    setMonth(m => {
+      const [y, mo] = m.split('-').map(Number)
+      const d = new Date(y, mo - 1 + delta, 1)
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
+    })
+    setPicks({}); setErrorMsg(null)
+  }
+
+  function toggleDay(dateStr: string) {
+    const monday = getMondayOfDate(dateStr)
+    setPicks(p => {
+      if (p[monday] === dateStr) { const next = { ...p }; delete next[monday]; return next }
+      return { ...p, [monday]: dateStr }
+    })
+  }
+
+  const navBtnStyle: React.CSSProperties = {
+    width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
+    background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+  }
+
+  const allSubmittedPending = ownThisMonth.length > 0 && ownThisMonth.every(r => r.status === 'PENDING')
+
+  return (
+    <div>
+      {/* ── Month navigator ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button onClick={() => changeMonth(-1)} style={navBtnStyle}>
+          <ChevronLeft size={18} color="#6B7D90" />
+        </button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
+          <div style={{ fontSize: '0.68rem', marginTop: 2, fontWeight: 600, color: isOpen ? '#16A34A' : '#DC2626' }}>
+            {isOpen ? '🟢 เปิดรับการจอง' : '🔴 ยังไม่เปิดรับการจอง'}
+          </div>
+        </div>
+        <button onClick={() => changeMonth(1)} style={navBtnStyle}>
+          <ChevronRight size={18} color="#6B7D90" />
+        </button>
+      </div>
+
+      {periodQ.data?.note && (
+        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600 }}>
+          📋 {periodQ.data.note}
+        </div>
+      )}
+
+      {/* ── Period closed ───────────────────────────────────────── */}
+      {!isOpen && ownThisMonth.length === 0 && !periodQ.isLoading && (
+        <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
+          <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองเดือนนี้</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
+        </div>
+      )}
+
+      {/* ── Already submitted this month — read-only summary ───── */}
+      {ownThisMonth.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {[...ownThisMonth].sort((a, b) => a.week_start.localeCompare(b.week_start)).map(r => {
+            const cfg = STATUS_CFG[r.status]
+            return (
+              <div key={r.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                background: cfg.bg, border: `1px solid ${cfg.color}33`, borderRadius: 14, marginBottom: 8,
+              }}>
+                <span style={{ fontSize: '1.4rem' }}>🏖️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.85rem' }}>
+                    {fmtDate(resolveDate(r.week_start, r.day_of_week))}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: cfg.color, fontWeight: 700 }}>{cfg.label}</div>
+                </div>
+              </div>
+            )
+          })}
+          {allSubmittedPending && (
+            <button onClick={() => cancelAllMutation.mutate()} disabled={cancelAllMutation.isPending}
+              style={{ width: '100%', padding: '11px', borderRadius: 12, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {cancelAllMutation.isPending ? '...' : 'ยกเลิกคำขอทั้งเดือน'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Month grid picker ───────────────────────────────────── */}
+      {isOpen && ownThisMonth.length === 0 && (
+        <>
+          <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
+            เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ ({pickedCount}/{requiredWeeks.length})
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
+            {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#9CA3AF', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 16 }}>
+            {Array.from({ length: totalCells }, (_, i) => {
+              const day = i - firstDow + 1
+              if (day < 1 || day > daysInMonth) return <div key={i} />
+              const dateStr = toDateStr(month, day)
+              const monday  = getMondayOfDate(dateStr)
+              const isPast  = dateStr < todayStr
+              const isSel   = picks[monday] === dateStr
+              const hasColleague = colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
+              return (
+                <button key={i} disabled={isPast} onClick={() => toggleDay(dateStr)} style={{
+                  aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${COLOR.primary}` : '1px solid #E5E7EB',
+                  background: isSel ? COLOR.primary : isPast ? '#F9FAFB' : '#fff',
+                  color: isSel ? '#fff' : isPast ? '#D1D5DB' : '#1A2B3C',
+                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: isPast ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit', position: 'relative', padding: 0,
+                }}>
+                  {day}
+                  {hasColleague && (
+                    <div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: isSel ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          <button onClick={() => submitMutation.mutate()} disabled={!complete || submitMutation.isPending}
+            style={{
+              width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
+              cursor: complete ? 'pointer' : 'not-allowed',
+              background: complete ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)',
+              color: complete ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700,
+              boxShadow: complete ? `0 4px 16px ${COLOR.primary}44` : 'none', marginBottom: 14,
+            }}>
+            {submitMutation.isPending ? '⏳ กำลังส่ง...' : complete ? `✅ ส่งคำขอหยุด ${requiredWeeks.length} วัน` : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
+          </button>
+        </>
+      )}
+
+      {errorMsg && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14 }}>
+          ⚠️ {errorMsg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
   const qc          = useQueryClient()
   const thisMonday  = getThisWeekMonday()
@@ -878,7 +1104,9 @@ export default function LeavePage() {
 
         {/* ── จองหยุด ─────────────────────────────────────────── */}
         {tab === 'booking' && (
-          <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+          employee?.weekly_off_mode === 'MONTHLY_BATCH'
+            ? <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+            : <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
         )}
       </div>
     </div>
