@@ -145,8 +145,11 @@ export default function ReportPage() {
     const dept    = empCode.split('-')[1] ?? ''
     const dateKey = toYMD(year, month, day)
     const leaveType = leaveMap.get(empId)?.get(dateKey)
+    // มีเช็คอินจริงในวันนั้น → ยึดตามการเช็คอินจริงเสมอ กัน case ที่มี
+    // record หยุด/ลา ที่จองไว้ล่วงหน้า (จาก schedule เดิม) แต่พนักงานมาทำงานจริง
+    const hasRealCheckin = !!recs?.some(r => r.check_in_at)
 
-    if (leaveType) {
+    if (leaveType && !hasRealCheckin) {
       if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์' || leaveType === 'COMPENSATE')
         return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType, status: 'leave' }
       if (leaveType === 'SICK' || leaveType === 'ลาป่วย')
@@ -169,6 +172,8 @@ export default function ReportPage() {
 
     const note = recs.map(r => r.note ?? '').join(' ')
     if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
+    if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: '🌴', color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+    if (note.includes('ลากิจ'))   return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'ลากิจ', status: 'leave' }
     if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
     if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: '!!', color: '#c2410c', tip: 'มาสาย ระดับ 2', status: 'late2' }
     if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: '!', color: '#92400e', tip: 'มาสาย', status: 'late' }
@@ -188,7 +193,8 @@ export default function ReportPage() {
         const dow     = new Date(year, month - 1, day).getDay()
         const recs    = byDate.get(dateKey)
         const leaveType = leaveMap.get(info.id)?.get(dateKey)
-        if (leaveType) {
+        const hasRealCheckin = !!recs?.some(r => r.check_in_at)
+        if (leaveType && !hasRealCheckin) {
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
             dateKey, DAYS_TH[dow], '', '', '', 'ลา', '', leaveType])
           continue
@@ -200,11 +206,12 @@ export default function ReportPage() {
           continue
         }
         for (const r of recs) {
+          const { tip } = cellInfo([r], info.employee_code, info.id, day)
           rows.push([
             info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
             dateKey, DAYS_TH[dow], r.shift.name,
             fmtTime(r.check_in_at), fmtTime(r.check_out_at),
-            r.is_late ? 'สาย' : 'ปกติ',
+            tip || (r.is_late ? 'สาย' : 'ปกติ'),
             r.is_late ? '✓' : '',
             r.note ?? '',
           ])

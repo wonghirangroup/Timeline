@@ -131,6 +131,9 @@ function buildNote(d: any): string | null {
   if (d.status === 'ขาดงาน/สายมาก')   parts.push('สาย ระดับ 2')
   if (d.status === 'นอกพื้นที่')        parts.push('นอกพื้นที่')
   if (d.status === 'ขาดงาน')           parts.push('ขาดงาน')
+  if (d.status === 'วันหยุด')          parts.push('วันหยุด')
+  if (d.status === 'พักร้อน')          parts.push('พักร้อน')
+  if (d.status === 'ลากิจ')            parts.push('ลากิจ')
   if (d.fine > 0)                       parts.push(`ค่าปรับ: ${d.fine}`)
   return parts.length > 0 ? parts.join(' | ') : null
 }
