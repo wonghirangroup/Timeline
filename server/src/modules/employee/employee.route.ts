@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode } from './employee.service'
+import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory } from './employee.service'
 
 const TAG = 'Admin'
 
@@ -17,11 +17,11 @@ export async function employeeRoutes(app: FastifyInstance) {
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
-        properties: { branchId: { type: 'string' } },
+        properties: { branchId: { type: 'string' }, includeInactive: { type: 'boolean' } },
       },
     },
   }, async (req: any) => {
-    const employees = await listEmployees(req.tenantId, req.query.branchId)
+    const employees = await listEmployees(req.tenantId, req.query.branchId, req.query.includeInactive)
     return ok(employees)
   })
 
@@ -115,6 +115,44 @@ export async function employeeRoutes(app: FastifyInstance) {
   }, async (req: any) => {
     const count = await bulkSetWeeklyOffMode(req.tenantId, req.body.department, req.body.mode)
     return ok({ count }, `อัปเดต ${count} คนสำเร็จ`)
+  })
+
+  // PATCH /api/v1/admin/employees/:id/status — เปลี่ยนสถานะบัญชีพนักงาน (บังคับระบุหมายเหตุ)
+  app.patch('/employees/:id/status', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'เปลี่ยนสถานะบัญชีพนักงาน (ต้องระบุหมายเหตุทุกครั้ง) — บันทึกประวัติด้วย',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['status', 'reason'],
+        properties: {
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'RESIGNED', 'TERMINATED'] },
+          reason: { type: 'string', minLength: 1 },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const employee = await changeEmployeeStatus(req.tenantId, req.params.id, {
+      to_status: req.body.status, reason: req.body.reason, changed_by: req.userId,
+    })
+    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    return ok(employee, 'เปลี่ยนสถานะสำเร็จ')
+  })
+
+  // GET /api/v1/admin/employees/:id/status-history — ประวัติการเปลี่ยนสถานะ
+  app.get('/employees/:id/status-history', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: [TAG],
+      summary: 'ดูประวัติการเปลี่ยนสถานะบัญชีพนักงาน',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any) => {
+    return ok(await getEmployeeStatusHistory(req.tenantId, req.params.id))
   })
 
   // GET /api/v1/admin/employees/:id/profile (Employee self profile via LIFF)

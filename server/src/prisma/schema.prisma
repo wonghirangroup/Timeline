@@ -112,7 +112,9 @@ model Employee {
   phone         String?
   hired_at      DateTime? @db.Date
   line_user_id  String?   // mapped after Line verify
-  is_active     Boolean   @default(true)
+  is_active     Boolean   @default(true)  // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
+  status        EmployeeStatus @default(ACTIVE)
+  status_reason String?   // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
   weekly_off_mode WeeklyOffMode @default(WEEKLY)  // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
@@ -125,12 +127,37 @@ model Employee {
   leave_balances      LeaveBalance[]
   ot_requests         OtRequest[]
   weekly_off_requests WeeklyOffRequest[]
+  status_logs         EmployeeStatusLog[]
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
   @@index([tenant_id])
   @@index([branch_id])
   @@map("employees")
+}
+
+enum EmployeeStatus {
+  ACTIVE      // ใช้งาน
+  INACTIVE    // ไม่ใช้งาน
+  RESIGNED    // ลาออก
+  TERMINATED  // เลิกจ้าง
+}
+
+model EmployeeStatusLog {
+  id          String          @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  from_status EmployeeStatus?
+  to_status   EmployeeStatus
+  reason      String
+  changed_by  String?         // user_id ของ admin ที่เปลี่ยน
+  created_at  DateTime        @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("employee_status_logs")
 }
 
 // ─────────────────────────────────────────────

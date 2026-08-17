@@ -143,7 +143,8 @@ export default function AttendancePage() {
   const { data: employees = [], isLoading: empLoading } = useQuery<ApiEmployee[]>({
     queryKey: ['admin', 'employees', branchFilter],
     queryFn: () =>
-      api.get('/api/v1/admin/employees', { params: branchFilter ? { branchId: branchFilter } : {} })
+      // includeInactive: หน้านี้ดูวันที่ย้อนหลังได้ พนักงานที่ลาออก/เลิกจ้างไปแล้วต้องยังเห็นได้
+      api.get('/api/v1/admin/employees', { params: { ...(branchFilter ? { branchId: branchFilter } : {}), includeInactive: true } })
          .then(r => r.data.data),
   })
 

@@ -13,6 +13,8 @@ interface ApiBranch {
   name: string
 }
 
+type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
+
 interface ApiEmployee {
   id: string
   employee_code: string
@@ -24,10 +26,28 @@ interface ApiEmployee {
   hired_at: string | null
   line_user_id: string | null
   is_active: boolean
+  status: EmployeeStatusValue
+  status_reason: string | null
   created_at: string
   branch_id: string
   branch: { id: string; name: string }
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
+}
+
+interface StatusLogEntry {
+  id: string
+  from_status: EmployeeStatusValue | null
+  to_status: EmployeeStatusValue
+  reason: string
+  changed_by: string | null
+  created_at: string
+}
+
+const STATUS_CFG: Record<EmployeeStatusValue, { label: string; color: string; bg: string; border: string }> = {
+  ACTIVE:     { label: 'ใช้งาน',     color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
+  INACTIVE:   { label: 'ไม่ใช้งาน',  color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  RESIGNED:   { label: 'ลาออก',     color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
+  TERMINATED: { label: 'เลิกจ้าง',  color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
 }
 
 const WEEKLY_OFF_MODE_LABEL: Record<'WEEKLY' | 'MONTHLY_BATCH', string> = {
@@ -74,7 +94,7 @@ export default function EmployeePage() {
 
   const { data: employees = [], isLoading: loading } = useQuery<ApiEmployee[]>({
     queryKey: ['employees'],
-    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+    queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data),
   })
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['branches'],
@@ -84,7 +104,7 @@ export default function EmployeePage() {
   const [search, setSearch]           = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const [lineFilter, setLineFilter]   = useState<'' | 'linked' | 'unlinked'>('')
-  const [statusFilter, setStatusFilter] = useState<'' | 'ACTIVE' | 'INACTIVE'>('')
+  const [statusFilter, setStatusFilter] = useState<'' | EmployeeStatusValue>('')
 
   const [page, setPage]               = useState(1)
   const pageSize                      = isMobile ? 5 : 10
@@ -118,8 +138,7 @@ export default function EmployeePage() {
 
   const filtered = useMemo(() => employees.filter(e => {
     if (branchFilter && e.branch_id !== branchFilter) return false
-    if (statusFilter === 'ACTIVE'   && !e.is_active) return false
-    if (statusFilter === 'INACTIVE' &&  e.is_active) return false
+    if (statusFilter && e.status !== statusFilter) return false
     if (lineFilter === 'linked'   && !e.line_user_id) return false
     if (lineFilter === 'unlinked' &&  e.line_user_id) return false
     if (search) {
@@ -202,10 +221,7 @@ export default function EmployeePage() {
     },
     onError: () => showToast('error', 'ลบพนักงานไม่สำเร็จ'),
   })
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/api/v1/admin/employees/${id}`, { is_active }),
-    onSuccess: (_, { is_active }) => { qc.invalidateQueries({ queryKey: ['employees'] }) },
-  })
+  const [statusModalTarget, setStatusModalTarget] = useState<ApiEmployee | null>(null)
   const [bulkDept, setBulkDept] = useState('')
   const [bulkMode, setBulkMode] = useState<'WEEKLY' | 'MONTHLY_BATCH'>('MONTHLY_BATCH')
   const bulkModeMutation = useMutation({
@@ -251,10 +267,6 @@ export default function EmployeePage() {
     }
   }
 
-  async function handleToggleStatus(e: ApiEmployee) {
-    toggleMutation.mutate({ id: e.id, is_active: !e.is_active })
-    showToast('success', `${e.first_name} ${e.last_name} — ${!e.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}แล้ว`)
-  }
 
   // ESC to close modal
   React.useEffect(() => {
@@ -362,8 +374,7 @@ export default function EmployeePage() {
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
               style={{ ...filterInput, width: 'auto', borderRadius: 10, cursor: 'pointer' }}>
               <option value="">ทุกสถานะ</option>
-              <option value="ACTIVE">ใช้งาน</option>
-              <option value="INACTIVE">ไม่ใช้งาน</option>
+              {Object.entries(STATUS_CFG).map(([v, cfg]) => <option key={v} value={v}>{cfg.label}</option>)}
             </select>
             <select value={lineFilter} onChange={e => setLineFilter(e.target.value as any)}
               style={{ ...filterInput, width: 'auto', borderRadius: 10, cursor: 'pointer' }}>
@@ -415,8 +426,8 @@ export default function EmployeePage() {
             </div>
 
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะ</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              {[['', 'ทั้งหมด'], ['ACTIVE', 'ใช้งาน'], ['INACTIVE', 'ไม่ใช้งาน']].map(([v, lb]) => (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {[['', 'ทั้งหมด'], ...Object.entries(STATUS_CFG).map(([v, cfg]) => [v, cfg.label])].map(([v, lb]) => (
                 <button key={v} onClick={() => setStatusFilter(v as any)}
                   style={{ padding: '6px 16px', borderRadius: 99, border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: statusFilter === v ? '#f97316' : '#f1f5f9', color: statusFilter === v ? '#fff' : '#64748b' }}>
                   {lb}
@@ -483,10 +494,10 @@ export default function EmployeePage() {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <button
-                      onClick={() => handleToggleStatus(e)}
-                      title={e.is_active ? 'คลิกเพื่อปิดใช้งาน' : 'คลิกเพื่อเปิดใช้งาน'}
-                      style={{ background: e.is_active ? '#dcfce7' : '#fef2f2', color: e.is_active ? '#16a34a' : '#dc2626', borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: e.is_active ? '1px solid #bbf7d0' : '1px solid #fecaca', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      {e.is_active ? '● ใช้งาน' : '○ ปิดใช้งาน'}
+                      onClick={() => setStatusModalTarget(e)}
+                      title="คลิกเพื่อเปลี่ยนสถานะ"
+                      style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      ● {STATUS_CFG[e.status].label}
                     </button>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
@@ -545,9 +556,9 @@ export default function EmployeePage() {
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button
-                    onClick={() => handleToggleStatus(e)}
-                    style={{ background: e.is_active ? '#dcfce7' : '#fef2f2', color: e.is_active ? '#16a34a' : '#dc2626', borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, border: e.is_active ? '1px solid #bbf7d0' : '1px solid #fecaca', cursor: 'pointer' }}>
-                    {e.is_active ? '● ใช้งาน' : '○ ปิดใช้งาน'}
+                    onClick={() => setStatusModalTarget(e)}
+                    style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer' }}>
+                    ● {STATUS_CFG[e.status].label}
                   </button>
                   {e.line_user_id
                     ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line ✓</span>
@@ -1051,6 +1062,139 @@ export default function EmployeePage() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      {statusModalTarget && (
+        <ChangeStatusModal
+          employee={statusModalTarget}
+          onClose={() => setStatusModalTarget(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['employees'] })}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Change Status Modal ────────────────────────────────────────────────────
+function ChangeStatusModal({ employee, onClose, onSaved }: {
+  employee: ApiEmployee; onClose: () => void; onSaved: () => void
+}) {
+  const { showToast } = useToast()
+  const isMobile = useIsMobile()
+  const qc = useQueryClient()
+  const [newStatus, setNewStatus] = useState<EmployeeStatusValue>(employee.status)
+  const [reason, setReason] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
+
+  const historyQ = useQuery<StatusLogEntry[]>({
+    queryKey: ['employee', employee.id, 'status-history'],
+    queryFn: () => api.get(`/api/v1/admin/employees/${employee.id}/status-history`).then(r => r.data.data),
+    enabled: showHistory,
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/api/v1/admin/employees/${employee.id}/status`, { status: newStatus, reason: reason.trim() }),
+    onSuccess: () => {
+      showToast('success', `เปลี่ยนสถานะ "${employee.first_name} ${employee.last_name}" เป็น "${STATUS_CFG[newStatus].label}" แล้ว`)
+      onSaved(); onClose()
+    },
+    onError: () => showToast('error', 'เปลี่ยนสถานะไม่สำเร็จ'),
+  })
+
+  function handleSubmit() {
+    if (!reason.trim()) { showToast('error', 'กรุณาระบุหมายเหตุ'); return }
+    saveMutation.mutate()
+  }
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300,
+    display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+  }
+  const box: React.CSSProperties = {
+    background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 16,
+    width: isMobile ? '100%' : 480, maxWidth: '96vw',
+    maxHeight: isMobile ? '92vh' : 'min(88vh, 700px)', overflowY: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+  }
+  const fieldLabel: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={box} onClick={ev => ev.stopPropagation()}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: '16px', color: '#111827', margin: '0 0 2px' }}>เปลี่ยนสถานะบัญชีพนักงาน</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>เปลี่ยนสถานะบัญชีพนักงาน โดยต้องระบุหมายเหตุทุกครั้ง</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}><X size={18}/></button>
+        </div>
+
+        <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Employee info card */}
+          <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+              <User size={14} color="#9ca3af" />
+              {employee.employee_code} — {employee.first_name} {employee.last_name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: '#6b7280' }}>
+              สถานะปัจจุบัน:
+              <span style={{ background: STATUS_CFG[employee.status].bg, color: STATUS_CFG[employee.status].color, borderRadius: 99, padding: '2px 10px', fontWeight: 700, fontSize: '12px' }}>
+                {STATUS_CFG[employee.status].label}
+              </span>
+            </div>
+          </div>
+
+          {/* New status select */}
+          <div>
+            <label style={fieldLabel}>สถานะใหม่ <span style={required}>*</span></label>
+            <select value={newStatus} onChange={e => setNewStatus(e.target.value as EmployeeStatusValue)} style={input}>
+              {Object.entries(STATUS_CFG).map(([v, cfg]) => (
+                <option key={v} value={v}>● {cfg.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label style={fieldLabel}>หมายเหตุ <span style={required}>*</span></label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+              placeholder="ระบุเหตุผลในการเปลี่ยนสถานะ (บังคับ)"
+              style={{ ...input, resize: 'vertical', fontFamily: 'inherit' }} />
+          </div>
+
+          {/* History */}
+          <div>
+            <button onClick={() => setShowHistory(s => !s)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#f97316', fontWeight: 600, fontSize: '12px' }}>
+              {showHistory ? '▲ ซ่อนประวัติการเปลี่ยนสถานะ' : '▼ ดูประวัติการเปลี่ยนสถานะ'}
+            </button>
+            {showHistory && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                {historyQ.isLoading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>กำลังโหลด...</div>}
+                {historyQ.data?.length === 0 && <div style={{ fontSize: '12px', color: '#9ca3af' }}>ยังไม่มีประวัติการเปลี่ยนสถานะ</div>}
+                {historyQ.data?.map(log => (
+                  <div key={log.id} style={{ fontSize: '12px', background: '#f9fafb', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ fontWeight: 600, color: '#374151' }}>
+                      {log.from_status ? STATUS_CFG[log.from_status].label : '—'} → {STATUS_CFG[log.to_status].label}
+                    </div>
+                    <div style={{ color: '#6b7280', marginTop: 2 }}>{log.reason}</div>
+                    <div style={{ color: '#9ca3af', marginTop: 2, fontSize: '11px' }}>
+                      {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
+          <button onClick={handleSubmit} disabled={saveMutation.isPending}
+            style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saveMutation.isPending ? 0.7 : 1 }}>
+            {saveMutation.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

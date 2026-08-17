@@ -29,12 +29,13 @@ async function generateEmployeeCode(
   return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`
 }
 
-export async function listEmployees(tenantId: string, branchId?: string) {
+export async function listEmployees(tenantId: string, branchId?: string, includeInactive?: boolean) {
   return prisma.employee.findMany({
     where: {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...(branchId ? { branch_id: branchId } : {}),
+      ...(includeInactive ? {} : { status: 'ACTIVE' }),
     },
     include: { branch: { select: { id: true, name: true } } },
     orderBy: { created_at: 'asc' },
@@ -118,6 +119,46 @@ export async function bulkSetWeeklyOffMode(
     data: { weekly_off_mode: mode },
   })
   return result.count
+}
+
+export type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
+
+export async function changeEmployeeStatus(
+  tenantId: string,
+  id: string,
+  data: { to_status: EmployeeStatusValue; reason: string; changed_by?: string },
+) {
+  const employee = await prisma.employee.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } })
+  if (!employee) return null
+
+  const [updated] = await prisma.$transaction([
+    prisma.employee.update({
+      where: { id },
+      data: {
+        status:        data.to_status,
+        status_reason: data.reason,
+        is_active:     data.to_status === 'ACTIVE',
+      },
+    }),
+    prisma.employeeStatusLog.create({
+      data: {
+        tenant_id:   tenantId,
+        employee_id: id,
+        from_status: employee.status,
+        to_status:   data.to_status,
+        reason:      data.reason,
+        changed_by:  data.changed_by,
+      },
+    }),
+  ])
+  return updated
+}
+
+export async function getEmployeeStatusHistory(tenantId: string, employeeId: string) {
+  return prisma.employeeStatusLog.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId },
+    orderBy: { created_at: 'desc' },
+  })
 }
 
 export async function deleteEmployee(tenantId: string, id: string) {
