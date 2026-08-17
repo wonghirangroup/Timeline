@@ -73,6 +73,27 @@ async function buildBranchMap(): Promise<Map<string, string>> {
   return map
 }
 
+// รหัสพนักงาน (เช่น "69-03-008") บางครั้งฝั่ง Firebase เอากลับมาใช้ซ้ำเมื่อคนเก่า
+// ลาออกแล้วรับคนใหม่เข้ามาแทนรหัสเดิม — ถ้า upsert โดยจับคู่แค่ employee_code
+// อย่างเดียว จะไปทับ record ของคนเก่าโดยไม่รู้ตัว (นามสกุล/สาขาเป็นของคนเก่า
+// แต่ nickname/เบอร์/Line กลายเป็นของคนใหม่ — ข้อมูลปนกัน)
+// ป้องกันด้วยการ "บวกเลขต่อท้ายไปเรื่อยๆ" จนกว่าจะเจอรหัสที่ว่างจริงในระบบ
+function nextAvailableCode(baseCode: string, usedCodes: Set<string>): string {
+  if (!usedCodes.has(baseCode)) return baseCode
+  const m = baseCode.match(/^(.*-)(\d+)$/)
+  if (!m) {
+    // รูปแบบรหัสไม่ตรง pattern "xxx-NNN" — fallback ต่อท้ายด้วย -2, -3, ...
+    let n = 2
+    while (usedCodes.has(`${baseCode}-${n}`)) n++
+    return `${baseCode}-${n}`
+  }
+  const [, prefix, numStr] = m
+  let n = Number(numStr) + 1
+  const width = numStr.length
+  while (usedCodes.has(`${prefix}${String(n).padStart(width, '0')}`)) n++
+  return `${prefix}${String(n).padStart(width, '0')}`
+}
+
 // ── step 2: import employees ──────────────────────────────────────────────────
 async function migrateEmployees(
   db: FirebaseFirestore.Firestore,
@@ -81,7 +102,15 @@ async function migrateEmployees(
   const snap = await db.collection('employees').get()
   const employeeMap = new Map<string, string>() // employeeId → MySQL id
 
-  let created = 0, skipped = 0, errors = 0
+  const existing = await prisma.employee.findMany({
+    where: { tenant_id: TENANT_ID },
+    select: { id: true, employee_code: true, line_user_id: true },
+  })
+  const usedCodes = new Set(existing.map(e => e.employee_code))
+  const byLineUserId = new Map(existing.filter(e => e.line_user_id).map(e => [e.line_user_id as string, e]))
+  const byCode = new Map(existing.map(e => [e.employee_code, e]))
+
+  let created = 0, updated = 0, splitNewCode = 0, errors = 0
 
   for (const doc of snap.docs) {
     const d = doc.data()
@@ -95,36 +124,53 @@ async function migrateEmployees(
     }
 
     try {
-      const emp = await prisma.employee.upsert({
-        where: { tenant_id_employee_code: { tenant_id: TENANT_ID, employee_code: d.employeeId } },
-        update: {
-          line_user_id: d.lineUserId || null,
-          nickname:     d.nickname   || null,
-          phone:        d.phone      || null,
-        },
-        create: {
-          id:            uuid(),
-          tenant_id:     TENANT_ID,
-          branch_id:     branchId,
-          employee_code: d.employeeId,
-          first_name,
-          last_name,
-          nickname:      d.nickname  || null,
-          department:    d.department || null,
-          phone:         d.phone     || null,
-          line_user_id:  d.lineUserId || null,
-          hired_at:      d.joinDate ? parseThaiDate(d.joinDate) : null,
-        },
-      })
+      // จับคู่ "คนเดิมจริงๆ" ด้วย line_user_id ก่อน (identity ที่เชื่อถือได้กว่า
+      // employee_code เพราะรหัสถูกรีไซเคิลได้) ถ้าไม่มี/ไม่เจอ ค่อย fallback ไปดูว่า
+      // employee_code นี้ถูกใช้อยู่แล้วโดยคนอื่น (รหัสถูกรีไซเคิล) หรือว่าง
+      const matchByLine = d.lineUserId ? byLineUserId.get(d.lineUserId) : undefined
+      const codeOwner    = byCode.get(d.employeeId)
+      const codeCollides = codeOwner && matchByLine && codeOwner.id !== matchByLine.id
+      const codeTakenByOther = !matchByLine && codeOwner && codeOwner.line_user_id && codeOwner.line_user_id !== d.lineUserId
+
+      const targetId = matchByLine?.id ?? (codeTakenByOther ? undefined : codeOwner?.id)
+      const employeeCode = (matchByLine && codeCollides) || codeTakenByOther
+        ? nextAvailableCode(d.employeeId, usedCodes)   // รหัสชนกับคนอื่น → บวกรหัสใหม่ให้คนนี้
+        : d.employeeId
+
+      const data = {
+        branch_id:     branchId,
+        first_name,
+        last_name,
+        nickname:      d.nickname   || null,
+        department:    d.department || null,
+        phone:         d.phone      || null,
+        line_user_id:  d.lineUserId || null,
+        hired_at:      d.joinDate ? parseThaiDate(d.joinDate) : null,
+      }
+
+      let emp
+      if (targetId) {
+        emp = await prisma.employee.update({ where: { id: targetId }, data })
+        updated++
+      } else {
+        emp = await prisma.employee.create({
+          data: { id: uuid(), tenant_id: TENANT_ID, employee_code: employeeCode, ...data },
+        })
+        created++
+        if (employeeCode !== d.employeeId) {
+          splitNewCode++
+          console.warn(`🔀 รหัส ${d.employeeId} ถูกใช้แล้วโดยคนอื่น (${codeOwner?.id}) — สร้าง "${d.name}" ด้วยรหัสใหม่ ${employeeCode} แทน (ควรตรวจ record เดิมของรหัส ${d.employeeId} ว่ายังใช่คนเดิมไหม)`)
+        }
+      }
+      usedCodes.add(employeeCode)
       employeeMap.set(d.employeeId, emp.id)
-      created++
     } catch (e: any) {
       console.error(`❌ employee ${d.employeeId}:`, e.message)
       errors++
     }
   }
 
-  console.log(`✅ พนักงาน: สร้าง/อัป ${created}, ข้าม ${skipped}, error ${errors}`)
+  console.log(`✅ พนักงาน: สร้างใหม่ ${created} (ในนั้นรหัสชนแล้วแยกใหม่ ${splitNewCode}), อัปเดตของเดิม ${updated}, error ${errors}`)
   return employeeMap
 }
 
