@@ -1,5 +1,5 @@
 // admin/src/lib/mock.ts
-import type { Branch, Department, Employee, AttendanceRow, ReportRow, CalendarEvent, BranchSettings, GlobalSettings, OtRequest, ShiftDef, AnnouncementItem, FeedbackItem, LeaveRequest, LeaveBalance, Tenant, TenantLineConfig, FineRule, AttendanceLogRow, AttendanceStatus, PlanConfig, Invoice, WeeklyOffBooking, ShiftAssignment, ShiftAssignmentType } from '../types'
+import type { Branch, Department, Employee, AttendanceRow, ReportRow, CalendarEvent, BranchSettings, OtRequest, ShiftDef, AnnouncementItem, FeedbackItem, LeaveRequest, LeaveBalance, Tenant, TenantLineConfig, AttendanceLogRow, AttendanceStatus, PlanConfig, Invoice, WeeklyOffBooking, ShiftAssignment, ShiftAssignmentType } from '../types'
 
 // ── Departments ───────────────────────────────────────────────────────────────
 export const MOCK_DEPARTMENTS: Department[] = [
@@ -114,25 +114,6 @@ export const MOCK_BRANCH_SETTINGS: BranchSettings = {
     { shift_no: 1, start_time: '08:00', end_time: '18:00', late_threshold_1: '08:05', late_threshold_2: '08:20', min_checkout: '17:55' },
     { shift_no: 2, start_time: '09:00', end_time: '19:00', late_threshold_1: '09:05', late_threshold_2: '09:20', min_checkout: '18:55' },
   ],
-}
-
-export const MOCK_GLOBAL_SETTINGS: GlobalSettings = {
-  fine_late_1: 20,
-  fine_late_2: 50,
-  fine_absent: 50,
-  radius_m: 150,
-}
-
-// ── Fine Rule (default: tier mode ตามตัวอย่างที่กำหนด) ────────────────────────
-export const MOCK_FINE_RULE: FineRule = {
-  mode: 'tier',
-  tiers: [
-    { id: 'ft-1', from_minute: 1,  to_minute: 15,   fine_amount: 20,  count_as_absent: false, next_day_fine: 0  },
-    { id: 'ft-2', from_minute: 16, to_minute: 30,   fine_amount: 50,  count_as_absent: false, next_day_fine: 0  },
-    { id: 'ft-3', from_minute: 31, to_minute: null,  fine_amount: 0,   count_as_absent: true,  next_day_fine: 50 },
-  ],
-  per_minute_rate: 2,
-  per_minute_max: 200,
 }
 
 // ── OT Requests ───────────────────────────────────────────────────────────────

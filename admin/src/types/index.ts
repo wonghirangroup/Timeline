@@ -94,32 +94,6 @@ export interface BranchSettings {
   shifts: ShiftConfig[]
 }
 
-export interface GlobalSettings {
-  fine_late_1: number
-  fine_late_2: number
-  fine_absent: number
-  radius_m: number
-}
-
-// ── Fine Rule System ──────────────────────────────────────────────────────────
-export type FineMode = 'tier' | 'per_minute'
-
-export interface FineTier {
-  id: string
-  from_minute: number        // นาทีที่สาย (inclusive) เริ่มจาก 1
-  to_minute: number | null   // นาทีที่สาย (inclusive), null = ไม่จำกัด (ขึ้นไป)
-  fine_amount: number        // ค่าปรับ (บาท)
-  count_as_absent: boolean   // นับเป็นวันหยุด/ขาดงาน 1 วัน
-  next_day_fine: number      // ค่าปรับเพิ่มวันถัดไป (0 = ไม่มี)
-}
-
-export interface FineRule {
-  mode: FineMode
-  tiers: FineTier[]
-  per_minute_rate: number    // บาทต่อนาที (ใช้เมื่อ mode = per_minute)
-  per_minute_max: number     // ค่าปรับสูงสุด บาท (0 = ไม่จำกัด)
-}
-
 export type OtStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
