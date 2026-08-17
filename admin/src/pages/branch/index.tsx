@@ -530,7 +530,7 @@ export default function BranchPage() {
     width: isMobile ? '100%' : w,
     maxWidth: isMobile ? '100%' : '92vw',
     paddingBottom: isMobile ? 'max(0px, env(safe-area-inset-bottom))' : 0,
-    maxHeight: isMobile ? '92vh' : 'none',
+    maxHeight: isMobile ? '92vh' : 'min(88vh, 780px)',
     overflowY: 'auto',
     boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
   })
