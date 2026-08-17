@@ -318,7 +318,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
             }}>
               <AvatarChip name={d.name} isPending={false} />
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.name}</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
                 <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{d.branch_name}</div>
               </div>
             </div>
@@ -342,7 +342,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
             }}>
               <AvatarChip name={d.name} isPending={true} />
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.name}</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
                 <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{d.branch_name}</div>
               </div>
             </div>
@@ -370,7 +370,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                   {cfg.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.name}</div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.nickname || l.name}</div>
                   <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{l.display_label} · {l.branch_name}</div>
                 </div>
                 {l.status === 'PENDING' && (
