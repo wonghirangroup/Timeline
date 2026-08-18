@@ -1,5 +1,9 @@
 # Deploy TimeLine backend ไปที่ VPS (178.128.119.174)
 
+> **สถานะ:** deploy จริงแล้ว (18 ส.ค. 2569) — รันที่ `/opt/timeline` บน VPS, backend
+> container port 4002 (internal), เข้าถึงจริงผ่าน **https://timeline-api.wonghiran.com**
+> (nginx reverse proxy + Let's Encrypt cert)
+
 ย้ายจาก Render (free tier) มาอยู่ VPS เดียวกับ QA/TestGrow — เร็วขึ้นเพราะไม่มี cold start
 ของ free tier และ (ถ้าเลือก) latency ไปหา DB ต่ำกว่าด้วยถ้า DB ย้ายมา VPS เดียวกันในอนาคต
 
@@ -31,22 +35,34 @@ curl http://178.128.119.174:4002/health
 
 **ถ้า `curl` จากเครื่องอื่นไม่ผ่าน** — เช็ค firewall ของ VPS (`ufw status` หรือ cloud provider's firewall/security group) ว่าเปิด port 4002 ให้แล้วหรือยัง
 
-## ⚠️ ก่อนจะสลับ production มาใช้ VPS นี้จริง — ต้องมี HTTPS
+## ✅ HTTPS — ตั้งเสร็จแล้ว (18 ส.ค. 2569)
 
-Admin panel อยู่บน Vercel (`https://timeline-admin.vercel.app`) ซึ่งเป็น HTTPS เสมอ — ถ้า API
-ยังเป็น HTTP เปล่าๆ แบบ `http://178.128.119.174:4002` เบราว์เซอร์จะ**บล็อก request ทุกตัวเงียบๆ**
-ด้วย "Mixed Content" policy (ต่างจาก QA app ที่ frontend เป็น HTTP เหมือนกัน เลยไม่ติดปัญหานี้)
+`https://timeline-api.wonghiran.com` — nginx (host-level, ติดตั้งใหม่) ฟัง **เฉพาะ port 443**
+แล้ว reverse-proxy ไปที่ `127.0.0.1:4002` (container)
 
-ตอนนี้ทดสอบความเร็ว/เชื่อมต่อตรงด้วย `curl`/Postman ได้เลยไม่มีปัญหา แต่ก่อนจะเปลี่ยน
-`VITE_API_URL` บน Vercel ให้ชี้มาที่นี่จริง ต้องทำอย่างใดอย่างหนึ่งก่อน:
+**สำคัญ — ทำไมไม่ใช้ `certbot --nginx` แบบมาตรฐาน:** VPS ตัวนี้ port 80 ถูก
+`grow-store-qa-frontend` container จองอยู่แล้ว (`docker-proxy` bind `0.0.0.0:80`) — ถ้าใช้วิธี
+HTTP-01 challenge ปกติ (ต้องใช้ port 80) จะชนกับแอปนั้นทันที เลยใช้ **DNS-01 challenge** แทน
+(`certbot certonly --manual --preferred-challenges dns`) ซึ่งพิสูจน์ความเป็นเจ้าของโดเมนผ่าน
+DNS TXT record แทนการเปิด port 80 — ไม่แตะ QA/grow-store-qa เลย
 
-1. **ตั้ง subdomain + certbot** (แนะนำ) — เช่น `timeline-api.wonghiran.com` ชี้ A record มาที่
-   `178.128.119.174` แล้วตั้ง nginx reverse-proxy + `certbot --nginx` ขอ cert ฟรี (แบบเดียวกับที่
-   `qa.wonghiran.com` น่าจะใช้ถ้ามันมี TLS อยู่แล้ว)
-2. หรือใช้ **Caddy** แทน nginx — ตั้งค่าน้อยกว่า ออก HTTPS อัตโนมัติให้เองจาก domain เดียว
-
-บอกได้เลยถ้าอยากให้เตรียม nginx server block + คำสั่ง certbot ให้ — ตอนนี้ยังไม่ทำเพราะ
-ยังไม่รู้ว่าจะใช้ subdomain ชื่ออะไร
+**⚠️ ข้อจำกัดของวิธีนี้ — ต่ออายุอัตโนมัติไม่ได้:**
+Cert หมดอายุ **16 พ.ย. 2569** (90 วันจากวันออก) เพราะ `--manual` ไม่มี hook ให้ certbot
+เพิ่ม DNS record เองตอน renew ต้องทำมือซ้ำแบบนี้ทุกครั้ง (ตั้งเตือนปฏิทินไว้ล่วงหน้าสัก 1-2 สัปดาห์):
+```bash
+# บน VPS — รันคำสั่งเดิมซ้ำ จะได้ TXT record ใหม่มาเพิ่มใน DNS อีกรอบ
+screen -dmS certbot-tl bash -c 'certbot certonly --manual --preferred-challenges dns \
+  -d timeline-api.wonghiran.com --agree-tos --register-unsafely-without-email \
+  --manual-public-ip-logging-ok 2>&1 | tee /root/certbot-tl.log'
+cat /root/certbot-tl.log   # ดู TXT record ที่ต้องเพิ่ม
+# เพิ่ม TXT record ใน wonghiran.com DNS แล้วรอ propagate เช็คด้วย:
+#   nslookup -type=TXT _acme-challenge.timeline-api.wonghiran.com 8.8.8.8
+screen -S certbot-tl -X stuff $'\n'   # กด Enter ให้ certbot ทำงานต่อ
+systemctl reload nginx
+```
+**ถ้าอยากให้ต่ออายุอัตโนมัติได้จริง** ต้องย้าย `grow-store-qa-frontend` ออกจาก port 80 ก่อน (ให้
+host nginx คุม port 80 เองแทน แล้วใช้ `certbot --nginx` ปกติที่ auto-renew ได้) — เป็นงานแยกที่ต้อง
+คุยกับทีมที่ดูแล grow-store-qa ก่อน เพราะเป็นคนละแอปกัน
 
 ## Cutover แบบปลอดภัย (แนะนำ)
 
