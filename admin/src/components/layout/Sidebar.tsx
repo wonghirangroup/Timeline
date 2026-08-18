@@ -6,8 +6,6 @@ import {
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
-import { usePlanConfigStore } from '../../stores/planConfigStore'
-import { MOCK_TENANTS } from '../../lib/mock'
 import type { PlanFeatures } from '../../types'
 
 // re-export สำหรับหน้าอื่น
@@ -137,14 +135,13 @@ function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onTog
   name: string | null; initials: string; onLogout: () => void; onNavClick: () => void
   collapsed: boolean; onToggleCollapse?: () => void
 }) {
-  const location    = useLocation()
-  const tenantId    = useAuthStore(s => s.tenantId)
-  const getFeatures = usePlanConfigStore(s => s.getFeatures)
-  const tenant      = MOCK_TENANTS.find(t => t.id === tenantId)
-  const features    = tenant ? getFeatures(tenant.plan) : null
+  const location        = useLocation()
+  const enabledFeatures = useAuthStore(s => s.enabledFeatures)
 
+  // ปิดจริงที่ backend ด้วย (requireFeature middleware) — ตรงนี้แค่ซ่อนเมนูให้ตรงกับสิทธิ์
+  // ไม่มี key ใน enabledFeatures เลย (tenant ไม่เคยถูกตั้งค่า) = เปิดใช้งานทุกฟีเจอร์ (ค่า default)
   function visible(feature?: keyof PlanFeatures) {
-    return !feature || !features || features[feature]
+    return !feature || !enabledFeatures || enabledFeatures[feature] !== false
   }
 
   const todayStr = (() => {

@@ -40,7 +40,7 @@ export default function LoginPage() {
         localStorage.setItem('refresh_token', res.data.data.refreshToken)
       }
 
-      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', user.full_name ?? user.email)
+      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', user.full_name ?? user.email, user.enabled_features ?? null)
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {

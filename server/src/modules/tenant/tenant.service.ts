@@ -83,6 +83,21 @@ export async function updateTenant(id: string, data: {
   return prisma.tenant.findFirst({ where: { id } })
 }
 
+export async function updateTenantFeatures(id: string, features: Partial<Record<string, boolean>>) {
+  const existing = await prisma.tenant.findFirst({ where: { id, deleted_at: null }, select: { enabled_features: true } })
+  if (!existing) return null
+
+  const current = (existing.enabled_features && typeof existing.enabled_features === 'object')
+    ? existing.enabled_features as Record<string, boolean>
+    : {}
+  const merged = { ...current, ...features } // merge — ไม่เขียนทับ key อื่นที่ไม่ได้ส่งมารอบนี้
+
+  return prisma.tenant.update({
+    where: { id },
+    data: { enabled_features: merged },
+  })
+}
+
 export async function deleteTenant(id: string) {
   const count = await prisma.tenant.updateMany({
     where: { id, deleted_at: null },

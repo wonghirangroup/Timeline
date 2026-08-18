@@ -1,6 +1,7 @@
 // server/src/modules/announcement/announcement.route.ts
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
+import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listAnnouncements, createAnnouncement, deleteAnnouncement, sendDirectMessage } from './announcement.service'
@@ -9,7 +10,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/announcements
   app.get('/announcements', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูประกาศทั้งหมด',
@@ -22,7 +23,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/announcements
   app.post('/announcements', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'สร้างประกาศใหม่',
@@ -50,7 +51,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/announcements/direct
   app.post('/announcements/direct', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ส่งข้อความส่วนตัวผ่าน Line',
@@ -75,7 +76,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/announcements/:id
   app.delete('/announcements/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ลบประกาศ',

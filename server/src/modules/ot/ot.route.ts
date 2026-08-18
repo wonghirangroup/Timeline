@@ -1,6 +1,7 @@
 // server/src/modules/ot/ot.route.ts
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
+import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listOtRequests, createOtRequest, approveOtRequest, rejectOtRequest } from './ot.service'
@@ -9,7 +10,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: ดู OT ─────────────────────────────────────────
   app.get('/admin/ot-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการขอ OT (กรอง status / branchId / employeeId ได้)',
@@ -32,7 +33,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: Approve OT ─────────────────────────────────────
   app.post('/admin/ot-requests/:id/approve', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'อนุมัติ OT',
@@ -47,7 +48,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: Reject OT ──────────────────────────────────────
   app.post('/admin/ot-requests/:id/reject', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ปฏิเสธ OT',
@@ -66,7 +67,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Employee (LIFF): ยื่นขอ OT ───────────────────────────────────
   app.post('/employee/ot-requests', {
-    preHandler: [tenantMiddleware],
+    preHandler: [tenantMiddleware, requireFeature('ot_management')],
     schema: {
       tags: ['Employee'],
       summary: 'ยื่นขอ OT (LIFF)',
@@ -91,7 +92,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Employee (LIFF): ดูประวัติ OT ────────────────────────────────
   app.get('/employee/ot-requests', {
-    preHandler: [tenantMiddleware],
+    preHandler: [tenantMiddleware, requireFeature('ot_management')],
     schema: {
       tags: ['Employee'],
       summary: 'ดูประวัติขอ OT ของตัวเอง (LIFF)',

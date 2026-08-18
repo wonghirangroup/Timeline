@@ -57,10 +57,11 @@ export async function authRoutes(app: FastifyInstance) {
                 user: {
                   type: 'object',
                   properties: {
-                    id:        { type: 'string' },
-                    email:     { type: 'string' },
-                    role:      { type: 'string' },
-                    tenant_id: { type: 'string', nullable: true },
+                    id:               { type: 'string' },
+                    email:            { type: 'string' },
+                    role:             { type: 'string' },
+                    tenant_id:        { type: 'string', nullable: true },
+                    enabled_features: { type: 'object', nullable: true, additionalProperties: true },
                   },
                 },
               },
@@ -103,6 +104,7 @@ export async function authRoutes(app: FastifyInstance) {
           last_name: user.last_name,
           role: user.role,
           tenant_id: user.tenant_id,
+          enabled_features: user.tenant?.enabled_features ?? null,
         },
         accessToken,
         refreshToken,

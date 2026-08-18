@@ -10,7 +10,10 @@ export async function findUserByEmail(email: string) {
 }
 
 export async function findUserByUsername(username: string) {
-  return prisma.user.findUnique({ where: { email: username } })
+  return prisma.user.findUnique({
+    where: { email: username },
+    include: { tenant: { select: { enabled_features: true } } },
+  })
 }
 
 export async function findUserById(id: string) {

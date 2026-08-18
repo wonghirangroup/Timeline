@@ -3,7 +3,8 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listTenants, getTenant, createTenant, updateTenant, deleteTenant } from './tenant.service'
+import { listTenants, getTenant, createTenant, updateTenant, updateTenantFeatures, deleteTenant } from './tenant.service'
+import { FEATURE_KEYS } from '../../common/utils/features'
 import { listUsers, createUser, updateUser, deleteUser, generateTempPassword } from './user.service'
 import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
@@ -122,6 +123,25 @@ export async function tenantRoutes(app: FastifyInstance) {
       line_liff_id:        req.body.line_liff_id,
     })
     return ok(config, 'บันทึก LINE config สำเร็จ')
+  })
+
+  // PATCH /api/v1/super-admin/tenants/:id/features — เปิด/ปิดฟีเจอร์ต่อ Tenant
+  app.patch('/tenants/:id/features', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'เปิด/ปิดฟีเจอร์ของ Tenant (บางฟีเจอร์บล็อกจริงที่ backend เลย ดู FEATURE_KEYS)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: Object.fromEntries(FEATURE_KEYS.map(k => [k, { type: 'boolean' }])),
+      },
+    },
+  }, async (req: any, reply) => {
+    const tenant = await updateTenantFeatures(req.params.id, req.body ?? {})
+    if (!tenant) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ Tenant'))
+    return ok({ enabled_features: tenant.enabled_features }, 'อัปเดตฟีเจอร์สำเร็จ')
   })
 
   // POST /api/v1/super-admin/tenants/:id/admin — Talent สร้าง Admin คนแรกให้ Tenant

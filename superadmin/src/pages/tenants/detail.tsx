@@ -3,9 +3,26 @@ import { useState } from 'react'
 import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle, CreditCard, UserPlus, X, AlertTriangle } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { TenantStatus, TenantPlan } from '../../types'
+import type { TenantStatus, TenantPlan, PlanFeatures } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
+
+// ฟีเจอร์ทั้งหมดที่เปิด/ปิดต่อ tenant ได้ — รายชื่อ/label เดียวกับที่ใช้ในหน้า Packages
+// ENFORCED = 4 อันที่บล็อกจริงที่ backend (แยกเป็น route module ของตัวเอง) ส่วนอีก 6 อันบันทึก
+// ค่าไว้ให้สลับได้แต่ยังไม่บล็อกอะไรจริง (ฝังอยู่ใน logic ร่วมกับฟีเจอร์อื่น หรือยังไม่มี module)
+const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon: string }[] = [
+  { key: 'leave_management', label: 'จัดการวันลา',           desc: 'ลา / อนุมัติ / ปฏิเสธใบลา',               icon: '📅' },
+  { key: 'leave_balance',    label: 'โควต้าวันลา',           desc: 'กำหนดและติดตามโควต้าวันลาต่อพนักงาน',      icon: '🗓' },
+  { key: 'ot_management',    label: 'จัดการ OT',             desc: 'คำขอ / อนุมัติ / คำนวณค่า OT',             icon: '💰' },
+  { key: 'announcement',     label: 'ประกาศ',                desc: 'ส่งข้อความหา Branch / แผนก / ทั้งหมด',     icon: '📢' },
+  { key: 'gps_checkin',      label: 'เช็คอิน GPS',           desc: 'เช็คอินผ่าน LIFF + ตรวจสอบพิกัด GPS',     icon: '📍' },
+  { key: 'multi_shift',      label: 'หลายกะต่อวัน',          desc: 'พนักงาน 1 คนทำได้หลายกะต่อวัน',           icon: '⏰' },
+  { key: 'fine_system',      label: 'ระบบค่าปรับ',           desc: 'ค่าปรับตามกะ / เปอร์เซ็นต์ / tier',       icon: '⚖️' },
+  { key: 'report_export',    label: 'Export รายงาน',         desc: 'ดาวน์โหลด Excel / PDF รายงานเช็คชื่อ',     icon: '📊' },
+  { key: 'feedback',         label: 'ระบบ Feedback',         desc: 'พนักงานส่ง feedback แบบไม่ระบุชื่อ',       icon: '💬' },
+  { key: 'line_oa',          label: 'Line OA Integration',   desc: 'แจ้งเตือนผ่าน Line Messaging API',          icon: '💚' },
+]
+const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement'])
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },
@@ -24,7 +41,7 @@ function thDate(s: string | null | undefined) {
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 
-type Tab = 'info' | 'line' | 'branches' | 'activity'
+type Tab = 'info' | 'line' | 'branches' | 'features' | 'activity'
 
 const MOCK_ACTIVITY = [
   { at: '25/05/2569 10:32', msg: 'ผู้ดูแลระบบล็อกอินเข้าสู่ระบบ', type: 'login' },
@@ -131,6 +148,16 @@ export default function TenantDetailPage() {
     },
   })
 
+  // ── เปิด/ปิดฟีเจอร์ ───────────────────────────────────────────────────
+  const toggleFeatureMutation = useMutation({
+    mutationFn: (patch: Partial<Record<keyof PlanFeatures, boolean>>) =>
+      api.patch(`/api/v1/super-admin/tenants/${id}/features`, patch).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sa', 'tenant', id] })
+    },
+    onError: () => showToast('error', 'เปลี่ยนฟีเจอร์ไม่สำเร็จ'),
+  })
+
   if (isLoading) return (
     <div style={{ textAlign: 'center', padding: '80px 20px', color: '#9ca3af' }}>กำลังโหลด…</div>
   )
@@ -162,8 +189,14 @@ export default function TenantDetailPage() {
     { key: 'info',     label: 'ข้อมูล Tenant' },
     { key: 'line',     label: 'Line OA' },
     { key: 'branches', label: 'สาขา & พนักงาน' },
+    { key: 'features', label: 'ฟีเจอร์' },
     { key: 'activity', label: 'ประวัติกิจกรรม' },
   ]
+
+  const enabledFeatures = (tenant.enabled_features && typeof tenant.enabled_features === 'object')
+    ? tenant.enabled_features as Partial<Record<keyof PlanFeatures, boolean>>
+    : {}
+  function isOn(key: keyof PlanFeatures) { return enabledFeatures[key] !== false }
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -481,6 +514,85 @@ export default function TenantDetailPage() {
               พนักงานทั้งหมด {employeeCount} คน — ดูรายละเอียดได้ในระบบ Admin ของ Tenant
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── TAB: ฟีเจอร์ ── */}
+      {tab === 'features' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', fontWeight: 700 }}>บังคับใช้จริงแล้ว</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.78rem', color: '#9ca3af' }}>
+              ปิดแล้ว API ของ tenant นี้จะถูกบล็อกทันที (403) ไม่ใช่แค่ซ่อนเมนู
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {FEATURE_META.filter(f => ENFORCED_FEATURES.has(f.key)).map((f, i, arr) => (
+                <div key={f.key} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0',
+                  borderBottom: i < arr.length - 1 ? '1px solid #f3f4f6' : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: '1.1rem' }}>{f.icon}</span>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dark)' }}>{f.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{f.desc}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleFeatureMutation.mutate({ [f.key]: !isOn(f.key) })}
+                    disabled={toggleFeatureMutation.isPending}
+                    style={{
+                      width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer', position: 'relative',
+                      background: isOn(f.key) ? 'var(--sa-accent)' : '#e5e7eb', transition: 'background 0.15s', flexShrink: 0,
+                      opacity: toggleFeatureMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 3, left: isOn(f.key) ? 21 : 3, width: 18, height: 18, borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', fontWeight: 700 }}>บันทึกไว้ ยังไม่บังคับใช้</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.78rem', color: '#9ca3af' }}>
+              สลับได้และค่าจะถูกบันทึกไว้ แต่ยังไม่บล็อก API จริง (จะทำในเวอร์ชันถัดไป)
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {FEATURE_META.filter(f => !ENFORCED_FEATURES.has(f.key)).map((f, i, arr) => (
+                <div key={f.key} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0',
+                  borderBottom: i < arr.length - 1 ? '1px solid #f3f4f6' : 'none', opacity: 0.85,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: '1.1rem' }}>{f.icon}</span>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dark)' }}>{f.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{f.desc}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleFeatureMutation.mutate({ [f.key]: !isOn(f.key) })}
+                    disabled={toggleFeatureMutation.isPending}
+                    style={{
+                      width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer', position: 'relative',
+                      background: isOn(f.key) ? '#a1a1aa' : '#e5e7eb', transition: 'background 0.15s', flexShrink: 0,
+                      opacity: toggleFeatureMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 3, left: isOn(f.key) ? 21 : 3, width: 18, height: 18, borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
