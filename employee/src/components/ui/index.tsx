@@ -5,6 +5,22 @@ import { useState, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { COLOR, RADIUS, SHADOW, FONT, STATUS } from './tokens'
+import { getCachedLoadingImage, fetchLoadingImageOnce } from '../../lib/branding'
+
+const DEFAULT_MASCOT = '/mascot-cat.jpg'
+
+/** ภาพ Loading ของ tenant (ตั้งค่าได้ที่ Settings) — fallback เป็น mascot เริ่มต้นถ้ายังไม่ได้ตั้งค่า/ยังโหลดไม่เสร็จ */
+function useTenantLoadingImage() {
+  const [url, setUrl] = useState<string>(() => getCachedLoadingImage() ?? DEFAULT_MASCOT)
+  useEffect(() => {
+    let cancelled = false
+    fetchLoadingImageOnce().then(fetched => {
+      if (!cancelled && fetched) setUrl(fetched)
+    })
+    return () => { cancelled = true }
+  }, [])
+  return url
+}
 
 function useSimProgress() {
   const [pct, setPct] = useState(0)
@@ -288,6 +304,7 @@ interface PageLoaderProps {
 }
 export function PageLoader({ title = 'กำลังโหลด...', sub, fullPage = true }: PageLoaderProps) {
   const pct = useSimProgress()
+  const mascotUrl = useTenantLoadingImage()
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -303,7 +320,7 @@ export function PageLoader({ title = 'กำลังโหลด...', sub, full
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 8px 32px rgba(251,146,60,0.28)',
         }}>
-          <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={mascotUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       </div>
       <div style={{ textAlign: 'center' }}>

@@ -1,213 +1,276 @@
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar,
-} from 'recharts'
-import { Link } from 'react-router-dom'
+// admin/src/pages/superadmin/dashboard/index.tsx
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../../../lib/axios'
 
-const card: React.CSSProperties = {
-  background: 'white',
-  borderRadius: '12px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  border: '1px solid rgba(15,23,42,0.06)',
+// API shape from /api/v1/super-admin/tenants
+interface ApiTenant {
+  id: string
+  name: string
+  plan: string          // FREE | STARTER | PRO | ENTERPRISE
+  is_active: boolean
+  created_at: string
+  expires_at?: string | null
+  _count: { employees: number; branches: number }
+  line_config: { line_channel_id: string; line_liff_id: string } | null
+  users: { email: string; first_name: string; last_name: string }[]
 }
 
-const stats = [
-  {
-    label: 'Tenants ทั้งหมด', value: '24', trend: '+3', trendLabel: 'เดือนนี้', up: true,
-    accent: '#6366f1', bg: '#eef2ff',
-    icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
-  },
-  {
-    label: 'Active Tenants', value: '21', trend: '87.5%', trendLabel: 'active rate', up: true,
-    accent: '#10b981', bg: '#d1fae5',
-    icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-  },
-  {
-    label: 'พนักงานทั้งหมด', value: '1,842', trend: '+124', trendLabel: 'เดือนนี้', up: true,
-    accent: '#8b5cf6', bg: '#ede9fe',
-    icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-  },
-  {
-    label: 'MRR เดือนนี้', value: '฿84,000', trend: '+12%', trendLabel: 'vs เดือนที่แล้ว', up: true,
-    accent: '#f59e0b', bg: '#fef3c7',
-    icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-  },
-]
+type DashStatus = 'ACTIVE' | 'SUSPENDED' | 'TRIAL'
 
-const checkinData = [
-  { month: 'ม.ค.', checkins: 12400, leaves: 340 },
-  { month: 'ก.พ.', checkins: 13800, leaves: 290 },
-  { month: 'มี.ค.', checkins: 15200, leaves: 410 },
-  { month: 'เม.ย.', checkins: 14100, leaves: 380 },
-  { month: 'พ.ค.', checkins: 16700, leaves: 450 },
-  { month: 'มิ.ย.', checkins: 15900, leaves: 320 },
-]
-
-const tenantGrowth = [
-  { month: 'ม.ค.', tenants: 18 },
-  { month: 'ก.พ.', tenants: 19 },
-  { month: 'มี.ค.', tenants: 20 },
-  { month: 'เม.ย.', tenants: 21 },
-  { month: 'พ.ค.', tenants: 23 },
-  { month: 'มิ.ย.', tenants: 24 },
-]
-
-const recentTenants = [
-  { name: 'บริษัท ไทยเบเวอเรจ จำกัด', abbr: 'ทบ', plan: 'Pro', employees: 120, status: 'active', joined: '10 พ.ค. 2569', planColor: '#3b82f6', planBg: '#dbeafe' },
-  { name: 'ห้างหุ้นส่วน สมใจ จำกัด', abbr: 'สจ', plan: 'Starter', employees: 45, status: 'active', joined: '3 พ.ค. 2569', planColor: '#64748b', planBg: '#f1f5f9' },
-  { name: 'บริษัท มีดี โลจิสติกส์', abbr: 'มด', plan: 'Pro', employees: 210, status: 'active', joined: '22 เม.ย. 2569', planColor: '#3b82f6', planBg: '#dbeafe' },
-  { name: 'บริษัท เฟรชมาร์ท จำกัด', abbr: 'ฟม', plan: 'Starter', employees: 30, status: 'suspended', joined: '15 เม.ย. 2569', planColor: '#64748b', planBg: '#f1f5f9' },
-  { name: 'บริษัท ดิจิทัลโซลูชั่น', abbr: 'ดท', plan: 'Enterprise', employees: 380, status: 'active', joined: '1 เม.ย. 2569', planColor: '#7c3aed', planBg: '#ede9fe' },
-]
-
-const ChartTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: 'white', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px', fontSize: '12px', border: '1px solid #f1f5f9' }}>
-      <p style={{ fontWeight: 600, color: '#374151', marginBottom: '6px' }}>{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b7280', marginBottom: '2px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: p.color, display: 'inline-block', flexShrink: 0 }} />
-          <span>{p.name}:</span>
-          <span style={{ fontWeight: 600, color: '#111827' }}>{p.value?.toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-  )
+interface DashTenant {
+  id: string
+  name: string
+  plan: string
+  status: DashStatus
+  employee_count: number
+  branch_count: number
+  owner_email: string
+  line_configured: boolean
+  expires_at: string | null
 }
 
-export default function DashboardPage() {
+function adaptTenant(t: ApiTenant): DashTenant {
+  return {
+    id: t.id,
+    name: t.name,
+    plan: t.plan === 'PRO' ? 'PROFESSIONAL' : t.plan,
+    status: t.is_active ? 'ACTIVE' : 'SUSPENDED',
+    employee_count: t._count.employees,
+    branch_count: t._count.branches,
+    owner_email: t.users[0]?.email ?? '',
+    line_configured: t.line_config !== null,
+    expires_at: t.expires_at ?? null,
+  }
+}
+
+const STATUS_CFG: Record<DashStatus, { label: string; color: string; bg: string; dot: string }> = {
+  ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7', dot: 'var(--success-text)' },
+  SUSPENDED: { label: 'ระงับ',    color: 'var(--error-text)', bg: '#fee2e2', dot: 'var(--error-text)' },
+  TRIAL:     { label: 'ทดลองใช้', color: 'var(--warning-text)', bg: '#fef3c7', dot: 'var(--warning-text)' },
+}
+
+const PLAN_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  FREE:         { label: 'Free',         color: 'var(--text-gray)', bg: '#f3f4f6' },
+  STARTER:      { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6' },
+  PROFESSIONAL: { label: 'Professional', color: '#2563eb', bg: '#dbeafe' },
+  ENTERPRISE:   { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe' },
+}
+const PLAN_DISPLAY_ORDER = ['ENTERPRISE', 'PROFESSIONAL', 'STARTER', 'FREE']
+
+const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+function thDate(s: string) { const d = new Date(s); return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}` }
+
+const ACTIVITY_CFG: Record<string, { icon: string; color: string }> = {
+  new:     { icon: '🆕', color: 'var(--success-text)' },
+  trial:   { icon: '🔬', color: 'var(--warning-text)' },
+  renew:   { icon: '♻️', color: '#2563eb' },
+  suspend: { icon: '🚫', color: 'var(--error-text)' },
+  update:  { icon: '📝', color: 'var(--text-gray)' },
+}
+
+interface ActivityItem { time: string; msg: string; type: string }
+
+export default function SuperAdminDashboard() {
+  const navigate = useNavigate()
+  const [tenants, setTenants]       = useState<DashTenant[]>([])
+  const [activity, setActivity]     = useState<ActivityItem[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [statusFilter, setStatusFilter] = useState<DashStatus | ''>('')
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/api/v1/super-admin/tenants'),
+      api.get('/api/v1/super-admin/activity').catch(() => ({ data: { data: [] } })),
+    ]).then(([tenantsRes, activityRes]) => {
+      if (Array.isArray(tenantsRes.data?.data)) {
+        setTenants(tenantsRes.data.data.map(adaptTenant))
+      }
+      if (Array.isArray(activityRes.data?.data)) {
+        setActivity(activityRes.data.data)
+      }
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const totalEmployees = tenants.reduce((s, t) => s + t.employee_count, 0)
+  const activeTenants  = tenants.filter(t => t.status === 'ACTIVE').length
+  const trialTenants   = tenants.filter(t => t.status === 'TRIAL').length
+  const lineConfigured = tenants.filter(t => t.line_configured).length
+  const filtered       = tenants.filter(t => !statusFilter || t.status === statusFilter)
+
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div>
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span className="animate-spin" style={{ display: 'inline-block', fontSize: '1.2rem' }}>⟳</span> กำลังโหลด…</div>
+      )}
 
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>ภาพรวม</h2>
-        <p style={{ fontSize: '13px', color: '#64748b', margin: '3px 0 0' }}>ข้อมูลรวม HR SaaS Platform — อัปเดตล่าสุด 19 พ.ค. 2569</p>
-      </div>
+      {!loading && (
+        <>
+          {/* Alert for expiring trials */}
+          {trialTenants > 0 && (
+            <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 10, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>⚠️</span>
+              <span style={{ fontSize: '0.875rem', color: '#92400e' }}>
+                มี <strong>{trialTenants} Tenant</strong> ที่อยู่ในช่วงทดลองใช้ — ควรติดตามเพื่อปิดการขาย
+              </span>
+            </div>
+          )}
 
-      {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        {stats.map((s) => (
-          <div key={s.label} style={{ ...card, padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: s.bg, color: s.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {s.icon}
+          {/* Stat Cards */}
+          <div className="grid-stats" style={{ marginBottom: 24 }}>
+            {[
+              { label: 'Tenant ทั้งหมด',       value: tenants.length, unit: 'บริษัท', color: 'var(--sa-accent)', bg: '#ede9fe', icon: '🏗' },
+              { label: 'ใช้งานอยู่',            value: activeTenants,  unit: 'Tenant', color: 'var(--success-text)', bg: '#dcfce7', icon: '✅' },
+              { label: 'พนักงานรวมทุก Tenant', value: totalEmployees,  unit: 'คน',    color: '#2563eb', bg: '#dbeafe', icon: '👥' },
+              { label: 'Line OA ตั้งค่าแล้ว',  value: lineConfigured,  unit: 'Tenant', color: '#f97316', bg: '#fff7ed', icon: '💚' },
+            ].map(s => (
+              <div key={s.label} style={{ background: s.bg, borderRadius: 14, padding: '18px 20px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-gray)', fontWeight: 500 }}>{s.label}</div>
+                  <span style={{ fontSize: '1.3rem' }}>{s.icon}</span>
+                </div>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>
+                  {s.value}
+                  <span style={{ fontSize: '0.85rem', fontWeight: 400, marginLeft: 6, color: 'var(--text-gray)' }}>{s.unit}</span>
+                </div>
               </div>
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: '3px',
-                fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '99px',
-                background: s.up ? '#d1fae5' : '#fee2e2', color: s.up ? '#065f46' : '#991b1b',
-              }}>
-                {s.up ? '↑' : '↓'} {s.trend}
-              </span>
-            </div>
-            <p style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1 }}>{s.value}</p>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 2px' }}>{s.label}</p>
-            <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>{s.trendLabel}</p>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-        {/* Area chart */}
-        <div style={{ ...card, padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+            {/* Tenant Table */}
             <div>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Check-in &amp; วันลา</p>
-              <p style={{ fontSize: '11px', color: '#94a3b8', margin: '3px 0 0' }}>ภาพรวม 6 เดือนที่ผ่านมา</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '11px', color: '#64748b' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1', display: 'inline-block' }} />Check-in
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />วันลา
-              </span>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={checkinData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.12} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gL" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.12} />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip />} />
-              <Area type="monotone" dataKey="checkins" name="Check-in" stroke="#6366f1" strokeWidth={2} fill="url(#gC)" dot={false} />
-              <Area type="monotone" dataKey="leaves" name="วันลา" stroke="#f59e0b" strokeWidth={2} fill="url(#gL)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-dark)' }}>รายการ Tenant</h3>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as DashStatus | '')} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}>
+                    <option value="">ทุกสถานะ</option>
+                    <option value="ACTIVE">ใช้งาน</option>
+                    <option value="TRIAL">ทดลองใช้</option>
+                    <option value="SUSPENDED">ระงับ</option>
+                  </select>
+                  <button onClick={() => navigate('/superadmin/tenants')} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontSize: '0.82rem', fontWeight: 600 }}>
+                    จัดการทั้งหมด →
+                  </button>
+                </div>
+              </div>
 
-        {/* Bar chart */}
-        <div style={{ ...card, padding: '16px' }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>Tenant Growth</p>
-          <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 16px' }}>จำนวน tenant สะสม</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={tenantGrowth} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={18}>
-              <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="tenants" name="Tenants" fill="#c7d2fe" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Recent Tenants */}
-      <div style={{ ...card, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #f8fafc' }}>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Tenant ล่าสุด</p>
-            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>เข้าใช้งานใหม่ใน 30 วันที่ผ่านมา</p>
-          </div>
-          <Link to="/tenants" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, color: '#6366f1', textDecoration: 'none' }}>
-            ดูทั้งหมด
-            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </Link>
-        </div>
-        {recentTenants.map((t, i) => (
-          <div key={t.name} style={{
-            display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 16px',
-            borderTop: i === 0 ? 'none' : '1px solid #f8fafc',
-            transition: 'background 0.15s',
-          }}>
-            <div style={{
-              width: '34px', height: '34px', borderRadius: '10px', flexShrink: 0,
-              background: t.planBg, color: t.planColor,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, fontSize: '12px',
-            }}>{t.abbr}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</p>
-              <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>{t.employees.toLocaleString()} พนักงาน · {t.joined}</p>
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+                {filtered.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-subtle)', fontSize: '0.875rem' }}>
+                    ไม่พบข้อมูล Tenant
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ background: '#ede9fe' }}>
+                        {['บริษัท / ผู้ดูแล', 'Plan', 'สาขา', 'พนักงาน', 'Line OA', 'สถานะ', 'หมดอายุ'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#4338ca', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((t, i) => {
+                        const sc = STATUS_CFG[t.status]
+                        const pc = PLAN_CFG[t.plan] ?? { label: t.plan, color: 'var(--text-body)', bg: '#f3f4f6' }
+                        return (
+                          <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
+                            onClick={() => navigate('/superadmin/tenants')}
+                          >
+                            <td style={{ padding: '11px 14px' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.875rem' }}>{t.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{t.owner_email}</div>
+                            </td>
+                            <td style={{ padding: '11px 14px' }}>
+                              <span style={{ background: pc.bg, color: pc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{pc.label}</span>
+                            </td>
+                            <td style={{ padding: '11px 14px', color: 'var(--text-body)', fontWeight: 600 }}>{t.branch_count}</td>
+                            <td style={{ padding: '11px 14px', color: 'var(--text-body)', fontWeight: 600 }}>{t.employee_count}</td>
+                            <td style={{ padding: '11px 14px' }}>
+                              {t.line_configured
+                                ? <span style={{ color: 'var(--success-text)', fontWeight: 700, fontSize: '0.82rem' }}>✓ ตั้งค่าแล้ว</span>
+                                : <span style={{ color: 'var(--text-subtle)', fontSize: '0.82rem' }}>— ยังไม่ตั้งค่า</span>}
+                            </td>
+                            <td style={{ padding: '11px 14px' }}>
+                              <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot, display: 'inline-block' }} />
+                                {sc.label}
+                              </span>
+                            </td>
+                            <td style={{ padding: '11px 14px', color: 'var(--text-gray)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                              {t.expires_at ? thDate(t.expires_at) : <span style={{ color: 'var(--success-text)' }}>ไม่หมดอายุ</span>}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: t.planBg, color: t.planColor, flexShrink: 0 }}>
-              {t.plan}
-            </span>
-            {t.status === 'active' ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 500, color: '#065f46', flexShrink: 0 }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Active
-              </span>
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 500, color: '#be123c', flexShrink: 0 }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }} />Suspended
-              </span>
-            )}
+
+            {/* Right column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Plan breakdown */}
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '18px' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700 }}>📊 แบ่งตาม Plan</h3>
+                {PLAN_DISPLAY_ORDER.filter(plan => tenants.some(t => t.plan === plan)).map(plan => {
+                  const count = tenants.filter(t => t.plan === plan).length
+                  const pct = tenants.length > 0 ? Math.round((count / tenants.length) * 100) : 0
+                  const pc = PLAN_CFG[plan] ?? { label: plan, color: 'var(--text-body)', bg: '#f3f4f6' }
+                  return (
+                    <div key={plan} style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, color: pc.color }}>{pc.label}</span>
+                        <span style={{ color: 'var(--text-body)', fontWeight: 700 }}>{count} <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>({pct}%)</span></span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 99, background: '#f3f4f6' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: pc.color, borderRadius: 99 }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Recent Activity */}
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '18px' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700 }}>🕑 กิจกรรมล่าสุด</h3>
+                {activity.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-subtle)', fontSize: '0.82rem' }}>
+                    ยังไม่มีกิจกรรม
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {activity.slice(0, 5).map((a, i) => {
+                        const cfg = ACTIVITY_CFG[a.type] ?? { icon: '📌', color: 'var(--text-gray)' }
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '1rem', flexShrink: 0 }}>{cfg.icon}</span>
+                            <div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-body)', lineHeight: 1.4 }}>{a.msg}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', marginTop: 2 }}>{a.time}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {activity.length > 5 && (
+                      <button
+                        onClick={() => navigate('/superadmin/announcement')}
+                        style={{ display: 'block', width: '100%', marginTop: 10, padding: '7px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f8fafc', color: 'var(--sa-accent)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}
+                      >
+                        ดูทั้งหมด ({activity.length}) →
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   )
 }

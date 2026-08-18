@@ -25,6 +25,12 @@ services:
         sync: false
       - key: LINE_CHANNEL_SECRET
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: CORS_ADMIN_URL
         sync: false   # e.g. https://timeline-admin.vercel.app
       - key: CORS_SUPERADMIN_URL

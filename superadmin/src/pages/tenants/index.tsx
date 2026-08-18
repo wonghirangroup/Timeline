@@ -1,295 +1,660 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../../lib/axios'
+// admin/src/pages/superadmin/tenants/index.tsx
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../../../lib/axios'
 
-type Status = 'active' | 'suspended' | 'trial'
-type PlanKey = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
+type Plan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 
-interface Tenant {
-  id: string; name: string; plan: PlanKey; is_active: boolean; created_at: string
+interface ApiTenant {
+  id: string
+  name: string
+  plan: Plan
+  max_employees: number
+  max_branches: number
+  is_active: boolean
+  created_at: string
   _count: { employees: number; branches: number }
   line_config: { line_channel_id: string; line_liff_id: string } | null
   users: { email: string; first_name: string; last_name: string }[]
 }
 
-interface TenantUI {
-  id: string; abbr: string; name: string; email: string
-  plan: PlanKey; employees: number; branches: number
-  status: Status; lineConfigured: boolean; joined: string
+const PLAN_CFG: Record<Plan, { label: string; color: string; bg: string; price: string }> = {
+  FREE:       { label: 'Free',         color: 'var(--text-body)', bg: '#f3f4f6', price: 'ฟรี' },
+  STARTER:    { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6', price: '990 ฿/เดือน' },
+  PRO:        { label: 'Pro',          color: '#2563eb', bg: '#dbeafe', price: '2,490 ฿/เดือน' },
+  ENTERPRISE: { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe', price: 'Custom' },
 }
 
-const PLAN_LABEL: Record<PlanKey, string> = { FREE: 'Free', STARTER: 'Starter', PRO: 'Pro', ENTERPRISE: 'Enterprise' }
-
-const planStyle: Record<PlanKey, { bg: string; color: string }> = {
-  FREE:       { bg: '#f8fafc', color: '#64748b' },
-  STARTER:    { bg: '#f1f5f9', color: '#475569' },
-  PRO:        { bg: '#dbeafe', color: '#1d4ed8' },
-  ENTERPRISE: { bg: '#ede9fe', color: '#6d28d9' },
+const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+function thDate(s: string) {
+  const d = new Date(s)
+  return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 
-const statusConfig: Record<Status, { dot: string; text: string; bg: string; label: string }> = {
-  active:    { dot: '#10b981', text: '#065f46', bg: '#d1fae530', label: 'Active' },
-  suspended: { dot: '#f43f5e', text: '#9f1239', bg: '#fee2e230', label: 'Suspended' },
-  trial:     { dot: '#f59e0b', text: '#92400e', bg: '#fef3c730', label: 'Trial' },
+const EMPTY_FORM = {
+  name: '',
+  admin_first_name: '',
+  admin_last_name: '',
+  admin_email: '',
+  admin_password: '',
+  plan: 'STARTER' as Plan,
+  max_employees: 50,
+  max_branches: 5,
 }
 
-const card: React.CSSProperties = {
-  background: 'white', borderRadius: '12px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid rgba(15,23,42,0.06)', overflow: 'hidden',
-}
-
-function abbrOf(name: string) {
-  return name.replace(/บริษัท|จำกัด|ห้างหุ้นส่วน|อินดัสทรี|\s/g, '').slice(0, 2) || name.slice(0, 2)
-}
-
-function formatThaiDate(dateStr: string) {
-  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-  const d = new Date(dateStr)
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`
-}
-
-function toUI(t: Tenant): TenantUI {
-  return {
-    id: t.id, abbr: abbrOf(t.name), name: t.name,
-    email: t.users[0]?.email ?? '-',
-    plan: t.plan,
-    employees: t._count.employees, branches: t._count.branches,
-    status: t.is_active ? 'active' : 'suspended',
-    lineConfigured: !!t.line_config,
-    joined: formatThaiDate(t.created_at),
-  }
-}
-
-function AddModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({
-    name: '', admin_email: '', admin_password: '',
-    admin_first_name: '', admin_last_name: '', plan: 'STARTER' as PlanKey,
-  })
-  const [error, setError] = useState('')
-
-  const mutation = useMutation({
-    mutationFn: () => api.post('/super-admin/tenants', form),
-    onSuccess: () => { onSuccess(); onClose() },
-    onError: (err: any) => setError(err.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด'),
-  })
-
-  const fields = [
-    { key: 'name', label: 'ชื่อบริษัท *', type: 'text', placeholder: 'บริษัท ตัวอย่าง จำกัด' },
-    { key: 'admin_email', label: 'อีเมล Admin *', type: 'email', placeholder: 'admin@company.co.th' },
-    { key: 'admin_password', label: 'รหัสผ่าน Admin *', type: 'password', placeholder: '••••••••' },
-    { key: 'admin_first_name', label: 'ชื่อ Admin *', type: 'text', placeholder: 'ชื่อ' },
-    { key: 'admin_last_name', label: 'นามสกุล Admin *', type: 'text', placeholder: 'นามสกุล' },
-  ] as const
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ background: 'white', borderRadius: '16px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', width: '100%', maxWidth: '460px', margin: '0 16px', overflow: 'hidden', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
-          <div>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a', margin: 0 }}>เพิ่ม Tenant ใหม่</p>
-            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>กรอกข้อมูลบริษัทลูกค้าและ Admin</p>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }}>
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {fields.map(f => (
-            <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
-              {f.label}
-              <input
-                type={f.type}
-                placeholder={f.placeholder}
-                value={form[f.key]}
-                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', outline: 'none' }}
-              />
-            </label>
-          ))}
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
-            แผนการใช้งาน
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '6px' }}>
-              {(['STARTER', 'PRO', 'ENTERPRISE'] as PlanKey[]).map(p => (
-                <button key={p} type="button" onClick={() => setForm({ ...form, plan: p })}
-                  style={{ padding: '7px 8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `2px solid ${form.plan === p ? planStyle[p].color : '#e2e8f0'}`, background: form.plan === p ? planStyle[p].bg : 'white', color: form.plan === p ? planStyle[p].color : '#64748b' }}>
-                  {PLAN_LABEL[p]}
-                </button>
-              ))}
-            </div>
-          </label>
-
-          {error && (
-            <div style={{ padding: '8px 12px', borderRadius: '8px', background: '#fff1f2', border: '1px solid #fecdd3', fontSize: '12px', color: '#be123c' }}>{error}</div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', padding: '0 20px 16px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '9px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', color: '#64748b' }}>ยกเลิก</button>
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-            style={{ flex: 1, padding: '9px', fontSize: '13px', fontWeight: 600, background: 'linear-gradient(135deg,#6366f1,#7c3aed)', border: 'none', borderRadius: '8px', cursor: mutation.isPending ? 'not-allowed' : 'pointer', color: 'white', opacity: mutation.isPending ? 0.7 : 1 }}>
-            {mutation.isPending ? 'กำลังสร้าง...' : 'สร้าง Tenant'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+const EMPTY_EDIT = {
+  name: '',
+  plan: 'STARTER' as Plan,
+  max_employees: 50,
+  max_branches: 5,
 }
 
 export default function TenantsPage() {
-  const qc = useQueryClient()
+  const navigate = useNavigate()
+
+  const [tenants, setTenants]     = useState<ApiTenant[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
   const [search, setSearch]       = useState('')
-  const [filterStatus, setFilter] = useState<'all' | Status>('all')
-  const [showModal, setShowModal] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL')
 
-  const { data, isLoading, isError } = useQuery<Tenant[]>({
-    queryKey: ['super-admin', 'tenants'],
-    queryFn: () => api.get('/super-admin/tenants').then(r => r.data.data),
-  })
+  // Create modal
+  const [createModal, setCreateModal] = useState(false)
+  const [createForm, setCreateForm]   = useState(EMPTY_FORM)
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createError, setCreateError]     = useState<string | null>(null)
+  const [showPassword, setShowPassword]   = useState(false)
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.patch(`/super-admin/tenants/${id}`, { is_active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['super-admin', 'tenants'] }),
-  })
+  // Edit modal
+  const [editTarget, setEditTarget] = useState<ApiTenant | null>(null)
+  const [editForm, setEditForm]     = useState(EMPTY_EDIT)
+  const [editLoading, setEditLoading] = useState(false)
 
-  const tenants: TenantUI[] = (data ?? []).map(toUI)
+  // Confirm modals
+  const [suspendTarget, setSuspendTarget] = useState<ApiTenant | null>(null)
+  const [deleteTarget, setDeleteTarget]   = useState<ApiTenant | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // Bulk select
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  function toggleSelectAll() {
+    setSelectedIds(prev => prev.length === filtered.length ? [] : filtered.map(t => t.id))
+  }
+  async function handleBulkSuspend() {
+    const targets = tenants.filter(t => selectedIds.includes(t.id) && t.is_active)
+    await Promise.all(targets.map(t => api.patch(`/api/v1/super-admin/tenants/${t.id}`, { is_active: false }).catch(() => {})))
+    setSelectedIds([])
+    await loadTenants()
+  }
+  async function handleBulkActivate() {
+    const targets = tenants.filter(t => selectedIds.includes(t.id) && !t.is_active)
+    await Promise.all(targets.map(t => api.patch(`/api/v1/super-admin/tenants/${t.id}`, { is_active: true }).catch(() => {})))
+    setSelectedIds([])
+    await loadTenants()
+  }
+
+  const [lineModal, setLineModal] = useState<ApiTenant | null>(null)
+
+  async function handleSaveLineConfig() {
+    if (!lineModal) return
+    if (!lineForm.line_channel_id || !lineForm.line_channel_secret || !lineForm.liff_id) {
+      setLineSaveErr('กรุณากรอกข้อมูลให้ครบทุกช่อง')
+      return
+    }
+    setLineSaving(true)
+    setLineSaveErr(null)
+    try {
+      await api.post(`/api/v1/super-admin/tenants/${lineModal.id}/line-config`, {
+        line_channel_id:     lineForm.line_channel_id,
+        line_channel_secret: lineForm.line_channel_secret,
+        line_liff_id:        lineForm.liff_id,
+      })
+      setLineModal(null)
+      await loadTenants()
+    } catch (e: any) {
+      setLineSaveErr(e.response?.data?.error?.message ?? 'บันทึกไม่สำเร็จ')
+    } finally {
+      setLineSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCreateModal(false); setEditTarget(null); setSuspendTarget(null); setDeleteTarget(null); setLineModal(null)
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
+  const [lineForm, setLineForm]     = useState({ line_channel_id: '', line_channel_secret: '', liff_id: '' })
+  const [showSecret, setShowSecret] = useState(false)
+  const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [lineSaving, setLineSaving] = useState(false)
+  const [lineSaveErr, setLineSaveErr] = useState<string | null>(null)
+
+  async function loadTenants() {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await api.get('/api/v1/super-admin/tenants')
+      setTenants(res.data.data ?? [])
+    } catch (e: any) {
+      setError(e.response?.data?.error?.message ?? 'โหลดข้อมูลไม่สำเร็จ')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { loadTenants() }, [])
+
   const filtered = tenants.filter(t => {
-    const q = search.toLowerCase()
-    return (t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q)) &&
-      (filterStatus === 'all' || t.status === filterStatus)
+    if (activeFilter === 'ACTIVE'    && !t.is_active) return false
+    if (activeFilter === 'SUSPENDED' &&  t.is_active) return false
+    if (search) {
+      const admin = t.users[0]
+      const hay = `${t.name} ${admin?.first_name ?? ''} ${admin?.last_name ?? ''} ${admin?.email ?? ''}`.toLowerCase()
+      if (!hay.includes(search.toLowerCase())) return false
+    }
+    return true
   })
 
-  const tabs = [
-    { key: 'all' as const,       label: 'ทั้งหมด',   count: tenants.length },
-    { key: 'active' as const,    label: 'Active',     count: tenants.filter(t => t.status === 'active').length },
-    { key: 'suspended' as const, label: 'Suspended',  count: tenants.filter(t => t.status === 'suspended').length },
-  ]
+  // ── Create tenant ────────────────────────────────────────────────
+  async function handleCreate() {
+    if (!createForm.name || !createForm.admin_email || !createForm.admin_password || !createForm.admin_first_name || !createForm.admin_last_name) {
+      setCreateError('กรุณากรอกข้อมูลให้ครบ')
+      return
+    }
+    setCreateLoading(true)
+    setCreateError(null)
+    try {
+      await api.post('/api/v1/super-admin/tenants', {
+        name:             createForm.name,
+        plan:             createForm.plan,
+        max_employees:    createForm.max_employees,
+        max_branches:     createForm.max_branches,
+        admin_email:      createForm.admin_email,
+        admin_password:   createForm.admin_password,
+        admin_first_name: createForm.admin_first_name,
+        admin_last_name:  createForm.admin_last_name,
+      })
+      setCreateModal(false)
+      setCreateForm(EMPTY_FORM)
+      await loadTenants()
+    } catch (e: any) {
+      setCreateError(e.response?.data?.error?.message ?? 'สร้าง Tenant ไม่สำเร็จ')
+    } finally {
+      setCreateLoading(false)
+    }
+  }
+
+  // ── Edit tenant ──────────────────────────────────────────────────
+  function openEdit(t: ApiTenant) {
+    setEditTarget(t)
+    setEditForm({ name: t.name, plan: t.plan, max_employees: t.max_employees, max_branches: t.max_branches })
+  }
+  async function handleEdit() {
+    if (!editTarget) return
+    setEditLoading(true)
+    try {
+      await api.patch(`/api/v1/super-admin/tenants/${editTarget.id}`, editForm)
+      setEditTarget(null)
+      await loadTenants()
+    } catch {
+      // error silently for now
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // ── Suspend / Activate ───────────────────────────────────────────
+  async function handleSuspend() {
+    if (!suspendTarget) return
+    setActionLoading(true)
+    try {
+      await api.patch(`/api/v1/super-admin/tenants/${suspendTarget.id}`, { is_active: !suspendTarget.is_active })
+      setSuspendTarget(null)
+      await loadTenants()
+    } catch {
+      // error silently
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setActionLoading(true)
+    try {
+      await api.delete(`/api/v1/super-admin/tenants/${deleteTarget.id}`)
+      setDeleteTarget(null)
+      await loadTenants()
+    } catch {
+      // error silently
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const inputSt: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' }
+  const labelSt: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-body)', marginBottom: 5, display: 'block' }
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Tenants</h2>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '3px 0 0' }}>บริษัทลูกค้าที่ใช้งาน Platform ทั้งหมด</p>
+          <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>🏗 จัดการ Tenant ทั้งหมด</h2>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-gray)' }}>เพิ่ม / แก้ไข / ระงับ บริษัทลูกค้า และตั้งค่า Line OA</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'linear-gradient(135deg,#6366f1,#7c3aed)', border: 'none', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-          เพิ่ม Tenant
+        <button onClick={() => { setCreateModal(true); setCreateError(null) }}
+          style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+          + เพิ่ม Tenant ใหม่
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative' }}>
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อบริษัท หรืออีเมล..."
-            style={{ paddingLeft: '32px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px', fontSize: '13px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', outline: 'none', width: '240px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} />
-        </div>
-        <div style={{ display: 'flex', background: 'white', borderRadius: '8px', padding: '3px', gap: '2px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(15,23,42,0.06)' }}>
-          {tabs.map(tab => (
-            <button key={tab.key} onClick={() => setFilter(tab.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: filterStatus === tab.key ? '#6366f1' : 'transparent', color: filterStatus === tab.key ? 'white' : '#64748b' }}>
-              {tab.label}
-              <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: filterStatus === tab.key ? 'rgba(255,255,255,0.2)' : '#f1f5f9', color: filterStatus === tab.key ? 'white' : '#94a3b8' }}>{tab.count}</span>
-            </button>
-          ))}
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 ค้นหาชื่อบริษัท / ผู้ดูแล / อีเมล..."
+          style={{ ...inputSt, width: 280 }} />
+        {(['ALL', 'ACTIVE', 'SUSPENDED'] as const).map(f => (
+          <button key={f} onClick={() => setActiveFilter(f)}
+            style={{ padding: '8px 16px', borderRadius: 20, border: `1px solid ${activeFilter === f ? 'var(--sa-accent)' : '#d1d5db'}`, cursor: 'pointer', background: activeFilter === f ? '#ede9fe' : '#fff', color: activeFilter === f ? 'var(--sa-accent)' : 'var(--text-body)', fontSize: '0.82rem', fontWeight: activeFilter === f ? 700 : 400 }}>
+            {f === 'ALL' ? 'ทั้งหมด' : f === 'ACTIVE' ? '✓ ใช้งาน' : '⏸ ระงับ'}
+          </button>
+        ))}
+        <div style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text-gray)' }}>
+          แสดง {filtered.length} / {tenants.length} Tenant
         </div>
       </div>
 
+      {/* Error / Loading */}
+      {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: 'var(--error-text)', fontSize: '0.875rem' }}>{error}</div>}
+
       {/* Table */}
-      <div style={card}>
-        {isLoading ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>กำลังโหลด...</div>
-        ) : isError ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: '#f43f5e', fontSize: '13px' }}>โหลดข้อมูลไม่สำเร็จ กรุณา refresh</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                {['บริษัท', 'แผน', 'พนักงาน / สาขา', 'Line OA', 'สถานะ', 'เริ่มใช้', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>{h}</th>
+              <tr style={{ background: '#ede9fe' }}>
+                <th style={{ padding: '11px 14px', width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onChange={toggleSelectAll}
+                    style={{ accentColor: 'var(--sa-accent)', width: 15, height: 15, cursor: 'pointer' }}
+                    title="เลือกทั้งหมด"
+                  />
+                </th>
+                {['บริษัท / Admin', 'Plan / Limits', 'สาขา', 'พนักงาน', 'Line OA', 'สร้างเมื่อ', 'สถานะ', 'จัดการ'].map(h => (
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--sa-accent-hover)', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>ไม่พบ tenant ที่ค้นหา</td></tr>
-              ) : filtered.map((t, i) => {
-                const sc = statusConfig[t.status]
-                const pl = planStyle[t.plan]
+              {loading && (
+                <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}><span className="animate-spin" style={{ display: 'inline-block', marginRight: 8 }}>⟳</span>กำลังโหลด...</td></tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่พบ Tenant</td></tr>
+              )}
+              {!loading && filtered.map((t, i) => {
+                const admin = t.users[0]
+                const pc = PLAN_CFG[t.plan] ?? PLAN_CFG.FREE
+                const isSelected = selectedIds.includes(t.id)
                 return (
-                  <tr key={t.id} style={{ borderTop: i === 0 ? 'none' : '1px solid #f8fafc', background: 'white' }}>
+                  <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: isSelected ? 'var(--sa-accent-light)' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0, background: pl.bg, color: pl.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px' }}>{t.abbr}</div>
-                        <div>
-                          <p style={{ fontWeight: 600, color: '#1e293b', margin: 0 }}>{t.name}</p>
-                          <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>{t.email}</p>
-                        </div>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(t.id)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ accentColor: 'var(--sa-accent)', width: 15, height: 15, cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--sa-accent)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                        onClick={() => navigate(`/superadmin/tenants/${t.id}`)}>
+                        {t.name}
+                      </div>
+                      {admin
+                        ? <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{admin.first_name} {admin.last_name} · {admin.email}</div>
+                        : <div style={{ fontSize: '0.75rem', color: '#fca5a5' }}>ยังไม่มี Admin</div>}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ background: pc.bg, color: pc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.75rem', fontWeight: 700 }}>{pc.label}</span>
+                      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 3 }}>
+                        สูงสุด {t.max_employees} คน / {t.max_branches} สาขา
                       </div>
                     </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-body)', fontWeight: 600, textAlign: 'center' }}>{t._count.branches}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-body)', fontWeight: 600, textAlign: 'center' }}>{t._count.employees}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px', background: pl.bg, color: pl.color }}>{PLAN_LABEL[t.plan]}</span>
+                      {t.line_config
+                        ? <span style={{ color: 'var(--success-text)', fontSize: '0.78rem', fontWeight: 700 }}>✓ ตั้งค่าแล้ว</span>
+                        : <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>— ยังไม่ตั้งค่า</span>}
+                      <br />
+                      <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult('idle'); setLineSaveErr(null); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
+                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontSize: '0.72rem', fontWeight: 600, marginTop: 4 }}>
+                        {t.line_config ? '⚙ แก้ไข' : '+ ตั้งค่า'}
+                      </button>
                     </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-gray)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{thDate(t.created_at)}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      <p style={{ fontWeight: 600, color: '#374151', margin: 0 }}>{t.employees.toLocaleString()} <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '11px' }}>คน</span></p>
-                      <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>{t.branches} สาขา</p>
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      {t.lineConfigured ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, color: '#059669' }}>
-                          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                          ตั้งค่าแล้ว
-                        </span>
-                      ) : (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, color: '#d97706' }}>
-                          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                          ยังไม่ตั้งค่า
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '99px', background: sc.bg, color: sc.text }}>
-                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: sc.dot, display: 'inline-block' }} />
-                        {sc.label}
+                      <span style={{ background: t.is_active ? '#dcfce7' : '#fee2e2', color: t.is_active ? 'var(--success-text)' : 'var(--error-text)', borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {t.is_active ? 'ใช้งาน' : 'ระงับ'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px', fontSize: '12px', color: '#94a3b8' }}>{t.joined}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      <button
-                        onClick={() => toggleMutation.mutate({ id: t.id, is_active: t.status === 'suspended' })}
-                        disabled={toggleMutation.isPending}
-                        style={{ padding: '5px 10px', fontSize: '11px', fontWeight: 500, border: 'none', borderRadius: '6px', cursor: 'pointer', background: t.status === 'active' ? '#fff1f2' : '#d1fae5', color: t.status === 'active' ? '#be123c' : '#065f46' }}>
-                        {t.status === 'active' ? 'ระงับ' : 'เปิดใช้'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        <button onClick={() => navigate(`/superadmin/tenants/${t.id}`)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#ede9fe', fontSize: '0.75rem', color: 'var(--sa-accent)', fontWeight: 600 }}>ดู</button>
+                        <button onClick={() => openEdit(t)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: 'var(--text-body)' }}>✏</button>
+                        <button onClick={() => setSuspendTarget(t)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${t.is_active ? '#f59e0b' : 'var(--success-text)'}`, cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: t.is_active ? '#d97706' : 'var(--success-text)', fontWeight: 600 }}>
+                          {t.is_active ? '⏸ ระงับ' : '▶ เปิด'}
+                        </button>
+                        <button onClick={() => setDeleteTarget(t)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: 'var(--error-text)' }}>🗑</button>
+                      </div>
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-        )}
-        {!isLoading && !isError && (
-          <div style={{ padding: '10px 14px', borderTop: '1px solid #f8fafc', background: '#fafafa', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
-            <span>แสดง <strong style={{ color: '#64748b' }}>{filtered.length}</strong> จาก {tenants.length} tenants</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-              {tenants.filter(t => t.status === 'active').length} active
-            </span>
-          </div>
-        )}
+        </div>
       </div>
 
-      {showModal && (
-        <AddModal
-          onClose={() => setShowModal(false)}
-          onSuccess={() => qc.invalidateQueries({ queryKey: ['super-admin', 'tenants'] })}
-        />
+      {/* ── Create Tenant Modal ── */}
+      {createModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setCreateModal(false) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="create-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 id="create-tenant-title" style={{ margin: '0 0 20px', fontWeight: 700 }}>+ เพิ่ม Tenant ใหม่</h3>
+
+            {createError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: 'var(--error-text)', fontSize: '0.82rem' }}>
+                {createError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={labelSt}>ชื่อบริษัท / Tenant <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input value={createForm.name} onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="เช่น บริษัท ABC จำกัด" style={inputSt} />
+              </div>
+
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', fontSize: '0.82rem', color: '#0369a1' }}>
+                <strong>บัญชี Admin</strong> — ระบบจะสร้างผู้ใช้ ADMIN พร้อมกับ Tenant
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelSt}>ชื่อ Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                  <input value={createForm.admin_first_name} onChange={e => setCreateForm(f => ({ ...f, admin_first_name: e.target.value }))}
+                    placeholder="ชื่อ" style={inputSt} />
+                </div>
+                <div>
+                  <label style={labelSt}>นามสกุล Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                  <input value={createForm.admin_last_name} onChange={e => setCreateForm(f => ({ ...f, admin_last_name: e.target.value }))}
+                    placeholder="นามสกุล" style={inputSt} />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelSt}>อีเมล Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input type="email" value={createForm.admin_email} onChange={e => setCreateForm(f => ({ ...f, admin_email: e.target.value }))}
+                  placeholder="admin@company.com" style={inputSt} />
+              </div>
+
+              <div>
+                <label style={labelSt}>รหัสผ่าน Admin <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <div style={{ position: 'relative' }}>
+                  <input type={showPassword ? 'text' : 'password'} value={createForm.admin_password}
+                    onChange={e => setCreateForm(f => ({ ...f, admin_password: e.target.value }))}
+                    placeholder="อย่างน้อย 8 ตัวอักษร" style={{ ...inputSt, paddingRight: 44 }} />
+                  <button onClick={() => setShowPassword(s => !s)} type="button"
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                    {showPassword ? '🙈' : '👁'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelSt}>Plan</label>
+                  <select value={createForm.plan} onChange={e => setCreateForm(f => ({ ...f, plan: e.target.value as Plan }))} style={inputSt}>
+                    <option value="FREE">Free</option>
+                    <option value="STARTER">Starter — 990 ฿</option>
+                    <option value="PRO">Pro — 2,490 ฿</option>
+                    <option value="ENTERPRISE">Enterprise</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelSt}>พนักงานสูงสุด</label>
+                  <input type="number" value={createForm.max_employees} onChange={e => setCreateForm(f => ({ ...f, max_employees: +e.target.value }))} style={inputSt} />
+                </div>
+                <div>
+                  <label style={labelSt}>สาขาสูงสุด</label>
+                  <input type="number" value={createForm.max_branches} onChange={e => setCreateForm(f => ({ ...f, max_branches: +e.target.value }))} style={inputSt} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+              <button onClick={() => setCreateModal(false)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
+              <button onClick={handleCreate} disabled={createLoading}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: createLoading ? 'not-allowed' : 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: createLoading ? 0.7 : 1 }}>
+                {createLoading ? 'กำลังสร้าง...' : '+ สร้าง Tenant'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Tenant Modal ── */}
+      {editTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setEditTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 460, maxWidth: '90vw' }}>
+            <h3 id="edit-tenant-title" style={{ margin: '0 0 20px', fontWeight: 700 }}>✏ แก้ไข Tenant</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={labelSt}>ชื่อบริษัท</label>
+                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} style={inputSt} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelSt}>Plan</label>
+                  <select value={editForm.plan} onChange={e => setEditForm(f => ({ ...f, plan: e.target.value as Plan }))} style={inputSt}>
+                    <option value="FREE">Free</option>
+                    <option value="STARTER">Starter</option>
+                    <option value="PRO">Pro</option>
+                    <option value="ENTERPRISE">Enterprise</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelSt}>พนักงานสูงสุด</label>
+                  <input type="number" value={editForm.max_employees} onChange={e => setEditForm(f => ({ ...f, max_employees: +e.target.value }))} style={inputSt} />
+                </div>
+                <div>
+                  <label style={labelSt}>สาขาสูงสุด</label>
+                  <input type="number" value={editForm.max_branches} onChange={e => setEditForm(f => ({ ...f, max_branches: +e.target.value }))} style={inputSt} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+              <button onClick={() => setEditTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
+              <button onClick={handleEdit} disabled={editLoading}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: editLoading ? 0.7 : 1 }}>
+                {editLoading ? 'กำลังบันทึก...' : '💾 บันทึก'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Suspend Confirm ── */}
+      {suspendTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setSuspendTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="suspend-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
+            <h3 id="suspend-tenant-title" style={{ margin: '0 0 10px', fontWeight: 700 }}>
+              {suspendTarget.is_active ? '⏸ ระงับ Tenant' : '▶ เปิดใช้งาน Tenant'}
+            </h3>
+            <p style={{ margin: '0 0 8px', fontSize: '0.875rem' }}><strong>{suspendTarget.name}</strong></p>
+            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>
+              {suspendTarget.is_active
+                ? 'พนักงานทั้งหมดจะไม่สามารถเช็คอินหรือใช้งานระบบได้ทันที'
+                : 'พนักงานจะสามารถเช็คอินและใช้งานระบบได้อีกครั้ง'}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setSuspendTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
+              <button onClick={handleSuspend} disabled={actionLoading}
+                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: suspendTarget.is_active ? '#f59e0b' : '#f97316', color: '#fff', fontWeight: 700 }}>
+                {actionLoading ? '...' : suspendTarget.is_active ? '⏸ ยืนยันระงับ' : '▶ เปิดใช้งาน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirm ── */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setDeleteTarget(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-tenant-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 400 }}>
+            <h3 id="delete-tenant-title" style={{ margin: '0 0 10px', fontWeight: 700, color: 'var(--error-text)' }}>🗑 ลบ Tenant</h3>
+            <p style={{ margin: '0 0 8px', fontSize: '0.875rem' }}><strong>{deleteTarget.name}</strong></p>
+            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: 'var(--error-text)', marginBottom: 20 }}>
+              ⚠️ Soft delete — ข้อมูลจะถูกซ่อน ไม่ได้ลบจริงจาก Database
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setDeleteTarget(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ยกเลิก</button>
+              <button onClick={handleDelete} disabled={actionLoading}
+                style={{ padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--error-text)', color: '#fff', fontWeight: 700 }}>
+                {actionLoading ? '...' : 'ยืนยันลบ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk action bar ── */}
+      {selectedIds.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--text-dark)', color: '#fff', borderRadius: 10, padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 12, zIndex: 300,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.35)', fontSize: '0.875rem', whiteSpace: 'nowrap',
+        }}>
+          <span>เลือก <strong>{selectedIds.length}</strong> Tenant</span>
+          <button
+            onClick={handleBulkSuspend}
+            style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#f59e0b', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+          >⏸ ระงับที่เลือก</button>
+          <button
+            onClick={handleBulkActivate}
+            style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--success-text)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+          >▶ เปิดที่เลือก</button>
+          <button
+            onClick={() => setSelectedIds([])}
+            style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}
+          >✕</button>
+        </div>
+      )}
+
+      {/* ── Line OA Modal (local state for now) ── */}
+      {lineModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setLineModal(null) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="line-oa-modal-title" style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 560, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: '1.4rem' }}>💚</span>
+              <h3 id="line-oa-modal-title" style={{ margin: 0, fontWeight: 700 }}>ตั้งค่า LINE OA</h3>
+            </div>
+            <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--text-gray)' }}>{lineModal.name}</p>
+
+            {/* Step guide */}
+            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '14px 16px', marginBottom: 18, fontSize: '0.8rem', color: '#0369a1', lineHeight: 1.8 }}>
+              <strong style={{ display: 'block', marginBottom: 6 }}>📋 วิธีหาข้อมูล — LINE Developers Console</strong>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                <li>เปิด <strong>developers.line.biz</strong> → Login → เลือก Provider</li>
+                <li>เลือก Channel ประเภท <strong>Messaging API</strong> ที่ใช้กับ OA นี้</li>
+                <li>แท็บ <strong>Basic settings</strong> → คัดลอก <em>Channel ID</em> และ <em>Channel Secret</em></li>
+                <li>แท็บ <strong>LIFF</strong> → เลือก LIFF App → คัดลอก <em>LIFF ID</em></li>
+              </ol>
+            </div>
+
+            {/* Webhook URL */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.7 }}>
+              <strong>Webhook URL</strong> — ใส่ใน LINE Developers → Messaging API → Webhook settings<br />
+              <code style={{ fontSize: '0.73rem', background: '#dcfce7', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginTop: 4, wordBreak: 'break-all' }}>
+                {`https://timeline-52hp.onrender.com/api/v1/line/webhook`}
+              </code>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Channel ID */}
+              <div>
+                <label style={labelSt}>Channel ID <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input value={lineForm.line_channel_id} onChange={e => setLineForm(f => ({ ...f, line_channel_id: e.target.value }))} placeholder="เช่น 2010057364" style={inputSt} />
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → เลือก Channel → แท็บ <strong>Basic settings</strong> → <em>Channel ID</em>
+                </p>
+              </div>
+
+              {/* Channel Secret */}
+              <div>
+                <label style={labelSt}>Channel Secret <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <div style={{ position: 'relative' }}>
+                  <input type={showSecret ? 'text' : 'password'} value={lineForm.line_channel_secret}
+                    onChange={e => setLineForm(f => ({ ...f, line_channel_secret: e.target.value }))}
+                    placeholder="ตัวอักษร 32 หลัก" style={{ ...inputSt, paddingRight: 44 }} />
+                  <button onClick={() => setShowSecret(s => !s)} type="button" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>{showSecret ? '🙈' : '👁'}</button>
+                </div>
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → แท็บ <strong>Basic settings</strong> → <em>Channel secret</em> → กด Issue ถ้ายังไม่มี
+                </p>
+              </div>
+
+              {/* LIFF ID */}
+              <div>
+                <label style={labelSt}>LIFF ID <span style={{ color: 'var(--error-text)' }}>*</span></label>
+                <input value={lineForm.liff_id} onChange={e => setLineForm(f => ({ ...f, liff_id: e.target.value }))} placeholder="เช่น 2010057364-BtB7eW1f" style={inputSt} />
+                <p style={{ margin: '5px 0 0', fontSize: '0.73rem', color: '#6b7280' }}>
+                  LINE Developers → แท็บ <strong>LIFF</strong> → เลือก LIFF App → <em>LIFF ID</em> (รูปแบบ: ChannelID-XXXXXXXX)
+                </p>
+              </div>
+
+              {testResult !== 'idle' && (
+                <div style={{ background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)' }}>
+                  {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret'}
+                </div>
+              )}
+              {lineSaveErr && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: 'var(--error-text)' }}>
+                  {lineSaveErr}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 22 }}>
+              <button onClick={() => { setTestResult('idle'); setTimeout(() => setTestResult(lineForm.line_channel_id && lineForm.line_channel_secret ? 'ok' : 'fail'), 1200) }}
+                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600 }}>🔌 Test</button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setLineModal(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ปิด</button>
+                <button onClick={handleSaveLineConfig} disabled={lineSaving}
+                  style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: lineSaving ? 'not-allowed' : 'pointer', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, opacity: lineSaving ? 0.7 : 1 }}>
+                  {lineSaving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
