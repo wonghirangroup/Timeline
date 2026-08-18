@@ -34,6 +34,8 @@ interface ApiShift {
   late_threshold_2: string | null
   late_fine_1: string | null
   late_fine_2: string | null
+  absent_threshold: string | null
+  absent_fine: string | null
   shift_type: 'REGULAR' | 'SPECIAL'
   gps_radius: number | null
   is_active: boolean
@@ -77,6 +79,7 @@ const SHIFT_EMPTY = {
   name: '', start_time: '08:00', end_time: '18:00',
   min_checkout: '17:55', late_threshold_1: '08:05', late_threshold_2: '08:30',
   late_fine_1: '', late_fine_2: '',
+  absent_threshold: '', absent_fine: '',
   shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
   gps_radius: '' as string | number,
 }
@@ -1285,7 +1288,7 @@ export default function BranchPage() {
               <div>
                 <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>เกณฑ์การสาย & ค่าปรับ</label>
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                  ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong>
+                  ⚠️ ระดับ 1/2 = สายปกติ · ⛔ ขาด = สายเกินจนนับเป็นวันขาด (ยังเช็คอินได้ปกติ แต่หักค่าปรับวันถัดไป)
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
@@ -1300,7 +1303,7 @@ export default function BranchPage() {
                     )}
                   </div>
                   <div>
-                    <label style={shiftLabelStyle}>สายระดับ 2 (ปิดรับ)</label>
+                    <label style={shiftLabelStyle}>สายระดับ 2</label>
                     <input type="time" value={shiftForm.late_threshold_2}
                       onChange={e => setShiftForm(f => ({ ...f, late_threshold_2: e.target.value }))}
                       style={shiftInputStyle} />
@@ -1322,6 +1325,23 @@ export default function BranchPage() {
                       onChange={e => setShiftForm(f => ({ ...f, late_fine_2: e.target.value }))}
                       placeholder="เช่น 200" style={shiftInputStyle} />
                   </div>
+                  <div>
+                    <label style={shiftLabelStyle}>⛔ ขาด (หลังจากนี้นับขาด)</label>
+                    <input type="time" value={shiftForm.absent_threshold}
+                      onChange={e => setShiftForm(f => ({ ...f, absent_threshold: e.target.value }))}
+                      style={shiftInputStyle} />
+                    {shiftForm.absent_threshold && shiftForm.start_time && (
+                      <div style={{ fontSize: '0.7rem', color: '#be185d', marginTop: 3 }}>
+                        {timeDiffLabel(shiftForm.start_time, shiftForm.absent_threshold)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={shiftLabelStyle}>ค่าปรับขาด — หักวันถัดไป (บาท)</label>
+                    <input type="number" min="0" step="50" value={shiftForm.absent_fine}
+                      onChange={e => setShiftForm(f => ({ ...f, absent_fine: e.target.value }))}
+                      placeholder="เช่น 50" style={shiftInputStyle} />
+                  </div>
                 </div>
               </div>
 
@@ -1335,6 +1355,7 @@ export default function BranchPage() {
                     <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{shiftForm.start_time}</span>
                     {shiftForm.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {shiftForm.late_threshold_1}{shiftForm.late_fine_1 ? ` (฿${shiftForm.late_fine_1})` : ''}</span></>}
                     {shiftForm.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {shiftForm.late_threshold_2}{shiftForm.late_fine_2 ? ` (฿${shiftForm.late_fine_2})` : ''}</span></>}
+                    {shiftForm.absent_threshold && <><span style={{ color: '#6b7280' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {shiftForm.absent_threshold}{shiftForm.absent_fine ? ` (+฿${shiftForm.absent_fine} วันถัดไป)` : ''}</span></>}
                     {shiftForm.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{shiftForm.min_checkout}</span></>}
                     <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{shiftForm.end_time}</span>
                   </div>
@@ -1363,6 +1384,8 @@ export default function BranchPage() {
                     late_threshold_2: shiftForm.late_threshold_2 || undefined,
                     late_fine_1: shiftForm.late_fine_1 !== '' ? Number(shiftForm.late_fine_1) : null,
                     late_fine_2: shiftForm.late_fine_2 !== '' ? Number(shiftForm.late_fine_2) : null,
+                    absent_threshold: shiftForm.absent_threshold || undefined,
+                    absent_fine: shiftForm.absent_fine !== '' ? Number(shiftForm.absent_fine) : null,
                     shift_type: shiftForm.shift_type,
                     gps_radius: shiftForm.gps_radius !== '' ? Number(shiftForm.gps_radius) : null,
                   })
@@ -1438,7 +1461,12 @@ export default function BranchPage() {
                   )}
                   {s.late_threshold_2 && (
                     <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
-                      🚫 ปิดรับ {s.late_threshold_2}
+                      🚫 สายระดับ 2 {s.late_threshold_2}
+                    </span>
+                  )}
+                  {s.absent_threshold && (
+                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      ⛔ ขาด {s.absent_threshold}
                     </span>
                   )}
                 </div>
@@ -1460,6 +1488,9 @@ export default function BranchPage() {
                     )}
                     {!isSpec && s.late_threshold_2 && (
                       <BranchInfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                    )}
+                    {!isSpec && s.absent_threshold && (
+                      <BranchInfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
                       <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>

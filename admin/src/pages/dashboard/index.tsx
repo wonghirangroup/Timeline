@@ -15,30 +15,44 @@ interface ApiRecord {
   check_out_at: string | null
   is_late:      boolean
   late_minutes: number
+  is_absent:    boolean
   employee: {
     id: string; first_name: string; last_name: string
     nickname: string | null; employee_code: string
     branch: { id: string; name: string }
   }
-  shift: { id: string; name: string }
+  shift: { id: string; name: string; late_threshold_2: string | null }
 }
 interface ApiBranch   { id: string; name: string }
 interface ApiEmployee { id: string; branch_id: string; branch: { id: string; name: string } }
 interface ApiLeave    { id: string; status: string }
 
-type DashStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING'
+type DashStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT' | 'PENDING'
 
 const STATUS_CFG: Record<DashStatus, { label: string; color: string; bg: string; dot: string }> = {
   ON_TIME: { label: 'มาปกติ',    color: '#16a34a', bg: '#dcfce7', dot: '#22c55e' },
   LATE_1:  { label: 'มาสาย',    color: '#d97706', bg: '#fef3c7', dot: '#f59e0b' },
   LATE_2:  { label: 'สายมาก',   color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
+  ABSENT:  { label: 'ขาด',      color: '#7f1d1d', bg: '#fef2f2', dot: '#dc2626' },
   PENDING: { label: 'ยังไม่เช็ค', color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
+}
+
+function toMins(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
 }
 
 function deriveStatus(r: ApiRecord | null): DashStatus {
   if (!r || !r.check_in_at) return 'PENDING'
+  if (r.is_absent) return 'ABSENT'
   if (!r.is_late) return 'ON_TIME'
-  if (r.late_minutes >= 20) return 'LATE_2'
+  // เทียบกับ late_threshold_2 จริงของกะ แทนการ hardcode 20 นาที
+  if (r.shift.late_threshold_2) {
+    const ci = new Date(r.check_in_at)
+    const bkk = new Date(ci.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+    const ciMins = bkk.getHours() * 60 + bkk.getMinutes()
+    if (ciMins >= toMins(r.shift.late_threshold_2)) return 'LATE_2'
+  }
   return 'LATE_1'
 }
 

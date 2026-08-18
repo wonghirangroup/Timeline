@@ -117,6 +117,7 @@ model Employee {
   status_reason String?   // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
   weekly_off_mode WeeklyOffMode @default(WEEKLY)  // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
   default_shift_id String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
+  pending_fine  Decimal   @default(0) @db.Decimal(8, 2)  // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
@@ -218,9 +219,11 @@ model Shift {
   min_checkout     String?   // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
   late_threshold   Int       @default(15) // minutes — เก็บไว้ backward compat
   late_threshold_1 String?   // "08:05" — สายระดับ 1
-  late_threshold_2 String?   // "08:30" — ปิดรับเช็คอิน / นับว่าขาด
+  late_threshold_2 String?   // "08:30" — สายระดับ 2
   late_fine_1      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 1 (บาท)
   late_fine_2      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 2 (บาท)
+  absent_threshold String?   // "08:31" — เช็คอินหลังเวลานี้ = นับว่าขาด (ยังเช็คอินได้ปกติ)
+  absent_fine      Decimal?  @db.Decimal(8, 2)  // ค่าปรับที่จะถูกหักในวันที่มาเช็คอินถัดไป
   shift_type       ShiftType @default(REGULAR)
   gps_radius       Int?      // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
   allow_overlap    Boolean   @default(false)
@@ -287,6 +290,9 @@ model AttendanceRecord {
   check_in_method  CheckInMethod       @default(LIFF)
   is_late          Boolean             @default(false)
   late_minutes     Int                 @default(0)
+  is_absent        Boolean             @default(false)   // สายเกิน absent_threshold ของกะ — ยังเช็คอินได้ แต่นับเป็นขาด
+  fine             Decimal             @default(0) @db.Decimal(8, 2)  // ค่าปรับของวันนี้เอง (สายระดับ 1/2 ตาม tier ปัจจุบัน) — ไม่รวม carried_fine
+  carried_fine     Decimal             @default(0) @db.Decimal(8, 2)  // ค่าปรับขาดที่ยกมาจากวันก่อนหน้า (ตั้งครั้งเดียวตอนสร้าง record ไม่เปลี่ยนตอนแก้ไขเวลาเช็คอินภายหลัง)
   gps_lat          Decimal?            @db.Decimal(10, 8)
   gps_lng          Decimal?            @db.Decimal(11, 8)
   is_outside_area  Boolean             @default(false)   // true = เช็คอินนอกรัศมี (WARN mode)

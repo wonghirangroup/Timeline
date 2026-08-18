@@ -10,6 +10,9 @@ interface AttendanceRecord {
   check_in_at:  string | null
   check_out_at: string | null
   is_late:      boolean
+  is_absent:    boolean
+  fine:         string
+  carried_fine: string
   note:         string | null
   employee: {
     id: string
@@ -172,6 +175,10 @@ export default function ReportPage() {
       return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ไม่มีข้อมูล', status: 'absent' }
     }
 
+    // นับขาดจาก field จริง (is_absent) ก่อนเสมอ — มาเช็คอินจริงแต่สายเกินเกณฑ์
+    // ไม่ต้องพึ่ง note-text sniffing แบบเดิมอีกต่อไป
+    if (recs.some(r => r.is_absent)) return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ขาด (สายเกินกำหนด)', status: 'absent' }
+
     const note = recs.map(r => r.note ?? '').join(' ')
     if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
     if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: '🌴', color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
@@ -187,7 +194,7 @@ export default function ReportPage() {
 
   // ── Export CSV ──────────────────────────────────────────────────────────────
   function buildCsvRows(empList: typeof employees) {
-    const header = ['รหัสพนักงาน','ชื่อ','นามสกุล','ชื่อเล่น','สาขา','วันที่','วัน','กะ','เวลาเข้า','เวลาออก','สถานะ','สาย','หมายเหตุ']
+    const header = ['รหัสพนักงาน','ชื่อ','นามสกุล','ชื่อเล่น','สาขา','วันที่','วัน','กะ','เวลาเข้า','เวลาออก','สถานะ','สาย','ค่าปรับ','หมายเหตุ']
     const rows: string[][] = []
     for (const { info, byDate } of empList) {
       for (const day of days) {
@@ -198,23 +205,25 @@ export default function ReportPage() {
         const hasRealCheckin = !!recs?.some(r => r.check_in_at)
         if (leaveType && !hasRealCheckin) {
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
-            dateKey, DAYS_TH[dow], '', '', '', 'ลา', '', leaveType])
+            dateKey, DAYS_TH[dow], '', '', '', 'ลา', '', '', leaveType])
           continue
         }
         if (!recs || recs.length === 0) {
           if (dow === 0 || dow === 6) continue
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
-            dateKey, DAYS_TH[dow], '', '', '', 'ขาด', '', ''])
+            dateKey, DAYS_TH[dow], '', '', '', 'ขาด', '', '', ''])
           continue
         }
         for (const r of recs) {
           const { tip } = cellInfo([r], info.employee_code, info.id, day)
+          const totalFine = Number(r.fine) + Number(r.carried_fine)
           rows.push([
             info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
             dateKey, DAYS_TH[dow], r.shift.name,
             fmtTime(r.check_in_at), fmtTime(r.check_out_at),
-            tip || (r.is_late ? 'สาย' : 'ปกติ'),
+            tip || (r.is_absent ? 'ขาด' : r.is_late ? 'สาย' : 'ปกติ'),
             r.is_late ? '✓' : '',
+            totalFine > 0 ? String(totalFine) : '',
             r.note ?? '',
           ])
         }
@@ -237,6 +246,8 @@ export default function ReportPage() {
 
   const totalPresent = [...empMap.values()].reduce((s, e) => s + e.byDate.size, 0)
   const totalLate    = records.filter(r => r.is_late).length
+  const totalAbsent  = records.filter(r => r.is_absent).length
+  const totalFine    = records.reduce((s, r) => s + Number(r.fine) + Number(r.carried_fine), 0)
 
   // ── Status dot color for mobile mini-bar ────────────────────────────────────
   function dotColor(status: string) {
@@ -288,6 +299,8 @@ export default function ReportPage() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ background: '#dcfce7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}>✓ มา {totalPresent} ครั้ง</span>
           <span style={{ background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {totalLate}</span>
+          {totalAbsent > 0 && <span style={{ background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>✗ ขาด {totalAbsent}</span>}
+          {totalFine > 0 && <span style={{ background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}>💸 ค่าปรับรวม {totalFine} ฿</span>}
           <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#6b7280', fontWeight: 600 }}>{employees.length} คน</span>
           {!isMobile && (
             <button onClick={exportAll} disabled={employees.length === 0}
@@ -579,7 +592,15 @@ export default function ReportPage() {
                   <span>เข้า: <strong style={{ color: 'var(--text-dark)' }}>{fmtTime(r.check_in_at)}</strong></span>
                   <span>ออก: <strong style={{ color: 'var(--text-dark)' }}>{fmtTime(r.check_out_at)}</strong></span>
                 </div>
-                {r.is_late && <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: 5, fontWeight: 600 }}>⚠ มาสาย</div>}
+                {r.is_absent
+                  ? <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: 5, fontWeight: 600 }}>✗ ขาด (สายเกินกำหนด)</div>
+                  : r.is_late && <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: 5, fontWeight: 600 }}>⚠ มาสาย</div>}
+                {(Number(r.fine) + Number(r.carried_fine)) > 0 && (
+                  <div style={{ fontSize: '0.75rem', color: '#be185d', marginTop: 3, fontWeight: 600 }}>
+                    💸 ค่าปรับ {Number(r.fine) + Number(r.carried_fine)} ฿
+                    {Number(r.carried_fine) > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> (รวมยกมา {Number(r.carried_fine)})</span>}
+                  </div>
+                )}
                 {r.note && <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 5 }}>{r.note}</div>}
               </div>
             ))}

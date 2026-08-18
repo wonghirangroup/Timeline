@@ -17,6 +17,7 @@ interface CheckInResult {
   branch:           { name: string }
   late_level:       0 | 1 | 2
   late_minutes:     number
+  is_absent:        boolean
   fine:             number
   is_outside_area:  boolean
   is_outside_shift: boolean
@@ -75,11 +76,13 @@ function fmtWorkTime(mins: number) {
 
 // ─── Check-in Result Sheet ────────────────────────────────────────────────────
 function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () => void }) {
-  const S = [
-    { color: COLOR.success, bg: COLOR.successBg, border: COLOR.successBorder, label: 'มาทำงานปกติ', icon: '✅' },
-    { color: COLOR.warning, bg: COLOR.warningBg, border: COLOR.warningBorder, label: 'มาสายระดับ 1', icon: '⚠️' },
-    { color: COLOR.error,   bg: COLOR.errorBg,   border: COLOR.errorBorder,   label: 'มาสายระดับ 2', icon: '🚨' },
-  ][result.late_level]
+  const S = result.is_absent
+    ? { color: COLOR.error, bg: COLOR.errorBg, border: COLOR.errorBorder, label: 'นับเป็นวันขาด', icon: '⛔' }
+    : [
+        { color: COLOR.success, bg: COLOR.successBg, border: COLOR.successBorder, label: 'มาทำงานปกติ', icon: '✅' },
+        { color: COLOR.warning, bg: COLOR.warningBg, border: COLOR.warningBorder, label: 'มาสายระดับ 1', icon: '⚠️' },
+        { color: COLOR.error,   bg: COLOR.errorBg,   border: COLOR.errorBorder,   label: 'มาสายระดับ 2', icon: '🚨' },
+      ][result.late_level]
 
   const mapsUrl = result.gps_lat && result.gps_lng
     ? `https://maps.google.com/?q=${result.gps_lat},${result.gps_lng}`
@@ -104,6 +107,7 @@ function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () 
           <div style={{ width: 80, height: 80, borderRadius: 24, background: S.bg, border: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', marginBottom: 16 }}>{S.icon}</div>
           <div style={{ fontWeight: 800, fontSize: '1.25rem', color: S.color }}>{S.label}</div>
           {result.late_minutes > 0 && <div style={{ fontSize: '0.85rem', color: COLOR.textMuted, marginTop: 4 }}>สาย {result.late_minutes} นาที</div>}
+          {result.is_absent && <div style={{ fontSize: '0.82rem', color: COLOR.error, marginTop: 6, textAlign: 'center' }}>สายเกินกำหนดของกะนี้ — วันนี้จะถูกนับเป็นวันขาด</div>}
         </div>
 
         <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '8px 16px', marginBottom: 20 }}>

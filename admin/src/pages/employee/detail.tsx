@@ -87,11 +87,13 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
   const stats = useMemo(() => {
     const present = records.filter((r: any) => r.check_in_at)
     const late    = records.filter((r: any) => r.is_late)
-    const noteAbsent = records.filter((r: any) => r.note?.includes('ขาดงาน'))
+    const absent  = records.filter((r: any) => r.is_absent)
+    const fine    = records.reduce((s: number, r: any) => s + Number(r.fine ?? 0) + Number(r.carried_fine ?? 0), 0)
     return {
       work:   present.length,
       late:   late.length,
-      absent: noteAbsent.length,
+      absent: absent.length,
+      fine,
       leave:  leaves.filter((l: any) => l.status === 'APPROVED').length,
     }
   }, [records, leaves])
@@ -128,6 +130,11 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             </div>
           ))}
         </div>
+        {stats.fine > 0 && (
+          <div style={{ marginTop: 10, padding: '8px 14px', borderRadius: 10, background: '#fdf2f8', border: '1px solid #fbcfe8', fontSize: '0.8rem', color: '#be185d', fontWeight: 600 }}>
+            💸 ค่าปรับสาย/ขาดรวมเดือนนี้: {stats.fine} ฿
+          </div>
+        )}
       </div>
 
       <div>
@@ -173,10 +180,10 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             const note = r.note ?? ''
             const isLate2 = note.includes('ระดับ 2')
             const isLate1 = r.is_late && !isLate2
-            const isAbsent = note.includes('ขาดงาน')
+            const isAbsent = !!r.is_absent
             const isOff   = note.includes('วันหยุด')
             const { label, color, bg } = isAbsent
-              ? { label: 'ขาดงาน', color: '#dc2626', bg: '#fee2e2' }
+              ? { label: 'ขาด', color: '#dc2626', bg: '#fee2e2' }
               : isOff
               ? { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }
               : isLate2
@@ -237,15 +244,16 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
   }, [records])
 
   const summary = useMemo(() => {
-    let work = 0, late = 0, absent = 0, leave = 0
+    let work = 0, late = 0, absent = 0, leave = 0, fine = 0
     for (const r of records) {
       const note = r.note ?? ''
-      if (note.includes('ขาดงาน')) { absent++; continue }
+      fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
+      if (r.is_absent) { absent++; continue }
       if (note.includes('วันหยุด')) { leave++; continue }
       if (r.check_in_at) work++
       if (r.is_late) late++
     }
-    return { work, late, absent, leave }
+    return { work, late, absent, leave, fine }
   }, [records])
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y-1) } else setMonth(m => m-1) }
@@ -267,6 +275,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
           { label: `สาย ${summary.late} ครั้ง`,   color: '#d97706', bg: '#fef3c7' },
           { label: `ขาด ${summary.absent} วัน`,   color: '#dc2626', bg: '#fee2e2' },
           { label: `หยุด/ลา ${summary.leave} วัน`, color: '#0891b2', bg: '#e0f2fe' },
+          ...(summary.fine > 0 ? [{ label: `ค่าปรับรวม ${summary.fine} ฿`, color: '#be185d', bg: '#fdf2f8' }] : []),
         ].map(s => (
           <span key={s.label} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: s.bg, color: s.color }}>{s.label}</span>
         ))}
@@ -288,12 +297,12 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
             const r = recs?.[0]
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
-            const isAbsent = note.includes('ขาดงาน')
+            const isAbsent = !!r?.is_absent
             const isOff    = note.includes('วันหยุด')
             const isLate2  = note.includes('ระดับ 2')
             const isLate1  = r?.is_late && !isLate2
             const { label, color, bg } = isAbsent
-              ? { label: 'ขาดงาน',     color: '#dc2626', bg: '#fff5f5' }
+              ? { label: 'ขาด',        color: '#dc2626', bg: '#fff5f5' }
               : isOff
               ? { label: 'วันหยุด',    color: '#0891b2', bg: '#f0f9ff' }
               : isLate2

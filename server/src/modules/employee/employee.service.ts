@@ -92,6 +92,7 @@ export async function updateEmployee(
     is_active?: boolean
     weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
     default_shift_id?: string | null
+    pending_fine?: number   // แอดมินปรับมือได้ (เช่น ยกเลิก/แก้ค่าปรับขาดที่ยกมา)
   },
 ) {
   const { hired_at, ...rest } = data

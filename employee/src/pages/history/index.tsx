@@ -12,6 +12,9 @@ interface AttendanceRecord {
   check_out_at: string | null
   is_late:      boolean
   late_minutes: number
+  is_absent:    boolean
+  fine:         string
+  carried_fine: string
   is_outside_area: boolean
   shift: { name: string; start_time: string }
 }
@@ -133,19 +136,21 @@ export default function HistoryPage() {
               {filtered.map((r, i) => {
                 const d = new Date(r.date)
                 const isNoData = !r.check_in_at
+                const totalFine = Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
 
                 const iconBubbleClass = isNoData ? 'icon-bubble icon-bubble-purple'
+                  : r.is_absent ? 'icon-bubble icon-bubble-orange'
                   : r.is_late ? 'icon-bubble icon-bubble-orange'
                   : 'icon-bubble icon-bubble-blue'
 
-                const statusColor = isNoData ? COLOR.textMuted : r.is_late ? COLOR.warning : COLOR.success
-                const statusLabel = isNoData ? 'ไม่มีข้อมูล' : r.is_late ? `สาย ${r.late_minutes} น.` : 'ตรงเวลา'
+                const statusColor = isNoData ? COLOR.textMuted : r.is_absent ? COLOR.error : r.is_late ? COLOR.warning : COLOR.success
+                const statusLabel = isNoData ? 'ไม่มีข้อมูล' : r.is_absent ? 'นับเป็นขาด' : r.is_late ? `สาย ${r.late_minutes} น.` : 'ตรงเวลา'
 
                 return (
                   <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                     <div className={iconBubbleClass}>
                       <span style={{ fontSize: '1.2rem' }}>
-                        {isNoData ? '❌' : r.is_late ? '⏰' : '✅'}
+                        {isNoData ? '❌' : r.is_absent ? '⛔' : r.is_late ? '⏰' : '✅'}
                       </span>
                     </div>
 
@@ -159,9 +164,12 @@ export default function HistoryPage() {
                       {r.is_outside_area && (
                         <span style={{ fontSize: '0.7rem', background: COLOR.warningBg, color: COLOR.warning, border: `1px solid ${COLOR.warningBorder}`, borderRadius: 99, padding: '2px 10px', fontWeight: 700, marginTop: 6, display: 'inline-block' }}>นอกพื้นที่</span>
                       )}
+                      {totalFine > 0 && (
+                        <div style={{ fontSize: '0.72rem', color: COLOR.error, fontWeight: 700, marginTop: 4 }}>💸 ค่าปรับ {totalFine} บาท</div>
+                      )}
                     </div>
 
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: statusColor, whiteSpace: 'nowrap', background: isNoData ? '#f3f4f6' : r.is_late ? COLOR.warningBg : COLOR.successBg, padding: '6px 12px', borderRadius: 12 }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: statusColor, whiteSpace: 'nowrap', background: isNoData ? '#f3f4f6' : r.is_absent ? COLOR.errorBg : r.is_late ? COLOR.warningBg : COLOR.successBg, padding: '6px 12px', borderRadius: 12 }}>
                       {statusLabel}
                     </span>
                   </div>

@@ -21,6 +21,9 @@ interface ApiRecord {
   check_in_method: 'LIFF' | 'QR' | 'ADMIN' | 'WEB_FALLBACK' | 'SELFIE' | 'OFFSITE'
   is_late:         boolean
   late_minutes:    number
+  is_absent:       boolean
+  fine:            string
+  carried_fine:    string
   is_outside_area: boolean
   gps_lat: number | null
   gps_lng: number | null
@@ -91,6 +94,7 @@ function deriveStatus(record: ApiRecord | null, dateStr: string): Status {
   if (!record) {
     return dateStr < todayStr() ? 'ABSENT' : 'PENDING'
   }
+  if (record.is_absent) return 'ABSENT'   // เช็คอินจริง แต่สายเกินเกณฑ์จนนับเป็นขาด (มี check_in_at อยู่ ไม่ใช่ไม่มาเลย)
   if (!record.is_late) return 'ON_TIME'
 
   // คำนวณระดับสายจาก threshold ของกะ
@@ -386,7 +390,12 @@ export default function AttendancePage() {
                           {row.record && ` · ${row.record.shift.name}`}
                         </div>
                       </div>
-                      <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{s.label}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                        <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{s.label}</span>
+                        {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#dc2626' }}>💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿</span>
+                        )}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
@@ -486,7 +495,15 @@ export default function AttendancePage() {
                             : <span style={{ color: '#d1d5db' }}>—</span>}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                            <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</span>
+                            {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#dc2626' }}>
+                                💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿
+                                {Number(row.record.carried_fine) > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> (รวมยกมา {Number(row.record.carried_fine)})</span>}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '11px 14px' }}>
                           {row.record ? (

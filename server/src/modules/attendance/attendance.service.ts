@@ -40,6 +40,91 @@ export async function getAttendanceReport(tenantId: string, filters: {
   })
 }
 
+function toMins(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+function dateToBangkokMins(d: Date): number {
+  const utcMins = d.getUTCHours() * 60 + d.getUTCMinutes()
+  return (utcMins + 7 * 60) % (24 * 60)
+}
+
+function getNowBangkokMins(): number {
+  return dateToBangkokMins(new Date())
+}
+
+// ── Late/absent tier calculation ────────────────────────────────────────────
+// ลำดับความสำคัญ: ขาด (absent_threshold) > สายระดับ 2 (late_threshold_2) >
+// สายระดับ 1 (late_threshold_1) — เช็คจากเกณฑ์ที่หนักสุดก่อนเสมอ เพื่อไม่ให้
+// เกณฑ์ที่ผ่อนกว่าทับเกณฑ์ที่หนักกว่าโดยไม่ตั้งใจ (เช่น ตั้ง absent_threshold
+// ไว้ก่อน late_threshold_2 ในเวลาโดยพลาด)
+interface ShiftLateConfig {
+  start_time: string
+  late_threshold: number
+  late_threshold_1: string | null
+  late_threshold_2: string | null
+  absent_threshold: string | null
+}
+interface LateStatus {
+  is_late: boolean
+  late_level: 0 | 1 | 2
+  late_minutes: number
+  is_absent: boolean
+}
+
+function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): LateStatus {
+  const startMins = toMins(shift.start_time)
+  if (checkInMins <= startMins) return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
+
+  const late_minutes = checkInMins - startMins
+  const late1Mins   = shift.late_threshold_1   ? toMins(shift.late_threshold_1)   : null
+  const late2Mins   = shift.late_threshold_2   ? toMins(shift.late_threshold_2)   : null
+  const absentMins  = shift.absent_threshold   ? toMins(shift.absent_threshold)   : null
+
+  if (absentMins != null && checkInMins >= absentMins) {
+    return { is_late: true, late_level: 2, late_minutes, is_absent: true }
+  }
+  if (late2Mins != null && checkInMins >= late2Mins) {
+    return { is_late: true, late_level: 2, late_minutes, is_absent: false }
+  }
+  if (late1Mins != null && checkInMins >= late1Mins) {
+    return { is_late: true, late_level: 1, late_minutes, is_absent: false }
+  }
+  if (late1Mins == null && late2Mins == null && late_minutes > shift.late_threshold) {
+    // fallback: ใช้ integer late_threshold (นาที) เมื่อไม่ได้กำหนด threshold_1/2 เลย
+    return { is_late: true, late_level: 1, late_minutes, is_absent: false }
+  }
+  return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false } // สายแต่ยังไม่ถึงเกณฑ์ไหน (grace period)
+}
+
+function fineForLevel(shift: { late_fine_1: unknown; late_fine_2: unknown }, level: 0 | 1 | 2): number {
+  if (level === 1) return shift.late_fine_1 != null ? Number(shift.late_fine_1) : 0
+  if (level === 2) return shift.late_fine_2 != null ? Number(shift.late_fine_2) : 0
+  return 0
+}
+
+// อ่านค่าปรับขาดที่ยกมาจากการขาดงานครั้งก่อน (ถ้ามี) แล้วเคลียร์ทิ้งทันที
+// (ต้องเรียกใน $transaction เดียวกับการสร้าง attendance record เสมอ กัน race)
+async function settlePendingFine(tx: any, employeeId: string): Promise<number> {
+  const emp = await tx.employee.findUnique({ where: { id: employeeId }, select: { pending_fine: true } })
+  const carried = emp?.pending_fine ? Number(emp.pending_fine) : 0
+  if (carried > 0) await tx.employee.update({ where: { id: employeeId }, data: { pending_fine: 0 } })
+  return carried
+}
+
+// ยกค่าปรับขาดไปหักในวันที่มาเช็คอินถัดไป
+async function schedulePendingFine(tx: any, employeeId: string, amount: number): Promise<void> {
+  if (amount > 0) await tx.employee.update({ where: { id: employeeId }, data: { pending_fine: { increment: amount } } })
+}
+
+function absentNote(checkInAt: Date): string {
+  const mins = dateToBangkokMins(checkInAt)
+  const hh = String(Math.floor(mins / 60)).padStart(2, '0')
+  const mm = String(mins % 60).padStart(2, '0')
+  return `หยุด (มาสายเกินกำหนด — เช็คอิน ${hh}:${mm})`
+}
+
 export async function createManualAttendance(tenantId: string, data: {
   employee_id: string
   shift_id: string
@@ -64,37 +149,37 @@ export async function createManualAttendance(tenantId: string, data: {
   })
   if (existing) throw new Error('ALREADY_CHECKED_IN')
 
-  // คำนวณ is_late จาก shift
   const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
-  let is_late = false
-  let late_minutes = 0
-
   const checkInAt = buildDateTime(data.date, data.check_in_at)
 
+  let late: LateStatus = { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
+  let levelFine = 0
   if (shift && checkInAt) {
-    const [h, m] = shift.start_time.split(':').map(Number)
-    const shiftStart = new Date(data.date)
-    shiftStart.setHours(h, m, 0, 0)
-    const threshold = new Date(shiftStart.getTime() + shift.late_threshold * 60000)
-    if (checkInAt > threshold) {
-      is_late = true
-      late_minutes = Math.floor((checkInAt.getTime() - shiftStart.getTime()) / 60000)
-    }
+    late = computeLateStatus(shift, dateToBangkokMins(checkInAt))
+    levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
   }
 
-  return prisma.attendanceRecord.create({
-    data: {
-      tenant_id:       tenantId,
-      employee_id:     data.employee_id,
-      shift_id:        data.shift_id,
-      date:            dateObj,
-      check_in_at:     checkInAt ?? undefined,
-      check_out_at:    buildDateTime(data.date, data.check_out_at) ?? undefined,
-      check_in_method: 'ADMIN',
-      is_late,
-      late_minutes,
-      note:            data.note,
-    },
+  return prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id:       tenantId,
+        employee_id:     data.employee_id,
+        shift_id:        data.shift_id,
+        date:            dateObj,
+        check_in_at:     checkInAt ?? undefined,
+        check_out_at:    buildDateTime(data.date, data.check_out_at) ?? undefined,
+        check_in_method: 'ADMIN',
+        is_late:         late.is_late,
+        late_minutes:    late.late_minutes,
+        is_absent:       late.is_absent,
+        fine:            levelFine,
+        carried_fine:    carried,
+        note:            data.note ?? (late.is_absent && checkInAt ? absentNote(checkInAt) : undefined),
+      },
+    })
+    if (late.is_absent && shift?.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return record
   })
 }
 
@@ -112,20 +197,23 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
 
   const dateStr = data.date ?? record.date.toISOString().slice(0, 10)
 
-  let is_late = record.is_late
+  let is_late      = record.is_late
   let late_minutes = record.late_minutes
+  let is_absent    = record.is_absent
+  let fine         = Number(record.fine)   // carried_fine ไม่แตะ — คงค่าเดิมเสมอ (settle/schedule เกิดครั้งเดียวตอนสร้าง record)
 
   const checkInAt = data.check_in_at !== undefined
     ? (data.check_in_at ? buildDateTime(dateStr, data.check_in_at) : null)
     : record.check_in_at
 
   if (data.check_in_at !== undefined && checkInAt && record.shift) {
-    const [h, m] = record.shift.start_time.split(':').map(Number)
-    const shiftStart = new Date(dateStr)
-    shiftStart.setHours(h, m, 0, 0)
-    const threshold = new Date(shiftStart.getTime() + record.shift.late_threshold * 60000)
-    is_late = checkInAt > threshold
-    late_minutes = is_late ? Math.floor((checkInAt.getTime() - shiftStart.getTime()) / 60000) : 0
+    const late = computeLateStatus(record.shift, dateToBangkokMins(checkInAt))
+    is_late      = late.is_late
+    late_minutes = late.late_minutes
+    is_absent    = late.is_absent
+    fine         = late.is_absent ? 0 : fineForLevel(record.shift, late.late_level)
+  } else if (data.check_in_at !== undefined && !checkInAt) {
+    is_late = false; late_minutes = 0; is_absent = false; fine = 0
   }
 
   const checkOutAt = data.check_out_at !== undefined
@@ -139,20 +227,34 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
       check_out_at: checkOutAt,
       is_late,
       late_minutes,
+      is_absent,
+      fine,
       ...(data.note !== undefined ? { note: data.note } : {}),
     },
   })
 }
 
-function toMins(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
-}
+// ลบ/รีเซ็ตบันทึกเช็คชื่อ — ถ้า record นี้เป็นวันขาด (is_absent) ที่เคยตั้งค่าปรับ
+// ไปรอหักวันถัดไปแล้ว (schedulePendingFine) ต้องคืนยอดนั้นออกจาก pending_fine ด้วย
+// ไม่งั้นจะเหลือค่าปรับผีค้างอยู่ทั้งที่ record ต้นเหตุถูกลบไปแล้ว
+// (ถ้ายอดนั้นถูกใช้ไปแล้วจากการเช็คอินครั้งถัดมา — clamp ไม่ให้ pending_fine ติดลบ)
+export async function deleteAttendanceRecord(tenantId: string, id: string): Promise<boolean> {
+  const record = await prisma.attendanceRecord.findFirst({ where: { id, tenant_id: tenantId } })
+  if (!record) return false
 
-function getNowBangkokMins(): number {
-  const now = new Date()
-  const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes()
-  return (utcMins + 7 * 60) % (24 * 60)
+  await prisma.$transaction(async (tx) => {
+    if (record.is_absent) {
+      const shift = await tx.shift.findUnique({ where: { id: record.shift_id }, select: { absent_fine: true } })
+      const refund = shift?.absent_fine ? Number(shift.absent_fine) : 0
+      if (refund > 0) {
+        const emp = await tx.employee.findUnique({ where: { id: record.employee_id }, select: { pending_fine: true } })
+        const current = emp?.pending_fine ? Number(emp.pending_fine) : 0
+        await tx.employee.update({ where: { id: record.employee_id }, data: { pending_fine: Math.max(0, current - refund) } })
+      }
+    }
+    await tx.attendanceRecord.delete({ where: { id } })
+  })
+  return true
 }
 
 // วันที่ Bangkok ณ ตอนนี้ เก็บเป็น UTC midnight ของวันนั้น
@@ -179,12 +281,22 @@ async function autoDetectShift(tenantId: string, branchId: string, employeeId: s
   if (shifts.length === 0) return null
 
   // หากะที่อยู่ใน window (earlyMins → closeMins)
-  for (const shift of shifts) {
+  for (let i = 0; i < shifts.length; i++) {
+    const shift = shifts[i]
     const startMins = toMins(shift.start_time)
     const earlyMins = startMins - 60
-    const closeMins = shift.late_threshold_2
-      ? toMins(shift.late_threshold_2)
-      : startMins + 4 * 60
+    // เช็คอินได้ยาวถึง 4 ชม. หลังเกณฑ์ที่หนักสุดที่ตั้งไว้ (absent > late2 > start)
+    // เพื่อให้พนักงานยังเช็คอินได้ในช่วง "ขาด" ตามที่ตกลงไว้ — นับขาดแต่ไม่ปิดรับ
+    const latestBoundMins = shift.absent_threshold
+      ? toMins(shift.absent_threshold)
+      : shift.late_threshold_2
+        ? toMins(shift.late_threshold_2)
+        : startMins
+    // ห้ามยืดเข้าไปในช่วง "เช็คอินก่อนเวลาได้ 1 ชม." ของกะถัดไป (เรียงตาม start_time
+    // แล้ว) ไม่งั้นสาขาที่มีหลายกะติดกัน (เช่น 08:00/09:00/13:00) จะจับกะผิดกัน —
+    // คนมาเข้ากะสายจะถูกจับเข้ากะเช้าที่ยัง "เปิด" ค้างอยู่แทน
+    const nextShiftEarlyMins = i + 1 < shifts.length ? toMins(shifts[i + 1].start_time) - 60 : Infinity
+    const closeMins = Math.min(latestBoundMins + 4 * 60, nextShiftEarlyMins - 1)
 
     if (nowMins < earlyMins || nowMins > closeMins) continue
 
@@ -250,48 +362,36 @@ export async function checkInAuto(tenantId: string, data: {
     }
   }
 
-  const nowMins    = getNowBangkokMins()
-  const startMins  = toMins(shift.start_time)
-  const late1Mins  = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-  const late2Mins  = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
-
-  let is_late     = false
-  let late_level  = 0
-  let late_minutes = 0
-  let fine = 0
-
-  // คำนวณ late เสมอ แม้ isOutsideShift = true (เช็คอินหลังปิดกะ = สายแน่นอน)
-  if (nowMins > startMins) {
-    late_minutes = nowMins - startMins
-    if (late2Mins && nowMins >= late2Mins) {
-      is_late = true; late_level = 2
-      fine = shift.late_fine_2 ? Number(shift.late_fine_2) : 0
-    } else if (late1Mins && nowMins >= late1Mins) {
-      is_late = true; late_level = 1
-      fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
-    } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
-      // fallback: ใช้ integer late_threshold (นาที) เมื่อไม่ได้กำหนด threshold_1/2
-      is_late = true; late_level = 1
-    }
-  }
+  const now = new Date()
+  const late = computeLateStatus(shift, dateToBangkokMins(now))
+  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
 
   const today = getTodayBangkok()
 
-  const record = await prisma.attendanceRecord.create({
-    data: {
-      tenant_id:        tenantId,
-      employee_id:      data.employee_id,
-      shift_id:         shift.id,
-      date:             today,
-      check_in_at:      new Date(),
-      check_in_method:  'QR',
-      is_late,
-      late_minutes,
-      gps_lat:          data.gps_lat,
-      gps_lng:          data.gps_lng,
-      is_outside_area,
-      is_outside_shift: isOutsideShift,
-    },
+  const { record, carried } = await prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id:        tenantId,
+        employee_id:      data.employee_id,
+        shift_id:         shift.id,
+        date:             today,
+        check_in_at:      now,
+        check_in_method:  'QR',
+        is_late:          late.is_late,
+        late_minutes:     late.late_minutes,
+        is_absent:        late.is_absent,
+        fine:             levelFine,
+        carried_fine:     carried,
+        note:             late.is_absent ? absentNote(now) : undefined,
+        gps_lat:          data.gps_lat,
+        gps_lng:          data.gps_lng,
+        is_outside_area,
+        is_outside_shift: isOutsideShift,
+      },
+    })
+    if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return { record, carried }
   })
 
   return {
@@ -303,9 +403,10 @@ export async function checkInAuto(tenantId: string, data: {
       end_time:   shift.end_time,
     },
     branch:           { id: branch.id, name: branch.name },
-    late_level,
-    late_minutes,
-    fine,
+    late_level:       late.late_level,
+    late_minutes:     late.late_minutes,
+    is_absent:        late.is_absent,
+    fine:             levelFine + carried,
     is_outside_area,
     is_outside_shift: isOutsideShift,
   }
@@ -349,26 +450,9 @@ export async function checkIn(tenantId: string, data: {
   if (existing) throw new Error('ALREADY_CHECKED_IN')
 
   const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
-  let is_late = false
-  let late_minutes = 0
-
-  if (shift) {
-    const nowMins    = getNowBangkokMins()
-    const startMins  = toMins(shift.start_time)
-    const late1Mins  = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-    const late2Mins  = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
-
-    if (nowMins > startMins) {
-      late_minutes = nowMins - startMins
-      if (late2Mins && nowMins >= late2Mins) {
-        is_late = true
-      } else if (late1Mins && nowMins >= late1Mins) {
-        is_late = true
-      } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
-        is_late = true
-      }
-    }
-  }
+  const now = new Date()
+  const late = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
 
   // ตรวจสอบ GPS vs geo_mode ของสาขา
   let is_outside_area = false
@@ -389,21 +473,29 @@ export async function checkIn(tenantId: string, data: {
     }
   }
 
-  return prisma.attendanceRecord.create({
-    data: {
-      tenant_id:       tenantId,
-      employee_id:     data.employee_id,
-      shift_id:        data.shift_id,
-      date:            today,
-      check_in_at:     new Date(),
-      check_in_method: 'LIFF',
-      is_late,
-      late_minutes,
-      gps_lat:         data.gps_lat,
-      gps_lng:         data.gps_lng,
-      is_outside_area,
-      note:            data.note ?? null,
-    },
+  return prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id:       tenantId,
+        employee_id:     data.employee_id,
+        shift_id:        data.shift_id,
+        date:            today,
+        check_in_at:     now,
+        check_in_method: 'LIFF',
+        is_late:         late.is_late,
+        late_minutes:    late.late_minutes,
+        is_absent:       late.is_absent,
+        fine:            levelFine,
+        carried_fine:    carried,
+        gps_lat:         data.gps_lat,
+        gps_lng:         data.gps_lng,
+        is_outside_area,
+        note:            data.note ?? (late.is_absent ? absentNote(now) : null),
+      },
+    })
+    if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return record
   })
 }
 
@@ -441,41 +533,33 @@ export async function checkInQR(tenantId: string, data: {
   if (existing) throw new Error('ALREADY_CHECKED_IN')
 
   const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
-  let is_late = false
-  let late_minutes = 0
+  const now = new Date()
+  const late = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
 
-  if (shift) {
-    const nowMins   = getNowBangkokMins()
-    const startMins = toMins(shift.start_time)
-    const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-    const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
-
-    if (nowMins > startMins) {
-      late_minutes = nowMins - startMins
-      if (late2Mins && nowMins >= late2Mins) {
-        is_late = true
-      } else if (late1Mins && nowMins >= late1Mins) {
-        is_late = true
-      } else if (!late1Mins && !late2Mins && late_minutes > shift.late_threshold) {
-        is_late = true
-      }
-    }
-  }
-
-  return prisma.attendanceRecord.create({
-    data: {
-      tenant_id:       tenantId,
-      employee_id:     data.employee_id,
-      shift_id:        data.shift_id,
-      date:            today,
-      check_in_at:     new Date(),
-      check_in_method: 'QR',
-      is_late,
-      late_minutes,
-      gps_lat:         data.gps_lat,
-      gps_lng:         data.gps_lng,
-      is_outside_area: false,
-    },
+  return prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id:       tenantId,
+        employee_id:     data.employee_id,
+        shift_id:        data.shift_id,
+        date:            today,
+        check_in_at:     now,
+        check_in_method: 'QR',
+        is_late:         late.is_late,
+        late_minutes:    late.late_minutes,
+        is_absent:       late.is_absent,
+        fine:            levelFine,
+        carried_fine:    carried,
+        gps_lat:         data.gps_lat,
+        gps_lng:         data.gps_lng,
+        is_outside_area: false,
+        note:            late.is_absent ? absentNote(now) : undefined,
+      },
+    })
+    if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return record
   })
 }
 
@@ -487,7 +571,7 @@ export async function checkInScan(tenantId: string, data: {
   gps_lng?: number
 }): Promise<{
   record: any; shift: any; branch: any
-  late_level: 0 | 1 | 2; late_minutes: number; fine: number; is_outside_area: boolean
+  late_level: 0 | 1 | 2; late_minutes: number; is_absent: boolean; fine: number; is_outside_area: boolean
 }> {
   const branch = await prisma.branch.findFirst({
     where: { id: data.branch_id, tenant_id: tenantId, deleted_at: null },
@@ -517,35 +601,32 @@ export async function checkInScan(tenantId: string, data: {
   })
   if (existing) throw new Error('ALREADY_CHECKED_IN')
 
-  const nowMins   = getNowBangkokMins()
-  const startMins = toMins(shift.start_time)
-  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+  const now = new Date()
+  const late = computeLateStatus(shift, dateToBangkokMins(now))
+  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
 
-  let is_late = false; let late_level: 0 | 1 | 2 = 0; let late_minutes = 0; let fine = 0
-
-  if (nowMins > startMins) {
-    late_minutes = nowMins - startMins
-    if (late2Mins && nowMins >= late2Mins) {
-      is_late = true; late_level = 2; fine = shift.late_fine_2 ? Number(shift.late_fine_2) : 0
-    } else if (late1Mins && nowMins >= late1Mins) {
-      is_late = true; late_level = 1; fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
-    }
-  }
-
-  const record = await prisma.attendanceRecord.create({
-    data: {
-      tenant_id: tenantId, employee_id: data.employee_id, shift_id: data.shift_id,
-      date: today, check_in_at: new Date(), check_in_method: 'QR',
-      is_late, late_minutes, gps_lat: data.gps_lat, gps_lng: data.gps_lng, is_outside_area,
-    },
+  const { record, carried } = await prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id: tenantId, employee_id: data.employee_id, shift_id: data.shift_id,
+        date: today, check_in_at: now, check_in_method: 'QR',
+        is_late: late.is_late, late_minutes: late.late_minutes, is_absent: late.is_absent,
+        fine: levelFine, carried_fine: carried,
+        gps_lat: data.gps_lat, gps_lng: data.gps_lng, is_outside_area,
+        note: late.is_absent ? absentNote(now) : undefined,
+      },
+    })
+    if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return { record, carried }
   })
 
   return {
     record,
     shift: { id: shift.id, name: shift.name, start_time: shift.start_time, end_time: shift.end_time },
     branch: { id: branch.id, name: branch.name },
-    late_level, late_minutes, fine, is_outside_area,
+    late_level: late.late_level, late_minutes: late.late_minutes, is_absent: late.is_absent,
+    fine: levelFine + carried, is_outside_area,
   }
 }
 
@@ -566,41 +647,38 @@ export async function checkInOffsite(tenantId: string, data: {
   const { shift } = detected
   if ((shift as any).shift_type !== 'OFFSITE') throw new Error('NOT_OFFSITE_SHIFT')
 
-  const nowMins   = getNowBangkokMins()
-  const startMins = toMins(shift.start_time)
-  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
-
-  let is_late = false, late_level: 0 | 1 | 2 = 0, late_minutes = 0, fine = 0
-  if (nowMins > startMins) {
-    late_minutes = nowMins - startMins
-    if (late2Mins && nowMins >= late2Mins) {
-      is_late = true; late_level = 2; fine = shift.late_fine_2 ? Number(shift.late_fine_2) : 0
-    } else if (late1Mins && nowMins >= late1Mins) {
-      is_late = true; late_level = 1; fine = shift.late_fine_1 ? Number(shift.late_fine_1) : 0
-    }
-  }
+  const now = new Date()
+  const late = computeLateStatus(shift, dateToBangkokMins(now))
+  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
 
   const today = getTodayBangkok()
-  const record = await prisma.attendanceRecord.create({
-    data: {
-      tenant_id:       tenantId,
-      employee_id:     data.employee_id,
-      shift_id:        shift.id,
-      date:            today,
-      check_in_at:     new Date(),
-      check_in_method: 'OFFSITE',
-      is_late, late_minutes,
-      gps_lat:         data.gps_lat,
-      gps_lng:         data.gps_lng,
-      is_outside_area: false,
-    },
+  const { record, carried } = await prisma.$transaction(async (tx) => {
+    const carried = await settlePendingFine(tx, data.employee_id)
+    const record = await tx.attendanceRecord.create({
+      data: {
+        tenant_id:       tenantId,
+        employee_id:     data.employee_id,
+        shift_id:        shift.id,
+        date:            today,
+        check_in_at:     now,
+        check_in_method: 'OFFSITE',
+        is_late: late.is_late, late_minutes: late.late_minutes, is_absent: late.is_absent,
+        fine: levelFine, carried_fine: carried,
+        gps_lat:         data.gps_lat,
+        gps_lng:         data.gps_lng,
+        is_outside_area: false,
+        note:            late.is_absent ? absentNote(now) : undefined,
+      },
+    })
+    if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
+    return { record, carried }
   })
 
   return {
     record,
     shift: { id: shift.id, name: shift.name, start_time: shift.start_time, end_time: shift.end_time },
-    late_level, late_minutes, fine,
+    late_level: late.late_level, late_minutes: late.late_minutes, is_absent: late.is_absent,
+    fine: levelFine + carried,
     gps_lat: data.gps_lat,
     gps_lng: data.gps_lng,
   }

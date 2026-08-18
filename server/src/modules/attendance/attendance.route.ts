@@ -5,7 +5,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import {
-  getAttendanceReport, createManualAttendance, updateAttendanceTime,
+  getAttendanceReport, createManualAttendance, updateAttendanceTime, deleteAttendanceRecord,
   checkIn, checkInQR, checkInAuto, checkInScan, checkInOffsite, checkOut, checkOutAuto, checkOutScan,
   getTodayAttendance, getEmployeeHistory, getOffsiteShifts,
 } from './attendance.service'
@@ -107,11 +107,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
-    const record = await prisma.attendanceRecord.findFirst({
-      where: { id: req.params.id, tenant_id: req.tenantId },
-    })
-    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
-    await prisma.attendanceRecord.delete({ where: { id: req.params.id } })
+    const deleted = await deleteAttendanceRecord(req.tenantId, req.params.id)
+    if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
     return ok(null, 'ลบบันทึกสำเร็จ')
   })
 

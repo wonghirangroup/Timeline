@@ -88,6 +88,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           is_active:    { type: 'boolean' },
           weekly_off_mode: { type: 'string', enum: ['WEEKLY', 'MONTHLY_BATCH'] },
           default_shift_id: { type: ['string', 'null'] },
+          pending_fine: { type: 'number', description: 'ค่าปรับขาดที่ยกมา — แอดมินปรับมือได้ เช่น ยกเลิก/แก้' },
         },
       },
     },

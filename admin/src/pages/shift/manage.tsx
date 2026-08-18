@@ -21,6 +21,8 @@ interface ApiShift {
   late_threshold_2: string | null
   late_fine_1: string | null
   late_fine_2: string | null
+  absent_threshold: string | null
+  absent_fine: string | null
   shift_type: 'REGULAR' | 'SPECIAL'
   gps_radius: number | null
   is_active: boolean
@@ -38,6 +40,8 @@ const EMPTY_FORM = {
   late_threshold_2: '08:30',
   late_fine_1: '',
   late_fine_2: '',
+  absent_threshold: '',
+  absent_fine: '',
   shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
   gps_radius: '' as string | number,
 }
@@ -312,7 +316,12 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
           )}
           {shift.late_threshold_2 && (
             <span style={{ background: '#fef2f2', color: '#ef4444', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-              🚫 ปิดรับ {shift.late_threshold_2}
+              🚫 สายระดับ 2: {shift.late_threshold_2}
+            </span>
+          )}
+          {shift.absent_threshold && (
+            <span style={{ background: '#fdf2f8', color: '#be185d', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              ⛔ ขาด: {shift.absent_threshold}
             </span>
           )}
         </div>
@@ -488,6 +497,8 @@ export default function ShiftPage() {
       late_threshold_2: s.late_threshold_2 ?? '',
       late_fine_1:      s.late_fine_1 ?? '',
       late_fine_2:      s.late_fine_2 ?? '',
+      absent_threshold: s.absent_threshold ?? '',
+      absent_fine:      s.absent_fine ?? '',
       shift_type:       s.shift_type ?? 'REGULAR',
       gps_radius:       s.gps_radius ?? '',
     })
@@ -508,6 +519,8 @@ export default function ShiftPage() {
       late_threshold_2: form.late_threshold_2 || undefined,
       late_fine_1: form.late_fine_1 !== '' ? Number(form.late_fine_1) : null,
       late_fine_2: form.late_fine_2 !== '' ? Number(form.late_fine_2) : null,
+      absent_threshold: form.absent_threshold || undefined,
+      absent_fine: form.absent_fine !== '' ? Number(form.absent_fine) : null,
       shift_type: form.shift_type,
       gps_radius: form.gps_radius !== '' ? Number(form.gps_radius) : null,
     }
@@ -655,6 +668,7 @@ export default function ShiftPage() {
                 {s.min_checkout && <TimeRow icon="🔒" label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
                 {!isSpecial && s.late_threshold_1 && <TimeRow icon="⚠️" label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
                 {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
+                {!isSpecial && s.absent_threshold && <TimeRow icon="⛔" label={`ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />}
                 {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
                 )}
@@ -816,13 +830,13 @@ export default function ShiftPage() {
                   <div>
                     <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
                     <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                      ⚠️ ระดับ 1 = สาย · ระดับ 2 = <strong>เวลาปิดรับเช็คอิน</strong> (หลังจากนี้ถือว่าขาด)
+                      ⚠️ ระดับ 1/2 = สายปกติ (โดนปรับตามยอด) · ⛔ ขาด = สายเกินจนนับเป็นวันขาด — <strong>ยังเช็คอินได้ปกติ</strong> แต่จะถูกหักค่าปรับในวันที่มาเช็คอินถัดไป
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
                         onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
                         sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
-                      <TimeInput label="สายระดับ 2 (ปิดรับเช็คอิน)" value={form.late_threshold_2}
+                      <TimeInput label="สายระดับ 2" value={form.late_threshold_2}
                         onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
                         sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
                     </div>
@@ -840,6 +854,17 @@ export default function ShiftPage() {
                           placeholder="เช่น 200" style={inputStyle} />
                       </div>
                     </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                      <TimeInput label="⛔ ขาด (หลังจากนี้นับเป็นวันขาด)" value={form.absent_threshold}
+                        onChange={v => setForm(f => ({ ...f, absent_threshold: v }))}
+                        sublabel={timeDiff(form.start_time, form.absent_threshold, 'after') || 'เช่น 08:31'} />
+                      <div>
+                        <label style={labelStyle}>ค่าปรับขาด — หักวันถัดไป (บาท)</label>
+                        <input type="number" min="0" step="50" value={form.absent_fine}
+                          onChange={e => setForm(f => ({ ...f, absent_fine: e.target.value }))}
+                          placeholder="เช่น 50" style={inputStyle} />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Preview */}
@@ -850,6 +875,7 @@ export default function ShiftPage() {
                     <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
                     {form.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
                     {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
+                    {form.absent_threshold && <><span style={{ color: '#6b7280' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
                     {form.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
                     <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
                   </div>
@@ -1095,7 +1121,12 @@ export default function ShiftPage() {
                   )}
                   {s.late_threshold_2 && (
                     <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-                      🚫 ปิดรับ {s.late_threshold_2}
+                      🚫 สายระดับ 2 {s.late_threshold_2}
+                    </span>
+                  )}
+                  {s.absent_threshold && (
+                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      ⛔ ขาด {s.absent_threshold}
                     </span>
                   )}
                 </div>
@@ -1133,6 +1164,9 @@ export default function ShiftPage() {
                     )}
                     {!isSpec && s.late_threshold_2 && (
                       <InfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                    )}
+                    {!isSpec && s.absent_threshold && (
+                      <InfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
                       <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
