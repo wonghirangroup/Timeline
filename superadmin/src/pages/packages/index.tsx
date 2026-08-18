@@ -1,5 +1,5 @@
 // Super Admin — Package / Plan Management
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { MOCK_TENANTS } from '../../lib/mock'
 import type { PlanConfig, PlanFeatures, PlanLimits, TenantPlan } from '../../types'
 import { useToast } from '../../components/ui/Toast'
@@ -96,14 +96,10 @@ export default function PackagesPage() {
   const [saving, setSaving] = useState<TenantPlan | null>(null)
   const [compareMode, setCompareMode] = useState(false)
 
-  // Load server-side config on mount so drafts start from current DB state
-  useEffect(() => {
-    api.get('/api/v1/super-admin/packages')
-      .then(res => {
-        if (Array.isArray(res.data?.data)) setConfigs(res.data.data)
-      })
-      .catch(() => { /* fallback to store defaults */ })
-  }, [])
+  // หมายเหตุ: ไม่มี endpoint /super-admin/packages จริงในระบบ (หน้านี้เป็นระบบ
+  // per-PLAN แบบ mock เดิม ยังไม่ได้ต่อ backend จริง — คนละแกนกับ per-tenant
+  // feature toggle ที่หน้า Tenant detail → แท็บ "ฟีเจอร์") — ใช้ค่า default
+  // จาก store อย่างเดียว ไม่ยิง fetch ที่รู้อยู่แล้วว่า 404 ทุกครั้ง
 
   function updateLimit(plan: TenantPlan, key: keyof PlanLimits, val: number) {
     setConfigs(prev => prev.map(c =>

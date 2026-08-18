@@ -79,17 +79,15 @@ export default function SuperAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<DashStatus | ''>('')
 
   useEffect(() => {
-    Promise.all([
-      api.get('/api/v1/super-admin/tenants'),
-      api.get('/api/v1/super-admin/activity').catch(() => ({ data: { data: [] } })),
-    ]).then(([tenantsRes, activityRes]) => {
-      if (Array.isArray(tenantsRes.data?.data)) {
-        setTenants(tenantsRes.data.data.map(adaptTenant))
-      }
-      if (Array.isArray(activityRes.data?.data)) {
-        setActivity(activityRes.data.data)
-      }
-    }).catch(() => {}).finally(() => setLoading(false))
+    // หมายเหตุ: ไม่มี endpoint /super-admin/activity จริงในระบบ (ยังไม่ได้สร้าง
+    // activity log ฝั่ง backend) — เก็บ activity ไว้เป็น [] เสมอ ไม่ยิง fetch
+    // ที่รู้อยู่แล้วว่า 404 ทุกครั้ง แทนที่จะซ่อน error ไว้เฉยๆ
+    api.get('/api/v1/super-admin/tenants')
+      .then(res => {
+        if (Array.isArray(res.data?.data)) setTenants(res.data.data.map(adaptTenant))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const totalEmployees = tenants.reduce((s, t) => s + t.employee_count, 0)
