@@ -8,6 +8,12 @@ import axios from 'axios'
 // ถ้า VITE_API_URL ว่าง ใช้ '' (relative) → Vite proxy จะ forward ไป Render
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+// Deploy นี้เป็นพอร์ทัลไหน — ตั้ง VITE_APP_MODE=superadmin เฉพาะ Vercel project
+// ของ Super Admin เท่านั้น ที่เหลือ (รวมถึง local dev) เป็น 'admin' เสมอ
+const APP_MODE: 'admin' | 'superadmin' = import.meta.env.VITE_APP_MODE === 'superadmin' ? 'superadmin' : 'admin'
+const ADMIN_URL      = import.meta.env.VITE_ADMIN_URL      ?? 'https://timeline-admin.vercel.app'
+const SUPERADMIN_URL = import.meta.env.VITE_SUPERADMIN_URL ?? 'https://timeline-superadmin.vercel.app'
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const setAuth  = useAuthStore(s => s.setAuth)
@@ -26,6 +32,17 @@ export default function LoginPage() {
     try {
       const res = await axios.post(`${API_URL}/api/v1/auth/login`, { username, password })
       const { accessToken, user } = res.data.data
+
+      // พอร์ทัลนี้รับเฉพาะ role ที่ตรงโหมดเท่านั้น — กันไม่ให้ Super Admin
+      // ล็อกอินผ่านพอร์ทัล Admin ทั่วไป (และในทางกลับกัน) แม้รหัสผ่านจะถูกต้องก็ตาม
+      if (APP_MODE === 'superadmin' && user.role !== 'SUPER_ADMIN') {
+        setError(`บัญชีนี้ไม่ใช่ Super Admin — กรุณาเข้าสู่ระบบผ่าน ${ADMIN_URL} แทน`)
+        return
+      }
+      if (APP_MODE === 'admin' && user.role === 'SUPER_ADMIN') {
+        setError(`บัญชี Super Admin ต้องเข้าสู่ระบบผ่านพอร์ทัลแยกต่างหากที่ ${SUPERADMIN_URL}`)
+        return
+      }
 
       // store refresh token in localStorage for later use
       if (res.data.data.refreshToken) {
@@ -71,11 +88,18 @@ export default function LoginPage() {
                 boxShadow: '0 6px 20px rgba(249,115,22,0.35)',
               }}>TL</div>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>TimeLine</div>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>HR Management Platform</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>TimeLine</span>
+                  {APP_MODE === 'superadmin' && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#4f46e5', background: '#ede9fe', borderRadius: 99, padding: '2px 8px' }}>SUPER ADMIN</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{APP_MODE === 'superadmin' ? 'Vendor Control Panel' : 'HR Management Platform'}</div>
               </div>
             </div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>เข้าสู่ระบบเพื่อจัดการพนักงาน</p>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+              {APP_MODE === 'superadmin' ? 'เข้าสู่ระบบสำหรับทีมงาน — จัดการ Tenant ทั้งหมด' : 'เข้าสู่ระบบเพื่อจัดการพนักงาน'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -123,9 +147,9 @@ export default function LoginPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { label: '🏢 Admin',       username: 'wonghi_admin', pw: 'Password123!', color: '#f97316', bg: '#fff7ed' },
-                { label: '🔐 Super Admin', username: 'superadmin',   pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe' },
-              ].map(d => (
+                { label: '🏢 Admin',       username: 'wonghi_admin', pw: 'Password123!', color: '#f97316', bg: '#fff7ed', mode: 'admin' },
+                { label: '🔐 Super Admin', username: 'superadmin',   pw: 'Password123!', color: '#4f46e5', bg: '#ede9fe', mode: 'superadmin' },
+              ].filter(d => d.mode === APP_MODE).map(d => (
                 <button key={d.username} onClick={() => fillDemo(d.username, d.pw)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1px solid ${d.color}25`, background: d.bg, cursor: 'pointer' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: d.color }}>{d.label}</span>
                   <span style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace' }}>{d.username}</span>

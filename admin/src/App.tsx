@@ -26,10 +26,16 @@ import SABillingPage        from './pages/superadmin/billing'
 import SAOnboardingPage     from './pages/superadmin/onboarding'
 import SAAnnouncementPage   from './pages/superadmin/announcement'
 
+// Deploy นี้เป็นพอร์ทัลไหน — ตั้ง VITE_APP_MODE=superadmin เฉพาะ Vercel project
+// ของ Super Admin เท่านั้น (ต้องตรงกับค่าเดียวกันใน pages/login/index.tsx)
+const APP_MODE: 'admin' | 'superadmin' = import.meta.env.VITE_APP_MODE === 'superadmin' ? 'superadmin' : 'admin'
+
 function AdminRoutes() {
   const token = useAuthStore(s => s.token)
   const role  = useAuthStore(s => s.role)
   if (!token) return <Navigate to="/login" replace />
+  // เผื่อพลาด: ถ้า role ไม่ตรงโหมดของพอร์ทัลนี้ (เช่น token เก่าค้างจากก่อนแยกโดเมน) เด้งกลับ login
+  if (APP_MODE === 'superadmin' && role !== 'SUPER_ADMIN') return <Navigate to="/login" replace />
   if (role === 'SUPER_ADMIN') return <Navigate to="/superadmin/dashboard" replace />
   return (
     <Layout>
@@ -62,6 +68,8 @@ function SuperAdminRoutes() {
   const role  = useAuthStore(s => s.role)
   if (!token) return <Navigate to="/login" replace />
   if (role !== 'SUPER_ADMIN') return <Navigate to="/dashboard" replace />
+  // เผื่อพลาด: พอร์ทัล Admin ทั่วไปไม่ควรให้ Super Admin ค้างอยู่ใน /superadmin/* ต่อ
+  if (APP_MODE === 'admin') return <Navigate to="/login" replace />
   return (
     <SuperAdminLayout>
       <Routes>

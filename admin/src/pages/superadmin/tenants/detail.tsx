@@ -1,6 +1,6 @@
 // Super Admin — Tenant Detail Page (wired to real API)
 import { useState } from 'react'
-import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle, CreditCard } from 'lucide-react'
+import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle, CreditCard, UserPlus, X, AlertTriangle } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { TenantStatus, TenantPlan } from '../../../types'
@@ -73,6 +73,10 @@ export default function TenantDetailPage() {
     line_liff_id:              '',
   })
   const [lineFormInit, setLineFormInit]   = useState(false)
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false)
+  const [adminForm, setAdminForm]         = useState({ email: '', first_name: '', last_name: '' })
+  const [tempPasswordResult, setTempPasswordResult] = useState<{ email: string; password: string } | null>(null)
+  const [copiedPw, setCopiedPw]           = useState(false)
 
   // ── fetch tenant ────────────────────────────────────────────────────
   const { data: tenant, isLoading } = useQuery({
@@ -109,6 +113,22 @@ export default function TenantDetailPage() {
       showToast('success', 'บันทึก Line OA Config เรียบร้อยแล้ว')
     },
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  // ── สร้าง Admin คนแรกให้ Tenant ──────────────────────────────────────
+  const createAdminMutation = useMutation({
+    mutationFn: (form: typeof adminForm) =>
+      api.post(`/api/v1/super-admin/tenants/${id}/admin`, form).then((r: any) => r.data.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['sa', 'tenant', id] })
+      setShowCreateAdmin(false)
+      setAdminForm({ email: '', first_name: '', last_name: '' })
+      setTempPasswordResult({ email: data.user.email, password: data.temp_password })
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      showToast('error', code === 'DUPLICATE_EMAIL' ? 'อีเมลนี้มีผู้ใช้งานแล้ว' : 'สร้าง Admin ไม่สำเร็จ')
+    },
   })
 
   if (isLoading) return (
@@ -209,7 +229,15 @@ export default function TenantDetailPage() {
       {tab === 'info' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', fontWeight: 700 }}>ข้อมูลทั่วไป</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>ข้อมูลทั่วไป</h3>
+              {!adminUser && (
+                <button onClick={() => setShowCreateAdmin(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <UserPlus size={14} /> สร้าง Admin
+                </button>
+              )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
               <InfoRow label="Tenant ID"   value={tenant.id} mono />
               <InfoRow label="ชื่อบริษัท" value={tenant.name} />
@@ -477,6 +505,86 @@ export default function TenantDetailPage() {
               style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.82rem' }}
             >
               ดูประวัติทั้งหมด
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: สร้าง Admin */}
+      {showCreateAdmin && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
+          onClick={() => setShowCreateAdmin(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 420, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>สร้าง Admin คนแรก</h3>
+              <button onClick={() => setShowCreateAdmin(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={18}/></button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0 0 16px' }}>
+              ระบบจะสร้างรหัสผ่านชั่วคราวให้อัตโนมัติ — ยังไม่มีระบบส่งอีเมล ต้อง copy ไปแจ้งลูกค้าเอง
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={labelSt}>อีเมล</label>
+                <input type="email" value={adminForm.email} onChange={e => setAdminForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="admin@company.co.th" style={inputSt} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelSt}>ชื่อ</label>
+                  <input value={adminForm.first_name} onChange={e => setAdminForm(f => ({ ...f, first_name: e.target.value }))} style={inputSt} />
+                </div>
+                <div>
+                  <label style={labelSt}>นามสกุล</label>
+                  <input value={adminForm.last_name} onChange={e => setAdminForm(f => ({ ...f, last_name: e.target.value }))} style={inputSt} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setShowCreateAdmin(false)}
+                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>
+                ยกเลิก
+              </button>
+              <button
+                disabled={createAdminMutation.isPending || !adminForm.email.trim() || !adminForm.first_name.trim() || !adminForm.last_name.trim()}
+                onClick={() => createAdminMutation.mutate(adminForm)}
+                style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', opacity: createAdminMutation.isPending ? 0.7 : 1 }}>
+                {createAdminMutation.isPending ? 'กำลังสร้าง...' : 'สร้าง Admin'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: แสดงรหัสผ่านชั่วคราวครั้งเดียว */}
+      {tempPasswordResult && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 420, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: '2rem', marginBottom: 8 }}>✅</div>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>สร้าง Admin สำเร็จ</h3>
+            </div>
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 14px', display: 'flex', gap: 8, marginBottom: 16 }}>
+              <AlertTriangle size={16} color="#c2410c" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: '0.78rem', color: '#9a3412' }}>จดรหัสผ่านนี้ไว้ตอนนี้เลย — ระบบจะไม่แสดงรหัสนี้ซ้ำอีก ต้อง copy ไปแจ้งลูกค้าเอง (ยังไม่มีระบบส่งอีเมล)</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              <InfoRow label="อีเมล" value={tempPasswordResult.email} mono />
+              <div style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 3 }}>รหัสผ่านชั่วคราว</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-dark)', fontFamily: 'monospace' }}>{tempPasswordResult.password}</div>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(tempPasswordResult.password); setCopiedPw(true); setTimeout(() => setCopiedPw(false), 1500) }}
+                  style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', color: copiedPw ? '#16a34a' : '#6b7280', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, flexShrink: 0 }}>
+                  {copiedPw ? <><CheckCircle size={13}/> คัดลอกแล้ว</> : <><Copy size={13}/> คัดลอก</>}
+                </button>
+              </div>
+            </div>
+            <button onClick={() => { setTempPasswordResult(null); setCopiedPw(false) }}
+              style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+              ปิด (จดรหัสผ่านแล้ว)
             </button>
           </div>
         </div>

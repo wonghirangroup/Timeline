@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listTenants, getTenant, createTenant, updateTenant, deleteTenant } from './tenant.service'
-import { listUsers, createUser, updateUser, deleteUser } from './user.service'
+import { listUsers, createUser, updateUser, deleteUser, generateTempPassword } from './user.service'
 import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
 
@@ -122,6 +122,42 @@ export async function tenantRoutes(app: FastifyInstance) {
       line_liff_id:        req.body.line_liff_id,
     })
     return ok(config, 'บันทึก LINE config สำเร็จ')
+  })
+
+  // POST /api/v1/super-admin/tenants/:id/admin — Talent สร้าง Admin คนแรกให้ Tenant
+  // (ยังไม่มีระบบส่งอีเมล — โชว์รหัสผ่านชั่วคราวกลับไปครั้งเดียว ให้ Talent copy ไปแจ้งเอง)
+  app.post('/tenants/:id/admin', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'สร้าง Admin คนแรกให้ Tenant พร้อมรหัสผ่านชั่วคราว',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['email', 'first_name', 'last_name'],
+        properties: {
+          email:      { type: 'string', format: 'email' },
+          first_name: { type: 'string' },
+          last_name:  { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const tempPassword = generateTempPassword()
+    try {
+      const user = await createUser(req.params.id, {
+        email:      req.body.email,
+        password:   tempPassword,
+        first_name: req.body.first_name,
+        last_name:  req.body.last_name,
+        role:       'ADMIN',
+      }, { mustChangePassword: true })
+      return reply.code(201).send(ok({ user, temp_password: tempPassword }, 'สร้าง Admin สำเร็จ'))
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีอยู่แล้ว'))
+      throw e
+    }
   })
 
   // DELETE /api/v1/super-admin/tenants/:id
