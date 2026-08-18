@@ -2,9 +2,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { Invoice, PaymentStatus, TenantPlan } from '../../../types'
-import { useToast } from '../../../components/ui/Toast'
-import { api } from '../../../lib/axios'
+import type { Invoice, PaymentStatus, TenantPlan } from '../../types'
+import { useToast } from '../../components/ui/Toast'
+import { api } from '../../lib/axios'
 
 interface BillingTenant {
   id: string
@@ -299,7 +299,7 @@ export default function BillingPage() {
                 >
                   <span
                     style={{ fontWeight: 600, color: 'var(--text-dark)', cursor: 'pointer' }}
-                    onClick={() => navigate(`/superadmin/tenants/${t.id}`)}
+                    onClick={() => navigate(`/tenants/${t.id}`)}
                   >{t.name}</span>
                   <span style={{ color: days <= 7 ? 'var(--error-text)' : 'var(--warning-text)', fontWeight: 700 }}>
                     {days === 0 ? 'วันนี้!' : `${days} วัน`}
@@ -374,7 +374,7 @@ export default function BillingPage() {
                     <td style={{ padding: '11px 14px' }}>
                       <span
                         style={{ fontWeight: 600, color: 'var(--text-dark)', cursor: 'pointer' }}
-                        onClick={() => navigate(`/superadmin/tenants/${inv.tenant_id}`)}
+                        onClick={() => navigate(`/tenants/${inv.tenant_id}`)}
                       >{inv.tenant_name}</span>
                     </td>
                     <td style={{ padding: '11px 14px' }}>

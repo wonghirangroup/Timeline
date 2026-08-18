@@ -1,7 +1,7 @@
-// admin/src/pages/superadmin/tenants/index.tsx
+// superadmin/src/pages/tenants/index.tsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../../../lib/axios'
+import { api } from '../../lib/axios'
 
 type Plan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 
@@ -319,7 +319,7 @@ export default function TenantsPage() {
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 700, color: 'var(--sa-accent)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
-                        onClick={() => navigate(`/superadmin/tenants/${t.id}`)}>
+                        onClick={() => navigate(`/tenants/${t.id}`)}>
                         {t.name}
                       </div>
                       {admin
@@ -352,7 +352,7 @@ export default function TenantsPage() {
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        <button onClick={() => navigate(`/superadmin/tenants/${t.id}`)}
+                        <button onClick={() => navigate(`/tenants/${t.id}`)}
                           style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#ede9fe', fontSize: '0.75rem', color: 'var(--sa-accent)', fontWeight: 600 }}>ดู</button>
                         <button onClick={() => openEdit(t)}
                           style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: 'var(--text-body)' }}>✏</button>

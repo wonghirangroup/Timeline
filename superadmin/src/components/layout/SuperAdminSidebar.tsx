@@ -4,12 +4,12 @@ import { X, LayoutDashboard, Building2, Package, CreditCard, ClipboardList, Mega
 import { useAuthStore } from '../../stores/authStore'
 
 const NAV_ITEMS = [
-  { path: '/superadmin/dashboard',    label: 'ภาพรวมระบบ',          Icon: LayoutDashboard },
-  { path: '/superadmin/tenants',      label: 'จัดการ Tenant',        Icon: Building2 },
-  { path: '/superadmin/packages',     label: 'Package & Plan',       Icon: Package },
-  { path: '/superadmin/billing',      label: 'Billing & Payment',    Icon: CreditCard },
-  { path: '/superadmin/onboarding',   label: 'Onboarding Checklist', Icon: ClipboardList },
-  { path: '/superadmin/announcement', label: 'System Announcement',  Icon: Megaphone },
+  { path: '/dashboard',    label: 'ภาพรวมระบบ',          Icon: LayoutDashboard },
+  { path: '/tenants',      label: 'จัดการ Tenant',        Icon: Building2 },
+  { path: '/packages',     label: 'Package & Plan',       Icon: Package },
+  { path: '/billing',      label: 'Billing & Payment',    Icon: CreditCard },
+  { path: '/onboarding',   label: 'Onboarding Checklist', Icon: ClipboardList },
+  { path: '/announcement', label: 'System Announcement',  Icon: Megaphone },
 ]
 
 const ACCENT = 'var(--sa-accent)'

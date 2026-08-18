@@ -1,8 +1,8 @@
-// admin/src/pages/superadmin/announcement/index.tsx
+// superadmin/src/pages/announcement/index.tsx
 import { useState, useRef, useEffect } from 'react'
-import { MOCK_TENANTS } from '../../../lib/mock'
-import type { TenantPlan } from '../../../types'
-import { api } from '../../../lib/axios'
+import { MOCK_TENANTS } from '../../lib/mock'
+import type { TenantPlan } from '../../types'
+import { api } from '../../lib/axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AnnType   = 'MAINTENANCE' | 'FEATURE' | 'BILLING' | 'GENERAL' | 'URGENT'

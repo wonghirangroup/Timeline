@@ -1,10 +1,10 @@
 // Super Admin — Package / Plan Management
 import { useState, useEffect } from 'react'
-import { MOCK_TENANTS } from '../../../lib/mock'
-import type { PlanConfig, PlanFeatures, PlanLimits, TenantPlan } from '../../../types'
-import { useToast } from '../../../components/ui/Toast'
-import { usePlanConfigStore } from '../../../stores/planConfigStore'
-import { api } from '../../../lib/axios'
+import { MOCK_TENANTS } from '../../lib/mock'
+import type { PlanConfig, PlanFeatures, PlanLimits, TenantPlan } from '../../types'
+import { useToast } from '../../components/ui/Toast'
+import { usePlanConfigStore } from '../../stores/planConfigStore'
+import { api } from '../../lib/axios'
 
 // Feature metadata
 const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon: string }[] = [

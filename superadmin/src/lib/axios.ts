@@ -1,24 +1,25 @@
+// admin/src/lib/axios.ts
+// ถ้า VITE_API_URL ว่าง → ใช้ '' (relative path) → Vite proxy forward ไป backend
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 15000,
+  baseURL: import.meta.env.VITE_API_URL || '',
+  timeout: 10000,
 })
 
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('sa_token')
-  if (token) config.headers.set('Authorization', `Bearer ${token}`)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 api.interceptors.response.use(
-  res => res,
-  err => {
+  (res) => res,
+  (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('sa_token')
-      localStorage.removeItem('sa_user')
+      localStorage.clear()
       window.location.href = '/login'
     }
     return Promise.reject(err)
-  },
+  }
 )

@@ -6,12 +6,12 @@ import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/superadmin/dashboard': 'ภาพรวม Platform',
-  '/superadmin/tenants':   'จัดการ Tenant',
-  '/superadmin/packages':  'Package & Plan',
-  '/superadmin/billing':    'Billing & Payment',
-  '/superadmin/onboarding':    'Onboarding Checklist',
-  '/superadmin/announcement':  'System Announcement',
+  '/dashboard': 'ภาพรวม Platform',
+  '/tenants':   'จัดการ Tenant',
+  '/packages':  'Package & Plan',
+  '/billing':    'Billing & Payment',
+  '/onboarding':    'Onboarding Checklist',
+  '/announcement':  'System Announcement',
 }
 
 function useClock() {

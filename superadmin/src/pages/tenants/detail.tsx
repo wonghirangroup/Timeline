@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { ChevronLeft, Pencil, PauseCircle, PlayCircle, Settings, Copy, EyeOff, Eye, Building2, CheckCircle, CreditCard, UserPlus, X, AlertTriangle } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { TenantStatus, TenantPlan } from '../../../types'
-import { useToast } from '../../../components/ui/Toast'
-import { api } from '../../../lib/axios'
+import type { TenantStatus, TenantPlan } from '../../types'
+import { useToast } from '../../components/ui/Toast'
+import { api } from '../../lib/axios'
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },
@@ -138,7 +138,7 @@ export default function TenantDetailPage() {
     <div style={{ textAlign: 'center', padding: '80px 20px' }}>
       <div style={{ fontSize: '3rem', marginBottom: 12 }}>🔍</div>
       <p style={{ color: '#6b7280' }}>ไม่พบ Tenant ID: {id}</p>
-      <button onClick={() => navigate('/superadmin/tenants')} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+      <button onClick={() => navigate('/tenants')} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
         กลับรายการ
       </button>
     </div>
@@ -170,7 +170,7 @@ export default function TenantDetailPage() {
 
       {/* Back */}
       <button
-        onClick={() => navigate('/superadmin/tenants')}
+        onClick={() => navigate('/tenants')}
         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '0.85rem', marginBottom: 16, padding: 0 }}
       >
         <ChevronLeft size={14} />
@@ -269,7 +269,7 @@ export default function TenantDetailPage() {
                 ตั้งค่า Line OA
               </button>
               <button
-                onClick={() => navigate(`/superadmin/billing?tenant=${tenant.id}`)}
+                onClick={() => navigate(`/billing?tenant=${tenant.id}`)}
                 style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #c4b5fd', background: '#ede9fe', color: '#7c3aed', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <CreditCard size={14} />

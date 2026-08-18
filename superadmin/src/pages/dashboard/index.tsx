@@ -1,7 +1,7 @@
-// admin/src/pages/superadmin/dashboard/index.tsx
+// superadmin/src/pages/dashboard/index.tsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../../../lib/axios'
+import { api } from '../../lib/axios'
 
 // API shape from /api/v1/super-admin/tenants
 interface ApiTenant {
@@ -150,7 +150,7 @@ export default function SuperAdminDashboard() {
                     <option value="TRIAL">ทดลองใช้</option>
                     <option value="SUSPENDED">ระงับ</option>
                   </select>
-                  <button onClick={() => navigate('/superadmin/tenants')} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontSize: '0.82rem', fontWeight: 600 }}>
+                  <button onClick={() => navigate('/tenants')} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--sa-accent)', color: '#fff', fontSize: '0.82rem', fontWeight: 600 }}>
                     จัดการทั้งหมด →
                   </button>
                 </div>
@@ -176,7 +176,7 @@ export default function SuperAdminDashboard() {
                         const pc = PLAN_CFG[t.plan] ?? { label: t.plan, color: 'var(--text-body)', bg: '#f3f4f6' }
                         return (
                           <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
-                            onClick={() => navigate('/superadmin/tenants')}
+                            onClick={() => navigate('/tenants')}
                           >
                             <td style={{ padding: '11px 14px' }}>
                               <div style={{ fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.875rem' }}>{t.name}</div>
@@ -258,7 +258,7 @@ export default function SuperAdminDashboard() {
                     </div>
                     {activity.length > 5 && (
                       <button
-                        onClick={() => navigate('/superadmin/announcement')}
+                        onClick={() => navigate('/announcement')}
                         style={{ display: 'block', width: '100%', marginTop: 10, padding: '7px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f8fafc', color: 'var(--sa-accent)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}
                       >
                         ดูทั้งหมด ({activity.length}) →

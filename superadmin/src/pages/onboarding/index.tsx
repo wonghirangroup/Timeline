@@ -1,10 +1,10 @@
-// admin/src/pages/superadmin/onboarding/index.tsx
+// superadmin/src/pages/onboarding/index.tsx
 import { useState } from 'react'
 import { ChevronDown, Copy, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { MOCK_TENANTS, MOCK_LINE_CONFIGS } from '../../../lib/mock'
-import type { Tenant } from '../../../types'
-import { api } from '../../../lib/axios'
+import { MOCK_TENANTS, MOCK_LINE_CONFIGS } from '../../lib/mock'
+import type { Tenant } from '../../types'
+import { api } from '../../lib/axios'
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 interface StepDef {
@@ -146,9 +146,9 @@ export default function OnboardingPage() {
   }
 
   async function handleAction(actionKey: string, tenantId: string, stepId: string) {
-    if (actionKey === 'billing')  navigate(`/superadmin/billing`)
-    if (actionKey === 'line')     navigate(`/superadmin/tenants/${tenantId}`)
-    if (actionKey === 'detail')   navigate(`/superadmin/tenants/${tenantId}`)
+    if (actionKey === 'billing')  navigate(`/billing`)
+    if (actionKey === 'line')     navigate(`/tenants/${tenantId}`)
+    if (actionKey === 'detail')   navigate(`/tenants/${tenantId}`)
     if (actionKey === 'reminder') {
       try {
         await api.post(`/api/v1/super-admin/tenants/${tenantId}/remind-line-linking`)
@@ -374,7 +374,7 @@ export default function OnboardingPage() {
                     ))}
                     <div style={{ flex: 1 }} />
                     <button
-                      onClick={e => { e.stopPropagation(); navigate(`/superadmin/tenants/${c.tenant.id}`) }}
+                      onClick={e => { e.stopPropagation(); navigate(`/tenants/${c.tenant.id}`) }}
                       style={{
                         padding: '6px 14px', borderRadius: 8, border: '1px solid #e2e8f0',
                         background: '#fff', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--sa-accent)', fontWeight: 600,

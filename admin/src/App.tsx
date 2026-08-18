@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './index.css'
 import { useAuthStore } from './stores/authStore'
 import Layout               from './components/layout/Layout'
-import SuperAdminLayout     from './components/layout/SuperAdminLayout'
 import LoginPage            from './pages/login'
 import DashboardPage        from './pages/dashboard'
 import EmployeePage         from './pages/employee'
@@ -18,25 +17,14 @@ import AnnouncementPage     from './pages/announcement'
 import ShiftSchedulePage    from './pages/shift-schedule'
 import EmployeeDetailPage   from './pages/employee/detail'
 import UiKitPage            from './pages/ui-kit'
-import SADashboard          from './pages/superadmin/dashboard'
-import SATenantsPage        from './pages/superadmin/tenants'
-import SATenantDetail       from './pages/superadmin/tenants/detail'
-import SAPackagesPage       from './pages/superadmin/packages'
-import SABillingPage        from './pages/superadmin/billing'
-import SAOnboardingPage     from './pages/superadmin/onboarding'
-import SAAnnouncementPage   from './pages/superadmin/announcement'
-
-// Deploy นี้เป็นพอร์ทัลไหน — ตั้ง VITE_APP_MODE=superadmin เฉพาะ Vercel project
-// ของ Super Admin เท่านั้น (ต้องตรงกับค่าเดียวกันใน pages/login/index.tsx)
-const APP_MODE: 'admin' | 'superadmin' = import.meta.env.VITE_APP_MODE === 'superadmin' ? 'superadmin' : 'admin'
 
 function AdminRoutes() {
   const token = useAuthStore(s => s.token)
   const role  = useAuthStore(s => s.role)
+  const clear = useAuthStore(s => s.clear)
   if (!token) return <Navigate to="/login" replace />
-  // เผื่อพลาด: ถ้า role ไม่ตรงโหมดของพอร์ทัลนี้ (เช่น token เก่าค้างจากก่อนแยกโดเมน) เด้งกลับ login
-  if (APP_MODE === 'superadmin' && role !== 'SUPER_ADMIN') return <Navigate to="/login" replace />
-  if (role === 'SUPER_ADMIN') return <Navigate to="/superadmin/dashboard" replace />
+  // เผื่อพลาด: บัญชี Super Admin ไม่ควรค้างอยู่ในแอปนี้ (ตอนนี้ Super Admin แยกแอปเองแล้ว)
+  if (role === 'SUPER_ADMIN') { clear(); return <Navigate to="/login" replace /> }
   return (
     <Layout>
       <Routes>
@@ -63,36 +51,12 @@ function AdminRoutes() {
   )
 }
 
-function SuperAdminRoutes() {
-  const token = useAuthStore(s => s.token)
-  const role  = useAuthStore(s => s.role)
-  if (!token) return <Navigate to="/login" replace />
-  if (role !== 'SUPER_ADMIN') return <Navigate to="/dashboard" replace />
-  // เผื่อพลาด: พอร์ทัล Admin ทั่วไปไม่ควรให้ Super Admin ค้างอยู่ใน /superadmin/* ต่อ
-  if (APP_MODE === 'admin') return <Navigate to="/login" replace />
-  return (
-    <SuperAdminLayout>
-      <Routes>
-        <Route path="dashboard"       element={<SADashboard />} />
-        <Route path="tenants"         element={<SATenantsPage />} />
-        <Route path="tenants/:id"     element={<SATenantDetail />} />
-        <Route path="packages"        element={<SAPackagesPage />} />
-        <Route path="billing"         element={<SABillingPage />} />
-        <Route path="onboarding"      element={<SAOnboardingPage />} />
-        <Route path="announcement"    element={<SAAnnouncementPage />} />
-        <Route path="*"               element={<Navigate to="/superadmin/dashboard" replace />} />
-      </Routes>
-    </SuperAdminLayout>
-  )
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login"          element={<LoginPage />} />
-        <Route path="/superadmin/*"   element={<SuperAdminRoutes />} />
-        <Route path="/*"              element={<AdminRoutes />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*"     element={<AdminRoutes />} />
       </Routes>
     </BrowserRouter>
   )

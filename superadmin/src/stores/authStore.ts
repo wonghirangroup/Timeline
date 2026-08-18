@@ -1,36 +1,36 @@
+// admin/src/stores/authStore.ts
 import { create } from 'zustand'
 
-export interface AuthUser {
-  id: string
-  email: string
-  role: string
-  tenant_id: string | null
-  first_name: string
-  last_name: string
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER'
+
+interface AuthState {
+  token:    string | null
+  role:     Role | null
+  tenantId: string | null
+  name:     string | null
+  setAuth:  (token: string, role: Role, tenantId: string, name: string) => void
+  setName:  (name: string) => void
+  clear:    () => void
 }
 
-interface AuthStore {
-  user: AuthUser | null
-  isAuthenticated: boolean
-  login: (token: string, user: AuthUser) => void
-  logout: () => void
-}
-
-function loadUser(): AuthUser | null {
-  try { return JSON.parse(localStorage.getItem('sa_user') ?? 'null') } catch { return null }
-}
-
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: loadUser(),
-  isAuthenticated: !!localStorage.getItem('sa_token'),
-  login: (token, user) => {
-    localStorage.setItem('sa_token', token)
-    localStorage.setItem('sa_user', JSON.stringify(user))
-    set({ user, isAuthenticated: true })
+export const useAuthStore = create<AuthState>((set) => ({
+  token:    localStorage.getItem('access_token'),
+  role:     localStorage.getItem('role') as Role | null,
+  tenantId: localStorage.getItem('tenant_id'),
+  name:     localStorage.getItem('name'),
+  setAuth: (token, role, tenantId, name) => {
+    localStorage.setItem('access_token', token)
+    localStorage.setItem('role', role)
+    localStorage.setItem('tenant_id', tenantId)
+    localStorage.setItem('name', name)
+    set({ token, role, tenantId, name })
   },
-  logout: () => {
-    localStorage.removeItem('sa_token')
-    localStorage.removeItem('sa_user')
-    set({ user: null, isAuthenticated: false })
+  setName: (name) => {
+    localStorage.setItem('name', name)
+    set({ name })
+  },
+  clear: () => {
+    localStorage.clear()
+    set({ token: null, role: null, tenantId: null, name: null })
   },
 }))

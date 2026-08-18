@@ -1,29 +1,53 @@
+// superadmin/src/pages/login/index.tsx
 import { useState } from 'react'
-import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
+import type { Role } from '../../stores/authStore'
+import axios from 'axios'
+
+// ถ้า VITE_API_URL ว่าง ใช้ '' (relative) → Vite proxy จะ forward ไป backend
+const API_URL   = import.meta.env.VITE_API_URL ?? ''
+const ADMIN_URL = import.meta.env.VITE_ADMIN_URL ?? 'https://timeline-admin.vercel.app'
 
 export default function LoginPage() {
-  const login = useAuthStore(s => s.login)
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [loading, setLoading]   = useState(false)
+  const navigate = useNavigate()
+  const setAuth  = useAuthStore(s => s.setAuth)
+  const [username, setUsername]  = useState('')
+  const [password, setPassword]  = useState('')
+  const [showPwd, setShowPwd]    = useState(false)
+  const [loading, setLoading]    = useState(false)
+  const [error, setError]        = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (!username || !password) { setError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'); return }
+
     setLoading(true)
     try {
-      const res = await axios.post('/api/v1/auth/login', { email, password })
-      const { user, accessToken } = res.data.data
+      const res = await axios.post(`${API_URL}/api/v1/auth/login`, { username, password })
+      const { accessToken, user } = res.data.data
+
+      // แอปนี้คือพอร์ทัล Super Admin เท่านั้น — บล็อกบัญชี Admin/Manager ที่หลงเข้ามา
+      // แม้รหัสผ่านจะถูกต้องก็ตาม (ต้องไปเข้าที่พอร์ทัล Admin แยกต่างหาก)
       if (user.role !== 'SUPER_ADMIN') {
-        setError('บัญชีนี้ไม่มีสิทธิ์ Super Admin')
+        setError(`บัญชีนี้ไม่ใช่ Super Admin — กรุณาเข้าสู่ระบบผ่าน ${ADMIN_URL} แทน`)
         return
       }
-      login(accessToken, user)
-      window.location.href = '/dashboard'
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message ?? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง')
+
+      if (res.data.data.refreshToken) {
+        localStorage.setItem('refresh_token', res.data.data.refreshToken)
+      }
+
+      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', user.full_name ?? user.email)
+      navigate('/dashboard', { replace: true })
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.error?.message
+        setError(msg ?? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
+      } else {
+        setError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      }
     } finally {
       setLoading(false)
     }
@@ -32,94 +56,76 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, #eef2ff 100%)',
     }}>
-      {/* Glow circles */}
-      <div style={{ position: 'fixed', top: '-10%', left: '-5%', width: '40vw', height: '40vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'fixed', bottom: '-10%', right: '-5%', width: '40vw', height: '40vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.12), transparent 70%)', pointerEvents: 'none' }} />
-
-      <div style={{ width: '100%', maxWidth: '380px', margin: '0 16px', position: 'relative', zIndex: 1 }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '52px', height: '52px', borderRadius: '16px', margin: '0 auto 12px',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
-          }}>
-            <span style={{ color: 'white', fontWeight: 700, fontSize: '18px' }}>TL</span>
-          </div>
-          <p style={{ color: 'white', fontWeight: 700, fontSize: '22px', margin: '0 0 4px' }}>TimeLine HR</p>
-          <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Super Admin Portal</p>
-        </div>
-
-        {/* Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '32px',
-        }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>
-                อีเมล
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="admin@timeline.local"
-                required
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>
-                รหัสผ่าน
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            {error && (
-              <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.25)', fontSize: '13px', color: '#fb7185' }}>
-                {error}
+      <div style={{ width: '100%', maxWidth: 440, padding: '0 20px' }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: '40px 36px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '-1px',
+                boxShadow: '0 6px 20px rgba(79,70,229,0.35)',
+              }}>TL</div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>TimeLine</span>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--sa-accent)', background: 'var(--sa-accent-light)', borderRadius: 99, padding: '2px 8px' }}>SUPER ADMIN</span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>Vendor Control Panel</div>
               </div>
-            )}
+            </div>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+              เข้าสู่ระบบสำหรับทีมงาน — จัดการ Tenant ทั้งหมด
+            </p>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '12px', borderRadius: '10px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                background: loading ? 'rgba(99,102,241,0.5)' : 'linear-gradient(135deg, #6366f1, #7c3aed)',
-                color: 'white', fontSize: '14px', fontWeight: 700, marginTop: '4px',
-                boxShadow: loading ? 'none' : '0 4px 16px rgba(99,102,241,0.35)',
-                transition: 'all 0.15s',
-              }}
-            >
-              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
-            </button>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>ชื่อผู้ใช้</label>
+                <input
+                  type="text" value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="username"
+                  autoComplete="username"
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--sa-accent)' }}
+                  onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>รหัสผ่าน</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPwd ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    style={{ width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--sa-accent)' }}
+                    onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
+                  />
+                  <button type="button" onClick={() => setShowPwd(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>{showPwd ? '🙈' : '👁'}</button>
+                </div>
+              </div>
+
+              {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626' }}>⚠ {error}</div>
+              )}
+
+              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#c7d2fe' : 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(79,70,229,0.4)', transition: 'all 0.2s' }}>
+                {loading ? '⏳ กำลังเข้าสู่ระบบ...' : '🔐 เข้าสู่ระบบ'}
+              </button>
+            </div>
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#475569' }}>
-          Super Admin เท่านั้น — สำหรับทีม TimeLine
-        </p>
+        <div style={{ textAlign: 'center', marginTop: 16, fontSize: '0.72rem', color: '#9ca3af' }}>
+          TimeLine HR System · Powered by WH Group
+        </div>
       </div>
     </div>
   )
