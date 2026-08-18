@@ -10,6 +10,7 @@ import {
   verifyRefreshToken,
   findUserById,
 } from './auth.service'
+import { prisma } from '../../common/utils/prisma'
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -150,12 +151,29 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/me', {
     schema: {
       tags: ['Auth'],
-      summary: 'ดูข้อมูล user ปัจจุบัน (ต้องมี Bearer Token)',
+      summary: 'ดูข้อมูล user ปัจจุบัน (ต้องมี Bearer Token) — enabled_features อ่านสดจาก DB ทุกครั้ง',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object', additionalProperties: true },
+          },
+        },
+      },
     },
   }, async (request: any, reply) => {
     try {
       await request.jwtVerify()
-      return { success: true, data: request.user }
+      let enabled_features: unknown = null
+      if (request.user.tenant_id) {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: request.user.tenant_id },
+          select: { enabled_features: true },
+        })
+        enabled_features = tenant?.enabled_features ?? null
+      }
+      return { success: true, data: { ...request.user, enabled_features } }
     } catch (err) {
       reply.code(401)
       return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }

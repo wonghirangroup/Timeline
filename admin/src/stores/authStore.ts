@@ -12,6 +12,7 @@ interface AuthState {
   enabledFeatures:  EnabledFeatures
   setAuth:  (token: string, role: Role, tenantId: string, name: string, enabledFeatures?: EnabledFeatures) => void
   setName:  (name: string) => void
+  setEnabledFeatures: (enabledFeatures: EnabledFeatures) => void
   clear:    () => void
 }
 
@@ -39,6 +40,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   setName: (name) => {
     localStorage.setItem('name', name)
     set({ name })
+  },
+  setEnabledFeatures: (enabledFeatures) => {
+    if (enabledFeatures) localStorage.setItem('enabled_features', JSON.stringify(enabledFeatures))
+    else localStorage.removeItem('enabled_features')
+    set({ enabledFeatures })
   },
   clear: () => {
     localStorage.clear()
