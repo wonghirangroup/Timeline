@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { Clock, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { COLOR, RADIUS, SHADOW, FONT, STATUS } from './tokens'
 
 function useSimProgress() {
@@ -298,12 +298,12 @@ export function PageLoader({ title = 'กำลังโหลด...', sub, full
         <div className="animate-pulse-ring"   style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})` }} />
         <div className="animate-pulse-ring-2" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})` }} />
         <div className="animate-float" style={{
-          position: 'relative', width: 68, height: 68, borderRadius: '50%',
+          position: 'relative', width: 68, height: 68, borderRadius: '50%', overflow: 'hidden',
           background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 8px 32px rgba(251,146,60,0.28)',
         }}>
-          <Clock size={30} color="#fff" strokeWidth={1.8} />
+          <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       </div>
       <div style={{ textAlign: 'center' }}>
