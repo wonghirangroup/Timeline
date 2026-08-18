@@ -265,15 +265,15 @@ function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onTog
             title="ออกจากระบบ"
             style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer' }}
           >
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
-              {initials}
+            <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
+              <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           </button>
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.06)', marginBottom: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
-                {initials}
+              <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
+                <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</p>

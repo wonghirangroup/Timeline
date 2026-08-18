@@ -46,7 +46,6 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const role = useAuthStore(s => s.role)
   const clear = useAuthStore(s => s.clear)
   const setName = useAuthStore(s => s.setName)
-  const initials = name ? name.slice(0, 2) : 'AD'
 
   const roleLabel = role === 'MANAGER' ? 'Manager' : 'Admin'
   const roleColor = role === 'MANAGER' ? { bg: '#dcfce7', color: '#15803d' } : { bg: '#fff7ed', color: '#c2410c' }
@@ -114,11 +113,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
       <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 48, height: 48, borderRadius: '50%',
+            width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
             background: 'linear-gradient(135deg, #f97316, #ea580c)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', fontWeight: 700, color: '#fff', flexShrink: 0,
-          }}>{initials}</div>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</div>
             <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>admin@timeline.app</div>
@@ -358,11 +358,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
               onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
             >
               <div style={{
-                width: 28, height: 28, borderRadius: '50%',
+                width: 28, height: 28, borderRadius: '50%', overflow: 'hidden',
                 background: 'linear-gradient(135deg, #f97316, #ea580c)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '10px', fontWeight: 700, color: '#fff', flexShrink: 0,
-              }}>{initials}</div>
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
               {!isMobile && (
                 <>
                   <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 500 }}>{name || 'Admin'}</span>

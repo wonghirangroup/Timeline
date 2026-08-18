@@ -86,7 +86,6 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
     setPanelOpen(false)
   }
 
-  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'SA'
 
   return (
     <header style={{
@@ -119,11 +118,12 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
             style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 8 }}
           >
             <div style={{
-              width: 34, height: 34, borderRadius: '50%',
+              width: 34, height: 34, borderRadius: '50%', overflow: 'hidden',
               background: 'linear-gradient(135deg,var(--sa-accent-soft),var(--sa-accent))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.8rem', fontWeight: 700, color: '#fff',
-            }}>{initials}</div>
+            }}>
+              <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
             {!isMobile && (
               <>
                 <div style={{ textAlign: 'left' }}>
@@ -148,7 +148,9 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
               {view === 'profile' && (
                 <>
                   <div style={{ padding: '16px', background: 'linear-gradient(135deg,var(--sa-accent),#6d28d9)', textAlign: 'center' }}>
-                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#fff', margin: '0 auto 8px', border: '2px solid rgba(255,255,255,0.4)' }}>{initials}</div>
+                    <div style={{ width: 52, height: 52, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', border: '2px solid rgba(255,255,255,0.4)' }}>
+                      <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{name}</div>
                     <div style={{ fontSize: '0.72rem', color: '#c4b5fd', marginTop: 2 }}>Super Administrator</div>
                     <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', marginTop: 4, background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '2px 8px', display: 'inline-block' }}>🔐 สิทธิ์สูงสุด</div>

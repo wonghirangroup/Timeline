@@ -162,9 +162,18 @@ button {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* mascot avatar — เด้ง+โยกเบาๆ ให้ภาพนิ่งดูมีชีวิตชีวาโดยไม่ต้องมีวิดีโอ/GIF จริง */
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0)   rotate(0deg); }
+  25%      { transform: translateY(-2px) rotate(-4deg); }
+  50%      { transform: translateY(0)   rotate(0deg); }
+  75%      { transform: translateY(-1px) rotate(4deg); }
+}
+
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse { animation: pulse-scale 1.6s ease-in-out infinite; }
 .animate-slide-up { animation: slide-up 0.25s ease-out both; }
+.animate-mascot { animation: mascot-bounce 1.8s ease-in-out infinite; }
 
 .animate-fade-in-up {
   animation: fade-in-up 0.4s ease-out backwards;

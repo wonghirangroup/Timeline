@@ -294,13 +294,17 @@ export function PageLoader({ title = 'กำลังโหลด...', sub, full
       gap: 20, padding: '40px',
       ...(fullPage ? { minHeight: '100dvh', background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)' } : {}),
     }}>
-      <div style={{
-        width: 68, height: 68, borderRadius: '50%', flexShrink: 0,
-        background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 8px 32px rgba(251,146,60,0.28)',
-      }}>
-        <Clock size={30} color="#fff" strokeWidth={1.8} />
+      <div style={{ position: 'relative', width: 68, height: 68, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="animate-pulse-ring"   style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})` }} />
+        <div className="animate-pulse-ring-2" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})` }} />
+        <div className="animate-float" style={{
+          position: 'relative', width: 68, height: 68, borderRadius: '50%',
+          background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryEnd})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 32px rgba(251,146,60,0.28)',
+        }}>
+          <Clock size={30} color="#fff" strokeWidth={1.8} />
+        </div>
       </div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1a2b3c', marginBottom: sub ? 4 : 0 }}>{title}</div>
