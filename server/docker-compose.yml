@@ -1,0 +1,33 @@
+# server/docker-compose.yml — deploy TimeLine backend ไปที่ VPS (178.128.119.174)
+# แทน Render free tier — ใช้รูปแบบเดียวกับ qa-test-tracker (ระบบทดสอบและติดตามผล-qa)
+# ต่างกันแค่ port และไม่มี frontend service (frontend ของ TimeLine อยู่บน Vercel แยกอยู่แล้ว)
+#
+# วิธีใช้บน VPS:
+#   1. clone/pull repo นี้ขึ้น VPS
+#   2. สร้างไฟล์ .env ข้าง docker-compose.yml นี้ (ดู .env.vps.example) — ห้าม commit
+#   3. cd server && docker compose up -d --build
+#   4. เช็คว่า port ที่เลือกว่างจริงก่อน: `ss -tlnp | grep 4002`
+#      (ถ้าซ้อนกับแอปอื่นบน VPS นี้ แก้เลข 4002 ในไฟล์นี้ + .env ให้เป็นเลขที่ว่าง)
+
+services:
+  backend:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-8h}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      LINE_CHANNEL_ID: ${LINE_CHANNEL_ID}
+      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET}
+      CORS_ADMIN_URL: ${CORS_ADMIN_URL}
+      CORS_SUPERADMIN_URL: ${CORS_SUPERADMIN_URL}
+      CORS_EMPLOYEE_URL: ${CORS_EMPLOYEE_URL}
+    ports:
+      # host:container — แก้ 4002 ถ้าซ้อนพอร์ตกับแอปอื่นบน VPS นี้ (เช่น TestGrow)
+      - "4002:3000"
