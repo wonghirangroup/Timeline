@@ -1,6 +1,7 @@
 // superadmin/src/pages/dashboard/index.tsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Clock, Building2, Pencil, UserPlus, MessageCircle, SlidersHorizontal, FileText, CheckCircle2, LogIn, Radio } from 'lucide-react'
 import { api } from '../../lib/axios'
 
 // API shape from /api/v1/super-admin/tenants
@@ -61,15 +62,30 @@ const PLAN_DISPLAY_ORDER = ['ENTERPRISE', 'PROFESSIONAL', 'STARTER', 'FREE']
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 function thDate(s: string) { const d = new Date(s); return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}` }
 
-const ACTIVITY_CFG: Record<string, { icon: string; color: string }> = {
-  new:     { icon: '🆕', color: 'var(--success-text)' },
-  trial:   { icon: '🔬', color: 'var(--warning-text)' },
-  renew:   { icon: '♻️', color: '#2563eb' },
-  suspend: { icon: '🚫', color: 'var(--error-text)' },
-  update:  { icon: '📝', color: 'var(--text-gray)' },
+const ACTIVITY_CFG: Record<string, { Icon: typeof Clock; color: string }> = {
+  TENANT_CREATED:       { Icon: Building2,          color: 'var(--success-text)' },
+  TENANT_UPDATED:       { Icon: Pencil,              color: 'var(--text-gray)' },
+  ADMIN_CREATED:        { Icon: UserPlus,            color: '#2563eb' },
+  LINE_CONFIG_UPDATED:  { Icon: MessageCircle,       color: '#16a34a' },
+  FEATURE_TOGGLED:      { Icon: SlidersHorizontal,   color: '#7c3aed' },
+  INVOICE_CREATED:      { Icon: FileText,            color: 'var(--text-gray)' },
+  INVOICE_PAID:         { Icon: CheckCircle2,        color: 'var(--success-text)' },
+  SUPER_ADMIN_LOGIN:    { Icon: LogIn,               color: 'var(--text-gray)' },
 }
 
+interface ApiActivity { id: string; action: string; message: string; actor_name: string; created_at: string }
 interface ActivityItem { time: string; msg: string; type: string }
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1)  return 'เมื่อสักครู่'
+  if (mins < 60) return `${mins} นาทีที่แล้ว`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} ชม.ที่แล้ว`
+  const days = Math.floor(hrs / 24)
+  return `${days} วันที่แล้ว`
+}
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate()
@@ -79,15 +95,17 @@ export default function SuperAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<DashStatus | ''>('')
 
   useEffect(() => {
-    // หมายเหตุ: ไม่มี endpoint /super-admin/activity จริงในระบบ (ยังไม่ได้สร้าง
-    // activity log ฝั่ง backend) — เก็บ activity ไว้เป็น [] เสมอ ไม่ยิง fetch
-    // ที่รู้อยู่แล้วว่า 404 ทุกครั้ง แทนที่จะซ่อน error ไว้เฉยๆ
-    api.get('/api/v1/super-admin/tenants')
-      .then(res => {
-        if (Array.isArray(res.data?.data)) setTenants(res.data.data.map(adaptTenant))
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      api.get('/api/v1/super-admin/tenants'),
+      api.get('/api/v1/super-admin/activity', { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
+    ]).then(([tenantsRes, activityRes]) => {
+      if (Array.isArray(tenantsRes.data?.data)) setTenants(tenantsRes.data.data.map(adaptTenant))
+      if (Array.isArray(activityRes.data?.data)) {
+        setActivity((activityRes.data.data as ApiActivity[]).map(a => ({
+          time: timeAgo(a.created_at), msg: a.message, type: a.action,
+        })))
+      }
+    }).finally(() => setLoading(false))
   }, [])
 
   const totalEmployees = tenants.reduce((s, t) => s + t.employee_count, 0)
@@ -233,36 +251,26 @@ export default function SuperAdminDashboard() {
 
               {/* Recent Activity */}
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '18px' }}>
-                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700 }}>🕑 กิจกรรมล่าสุด</h3>
+                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={15} /> กิจกรรมล่าสุด</h3>
                 {activity.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-subtle)', fontSize: '0.82rem' }}>
                     ยังไม่มีกิจกรรม
                   </div>
                 ) : (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {activity.slice(0, 5).map((a, i) => {
-                        const cfg = ACTIVITY_CFG[a.type] ?? { icon: '📌', color: 'var(--text-gray)' }
-                        return (
-                          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: '1rem', flexShrink: 0 }}>{cfg.icon}</span>
-                            <div>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-body)', lineHeight: 1.4 }}>{a.msg}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', marginTop: 2 }}>{a.time}</div>
-                            </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {activity.map((a, i) => {
+                      const cfg = ACTIVITY_CFG[a.type] ?? { Icon: Radio, color: 'var(--text-gray)' }
+                      return (
+                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <cfg.Icon size={15} color={cfg.color} style={{ flexShrink: 0, marginTop: 1 }} />
+                          <div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-body)', lineHeight: 1.4 }}>{a.msg}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', marginTop: 2 }}>{a.time}</div>
                           </div>
-                        )
-                      })}
-                    </div>
-                    {activity.length > 5 && (
-                      <button
-                        onClick={() => navigate('/announcement')}
-                        style={{ display: 'block', width: '100%', marginTop: 10, padding: '7px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f8fafc', color: 'var(--sa-accent)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}
-                      >
-                        ดูทั้งหมด ({activity.length}) →
-                      </button>
-                    )}
-                  </>
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             </div>

@@ -36,6 +36,7 @@ model Tenant {
   announcements Announcement[]
   feedbacks     Feedback[]
   invoices      Invoice[]
+  activity_logs ActivityLog[]
 
   @@map("tenants")
 }
@@ -579,4 +580,26 @@ model Invoice {
 
   @@index([tenant_id])
   @@map("invoices")
+}
+
+// ─────────────────────────────────────────────
+// ACTIVITY LOG — feed "กิจกรรมล่าสุด" ของ Super Admin Dashboard
+// เก็บ action ที่ Super Admin ทำเองเท่านั้น (ไม่ใช่ audit log ทั้งระบบ) —
+// actor_name เป็น snapshot ตรงๆ กันปัญหา user ถูกลบ/เปลี่ยนชื่อทีหลัง
+// ─────────────────────────────────────────────
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  tenant_id  String?           // null = ไม่ผูก tenant เฉพาะ (เช่น Super Admin login)
+  actor_name String            // email/ชื่อผู้ทำ action ตอนนั้น
+  action     String            // TENANT_CREATED, TENANT_UPDATED, ADMIN_CREATED, LINE_CONFIG_UPDATED,
+                                // FEATURE_TOGGLED, INVOICE_CREATED, INVOICE_PAID, SUPER_ADMIN_LOGIN
+  message    String   @db.Text // ข้อความพร้อมแสดงผลเลย ไม่ต้อง compose ฝั่ง frontend
+  created_at DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([created_at])
+  @@map("activity_logs")
 }

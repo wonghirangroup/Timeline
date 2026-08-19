@@ -4,6 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listInvoices, createInvoice, updateInvoice } from './billing.service'
+import { logActivity } from '../../common/utils/activityLog'
 
 export async function billingRoutes(app: FastifyInstance) {
 
@@ -46,6 +47,11 @@ export async function billingRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     const invoice = await createInvoice(req.body)
+    logActivity({
+      action: 'INVOICE_CREATED', tenantId: invoice.tenant_id,
+      actorName: req.user?.email ?? 'Super Admin',
+      message: `สร้าง Invoice ${invoice.amount.toLocaleString()} บาท ให้ "${invoice.tenant_name}"`,
+    })
     return reply.code(201).send(ok(invoice, 'สร้าง Invoice สำเร็จ'))
   })
 
@@ -70,6 +76,13 @@ export async function billingRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const invoice = await updateInvoice(req.params.id, req.body)
     if (!invoice) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ Invoice'))
+    if (req.body?.status === 'PAID') {
+      logActivity({
+        action: 'INVOICE_PAID', tenantId: invoice.tenant_id,
+        actorName: req.user?.email ?? 'Super Admin',
+        message: `บันทึกชำระเงิน ${invoice.amount.toLocaleString()} บาท จาก "${invoice.tenant_name}"`,
+      })
+    }
     return ok(invoice, 'อัปเดต Invoice สำเร็จ')
   })
 }

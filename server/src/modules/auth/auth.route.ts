@@ -11,6 +11,7 @@ import {
   findUserById,
 } from './auth.service'
 import { prisma } from '../../common/utils/prisma'
+import { logActivity } from '../../common/utils/activityLog'
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -94,6 +95,10 @@ export async function authRoutes(app: FastifyInstance) {
 
     const accessToken = createAccessToken(app, user)
     const refreshToken = createRefreshToken(app, user)
+
+    if (user.role === 'SUPER_ADMIN') {
+      logActivity({ action: 'SUPER_ADMIN_LOGIN', actorName: user.email, message: `${user.email} เข้าสู่ระบบ` })
+    }
 
     return {
       success: true,

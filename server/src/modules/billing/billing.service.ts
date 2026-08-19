@@ -1,7 +1,15 @@
 // server/src/modules/billing/billing.service.ts
 import { prisma } from '../../common/utils/prisma'
 
-function toFlat(inv: { tenant: { name: string } } & Record<string, any>) {
+interface InvoiceWithTenant {
+  id: string; tenant_id: string; plan: string; amount: number
+  due_date: Date; paid_date: Date | null; status: string
+  period_start: Date; period_end: Date; note: string | null
+  created_at: Date; updated_at: Date
+  tenant: { name: string }
+}
+
+function toFlat(inv: InvoiceWithTenant) {
   const { tenant, ...rest } = inv
   return { ...rest, tenant_name: tenant.name }
 }

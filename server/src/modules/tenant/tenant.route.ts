@@ -8,6 +8,8 @@ import { FEATURE_KEYS } from '../../common/utils/features'
 import { listUsers, createUser, updateUser, deleteUser, generateTempPassword } from './user.service'
 import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
+import { logActivity }      from '../../common/utils/activityLog'
+import { prisma }           from '../../common/utils/prisma'
 
 const TAG = 'Super Admin'
 
@@ -66,6 +68,11 @@ export async function tenantRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createTenant(req.body)
+      logActivity({
+        action: 'TENANT_CREATED', tenantId: result.tenant.id,
+        actorName: req.user?.email ?? 'Super Admin',
+        message: `สร้าง Tenant "${result.tenant.name}" ใหม่`,
+      })
       return reply.code(201).send(ok(result, 'สร้าง Tenant สำเร็จ'))
     } catch (e: any) {
       if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมล Admin นี้มีอยู่แล้ว'))
@@ -95,6 +102,11 @@ export async function tenantRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const tenant = await updateTenant(req.params.id, req.body)
     if (!tenant) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ Tenant'))
+    logActivity({
+      action: 'TENANT_UPDATED', tenantId: tenant.id,
+      actorName: req.user?.email ?? 'Super Admin',
+      message: `แก้ไขข้อมูล Tenant "${tenant.name}"`,
+    })
     return ok(tenant, 'อัปเดต Tenant สำเร็จ')
   })
 
@@ -122,6 +134,12 @@ export async function tenantRoutes(app: FastifyInstance) {
       line_channel_secret: req.body.line_channel_secret,
       line_liff_id:        req.body.line_liff_id,
     })
+    const t = await prisma.tenant.findUnique({ where: { id: req.params.id }, select: { name: true } })
+    logActivity({
+      action: 'LINE_CONFIG_UPDATED', tenantId: req.params.id,
+      actorName: req.user?.email ?? 'Super Admin',
+      message: `ตั้งค่า LINE OA ให้ "${t?.name ?? req.params.id}"`,
+    })
     return ok(config, 'บันทึก LINE config สำเร็จ')
   })
 
@@ -141,6 +159,12 @@ export async function tenantRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const tenant = await updateTenantFeatures(req.params.id, req.body ?? {})
     if (!tenant) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ Tenant'))
+    const changed = Object.entries(req.body ?? {}).map(([k, v]) => `${k}=${v}`).join(', ')
+    logActivity({
+      action: 'FEATURE_TOGGLED', tenantId: tenant.id,
+      actorName: req.user?.email ?? 'Super Admin',
+      message: `เปลี่ยนฟีเจอร์ "${tenant.name}": ${changed || '(ไม่มีการเปลี่ยนแปลง)'}`,
+    })
     return ok({ enabled_features: tenant.enabled_features }, 'อัปเดตฟีเจอร์สำเร็จ')
   })
 
@@ -173,6 +197,12 @@ export async function tenantRoutes(app: FastifyInstance) {
         last_name:  req.body.last_name,
         role:       'ADMIN',
       }, { mustChangePassword: true })
+      const t = await prisma.tenant.findUnique({ where: { id: req.params.id }, select: { name: true } })
+      logActivity({
+        action: 'ADMIN_CREATED', tenantId: req.params.id,
+        actorName: req.user?.email ?? 'Super Admin',
+        message: `สร้าง Admin "${req.body.first_name} ${req.body.last_name}" ให้ "${t?.name ?? req.params.id}"`,
+      })
       return reply.code(201).send(ok({ user, temp_password: tempPassword }, 'สร้าง Admin สำเร็จ'))
     } catch (e: any) {
       if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีอยู่แล้ว'))

@@ -25,6 +25,7 @@ import { weeklyOffRoutes }    from './modules/weekly-off/weekly-off.route'
 import { brandingRoutes }     from './modules/branding/branding.route'
 import { feedbackRoutes }     from './modules/feedback/feedback.route'
 import { billingRoutes }      from './modules/billing/billing.route'
+import { activityRoutes }     from './modules/activity/activity.route'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -124,6 +125,7 @@ app.register(weeklyOffRoutes,   { prefix: '/api/v1' })               // ADMIN ma
 app.register(brandingRoutes,    { prefix: '/api/v1/admin' })         // ADMIN: ภาพ Loading ต่อ tenant (Cloudinary)
 app.register(feedbackRoutes,    { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE submit (ไม่ระบุตัวตน, LIFF)
 app.register(billingRoutes,     { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: Invoice tracking (manual, ไม่มี payment gateway)
+app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: กิจกรรมล่าสุด (Dashboard feed)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 
 // ── Start ─────────────────────────────────────────────────────────
