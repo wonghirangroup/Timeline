@@ -10,7 +10,6 @@ interface BillingTenant {
   id: string
   name: string
   plan: string
-  expires_at: string | null
 }
 
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
@@ -85,10 +84,9 @@ export default function BillingPage() {
     api.get('/api/v1/super-admin/tenants')
       .then(res => {
         if (Array.isArray(res.data?.data)) {
-          setTenants(res.data.data.map((t: { id: string; name: string; plan: string; expires_at?: string }) => ({
+          setTenants(res.data.data.map((t: { id: string; name: string; plan: string }) => ({
             id: t.id, name: t.name,
             plan: t.plan === 'PRO' ? 'PROFESSIONAL' : t.plan,
-            expires_at: t.expires_at ?? null,
           })))
         }
       })
@@ -98,9 +96,21 @@ export default function BillingPage() {
   // Computed
   const today = new Date().toISOString().slice(0, 10)
 
-  const expiringSoon = tenants.filter(t =>
-    t.expires_at && daysUntil(t.expires_at) >= 0 && daysUntil(t.expires_at) <= 30
-  )
+  // "หมดอายุ" ของแต่ละ tenant = period_end ของ invoice ที่ชำระแล้วล่าสุด — ไม่มี
+  // field expires_at แยกต่างหากบน Tenant เลย ต้องคำนวณจาก invoice ประวัติจริง
+  const tenantExpiry = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const inv of invoices) {
+      if (inv.status !== 'PAID') continue
+      const cur = map.get(inv.tenant_id)
+      if (!cur || inv.period_end > cur) map.set(inv.tenant_id, inv.period_end)
+    }
+    return map
+  }, [invoices])
+
+  const expiringSoon = tenants
+    .map(t => ({ ...t, expires_at: tenantExpiry.get(t.id) ?? null }))
+    .filter(t => t.expires_at && daysUntil(t.expires_at) >= 0 && daysUntil(t.expires_at) <= 30)
 
   const stats = useMemo(() => {
     const paid    = invoices.filter(i => i.status === 'PAID')
@@ -205,15 +215,6 @@ export default function BillingPage() {
       setDetailInv(null)
     } catch {
       showToast('error', 'ยกเลิกไม่สำเร็จ — กรุณาลองใหม่')
-    }
-  }
-
-  async function sendReminder(inv: Invoice) {
-    try {
-      await api.post(`/api/v1/super-admin/invoices/${inv.id}/reminder`)
-      showToast('success', `ส่ง reminder ให้ ${inv.tenant_name} ทาง email แล้ว`)
-    } catch {
-      showToast('error', 'ส่ง reminder ไม่สำเร็จ')
     }
   }
 
@@ -405,10 +406,7 @@ export default function BillingPage() {
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ display: 'flex', gap: 5 }}>
                         {inv.status === 'PENDING' || inv.status === 'OVERDUE' ? (
-                          <>
-                            <button onClick={() => markPaid(inv)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--success-border)', background: '#f0fdf4', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ ชำระแล้ว</button>
-                            <button onClick={() => sendReminder(inv)} style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: 'var(--text-gray)', fontSize: '0.72rem', cursor: 'pointer' }}>📧</button>
-                          </>
+                          <button onClick={() => markPaid(inv)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--success-border)', background: '#f0fdf4', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ ชำระแล้ว</button>
                         ) : null}
                         {inv.status === 'PAID' && (
                           <button onClick={() => { setExtendInv(inv); setExtendDays(30) }} style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #c4b5fd', background: '#ede9fe', color: '#7c3aed', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>↪ ต่ออายุ</button>
@@ -545,7 +543,6 @@ export default function BillingPage() {
               {(detailInv.status === 'PENDING' || detailInv.status === 'OVERDUE') && (
                 <>
                   <button onClick={() => markPaid(detailInv)} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>✓ บันทึกชำระแล้ว</button>
-                  <button onClick={() => sendReminder(detailInv)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: 'var(--text-body)', fontSize: '0.85rem', cursor: 'pointer' }}>📧 ส่ง Reminder</button>
                   <button onClick={() => cancelInvoice(detailInv)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--error-border)', background: '#fff', color: 'var(--error-text)', fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
                 </>
               )}

@@ -35,6 +35,7 @@ model Tenant {
   holidays      Holiday[]
   announcements Announcement[]
   feedbacks     Feedback[]
+  invoices      Invoice[]
 
   @@map("tenants")
 }
@@ -544,4 +545,38 @@ model Feedback {
 
   @@index([tenant_id])
   @@map("feedbacks")
+}
+
+// ─────────────────────────────────────────────
+// BILLING (Phase 4) — manual invoice tracking, ยังไม่ผูก payment gateway จริง
+// plan เก็บเป็น String ธรรมดา (ไม่ใช้ enum TenantPlan) เพราะ frontend ใช้ค่า
+// STARTER/PROFESSIONAL/ENTERPRISE ซึ่งไม่ตรงกับ enum จริง (FREE/STARTER/PRO/
+// ENTERPRISE) — ความไม่ตรงนี้มีอยู่ก่อนแล้ว ไม่ใช่ scope ที่จะแก้ตรงนี้
+// ─────────────────────────────────────────────
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id           String        @id @default(uuid())
+  tenant_id    String
+  plan         String
+  amount       Int
+  due_date     DateTime
+  paid_date    DateTime?
+  status       PaymentStatus @default(PENDING)
+  period_start DateTime
+  period_end   DateTime
+  note         String?       @db.Text
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("invoices")
 }
