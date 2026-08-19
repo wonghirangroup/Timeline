@@ -1049,19 +1049,33 @@ export default function LeavePage() {
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>ประเภทการลา</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {LEAVE_TYPES.map(lt => {
-                    const bal = balances.find(b => b.leave_type === lt.code)
-                    const remaining = bal ? bal.total_days - bal.used_days : null
                     const active = form.leaveType === lt.code
                     return (
                       <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code }))}
                         style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? lt.color : 'transparent'}`, cursor: 'pointer', background: active ? `${lt.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? lt.color : '#9CA3AF' }}>{lt.label}</div>
-                        {remaining !== null && <div style={{ fontSize: '0.65rem', color: '#9CA3AF', marginTop: 2 }}>{remaining} วันเหลือ</div>}
                       </button>
                     )
                   })}
                 </div>
               </div>
+              {/* Leave balance — field แยกต่างหาก อัปเดตตามประเภทที่เลือกอยู่ */}
+              {(() => {
+                const selCfg = LEAVE_TYPES.find(t => t.code === form.leaveType)!
+                const selBal = balances.find(b => b.leave_type === form.leaveType)
+                const remaining = selBal ? selBal.total_days - selBal.used_days : null
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันลาคงเหลือ ({selCfg.label})</div>
+                    <div style={{
+                      padding: '11px 14px', borderRadius: 12, border: `1.5px solid ${selCfg.color}30`,
+                      background: `${selCfg.color}0C`, fontSize: '0.95rem', fontWeight: 800, color: selCfg.color,
+                    }}>
+                      {remaining !== null ? `${remaining} วัน` : '—'}
+                    </div>
+                  </div>
+                )
+              })()}
               {/* Dates */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                 <div>
