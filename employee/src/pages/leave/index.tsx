@@ -43,11 +43,21 @@ const STATUS_CFG = {
   APPROVED: { label: 'อนุมัติแล้ว', color: '#16A34A', bg: 'rgba(22,163,74,0.1)' },
   REJECTED: { label: 'ไม่อนุมัติ',  color: '#DC2626', bg: 'rgba(220,38,38,0.1)' },
 }
+// 4 ประเภทที่พนักงานขอผ่านฟอร์มนี้ได้จริง (ตรงกับ leave_type enum ที่
+// POST /employee/leave-requests รับ)
 const LEAVE_TYPES = [
   { code: 'SICK',      label: 'ลาป่วย',    color: '#3B82F6' },
   { code: 'PERSONAL',  label: 'ลากิจ',     color: '#8B5CF6' },
   { code: 'VACATION',  label: 'ลาพักร้อน', color: '#F59E0B' },
   { code: 'MATERNITY', label: 'ลาคลอด',   color: '#EC4899' },
+]
+// + COMPENSATE (วันหยุดชดเชย) — Admin เป็นคนกำหนดโควต้าให้เท่านั้น (เช่น
+// ชดเชยวันที่มาทำงานในวันหยุดนักขัตฤกษ์) พนักงานขอผ่านฟอร์มนี้ไม่ได้ (backend
+// ปฏิเสธ leave_type นี้ตอนสร้างคำขอ) — แยก list ไว้ต่างหาก ใช้แค่โชว์ label/
+// สีตอนแสดงยอดคงเหลือ ไม่เอาไปรวมกับปุ่มเลือกประเภทตอนขอลา
+const DISPLAY_LEAVE_TYPES = [
+  ...LEAVE_TYPES,
+  { code: 'COMPENSATE', label: 'วันหยุดชดเชย', color: '#10B981' },
 ]
 const MONTHS_TH   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
@@ -164,7 +174,7 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
             const isApprOff = false
             const isPendOff = false
             const firstLeave = myLeaves[0]
-            const lCfg       = firstLeave ? LEAVE_TYPES.find(t => t.code === firstLeave.leave_type) : null
+            const lCfg       = firstLeave ? DISPLAY_LEAVE_TYPES.find(t => t.code === firstLeave.leave_type) : null
             const isPast     = dateStr < today
 
             // Cell background rules — easy to read at a glance
@@ -265,7 +275,7 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
           {false && selMyOff && null}
 
           {selLeaves.map(lr => {
-            const cfg = LEAVE_TYPES.find(t => t.code === lr.leave_type)
+            const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === lr.leave_type)
             const s   = STATUS_CFG[lr.status]
             if (!cfg) return null
             return (
@@ -314,7 +324,7 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {requests.slice(0, 5).map(r => {
               const s   = STATUS_CFG[r.status]
-              const cfg = LEAVE_TYPES.find(t => t.code === r.leave_type)
+              const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === r.leave_type)
               return (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: `${cfg?.color ?? '#94A3B8'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -996,7 +1006,7 @@ export default function LeavePage() {
         {/* Leave balance stat row — วันลาคงเหลือทุกประเภท (ไม่ตัดแค่ 3 อันแรก) */}
         <div className="header-stat-row">
           {balances.map((b, i) => {
-            const cfg = LEAVE_TYPES.find(t => t.code === b.leave_type)
+            const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === b.leave_type)
             return (
               <div key={b.leave_type} className="header-stat-col">
                 <div className="header-stat-label">{cfg?.label ?? b.leave_type}</div>

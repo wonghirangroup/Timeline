@@ -1,31 +1,8 @@
 // employee/src/pages/profile/index.tsx
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { IdCard, Building2, Clock, MessageCircle, Wrench } from 'lucide-react'
-import { PageLoader, COLOR } from '../../components/ui'
-import { api } from '../../lib/axios'
+import { PageLoader } from '../../components/ui'
 import { useAuthStore } from '../../stores/authStore'
-
-interface LeaveBalance {
-  leave_type: string
-  total_days: number
-  used_days: number
-  remaining: number
-}
-
-const LEAVE_COLORS: Record<string, string> = {
-  SICK:      '#3b82f6',
-  PERSONAL:  '#8b5cf6',
-  VACATION:  '#f59e0b',
-  MATERNITY: '#ec4899',
-}
-
-const LEAVE_LABELS: Record<string, string> = {
-  SICK:      'ลาป่วย',
-  PERSONAL:  'ลากิจ',
-  VACATION:  'ลาพักร้อน',
-  MATERNITY: 'ลาคลอด',
-}
 
 const MENU_ITEMS = [
   { Icon: Clock,          label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot' },
@@ -35,14 +12,6 @@ const MENU_ITEMS = [
 export default function ProfilePage() {
   const navigate = useNavigate()
   const employee = useAuthStore(s => s.employee)
-
-  const { data: balances = [] } = useQuery<LeaveBalance[]>({
-    queryKey: ['employee', 'leave-balances', employee?.id],
-    queryFn: () =>
-      api.get('/employee/leave-balances', { params: { employeeId: employee?.id } })
-         .then(r => r.data.data),
-    enabled: !!employee?.id,
-  })
 
   if (!employee) return <PageLoader />
 
@@ -70,35 +39,6 @@ export default function ProfilePage() {
 
       {/* ── White Content Panel ─────────────────────────────────── */}
       <div className="app-panel" style={{ paddingBottom: 100 }}>
-
-        {/* ── Leave Balance ───────────────────────────────────── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 14 }}>วันลาคงเหลือ</div>
-          {balances.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px', color: COLOR.textMuted, fontSize: '0.82rem' }}>ไม่มีข้อมูลวันลา</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {balances.map((b, i) => {
-                const pct = b.total_days > 0 ? Math.round(((b.total_days - b.remaining) / b.total_days) * 100) : 0
-                const color = LEAVE_COLORS[b.leave_type] ?? '#6366f1'
-                return (
-                  <div key={b.leave_type} className="animate-slide-up" style={{ animationDelay: `${i * 60}ms`, background: '#F9FAFB', borderRadius: 16, padding: '14px 12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                    <div style={{ fontSize: '0.62rem', color: '#9CA3AF', fontWeight: 600, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {LEAVE_LABELS[b.leave_type] ?? b.leave_type}
-                    </div>
-                    <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.08)', marginBottom: 8 }}>
-                      <div style={{ height: '100%', borderRadius: 99, width: `${pct}%`, background: color, transition: 'width 0.6s ease' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1A2B3C' }}>{b.remaining}</span>
-                      <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>/{b.total_days}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
 
         {/* ── Work Info ───────────────────────────────────────── */}
         <div style={{ marginBottom: 24 }}>
