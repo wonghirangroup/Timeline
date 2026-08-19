@@ -1,7 +1,7 @@
 // employee/src/pages/history/index.tsx
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bell } from 'lucide-react'
+import { Bell, CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet } from 'lucide-react'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -20,7 +20,6 @@ interface AttendanceRecord {
 }
 
 const MONTHS   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-const DAYS_TH  = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function fmtTime(iso: string | null) {
@@ -81,27 +80,34 @@ export default function HistoryPage() {
 
         <div className="header-stat-row">
           <div className="header-stat-col">
-            <div className="header-stat-label">✅ ตรงเวลา</div>
+            <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> ตรงเวลา</div>
             <div className="header-stat-value">{onTime} วัน</div>
           </div>
           <div className="header-stat-col">
-            <div className="header-stat-label">⏰ มาสาย</div>
+            <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={13} /> มาสาย</div>
             <div className="header-stat-value">{late} วัน</div>
           </div>
         </div>
 
-        {/* Month selector */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          {displayMonths.map(mo => {
-            const [yy, mm] = mo.split('-').map(Number)
-            const active = mo === selectedMonth
-            return (
-              <button key={mo} onClick={() => { setSelectedMonth(mo); setFilterTab('all') }}
-                style={{ padding: '5px 14px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, fontFamily: 'inherit', background: active ? '#fff' : 'rgba(255,255,255,0.2)', color: active ? COLOR.primary : 'rgba(255,255,255,0.85)', transition: 'all 0.15s' }}>
-                {MONTHS[mm - 1]} {yy + 543}
-              </button>
-            )
-          })}
+        {/* Month selector — dropdown */}
+        <div style={{ marginTop: 16 }}>
+          <select
+            value={selectedMonth}
+            onChange={e => { setSelectedMonth(e.target.value); setFilterTab('all') }}
+            style={{
+              width: '100%', padding: '9px 14px', borderRadius: 14, border: 'none', cursor: 'pointer',
+              fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
+              background: 'rgba(255,255,255,0.94)', color: COLOR.primary, outline: 'none',
+              appearance: 'none', WebkitAppearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23FF5E00' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
+            }}
+          >
+            {displayMonths.map(mo => {
+              const [yy, mm] = mo.split('-').map(Number)
+              return <option key={mo} value={mo}>{MONTHS[mm - 1]} {yy + 543}</option>
+            })}
+          </select>
         </div>
       </div>
 
@@ -128,8 +134,8 @@ export default function HistoryPage() {
         {!isLoading && (
           filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '64px 0' }}>
-              <div style={{ fontSize: '3rem', marginBottom: 16, opacity: 0.5 }}>📋</div>
-              <div style={{ fontWeight: 600, color: COLOR.textMuted }}>ไม่มีข้อมูลในเดือนนี้</div>
+              <ClipboardList size={48} style={{ opacity: 0.4, marginBottom: 16 }} color={COLOR.textMuted} />
+              <div style={{ fontWeight: 600, fontSize: '1rem', color: COLOR.textMuted }}>ไม่มีข้อมูลในเดือนนี้</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
@@ -143,33 +149,34 @@ export default function HistoryPage() {
                   : r.is_late ? 'icon-bubble icon-bubble-orange'
                   : 'icon-bubble icon-bubble-blue'
 
+                const StatusIcon = isNoData ? XCircle : r.is_absent ? Ban : r.is_late ? Clock : CheckCircle2
                 const statusColor = isNoData ? COLOR.textMuted : r.is_absent ? COLOR.error : r.is_late ? COLOR.warning : COLOR.success
                 const statusLabel = isNoData ? 'ไม่มีข้อมูล' : r.is_absent ? 'นับเป็นขาด' : r.is_late ? `สาย ${r.late_minutes} น.` : 'ตรงเวลา'
 
                 return (
                   <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                     <div className={iconBubbleClass}>
-                      <span style={{ fontSize: '1.2rem' }}>
-                        {isNoData ? '❌' : r.is_absent ? '⛔' : r.is_late ? '⏰' : '✅'}
-                      </span>
+                      <StatusIcon size={22} strokeWidth={2} />
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: COLOR.textPrimary }}>
-                        {d.getDate()} {MONTHS[d.getMonth()]} · {DAYS_TH[d.getDay()]}
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: COLOR.textPrimary }}>
+                        {d.getDate()} {MONTHS[d.getMonth()]}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
+                      <div style={{ fontSize: '0.88rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
                         {fmtTime(r.check_in_at)} → {fmtTime(r.check_out_at)} · {r.shift.name}
                       </div>
                       {r.is_outside_area && (
-                        <span style={{ fontSize: '0.7rem', background: COLOR.warningBg, color: COLOR.warning, border: `1px solid ${COLOR.warningBorder}`, borderRadius: 99, padding: '2px 10px', fontWeight: 700, marginTop: 6, display: 'inline-block' }}>นอกพื้นที่</span>
+                        <span style={{ fontSize: '0.75rem', background: COLOR.warningBg, color: COLOR.warning, border: `1px solid ${COLOR.warningBorder}`, borderRadius: 99, padding: '2px 10px', fontWeight: 700, marginTop: 6, display: 'inline-block' }}>นอกพื้นที่</span>
                       )}
                       {totalFine > 0 && (
-                        <div style={{ fontSize: '0.72rem', color: COLOR.error, fontWeight: 700, marginTop: 4 }}>💸 ค่าปรับ {totalFine} บาท</div>
+                        <div style={{ fontSize: '0.78rem', color: COLOR.error, fontWeight: 700, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Wallet size={13} /> ค่าปรับ {totalFine} บาท
+                        </div>
                       )}
                     </div>
 
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: statusColor, whiteSpace: 'nowrap', background: isNoData ? '#f3f4f6' : r.is_absent ? COLOR.errorBg : r.is_late ? COLOR.warningBg : COLOR.successBg, padding: '6px 12px', borderRadius: 12 }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: statusColor, whiteSpace: 'nowrap', background: isNoData ? '#f3f4f6' : r.is_absent ? COLOR.errorBg : r.is_late ? COLOR.warningBg : COLOR.successBg, padding: '6px 12px', borderRadius: 12 }}>
                       {statusLabel}
                     </span>
                   </div>

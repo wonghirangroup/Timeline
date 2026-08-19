@@ -1,8 +1,11 @@
 // employee/src/pages/checkin/index.tsx
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Bell, X, Camera, Image, MapPin, Navigation } from 'lucide-react'
+import {
+  Bell, X, Image, MapPin, Navigation, QrCode, Flag, CheckCircle2, AlertTriangle,
+  AlertOctagon, Ban, Wallet, Clock, Sparkles, ClipboardList, Loader2, Search, Keyboard,
+} from 'lucide-react'
 import jsQR from 'jsqr'
-import { PageLoader, COLOR } from '../../components/ui'
+import { PageLoader, COLOR, BottomSheet } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 import { isInLiff, liffScanCodeV2 } from '../../lib/liff'
@@ -60,9 +63,9 @@ function formatTime(d: Date) {
   return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
 function formatThaiDate(d: Date) {
-  const days   = ['อา','จ','อ','พ','พฤ','ศ','ส']
-  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-  return `วัน${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`
+  const days   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+  const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+  return `${days[d.getDay()]}ที่ ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 function fmtHHMM(iso: string) {
   return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -77,11 +80,11 @@ function fmtWorkTime(mins: number) {
 // ─── Check-in Result Sheet ────────────────────────────────────────────────────
 function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () => void }) {
   const S = result.is_absent
-    ? { color: COLOR.error, bg: COLOR.errorBg, border: COLOR.errorBorder, label: 'นับเป็นวันขาด', icon: '⛔' }
+    ? { color: COLOR.error, bg: COLOR.errorBg, border: COLOR.errorBorder, label: 'นับเป็นวันขาด', Icon: Ban }
     : [
-        { color: COLOR.success, bg: COLOR.successBg, border: COLOR.successBorder, label: 'มาทำงานปกติ', icon: '✅' },
-        { color: COLOR.warning, bg: COLOR.warningBg, border: COLOR.warningBorder, label: 'มาสายระดับ 1', icon: '⚠️' },
-        { color: COLOR.error,   bg: COLOR.errorBg,   border: COLOR.errorBorder,   label: 'มาสายระดับ 2', icon: '🚨' },
+        { color: COLOR.success, bg: COLOR.successBg, border: COLOR.successBorder, label: 'มาทำงานปกติ', Icon: CheckCircle2 },
+        { color: COLOR.warning, bg: COLOR.warningBg, border: COLOR.warningBorder, label: 'มาสายระดับ 1', Icon: AlertTriangle },
+        { color: COLOR.error,   bg: COLOR.errorBg,   border: COLOR.errorBorder,   label: 'มาสายระดับ 2', Icon: AlertOctagon },
       ][result.late_level]
 
   const mapsUrl = result.gps_lat && result.gps_lng
@@ -92,89 +95,84 @@ function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () 
     { label: 'เวลาเช็คอิน', value: fmtHHMM(result.record.check_in_at) + ' น.', bold: true },
     { label: 'กะ',          value: `${result.shift.name} (${result.shift.start_time}–${result.shift.end_time})` },
     ...(result.branch?.name ? [{ label: 'สาขา', value: result.branch.name }] : []),
-    ...(result.is_outside_shift ? [{ label: 'สถานะ', value: '🕐 เข้างานนอกช่วงเวลากะ', bold: false }] : []),
-    ...(result.is_outside_area  ? [{ label: 'พื้นที่', value: '⚠️ นอกรัศมีสาขา', bold: false }] : []),
+    ...(result.is_outside_shift ? [{ label: 'สถานะ', value: 'เข้างานนอกช่วงเวลากะ', bold: false, warn: true }] : []),
+    ...(result.is_outside_area  ? [{ label: 'พื้นที่', value: 'นอกรัศมีสาขา', bold: false, warn: true }] : []),
   ]
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
-      className="animate-fade-in" onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '32px 32px 0 0', width: '100%', maxWidth: 430, margin: '0 auto', padding: '24px 24px 40px', boxShadow: '0 -16px 48px rgba(0,0,0,0.12)' }}
-        className="animate-slide-up" onClick={e => e.stopPropagation()}>
-        <div style={{ width: 40, height: 5, borderRadius: 99, background: '#E5E7EB', margin: '0 auto 24px' }} />
-
-        <div className="animate-success-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
-          <div style={{ width: 80, height: 80, borderRadius: 24, background: S.bg, border: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', marginBottom: 16 }}>{S.icon}</div>
-          <div style={{ fontWeight: 800, fontSize: '1.25rem', color: S.color }}>{S.label}</div>
-          {result.late_minutes > 0 && <div style={{ fontSize: '0.85rem', color: COLOR.textMuted, marginTop: 4 }}>สาย {result.late_minutes} นาที</div>}
-          {result.is_absent && <div style={{ fontSize: '0.82rem', color: COLOR.error, marginTop: 6, textAlign: 'center' }}>สายเกินกำหนดของกะนี้ — วันนี้จะถูกนับเป็นวันขาด</div>}
+    <BottomSheet onClose={onClose}>
+      <div className="animate-success-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: S.bg, border: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <S.Icon size={38} color={S.color} strokeWidth={1.8} />
         </div>
-
-        <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '8px 16px', marginBottom: 20 }}>
-          {rows.map((r, i) => (
-            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < rows.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
-              <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary }}>{r.label}</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: r.bold ? 800 : 600, color: COLOR.textPrimary }}>{r.value}</span>
-            </div>
-          ))}
-        </div>
-
-        {result.fine > 0 && (
-          <div style={{ background: COLOR.errorBg, border: `1px solid ${COLOR.errorBorder}`, borderRadius: 16, padding: '16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.9rem', color: COLOR.error, fontWeight: 700 }}>💸 ค่าปรับ</span>
-            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: COLOR.error }}>{result.fine.toLocaleString('th-TH')} บาท</span>
-          </div>
-        )}
-
-        {mapsUrl && (
-          <a href={mapsUrl} target="_blank" rel="noreferrer"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 16, border: '1.5px solid #d1fae5', background: '#ecfdf5', color: '#065f46', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', marginBottom: 12 }}>
-            <MapPin size={16} /> ดูพิกัดที่เช็คอินใน Google Maps
-          </a>
-        )}
-        <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
-          รับทราบ
-        </button>
+        <div style={{ fontWeight: 800, fontSize: '1.25rem', color: S.color }}>{S.label}</div>
+        {result.late_minutes > 0 && <div style={{ fontSize: '0.85rem', color: COLOR.textMuted, marginTop: 4 }}>สาย {result.late_minutes} นาที</div>}
+        {result.is_absent && <div style={{ fontSize: '0.82rem', color: COLOR.error, marginTop: 6, textAlign: 'center' }}>สายเกินกำหนดของกะนี้ — วันนี้จะถูกนับเป็นวันขาด</div>}
       </div>
-    </div>
+
+      <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '8px 16px', marginBottom: 20 }}>
+        {rows.map((r, i) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < rows.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
+            <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {'warn' in r && r.warn && <AlertTriangle size={13} color={COLOR.warning} />}
+              {r.label}
+            </span>
+            <span style={{ fontSize: '0.9rem', fontWeight: r.bold ? 800 : 600, color: COLOR.textPrimary }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {result.fine > 0 && (
+        <div style={{ background: COLOR.errorBg, border: `1px solid ${COLOR.errorBorder}`, borderRadius: 16, padding: '16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.9rem', color: COLOR.error, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Wallet size={16} /> ค่าปรับ</span>
+          <span style={{ fontSize: '1.15rem', fontWeight: 800, color: COLOR.error }}>{result.fine.toLocaleString('th-TH')} บาท</span>
+        </div>
+      )}
+
+      {mapsUrl && (
+        <a href={mapsUrl} target="_blank" rel="noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 16, border: '1.5px solid #d1fae5', background: '#ecfdf5', color: '#065f46', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', marginBottom: 12 }}>
+          <MapPin size={16} /> ดูพิกัดที่เช็คอินใน Google Maps
+        </a>
+      )}
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+        รับทราบ
+      </button>
+    </BottomSheet>
   )
 }
 
 // ─── Check-out Result Sheet ───────────────────────────────────────────────────
 function CheckOutSheet({ result, onClose }: { result: CheckOutResult; onClose: () => void }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
-      className="animate-fade-in" onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '32px 32px 0 0', width: '100%', maxWidth: 430, margin: '0 auto', padding: '24px 24px 40px', boxShadow: '0 -16px 48px rgba(0,0,0,0.12)' }}
-        className="animate-slide-up" onClick={e => e.stopPropagation()}>
-        <div style={{ width: 40, height: 5, borderRadius: 99, background: '#E5E7EB', margin: '0 auto 24px' }} />
-
-        <div className="animate-success-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
-          <div style={{ width: 80, height: 80, borderRadius: 24, background: '#eff6ff', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', marginBottom: 16 }}>🏁</div>
-          <div style={{ fontWeight: 800, fontSize: '1.25rem', color: '#1d4ed8' }}>เช็คเอาต์สำเร็จ</div>
-          <div style={{ fontSize: '0.85rem', color: COLOR.textMuted, marginTop: 4 }}>ทำงาน {fmtWorkTime(result.workMinutes)}</div>
+    <BottomSheet onClose={onClose}>
+      <div className="animate-success-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: '#eff6ff', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Flag size={38} color="#1d4ed8" strokeWidth={1.8} />
         </div>
-
-        <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '8px 16px', marginBottom: 20 }}>
-          {[
-            { label: 'เวลาเข้างาน',  value: fmtHHMM(result.record.check_in_at)  + ' น.', bold: false },
-            { label: 'เวลาออกงาน',   value: fmtHHMM(result.record.check_out_at) + ' น.', bold: true  },
-            { label: 'สาขา',         value: result.branch.name },
-            { label: 'กะ',           value: `${result.shift.name} (${result.shift.start_time}–${result.shift.end_time})` },
-            { label: 'รวมชั่วโมง',   value: fmtWorkTime(result.workMinutes), bold: true },
-          ].map((r, i, arr) => (
-            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
-              <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary }}>{r.label}</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: r.bold ? 800 : 600, color: COLOR.textPrimary }}>{r.value}</span>
-            </div>
-          ))}
-        </div>
-
-        <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
-          รับทราบ
-        </button>
+        <div style={{ fontWeight: 800, fontSize: '1.25rem', color: '#1d4ed8' }}>เช็คเอาต์สำเร็จ</div>
+        <div style={{ fontSize: '0.85rem', color: COLOR.textMuted, marginTop: 4 }}>ทำงาน {fmtWorkTime(result.workMinutes)}</div>
       </div>
-    </div>
+
+      <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '8px 16px', marginBottom: 20 }}>
+        {[
+          { label: 'เวลาเข้างาน',  value: fmtHHMM(result.record.check_in_at)  + ' น.', bold: false },
+          { label: 'เวลาออกงาน',   value: fmtHHMM(result.record.check_out_at) + ' น.', bold: true  },
+          { label: 'สาขา',         value: result.branch.name },
+          { label: 'กะ',           value: `${result.shift.name} (${result.shift.start_time}–${result.shift.end_time})` },
+          { label: 'รวมชั่วโมง',   value: fmtWorkTime(result.workMinutes), bold: true },
+        ].map((r, i, arr) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
+            <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary }}>{r.label}</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: r.bold ? 800 : 600, color: COLOR.textPrimary }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+        รับทราบ
+      </button>
+    </BottomSheet>
   )
 }
 
@@ -184,47 +182,49 @@ function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
 }) {
   const isCheckout = preview.action === 'checkout'
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
-      className="animate-fade-in">
-      <div style={{ background: '#fff', borderRadius: '32px 32px 0 0', width: '100%', maxWidth: 430, margin: '0 auto', padding: '24px 24px 40px', boxShadow: '0 -16px 48px rgba(0,0,0,0.12)' }}
-        className="animate-slide-up">
-        <div style={{ width: 40, height: 5, borderRadius: 99, background: '#E5E7EB', margin: '0 auto 24px' }} />
-
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>{isCheckout ? '🏁' : '📋'}</div>
-          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a2b3c' }}>
-            {isCheckout ? 'ยืนยันการเช็คเอาต์' : 'ยืนยันการเช็คอิน'}
-          </div>
-          <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 4 }}>ข้อมูลจาก QR Code</div>
+    <BottomSheet onClose={onCancel}>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+          {isCheckout ? <Flag size={40} color="#2563eb" strokeWidth={1.8} /> : <ClipboardList size={40} color={COLOR.primary} strokeWidth={1.8} />}
         </div>
-
-        <div style={{ background: '#f8fafc', borderRadius: 16, padding: '8px 16px', marginBottom: 24 }}>
-          {[
-            { label: 'สาขา',   value: preview.branchName },
-            { label: 'วันที่', value: new Date().toLocaleDateString('th-TH', { dateStyle: 'medium' }) },
-            { label: 'กะงาน',  value: isCheckout ? '🤖 ตรวจจับจาก record วันนี้อัตโนมัติ' : '🤖 ตรวจจับอัตโนมัติจากเวลา' },
-          ].map((r, i, arr) => (
-            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
-              <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>{r.label}</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1a2b3c' }}>{r.value}</span>
-            </div>
-          ))}
+        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1a2b3c' }}>
+          {isCheckout ? 'ยืนยันการเช็คเอาต์' : 'ยืนยันการเช็คอิน'}
         </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onCancel} disabled={loading}
-            style={{ flex: 1, padding: '14px', borderRadius: 16, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-            ยกเลิก
-          </button>
-          <button onClick={onConfirm} disabled={loading}
-            style={{ flex: 2, padding: '14px', borderRadius: 16, border: 'none',
-              background: loading ? '#d1d5db' : isCheckout ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`,
-              color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-            {loading ? '⏳ กำลังบันทึก…' : isCheckout ? '🏁 ยืนยันเช็คเอาต์' : '✅ ยืนยันเช็คอิน'}
-          </button>
-        </div>
+        <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 4 }}>ข้อมูลจาก QR Code</div>
       </div>
-    </div>
+
+      <div style={{ background: '#f8fafc', borderRadius: 16, padding: '8px 16px', marginBottom: 24 }}>
+        {[
+          { label: 'สาขา',   value: preview.branchName },
+          { label: 'วันที่', value: new Date().toLocaleDateString('th-TH', { dateStyle: 'medium' }) },
+          { label: 'กะงาน',  value: isCheckout ? 'ตรวจจับจาก record วันนี้อัตโนมัติ' : 'ตรวจจับอัตโนมัติจากเวลา', icon: true },
+        ].map((r, i, arr) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>{r.label}</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1a2b3c', display: 'flex', alignItems: 'center', gap: 5 }}>
+              {'icon' in r && r.icon && <Sparkles size={14} color={COLOR.primary} />}
+              {r.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onCancel} disabled={loading}
+          style={{ flex: 1, padding: '14px', borderRadius: 16, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          ยกเลิก
+        </button>
+        <button onClick={onConfirm} disabled={loading}
+          style={{ flex: 2, padding: '14px', borderRadius: 16, border: 'none',
+            background: loading ? '#d1d5db' : isCheckout ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`,
+            color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          {loading
+            ? <><Loader2 size={16} className="animate-spin" /> กำลังบันทึก…</>
+            : isCheckout ? <><Flag size={16} /> ยืนยันเช็คเอาต์</> : <><CheckCircle2 size={16} /> ยืนยันเช็คอิน</>}
+        </button>
+      </div>
+    </BottomSheet>
   )
 }
 
@@ -324,29 +324,20 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
     e.target.value = ''
   }
 
-  const overlay: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300,
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
-  }
-  const sheet: React.CSSProperties = {
-    width: '100%', maxWidth: 430, background: '#fff', borderRadius: '24px 24px 0 0',
-    padding: '20px 20px 36px', boxSizing: 'border-box',
-  }
-
   return (
-    <div style={overlay} onClick={onClose}>
-      <div style={sheet} onClick={e => e.stopPropagation()}>
+    <BottomSheet onClose={onClose} zIndex={300}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <p style={{ fontWeight: 800, fontSize: '1rem', color: '#111827', margin: 0 }}>สแกน QR Code</p>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><X size={20} /></button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {([['camera','📷 กล้อง'],['file','🖼 เลือกรูป'],['text','⌨️ วาง JSON']] as const).map(([t, label]) => (
+          {([['camera', QrCode, 'กล้อง'], ['file', Image, 'เลือกรูป'], ['text', Keyboard, 'วาง JSON']] as const).map(([t, TabIcon, label]) => (
             <button key={t} onClick={() => { setCamErr(null); setTab(t) }}
               style={{ flex: 1, padding: '7px 4px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                 background: tab === t ? COLOR.primary : '#f3f4f6', color: tab === t ? '#fff' : '#374151' }}>
-              {label}
+              <TabIcon size={13} /> {label}
             </button>
           ))}
         </div>
@@ -355,7 +346,8 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
           <div>
             {camErr ? (
               <div style={{ padding: '20px', background: '#fef2f2', borderRadius: 14, color: '#dc2626', fontSize: '0.85rem', textAlign: 'center', lineHeight: 1.6 }}>
-                ⚠️ {camErr}
+                <AlertTriangle size={20} style={{ marginBottom: 4 }} /><br />
+                {camErr}
                 <br/><button onClick={() => { setCamErr(null); setTab('camera') }} style={{ marginTop: 10, padding: '6px 16px', borderRadius: 8, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ลองใหม่</button>
               </div>
             ) : (
@@ -366,8 +358,8 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
                   <div style={{ width: '60%', aspectRatio: '1', border: '3px solid rgba(255,255,255,0.8)', borderRadius: 12, boxShadow: '0 0 0 2000px rgba(0,0,0,0.35)' }} />
                 </div>
                 {scanning && (
-                  <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
-                    🔍 กำลังค้นหา QR Code…
+                  <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <Search size={13} /> กำลังค้นหา QR Code…
                   </div>
                 )}
               </div>
@@ -379,7 +371,7 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
           <div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
             {camErr && (
-              <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fef2f2', borderRadius: 12, color: '#dc2626', fontSize: '0.82rem' }}>⚠️ {camErr}</div>
+              <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fef2f2', borderRadius: 12, color: '#dc2626', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {camErr}</div>
             )}
             <button onClick={() => fileRef.current?.click()}
               style={{ width: '100%', padding: '28px', borderRadius: 16, border: '2px dashed #d1d5db', background: '#f9fafb', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -409,8 +401,7 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -603,7 +594,11 @@ export default function CheckinPage() {
             color: allCheckedOut ? '#6b7280' : hasOpenRecord ? '#1d4ed8' : COLOR.success,
             background: allCheckedOut ? '#f3f4f6' : hasOpenRecord ? '#eff6ff' : COLOR.successBg,
             padding: '6px 12px', borderRadius: 99 }}>
-            {allCheckedOut ? '✓ เสร็จแล้ว' : hasOpenRecord ? '⏱ กำลังทำงาน' : '✓ พร้อม'}
+            {allCheckedOut
+              ? <><CheckCircle2 size={13} /> เสร็จแล้ว</>
+              : hasOpenRecord
+                ? <><Clock size={13} /> กำลังทำงาน</>
+                : <><CheckCircle2 size={13} /> พร้อม</>}
           </div>
         </div>
 
@@ -612,8 +607,8 @@ export default function CheckinPage() {
 
         {/* Error */}
         {error && (
-          <div style={{ margin: '20px 0 0', padding: '12px 16px', borderRadius: 16, background: COLOR.errorBg, border: `1px solid ${COLOR.errorBorder}`, fontSize: '0.85rem', color: COLOR.error, fontWeight: 600, textAlign: 'center' }}>
-            ⚠️ {error}
+          <div style={{ margin: '20px 0 0', padding: '12px 16px', borderRadius: 16, background: COLOR.errorBg, border: `1px solid ${COLOR.errorBorder}`, fontSize: '0.85rem', color: COLOR.error, fontWeight: 600, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <AlertTriangle size={15} /> {error}
           </div>
         )}
 
@@ -654,7 +649,7 @@ export default function CheckinPage() {
               opacity: hasOpenRecord ? 0.5 : 1,
             }}
           >
-            <span style={{ fontSize: '2.6rem', lineHeight: 1 }}>📷</span>
+            <QrCode size={46} strokeWidth={1.6} color={(!allCheckedOut && !hasOpenRecord) ? 'rgba(255,255,255,0.95)' : '#9ca3af'} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700,
               color: (!allCheckedOut && !hasOpenRecord) ? 'rgba(255,255,255,0.95)' : '#9ca3af',
               letterSpacing: '0.3px' }}>
@@ -680,7 +675,7 @@ export default function CheckinPage() {
               opacity: hasOpenRecord ? 1 : 0.4,
             }}
           >
-            <span style={{ fontSize: '2.6rem', lineHeight: 1 }}>🏁</span>
+            <Flag size={46} strokeWidth={1.6} color={hasOpenRecord ? 'rgba(255,255,255,0.95)' : '#9ca3af'} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700,
               color: hasOpenRecord ? 'rgba(255,255,255,0.95)' : '#9ca3af',
               letterSpacing: '0.3px' }}>

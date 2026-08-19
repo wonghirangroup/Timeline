@@ -40,13 +40,18 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   useEffect(() => {
     ;(async () => {
       try {
+        // ยิงดึงรายชื่อพนักงานพร้อมกับ LIFF init/profile เลย — ไม่ต้องรอ profile
+        // ก่อนเพราะ /employee/list ใช้แค่ channelId (รู้ค่าได้ทันทีอยู่แล้ว) ช่วยลด
+        // เวลาโหลดหน้าแรกที่ user บ่นว่าช้า (เดิมรอทีละขั้นตอน)
+        const employeeListPromise = axios.get(`${apiUrl}/employee/list`, {
+          params: { line_channel_id: channelId }, headers,
+        })
+
         await initLiff()
         const p = await getLiffProfile()
         setProfile({ lineUserId: p.lineUserId, displayName: p.displayName, pictureUrl: p.pictureUrl, idToken: p.idToken })
 
-        const res = await axios.get(`${apiUrl}/employee/list`, {
-          params: { line_channel_id: channelId }, headers,
-        })
+        const res = await employeeListPromise
         setEmployees(res.data.data ?? [])
         setStep('select')
       } catch (e: any) {

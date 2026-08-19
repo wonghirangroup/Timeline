@@ -1,6 +1,7 @@
 // employee/src/pages/checkout/index.tsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, Flag, Loader2, DoorOpen, AlertTriangle } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -70,7 +71,7 @@ export default function CheckoutPage() {
       <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
           <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 20px' }} />
-          <div className="animate-success-pop" style={{ fontSize: '4rem', lineHeight: 1, marginBottom: 16 }}>✅</div>
+          <CheckCircle2 size={64} color="var(--success)" strokeWidth={1.6} className="animate-success-pop" style={{ marginBottom: 16 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์สำเร็จ!</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>บันทึกเวลาเรียบร้อยแล้ว</div>
         </div>
@@ -116,7 +117,7 @@ export default function CheckoutPage() {
       <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
           <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 20px' }} />
-          <div style={{ fontSize: '4rem', lineHeight: 1, marginBottom: 16 }}>🏁</div>
+          <Flag size={64} color="var(--accent-start)" strokeWidth={1.6} style={{ marginBottom: 16 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์แล้ววันนี้</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>คุณได้เช็คเอาต์ทุกกะแล้ว</div>
         </div>
@@ -177,8 +178,8 @@ export default function CheckoutPage() {
       </div>
 
       {errorMsg && (
-        <div style={{ margin: '12px 16px 0', padding: '12px 14px', borderRadius: 12, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error)', fontSize: '0.85rem', fontWeight: 600 }}>
-          ⚠️ {errorMsg}
+        <div style={{ margin: '12px 16px 0', padding: '12px 14px', borderRadius: 12, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={15} /> {errorMsg}
         </div>
       )}
 
@@ -187,7 +188,7 @@ export default function CheckoutPage() {
           onClick={() => { setErrorMsg(null); checkoutMutation.mutate() }}
           disabled={unchecked.length === 0 || loading}
           style={{ width: '100%', padding: '20px', borderRadius: 20, border: 'none', cursor: unchecked.length > 0 && !loading ? 'pointer' : 'not-allowed', background: unchecked.length > 0 && !loading ? 'linear-gradient(135deg, #475569, #1e293b)' : 'rgba(0,0,0,0.08)', color: unchecked.length > 0 && !loading ? '#fff' : 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 700, boxShadow: unchecked.length > 0 ? '0 4px 20px rgba(30,41,59,0.3)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          {loading ? <>⏳ กำลังบันทึก...</> : <>🚪 เช็คเอาต์ตอนนี้</>}
+          {loading ? <><Loader2 size={20} className="animate-spin" /> กำลังบันทึก...</> : <><DoorOpen size={20} /> เช็คเอาต์ตอนนี้</>}
         </button>
       </div>
     </div>

@@ -1,8 +1,12 @@
 // employee/src/pages/leave/index.tsx
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Bell, ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
+  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle,
+} from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
+import { ThaiDatePicker } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -81,16 +85,14 @@ function toDateStr(ym: string, d: number) { return `${ym}-${String(d).padStart(2
 
 type Tab = 'calendar' | 'booking' | 'request'
 
-const MOCK_PUB_HOLIDAYS = [
-  { date: '2026-06-03', name: 'วันเฉลิมพระชนมพรรษา (ชดเชย)' },
-]
+interface Holiday { date: string; name: string }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Personal Calendar Tab
 // ═══════════════════════════════════════════════════════════════════════════════
-function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
-  requests: LeaveRequest[]; colleagues: ColleagueOff[]
-  onBooking: () => void; onRequest: () => void
+function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
+  requests: LeaveRequest[]; colleagues: ColleagueOff[]; holidays: Holiday[]
+  onBooking: () => void
 }) {
   const today     = new Date().toISOString().slice(0, 10)
   const thisMonth = today.slice(0, 7)
@@ -104,7 +106,7 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
   const getMyOff    = (_d: string) => null
   const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
   const getColls    = (d: string) => colleagues.filter(c => resolveDate(c.week_start, c.day_of_week) === d)
-  const getHoliday  = (d: string) => MOCK_PUB_HOLIDAYS.find(h => h.date === d) ?? null
+  const getHoliday  = (d: string) => holidays.find(h => h.date === d) ?? null
 
   const myOffThisMonth = 0
 
@@ -116,32 +118,6 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
 
   return (
     <div>
-      {/* ── Quick action buttons ─────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-        <button onClick={onBooking} style={{
-          padding: '14px 10px', borderRadius: 16, border: 'none', cursor: 'pointer',
-          background: 'linear-gradient(135deg,#FB923C,#EA580C)', color: '#fff',
-          fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-          boxShadow: '0 4px 12px rgba(249,115,22,0.35)',
-        }}>
-          <span style={{ fontSize: '1.4rem' }}>✋</span>
-          <span>จองวันหยุด</span>
-          <span style={{ fontSize: '0.7rem', opacity: 0.8, fontWeight: 400 }}>เดือนนี้ {myOffThisMonth}/5 วัน</span>
-        </button>
-        <button onClick={onRequest} style={{
-          padding: '14px 10px', borderRadius: 16, border: '1.5px solid #e5e7eb', cursor: 'pointer',
-          background: '#fff', color: '#374151',
-          fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        }}>
-          <span style={{ fontSize: '1.4rem' }}>📝</span>
-          <span>ขอลา</span>
-          <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 400 }}>ป่วย / กิจ / พักร้อน</span>
-        </button>
-      </div>
-
       {/* ── Calendar ─────────────────────────────────────────── */}
       <div style={{ background: '#FAFAFA', borderRadius: 20, padding: '16px 12px', marginBottom: 16 }}>
         {/* Month nav */}
@@ -272,7 +248,7 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
 
           {selEmpty && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 6 }}>😊</div>
+              <Calendar size={32} color="#D1D5DB" style={{ marginBottom: 6 }} />
               <div style={{ fontSize: '0.82rem', color: '#9CA3AF' }}>ไม่มีกำหนดการในวันนี้</div>
               <button onClick={onBooking} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 20, border: 'none', background: '#FFF7ED', color: '#EA580C', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 จองวันหยุดวันนี้ →
@@ -281,8 +257,8 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
           )}
 
           {selHol && (
-            <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 12, background: '#FFF1F2', border: '1px solid #fecdd3', fontSize: '0.85rem', color: '#BE123C', fontWeight: 700 }}>
-              🎌 {selHol.name}
+            <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 12, background: '#FFF1F2', border: '1px solid #fecdd3', fontSize: '0.85rem', color: '#BE123C', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Flag size={15} /> {selHol.name}
             </div>
           )}
 
@@ -294,7 +270,7 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
             if (!cfg) return null
             return (
               <div key={lr.id} style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: `${cfg.color}10`, border: `1.5px solid ${cfg.color}30` }}>
-                <span style={{ fontSize: '1.4rem' }}>🗓️</span>
+                <CalendarDays size={22} color={cfg.color} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>{cfg.label}</div>
                   {lr.reason && <div style={{ fontSize: '0.73rem', color: '#9CA3AF', marginTop: 1 }}>{lr.reason}</div>}
@@ -306,7 +282,7 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
 
           {selColls.length > 0 && (
             <div style={{ marginTop: selMyOff || selLeaves.length ? 10 : 0 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7280', marginBottom: 8 }}>👥 เพื่อนร่วมงานที่หยุดด้วย</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7280', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Users size={13} /> เพื่อนร่วมงานที่หยุดด้วย</div>
               {selColls.map(c => {
                 const name = c.employee.nickname ?? c.employee.first_name
                 const s    = STATUS_CFG[c.status]
@@ -341,8 +317,8 @@ function PersonalCalendar({ requests, colleagues, onBooking, onRequest }: {
               const cfg = LEAVE_TYPES.find(t => t.code === r.leave_type)
               return (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: `${cfg?.color ?? '#94A3B8'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
-                    🗓️
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: `${cfg?.color ?? '#94A3B8'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CalendarDays size={19} color={cfg?.color ?? '#94A3B8'} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C' }}>{cfg?.label ?? r.leave_type}</div>
@@ -512,8 +488,9 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
         </button>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
-          <div style={{ fontSize: '0.68rem', marginTop: 2, fontWeight: 600, color: isOpen ? '#16A34A' : '#DC2626' }}>
-            {isOpen ? '🟢 เปิดรับการจอง' : '🔴 ยังไม่เปิดรับการจอง'}
+          <div style={{ fontSize: '0.68rem', marginTop: 2, fontWeight: 600, color: isOpen ? '#16A34A' : '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: isOpen ? '#16A34A' : '#DC2626', display: 'inline-block' }} />
+            {isOpen ? 'เปิดรับการจอง' : 'ยังไม่เปิดรับการจอง'}
           </div>
         </div>
         <button onClick={() => changeMonth(1)} style={navBtnStyle}>
@@ -522,15 +499,15 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
       </div>
 
       {periodQ.data?.note && (
-        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600 }}>
-          📋 {periodQ.data.note}
+        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ClipboardList size={14} /> {periodQ.data.note}
         </div>
       )}
 
       {/* ── Period closed ───────────────────────────────────────── */}
       {!isOpen && ownThisMonth.length === 0 && !periodQ.isLoading && (
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
-          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
+          <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองเดือนนี้</div>
           <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
         </div>
@@ -546,7 +523,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
                 display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
                 background: cfg.bg, border: `1px solid ${cfg.color}33`, borderRadius: 14, marginBottom: 8,
               }}>
-                <span style={{ fontSize: '1.4rem' }}>🏖️</span>
+                <Palmtree size={22} color={cfg.color} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.85rem' }}>
                     {fmtDate(resolveDate(r.week_start, r.day_of_week))}
@@ -607,15 +584,18 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
               background: complete ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)',
               color: complete ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700,
               boxShadow: complete ? `0 4px 16px ${COLOR.primary}44` : 'none', marginBottom: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
-            {submitMutation.isPending ? '⏳ กำลังส่ง...' : complete ? `✅ ส่งคำขอหยุด ${requiredWeeks.length} วัน` : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
+            {submitMutation.isPending
+              ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
+              : complete ? <><CheckCircle2 size={17} /> ส่งคำขอหยุด {requiredWeeks.length} วัน</> : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
           </button>
         </>
       )}
 
       {errorMsg && (
-        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14 }}>
-          ⚠️ {errorMsg}
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> {errorMsg}
         </div>
       )}
     </div>
@@ -701,9 +681,10 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
         <div style={{ flex: 1, textAlign: 'center' }}>
           <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1A2B3C' }}>{fmtWeekRange(weekStart)}</div>
           <div style={{ fontSize: '0.68rem', marginTop: 2, fontWeight: 600,
-            color: isCurrentWeek ? (isOpen ? '#16A34A' : '#DC2626') : '#9CA3AF' }}>
+            color: isCurrentWeek ? (isOpen ? '#16A34A' : '#DC2626') : '#9CA3AF',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
             {isCurrentWeek
-              ? (isOpen ? '🟢 เปิดรับการจอง' : '🔴 ยังไม่เปิดรับการจอง')
+              ? <><span style={{ width: 6, height: 6, borderRadius: '50%', background: isOpen ? '#16A34A' : '#DC2626', display: 'inline-block' }} />{isOpen ? 'เปิดรับการจอง' : 'ยังไม่เปิดรับการจอง'}</>
               : isPastWeek ? 'สัปดาห์ที่ผ่านมา' : 'สัปดาห์หน้า'}
           </div>
         </div>
@@ -714,8 +695,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
 
       {/* ── Admin note ──────────────────────────────────────────── */}
       {periodQ.data?.note && isCurrentWeek && (
-        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600 }}>
-          📋 {periodQ.data.note}
+        <div style={{ padding: '10px 14px', background: '#FFF7ED', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EA580C', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ClipboardList size={14} /> {periodQ.data.note}
         </div>
       )}
 
@@ -727,8 +708,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
           borderRadius: 16, padding: '16px', marginBottom: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706' }}>
-              {thisWeekOwn.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : '⏳ รอพิจารณา'}
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {thisWeekOwn.status === 'APPROVED' ? <><CheckCircle2 size={15} /> อนุมัติแล้ว</> : <><Loader2 size={15} /> รอพิจารณา</>}
             </div>
             {thisWeekOwn.status === 'PENDING' && isCurrentWeek && (
               <button onClick={() => cancelMutation.mutate(thisWeekOwn.id)} disabled={cancelMutation.isPending}
@@ -738,7 +719,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '1.8rem' }}>🏖️</span>
+            <Palmtree size={30} color={thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706'} />
             <div>
               <div style={{ fontWeight: 700, color: '#1A2B3C' }}>
                 หยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(thisWeekOwn.day_of_week)]}
@@ -754,7 +735,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
       {/* ── Period closed banner (current week, no booking) ────── */}
       {isCurrentWeek && !isOpen && !thisWeekOwn && !periodQ.isLoading && (
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
-          <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>🔒</div>
+          <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองสัปดาห์นี้</div>
           <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
         </div>
@@ -762,8 +743,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
 
       {/* ── Submitted flash ─────────────────────────────────────── */}
       {submitted && !thisWeekOwn && (
-        <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, marginBottom: 14, textAlign: 'center', fontWeight: 700, color: '#16A34A', fontSize: '0.88rem' }}>
-          📨 ส่งคำขอแล้ว รอผู้จัดการพิจารณา
+        <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, marginBottom: 14, textAlign: 'center', fontWeight: 700, color: '#16A34A', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Send size={15} /> ส่งคำขอแล้ว รอผู้จัดการพิจารณา
         </div>
       )}
 
@@ -818,8 +799,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
 
           {selDow !== null && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: `${COLOR.primary}0C`, border: `1px solid ${COLOR.primary}22`, borderRadius: 12 }}>
-              <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700 }}>
-                📅 เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
+              <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar size={15} /> เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
               </span>
             </div>
           )}
@@ -844,24 +825,26 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             fontSize: '1rem', fontWeight: 700,
             boxShadow: selDow !== null ? `0 4px 16px ${COLOR.primary}44` : 'none',
             transition: 'all 0.2s', marginBottom: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
-          {submitMutation.isPending ? '⏳ กำลังส่ง...'
-            : selDow !== null ? `✅ ยืนยันจองวัน${DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]}`
+          {submitMutation.isPending
+            ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
+            : selDow !== null ? <><CheckCircle2 size={17} /> ยืนยันจองวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]}</>
             : 'กดเลือกวันที่ต้องการหยุด'}
         </button>
       )}
 
       {errorMsg && (
-        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14 }}>
-          ⚠️ {errorMsg}
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> {errorMsg}
         </div>
       )}
 
       {/* ── Colleagues this week ────────────────────────────────── */}
       {colleagues.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>
-            👥 เพื่อนร่วมสาขาที่หยุดสัปดาห์นี้
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Users size={13} /> เพื่อนร่วมสาขาที่หยุดสัปดาห์นี้
           </div>
           {colleagues.map(c => {
             const cfg  = STATUS_CFG[c.status]
@@ -896,8 +879,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
               const dLabel = DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(r.day_of_week)]
               return (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
-                    🏖️
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Palmtree size={19} color={COLOR.primary} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>
@@ -947,6 +930,16 @@ export default function LeavePage() {
            start_date: x.start_date?.slice(0, 10) ?? x.start_date,
            end_date:   x.end_date?.slice(0, 10)   ?? x.end_date,
          }))),
+    enabled: !!employee?.id,
+  })
+
+  const { data: holidays = [] } = useQuery<Holiday[]>({
+    queryKey: ['employee', 'holidays', employee?.id],
+    queryFn: () =>
+      api.get('/employee/holidays').then((r: any) => (r.data.data as any[]).map(h => ({
+        date: h.date?.slice(0, 10) ?? h.date,
+        name: h.name,
+      }))),
     enabled: !!employee?.id,
   })
 
@@ -1023,27 +1016,28 @@ export default function LeavePage() {
         {/* Tabs */}
         <div className="fw-tabs">
           {([
-            { id: 'calendar', label: '📅 ปฏิทิน' },
-            { id: 'booking',  label: '✋ จองหยุด' },
-            { id: 'request',  label: '📝 ขอลา'   },
-          ] as { id: Tab; label: string }[]).map(t => (
+            { id: 'calendar', label: 'ปฏิทิน',   Icon: Calendar },
+            { id: 'booking',  label: 'จองหยุด',  Icon: Palmtree },
+            { id: 'request',  label: 'ขอลา',     Icon: FileText },
+          ] as { id: Tab; label: string; Icon: typeof Calendar }[]).map(t => (
             <button key={t.id} className={`fw-tab${tab === t.id ? ' active' : ''}`}
-              onClick={() => { setTab(t.id); setSubmitDone(false); setErrorMsg(null) }}>
-              {t.label}
+              onClick={() => { setTab(t.id); setSubmitDone(false); setErrorMsg(null) }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <t.Icon size={14} /> {t.label}
             </button>
           ))}
         </div>
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
-          <PersonalCalendar requests={requests} colleagues={[]} onBooking={() => setTab('booking')} onRequest={() => setTab('request')} />
+          <PersonalCalendar requests={requests} colleagues={[]} holidays={holidays} onBooking={() => setTab('booking')} />
         )}
 
         {/* ── Request ─────────────────────────────────────────── */}
         {tab === 'request' && (
           submitDone ? (
             <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
-              <div className="animate-success-pop" style={{ fontSize: '3.5rem', marginBottom: 14 }}>📨</div>
+              <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
               <div style={{ fontSize: '0.82rem', color: '#9CA3AF', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
               <button onClick={() => { setSubmitDone(false); setTab('calendar') }}
@@ -1073,18 +1067,18 @@ export default function LeavePage() {
               </div>
               {/* Dates */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                {[{ label: 'วันที่เริ่มลา', key: 'startDate' as const }, { label: 'วันที่สิ้นสุด', key: 'endDate' as const }].map(({ label, key }) => (
-                  <div key={key}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>{label}</div>
-                    <input type="date" value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      min={new Date().toISOString().slice(0, 10)}
-                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: `1.5px solid rgba(255,107,53,0.2)`, fontSize: '0.88rem', background: '#fff', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                  </div>
-                ))}
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่เริ่มลา</div>
+                  <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} min={new Date().toISOString().slice(0, 10)} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่สิ้นสุด</div>
+                  <ThaiDatePicker value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} min={form.startDate || new Date().toISOString().slice(0, 10)} />
+                </div>
               </div>
               {days > 0 && (
-                <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: `${COLOR.primary}08`, fontSize: '0.82rem', color: COLOR.primary, fontWeight: 600 }}>
-                  📅 รวม {days} วันทำงาน
+                <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: `${COLOR.primary}08`, fontSize: '0.82rem', color: COLOR.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={14} /> รวม {days} วันทำงาน
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>
@@ -1093,10 +1087,10 @@ export default function LeavePage() {
                   placeholder="ระบุเหตุผลในการลา..." rows={3}
                   style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: `1.5px solid rgba(255,107,53,0.2)`, fontSize: '0.88rem', background: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'none', lineHeight: 1.55, fontFamily: 'inherit' }} />
               </div>
-              {errorMsg && <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600 }}>⚠️ {errorMsg}</div>}
+              {errorMsg && <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {errorMsg}</div>}
               <button onClick={handleSubmitLeave} disabled={!canSubmit || submitting}
-                style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed', background: canSubmit ? `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)', color: canSubmit ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s' }}>
-                {submitting ? '⏳ กำลังส่ง...' : '📤 ส่งคำขอลา'}
+                style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed', background: canSubmit ? `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)', color: canSubmit ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {submitting ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</> : <><Send size={17} /> ส่งคำขอลา</>}
               </button>
             </div>
           )

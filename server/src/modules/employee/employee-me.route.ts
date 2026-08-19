@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
+import { listHolidays, holidayAppliesTo } from '../tenant/holiday.service'
 
 export async function employeeMeRoutes(app: FastifyInstance) {
 
@@ -33,5 +34,35 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     })
 
     return ok({ employee, shifts })
+  })
+
+  // GET /api/v1/employee/holidays?year=
+  // วันหยุดนักขัตฤกษ์/ประจำปีของ tenant ที่ใช้กับพนักงานคนนี้ (กรองตามสาขา/แผนกที่ holiday กำหนดไว้)
+  app.get('/employee/holidays', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูวันหยุดนักขัตฤกษ์/ประจำปีที่ใช้กับตัวเอง (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        properties: { year: { type: 'integer' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    const employeeId = req.employeeId
+    if (!employeeId) return reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบข้อมูล employee'))
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, tenant_id: req.tenantId, deleted_at: null, is_active: true },
+      select: { branch_id: true, department: true },
+    })
+    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+
+    const year = req.query.year ? Number(req.query.year) : undefined
+    const holidays = await listHolidays(req.tenantId, year)
+    const applicable = holidays.filter(h => holidayAppliesTo(h, employee))
+
+    return ok(applicable)
   })
 }
