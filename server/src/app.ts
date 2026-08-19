@@ -23,6 +23,7 @@ import { lineRoutes }         from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
 import { weeklyOffRoutes }    from './modules/weekly-off/weekly-off.route'
 import { brandingRoutes }     from './modules/branding/branding.route'
+import { feedbackRoutes }     from './modules/feedback/feedback.route'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -120,6 +121,7 @@ app.register(otRoutes,           { prefix: '/api/v1' })              // MANAGER 
 app.register(announcementRoutes, { prefix: '/api/v1/admin' })        // ADMIN broadcast
 app.register(weeklyOffRoutes,   { prefix: '/api/v1' })               // ADMIN manage + EMPLOYEE request
 app.register(brandingRoutes,    { prefix: '/api/v1/admin' })         // ADMIN: ภาพ Loading ต่อ tenant (Cloudinary)
+app.register(feedbackRoutes,    { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE submit (ไม่ระบุตัวตน, LIFF)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 
 // ── Start ─────────────────────────────────────────────────────────

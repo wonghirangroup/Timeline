@@ -17,15 +17,16 @@ export const FEATURE_KEYS = [
 
 export type FeatureKey = typeof FEATURE_KEYS[number]
 
-// 4 ฟีเจอร์แรกเท่านั้นที่บล็อกจริงที่ backend วันนี้ (แยกเป็น route module ของตัวเองชัดเจน)
-// อีก 6 อันฝังอยู่ใน logic ร่วมกับฟีเจอร์อื่น (gps_checkin/fine_system/multi_shift) หรือไม่มี
-// module จริงเลย (feedback/report_export) หรือปิดไม่ได้จริง (line_oa = ช่องทาง login เดียว)
+// 5 ฟีเจอร์นี้บล็อกจริงที่ backend (แยกเป็น route module ของตัวเองชัดเจน)
+// อีก 5 อันฝังอยู่ใน logic ร่วมกับฟีเจอร์อื่น (gps_checkin/fine_system/multi_shift)
+// หรือยังไม่มี module จริง (report_export) หรือปิดไม่ได้จริง (line_oa = ช่องทาง login เดียว)
 // — เก็บค่าไว้ให้ Super Admin สลับได้ ไม่หาย แต่ยังไม่บล็อกอะไร
 export const ENFORCED_FEATURES: FeatureKey[] = [
   'leave_management',
   'leave_balance',
   'ot_management',
   'announcement',
+  'feedback',
 ]
 
 export function isFeatureEnabled(enabledFeatures: unknown, key: FeatureKey): boolean {

@@ -34,6 +34,7 @@ model Tenant {
   shifts        Shift[]
   holidays      Holiday[]
   announcements Announcement[]
+  feedbacks     Feedback[]
 
   @@map("tenants")
 }
@@ -517,4 +518,30 @@ model Announcement {
 
   @@index([tenant_id])
   @@map("announcements")
+}
+
+// ─────────────────────────────────────────────
+// FEEDBACK (Phase 2) — ไม่ระบุตัวตนจริง: ห้ามเก็บ employee_id/line_user_id
+// หรือข้อมูลอื่นใดที่ trace กลับไปหาผู้ส่งได้เด็ดขาด (ตามที่ UI สัญญาไว้)
+// ─────────────────────────────────────────────
+
+enum FeedbackCategory {
+  WELFARE     // สวัสดิการ
+  WORK_ENV    // สภาพแวดล้อม
+  MANAGEMENT  // การบริหาร
+  SALARY      // เงินเดือน
+  OTHER       // อื่น ๆ
+}
+
+model Feedback {
+  id         String           @id @default(uuid())
+  tenant_id  String
+  category   FeedbackCategory
+  content    String           @db.Text
+  created_at DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("feedbacks")
 }

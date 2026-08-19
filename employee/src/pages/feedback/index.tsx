@@ -1,28 +1,38 @@
 // employee/src/pages/feedback/index.tsx
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { Gift, Building2, BarChart3, Wallet, MessageCircle, Lock, Info, Send, AlertTriangle } from 'lucide-react'
+import { api } from '../../lib/axios'
 
 const CATEGORIES = [
-  { code: 'WELFARE',    label: 'สวัสดิการ',    icon: '🎁' },
-  { code: 'WORK_ENV',   label: 'สภาพแวดล้อม', icon: '🏢' },
-  { code: 'MANAGEMENT', label: 'การบริหาร',   icon: '📊' },
-  { code: 'SALARY',     label: 'เงินเดือน',   icon: '💰' },
-  { code: 'OTHER',      label: 'อื่น ๆ',       icon: '💬' },
+  { code: 'WELFARE',    label: 'สวัสดิการ',    Icon: Gift },
+  { code: 'WORK_ENV',   label: 'สภาพแวดล้อม', Icon: Building2 },
+  { code: 'MANAGEMENT', label: 'การบริหาร',   Icon: BarChart3 },
+  { code: 'SALARY',     label: 'เงินเดือน',   Icon: Wallet },
+  { code: 'OTHER',      label: 'อื่น ๆ',       Icon: MessageCircle },
 ]
-
-type SubmitState = 'idle' | 'loading' | 'done'
 
 export default function FeedbackPage() {
   const [category, setCategory] = useState('')
   const [text, setText] = useState('')
-  const [submitState, setSubmitState] = useState<SubmitState>('idle')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // หมายเหตุ: ไม่ส่ง employee_id หรืออะไรที่ trace กลับไปหาผู้ส่งได้เลย —
+  // ตรงกับที่ backend /employee/feedback ไม่รับ/ไม่เก็บ field นี้เช่นกัน
+  const submitMutation = useMutation({
+    mutationFn: () => api.post('/employee/feedback', { category, content: text }).then(r => r.data),
+    onError: () => setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่'),
+  })
 
   const canSubmit = category && text.trim().length >= 10
 
   function handleSubmit() {
     if (!canSubmit) return
-    setSubmitState('loading')
-    setTimeout(() => setSubmitState('done'), 1500)
+    setErrorMsg(null)
+    submitMutation.mutate()
   }
+
+  const submitState = submitMutation.isSuccess ? 'done' : submitMutation.isPending ? 'loading' : 'idle'
 
   if (submitState === 'done') {
     return (
@@ -31,7 +41,7 @@ export default function FeedbackPage() {
           minHeight: '80dvh', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', padding: '40px 24px',
         }}>
-          <div className="animate-success-pop" style={{ fontSize: '5rem', lineHeight: 1, marginBottom: 20 }}>🙏</div>
+          <MessageCircle size={70} color="var(--accent-start)" strokeWidth={1.5} className="animate-success-pop" style={{ marginBottom: 20 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' }}>
             ขอบคุณสำหรับความคิดเห็น!
           </div>
@@ -40,7 +50,7 @@ export default function FeedbackPage() {
             <strong>ไม่ระบุตัวตน</strong> ไปยังผู้บริหาร
           </div>
           <button
-            onClick={() => { setSubmitState('idle'); setCategory(''); setText('') }}
+            onClick={() => { submitMutation.reset(); setCategory(''); setText('') }}
             style={{
               marginTop: 28, padding: '14px 36px', borderRadius: 16, border: 'none',
               cursor: 'pointer', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))',
@@ -65,7 +75,7 @@ export default function FeedbackPage() {
 
         {/* Anonymous Badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, background: 'rgba(22,163,74,0.08)', borderRadius: 99, padding: '5px 14px', border: '1px solid rgba(22,163,74,0.15)' }}>
-          <span style={{ fontSize: '0.75rem' }}>🔒</span>
+          <Lock size={12} color="#16a34a" />
           <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>ไม่ระบุตัวตน — ไม่มีใครรู้ว่าเป็นคุณ</span>
         </div>
       </div>
@@ -87,7 +97,7 @@ export default function FeedbackPage() {
                     transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   }}
                 >
-                  <span style={{ fontSize: '1.4rem' }}>{cat.icon}</span>
+                  <cat.Icon size={22} color={isSelected ? 'var(--accent-start)' : 'var(--text-secondary)'} />
                   <span style={{ fontSize: '0.68rem', fontWeight: 600, color: isSelected ? 'var(--accent-start)' : 'var(--text-secondary)', lineHeight: 1.3 }}>
                     {cat.label}
                   </span>
@@ -126,11 +136,18 @@ export default function FeedbackPage() {
         </div>
 
         {/* Disclaimer */}
-        <div style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+        <div style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 12, padding: '12px 14px', marginBottom: 16, display: 'flex', gap: 8 }}>
+          <Info size={14} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            ℹ️ ความคิดเห็นนี้จะถูกส่งไปยังผู้บริหารโดยตรง โดยไม่มีข้อมูลใดที่สามารถระบุตัวตนของผู้ส่งได้
+            ความคิดเห็นนี้จะถูกส่งไปยังผู้บริหารโดยตรง โดยไม่มีข้อมูลใดที่สามารถระบุตัวตนของผู้ส่งได้
           </div>
         </div>
+
+        {errorMsg && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error)', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={14} /> {errorMsg}
+          </div>
+        )}
 
         {/* Submit */}
         <button
@@ -146,9 +163,10 @@ export default function FeedbackPage() {
             fontSize: '1rem', fontWeight: 700,
             boxShadow: canSubmit ? '0 4px 16px rgba(255,107,53,0.3)' : 'none',
             transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
-          {submitState === 'loading' ? 'กำลังส่ง...' : '💬 ส่งความคิดเห็น'}
+          {submitState === 'loading' ? 'กำลังส่ง...' : <><Send size={17} /> ส่งความคิดเห็น</>}
         </button>
       </div>
     </div>

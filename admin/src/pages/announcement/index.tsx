@@ -2,9 +2,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Mail, MessageSquare, Package, User, Star, Sparkles, PenLine, Clock, Smartphone, Send, AlertTriangle } from 'lucide-react'
-import { MOCK_FEEDBACKS } from '../../lib/mock'
-import type { FeedbackItem } from '../../types'
+import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
@@ -19,12 +17,15 @@ function thDateTime(s: string) {
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
-const FEEDBACK_CATEGORY_CFG: Record<string, { icon: ReactNode; color: string; bg: string }> = {
-  'สินค้า':     { icon: <Package size={14}/>,     color: '#d97706', bg: '#fef3c7' },
-  'พนักงาน':   { icon: <User size={14}/>,          color: '#2563eb', bg: '#dbeafe' },
-  'บริการ':     { icon: <Star size={14}/>,          color: '#7c3aed', bg: '#ede9fe' },
-  'ความสะอาด': { icon: <Sparkles size={14}/>,      color: '#16a34a', bg: '#dcfce7' },
-  'อื่นๆ':      { icon: <MessageSquare size={14}/>, color: '#6b7280', bg: '#f3f4f6' },
+interface ApiFeedback { id: string; category: string; content: string; created_at: string }
+
+// ต้องตรงกับ FeedbackCategory enum ฝั่ง backend (schema.prisma) เป๊ะ
+const FEEDBACK_CATEGORY_CFG: Record<string, { label: string; icon: ReactNode; color: string; bg: string }> = {
+  WELFARE:    { label: 'สวัสดิการ',    icon: <Gift size={14}/>,      color: '#d97706', bg: '#fef3c7' },
+  WORK_ENV:   { label: 'สภาพแวดล้อม', icon: <Building2 size={14}/>, color: '#2563eb', bg: '#dbeafe' },
+  MANAGEMENT: { label: 'การบริหาร',   icon: <BarChart3 size={14}/>, color: '#7c3aed', bg: '#ede9fe' },
+  SALARY:     { label: 'เงินเดือน',   icon: <Wallet size={14}/>,    color: '#16a34a', bg: '#dcfce7' },
+  OTHER:      { label: 'อื่น ๆ',      icon: <MessageSquare size={14}/>, color: '#6b7280', bg: '#f3f4f6' },
 }
 
 export default function AnnouncementPage() {
@@ -32,7 +33,12 @@ export default function AnnouncementPage() {
   const isMobile = useIsMobile()
   const qc = useQueryClient()
   const [tab, setTab] = useState<'broadcast' | 'direct' | 'feedback'>('broadcast')
-  const [feedbacks] = useState<FeedbackItem[]>(MOCK_FEEDBACKS)
+
+  const { data: feedbacks = [] } = useQuery<ApiFeedback[]>({
+    queryKey: ['admin', 'feedback'],
+    queryFn: () => api.get('/api/v1/admin/feedback').then(r => r.data.data),
+    enabled: tab === 'feedback',
+  })
 
   // Broadcast form
   const [bTitle, setBTitle] = useState('')
@@ -242,7 +248,7 @@ export default function AnnouncementPage() {
               return (
                 <div key={cat} style={{ background: cfg.bg, borderRadius: 10, padding: isMobile ? '10px 8px' : '14px', textAlign: 'center', border: `1px solid ${cfg.color}20` }}>
                   <div style={{ marginBottom: 6, color: cfg.color, display: 'flex', justifyContent: 'center' }}>{cfg.icon}</div>
-                  <div style={{ fontSize: isMobile ? '0.68rem' : '0.78rem', fontWeight: 700, color: cfg.color }}>{cat}</div>
+                  <div style={{ fontSize: isMobile ? '0.68rem' : '0.78rem', fontWeight: 700, color: cfg.color }}>{cfg.label}</div>
                   <div style={{ fontSize: isMobile ? '1.1rem' : '1.3rem', fontWeight: 700, color: '#111827', marginTop: 2 }}>{count}</div>
                 </div>
               )
@@ -254,19 +260,16 @@ export default function AnnouncementPage() {
             {isMobile ? (
               <div>
                 {feedbacks.map((f, i) => {
-                  const cfg = FEEDBACK_CATEGORY_CFG[f.category] ?? FEEDBACK_CATEGORY_CFG['อื่นๆ']
+                  const cfg = FEEDBACK_CATEGORY_CFG[f.category] ?? FEEDBACK_CATEGORY_CFG.OTHER
                   return (
                     <div key={f.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          {cfg.icon}{f.category}
+                          {cfg.icon}{cfg.label}
                         </span>
                         <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{thDateTime(f.created_at)}</span>
                       </div>
-                      <div style={{ fontSize: '0.82rem', color: '#374151', lineHeight: 1.5, marginBottom: 4 }}>{f.message}</div>
-                      {f.branch_hint && (
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{f.branch_hint}</div>
-                      )}
+                      <div style={{ fontSize: '0.82rem', color: '#374151', lineHeight: 1.5 }}>{f.content}</div>
                     </div>
                   )
                 })}
@@ -278,29 +281,28 @@ export default function AnnouncementPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ background: '#fff7ed' }}>
-                    {['หมวดหมู่', 'ข้อความ', 'สาขา (ประมาณ)', 'วันที่รับ'].map(h => (
+                    {['หมวดหมู่', 'ข้อความ', 'วันที่รับ'].map(h => (
                       <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#c2410c', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {feedbacks.map((f, i) => {
-                    const cfg = FEEDBACK_CATEGORY_CFG[f.category] ?? FEEDBACK_CATEGORY_CFG['อื่นๆ']
+                    const cfg = FEEDBACK_CATEGORY_CFG[f.category] ?? FEEDBACK_CATEGORY_CFG.OTHER
                     return (
                       <tr key={f.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                         <td style={{ padding: '11px 14px' }}>
                           <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            {cfg.icon}{f.category}
+                            {cfg.icon}{cfg.label}
                           </span>
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#374151', maxWidth: 400, lineHeight: 1.5 }}>{f.message}</td>
-                        <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{f.branch_hint ?? '—'}</td>
+                        <td style={{ padding: '11px 14px', color: '#374151', maxWidth: 400, lineHeight: 1.5 }}>{f.content}</td>
                         <td style={{ padding: '11px 14px', color: '#9ca3af', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{thDateTime(f.created_at)}</td>
                       </tr>
                     )
                   })}
                   {feedbacks.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ยังไม่มี Feedback</td></tr>
+                    <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ยังไม่มี Feedback</td></tr>
                   )}
                 </tbody>
               </table>

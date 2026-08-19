@@ -22,7 +22,7 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'feedback',         label: 'ระบบ Feedback',         desc: 'พนักงานส่ง feedback แบบไม่ระบุชื่อ',       icon: '💬' },
   { key: 'line_oa',          label: 'Line OA Integration',   desc: 'แจ้งเตือนผ่าน Line Messaging API',          icon: '💚' },
 ]
-const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement'])
+const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback'])
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },
