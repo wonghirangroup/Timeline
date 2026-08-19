@@ -9,9 +9,11 @@ interface ApiOffsiteCheckin {
   check_in_at: string
   check_in_lat: string
   check_in_lng: string
+  check_in_address: string | null
   check_out_at: string | null
   check_out_lat: string | null
   check_out_lng: string | null
+  check_out_address: string | null
   note: string | null
   employee: {
     id: string; first_name: string; last_name: string; nickname: string; employee_code: string
@@ -113,6 +115,9 @@ export default function OffsitePage() {
                       <MapPin size={12} /><ExternalLink size={10} />
                     </a>
                   </div>
+                  {r.check_in_address && (
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 52 }}>{r.check_in_address}</div>
+                  )}
                   {r.check_out_at && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ color: '#9ca3af', minWidth: 46 }}>ออก</span>
@@ -121,6 +126,9 @@ export default function OffsitePage() {
                         <MapPin size={12} /><ExternalLink size={10} />
                       </a>
                     </div>
+                  )}
+                  {r.check_out_address && (
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 52 }}>{r.check_out_address}</div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#9ca3af', minWidth: 46 }}>ระยะเวลา</span>
@@ -152,18 +160,22 @@ export default function OffsitePage() {
                       <p style={{ margin: 0, fontSize: '11px', color: '#9ca3af' }}>{r.employee.nickname}</p>
                     </td>
                     <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.employee.branch.name}</td>
-                    <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', maxWidth: 220 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                         {thDateTime(r.check_in_at)}
                         <a href={mapsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
                       </div>
+                      {r.check_in_address && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{r.check_in_address}</div>}
                     </td>
-                    <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                    <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', maxWidth: 220 }}>
                       {r.check_out_at ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          {thDateTime(r.check_out_at)}
-                          <a href={mapsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
-                        </div>
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                            {thDateTime(r.check_out_at)}
+                            <a href={mapsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                          </div>
+                          {r.check_out_address && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{r.check_out_address}</div>}
+                        </>
                       ) : <span style={{ color: '#d1d5db' }}>—</span>}
                     </td>
                     <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' }}>{duration(r.check_in_at, r.check_out_at)}</td>

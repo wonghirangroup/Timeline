@@ -5,7 +5,7 @@ import {
   AlertOctagon, Ban, Wallet, Clock, Sparkles, ClipboardList, Loader2, Search, Keyboard,
 } from 'lucide-react'
 import jsQR from 'jsqr'
-import { PageLoader, COLOR, BottomSheet } from '../../components/ui'
+import { PageLoader, COLOR, BottomSheet, OffsiteMapPicker } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 import { isInLiff, liffScanCodeV2 } from '../../lib/liff'
@@ -29,7 +29,10 @@ interface CheckInResult {
 }
 
 interface OffsiteCheckin {
-  id: string; check_in_at: string; check_out_at: string | null
+  id: string
+  check_in_at: string; check_in_lat: string; check_in_lng: string; check_in_address: string | null
+  check_out_at: string | null; check_out_lat: string | null; check_out_lng: string | null; check_out_address: string | null
+  note: string | null
 }
 
 interface CheckOutResult {
@@ -170,6 +173,69 @@ function CheckOutSheet({ result, onClose }: { result: CheckOutResult; onClose: (
       </div>
 
       <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+        รับทราบ
+      </button>
+    </BottomSheet>
+  )
+}
+
+// ─── Offsite Check-in/out Result Sheet ─────────────────────────────────────────
+function OffsiteResultSheet({ record, mode, onClose }: {
+  record: OffsiteCheckin; mode: 'checkin' | 'checkout'; onClose: () => void
+}) {
+  const isCheckout = mode === 'checkout'
+  const color   = isCheckout ? '#2563eb' : '#16a34a'
+  const bg      = isCheckout ? '#eff6ff' : '#f0fdf4'
+  const border  = isCheckout ? '#bfdbfe' : '#86efac'
+  const timeIso = isCheckout ? record.check_out_at! : record.check_in_at
+  const lat     = isCheckout ? record.check_out_lat : record.check_in_lat
+  const lng     = isCheckout ? record.check_out_lng : record.check_in_lng
+  const address = isCheckout ? record.check_out_address : record.check_in_address
+  const mapsUrl = (lat != null && lng != null) ? `https://maps.google.com/?q=${lat},${lng}` : null
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div className="animate-success-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          {isCheckout ? <Flag size={38} color={color} strokeWidth={1.8} /> : <CheckCircle2 size={38} color={color} strokeWidth={1.8} />}
+        </div>
+        <div style={{ fontWeight: 800, fontSize: '1.25rem', color }}>
+          {isCheckout ? 'เช็คเอาต์นอกสถานที่สำเร็จ' : 'เช็คอินนอกสถานที่สำเร็จ'}
+        </div>
+      </div>
+
+      <div style={{ borderRadius: 20, background: '#F8F9FA', padding: '4px 16px 4px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary }}>{isCheckout ? 'เวลาเช็คเอาต์' : 'เวลาเช็คอิน'}</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: COLOR.textPrimary }}>{fmtHHMM(timeIso)} น.</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: COLOR.textSecondary }}>วันที่</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: COLOR.textPrimary }}>{formatThaiDate(new Date(timeIso))}</span>
+        </div>
+        <div style={{ padding: '12px 0', borderBottom: record.note ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
+          <div style={{ fontSize: '0.85rem', color: COLOR.textSecondary, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <MapPin size={13} /> สถานที่
+          </div>
+          <div style={{ fontSize: '0.88rem', fontWeight: 600, color: COLOR.textPrimary, lineHeight: 1.5 }}>
+            {address ?? 'ไม่พบชื่อสถานที่ — ดูพิกัดด้านล่าง'}
+          </div>
+        </div>
+        {record.note && (
+          <div style={{ padding: '12px 0' }}>
+            <div style={{ fontSize: '0.85rem', color: COLOR.textSecondary, marginBottom: 4 }}>หมายเหตุ</div>
+            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: COLOR.textPrimary }}>{record.note}</div>
+          </div>
+        )}
+      </div>
+
+      {mapsUrl && (
+        <a href={mapsUrl} target="_blank" rel="noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', borderRadius: 16, border: '1.5px solid #d1fae5', background: '#ecfdf5', color: '#065f46', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', marginBottom: 12 }}>
+          <MapPin size={16} /> ดูพิกัดใน Google Maps
+        </a>
+      )}
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${color}, ${color})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
         รับทราบ
       </button>
     </BottomSheet>
@@ -418,7 +484,8 @@ export default function CheckinPage() {
   const [error,             setError]             = useState<string | null>(null)
   const [activeOffsite,     setActiveOffsite]     = useState<OffsiteCheckin | null>(null)
   const [offsiteBusy,       setOffsiteBusy]       = useState(false)
-  const [offsiteNote,       setOffsiteNote]       = useState('')
+  const [showOffsiteMap,    setShowOffsiteMap]    = useState(false)
+  const [offsiteResult,     setOffsiteResult]     = useState<{ record: OffsiteCheckin; mode: 'checkin' | 'checkout' } | null>(null)
   const { th, en } = getGreeting()
 
   // ── โหลด today records ─────────────────────────────────────────────────────
@@ -444,66 +511,42 @@ export default function CheckinPage() {
 
   useEffect(() => { loadOffsiteStatus() }, [loadOffsiteStatus])
 
-  function getGpsPosition(): Promise<GeolocationPosition | null> {
-    return new Promise(resolve =>
-      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 8000, enableHighAccuracy: true })
-    )
-  }
-
-  // ปักหมุดเช็คอินนอกสถานที่ — อิสระจากกะ/เวลาเข้างานปกติ ใช้ได้ทุกเมื่อ
-  const handleOffsiteCheckIn = useCallback(async () => {
-    if (!employee || offsiteBusy) return
+  // เปิด sheet ปักหมุด — เช็คอินถ้ายังไม่มีรายการเปิดค้าง, เช็คเอาต์ถ้ามี
+  const openOffsitePicker = useCallback(() => {
     setError(null)
+    setShowOffsiteMap(true)
+  }, [])
+
+  // ยืนยันจาก map picker — ยิง API ตามโหมด (เช็คอิน/เช็คเอาต์) แล้วโชว์ผลลัพธ์
+  const submitOffsite = useCallback(async (pos: { lat: number; lng: number }, note?: string) => {
+    if (!employee || offsiteBusy) return
     setOffsiteBusy(true)
     try {
-      const pos = await getGpsPosition()
-      if (!pos) {
-        setError('กรุณาเปิดอนุญาต GPS ก่อนเช็คอินนอกสถานที่')
-        return
+      if (!activeOffsite) {
+        const res = await api.post('/employee/offsite-checkins', {
+          employee_id: employee.id, lat: pos.lat, lng: pos.lng, note,
+        })
+        setActiveOffsite(res.data.data)
+        setOffsiteResult({ record: res.data.data, mode: 'checkin' })
+      } else {
+        const res = await api.patch(`/employee/offsite-checkins/${activeOffsite.id}/check-out`, {
+          employee_id: employee.id, lat: pos.lat, lng: pos.lng,
+        })
+        setActiveOffsite(null)
+        setOffsiteResult({ record: res.data.data, mode: 'checkout' })
       }
-      const res = await api.post('/employee/offsite-checkins', {
-        employee_id: employee.id,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        note: offsiteNote.trim() || undefined,
-      })
-      setActiveOffsite(res.data.data)
-      setOffsiteNote('')
+      setShowOffsiteMap(false)
     } catch (err: any) {
       const code = err?.response?.data?.error?.code
       const msg  = err?.response?.data?.error?.message
+      setShowOffsiteMap(false)
       if (code === 'ALREADY_CHECKED_IN') { setError('มีการเช็คอินนอกสถานที่ค้างอยู่'); await loadOffsiteStatus() }
+      else if (code === 'NOT_FOUND') { setError('เช็คเอาต์ไปแล้ว หรือไม่พบรายการ'); await loadOffsiteStatus() }
       else setError(msg ?? 'เกิดข้อผิดพลาด')
     } finally {
       setOffsiteBusy(false)
     }
-  }, [employee, offsiteBusy, offsiteNote, loadOffsiteStatus])
-
-  // ปักหมุดเช็คเอาต์นอกสถานที่ — ปิดรายการที่เปิดค้างไว้
-  const handleOffsiteCheckOut = useCallback(async () => {
-    if (!employee || !activeOffsite || offsiteBusy) return
-    setError(null)
-    setOffsiteBusy(true)
-    try {
-      const pos = await getGpsPosition()
-      if (!pos) {
-        setError('กรุณาเปิดอนุญาต GPS ก่อนเช็คเอาต์นอกสถานที่')
-        return
-      }
-      await api.patch(`/employee/offsite-checkins/${activeOffsite.id}/check-out`, {
-        employee_id: employee.id,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-      })
-      setActiveOffsite(null)
-    } catch (err: any) {
-      const msg = err?.response?.data?.error?.message
-      setError(msg ?? 'เกิดข้อผิดพลาด')
-      await loadOffsiteStatus()
-    } finally {
-      setOffsiteBusy(false)
-    }
-  }, [employee, activeOffsite, offsiteBusy, loadOffsiteStatus])
+  }, [employee, offsiteBusy, activeOffsite, loadOffsiteStatus])
 
   // มี record ที่ check-in แล้วยังไม่ check-out
   const hasOpenRecord = todayRecords.some(r => r.check_in_at && !r.check_out_at)
@@ -739,24 +782,21 @@ export default function CheckinPage() {
               <div style={{ fontWeight: 800, fontSize: '0.95rem', color: activeOffsite ? '#1e3a8a' : '#14532d' }}>เช็คอินนอกสถานที่</div>
               <div style={{ fontSize: '0.72rem', color: activeOffsite ? '#2563eb' : '#16a34a', marginTop: 1 }}>
                 {activeOffsite
-                  ? `กำลังนอกสถานที่ตั้งแต่ ${new Date(activeOffsite.check_in_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`
-                  : 'สำหรับไปประชุม / งาน Event — ปักหมุด GPS + เวลา ไม่กระทบเวลาเข้างานปกติ'}
+                  ? `กำลังนอกสถานที่ตั้งแต่ ${fmtHHMM(activeOffsite.check_in_at)} น. · ${formatThaiDate(new Date(activeOffsite.check_in_at))}`
+                  : 'สำหรับไปประชุม / งาน Event — ปักหมุดตำแหน่งบนแผนที่ ไม่กระทบเวลาเข้างานปกติ'}
               </div>
             </div>
           </div>
 
-          {!activeOffsite && (
-            <input
-              type="text"
-              value={offsiteNote}
-              onChange={e => setOffsiteNote(e.target.value)}
-              placeholder="หมายเหตุ เช่น ประชุมลูกค้า A (ไม่บังคับ)"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #bbf7d0', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', marginBottom: 12, background: 'rgba(255,255,255,0.7)' }}
-            />
+          {activeOffsite?.check_in_address && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: 'rgba(255,255,255,0.7)', borderRadius: 10, padding: '8px 10px', marginBottom: 12 }}>
+              <MapPin size={13} color="#2563eb" style={{ flexShrink: 0, marginTop: 2 }} />
+              <span style={{ fontSize: '0.76rem', color: '#1e3a8a', lineHeight: 1.5 }}>{activeOffsite.check_in_address}</span>
+            </div>
           )}
 
           <button
-            onClick={activeOffsite ? handleOffsiteCheckOut : handleOffsiteCheckIn}
+            onClick={openOffsitePicker}
             disabled={offsiteBusy}
             style={{
               width: '100%', padding: '14px', borderRadius: 16, border: 'none',
@@ -766,7 +806,7 @@ export default function CheckinPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
             <MapPin size={16} />
-            {offsiteBusy ? 'กำลังระบุพิกัด…' : activeOffsite ? 'เช็คเอาต์นอกสถานที่' : 'เช็คอินนอกสถานที่'}
+            {activeOffsite ? 'ปักหมุดเช็คเอาต์นอกสถานที่' : 'ปักหมุดเช็คอินนอกสถานที่'}
           </button>
         </div>
       </div>
@@ -788,6 +828,21 @@ export default function CheckinPage() {
       )}
       {checkinResult  && <CheckInSheet  result={checkinResult}  onClose={() => { setCheckinResult(null);  setError(null) }} />}
       {checkoutResult && <CheckOutSheet result={checkoutResult} onClose={() => { setCheckoutResult(null); setError(null) }} />}
+      {showOffsiteMap && (
+        <OffsiteMapPicker
+          mode={activeOffsite ? 'checkout' : 'checkin'}
+          onConfirm={submitOffsite}
+          onCancel={() => setShowOffsiteMap(false)}
+          loading={offsiteBusy}
+        />
+      )}
+      {offsiteResult && (
+        <OffsiteResultSheet
+          record={offsiteResult.record}
+          mode={offsiteResult.mode}
+          onClose={() => setOffsiteResult(null)}
+        />
+      )}
     </div>
   )
 }

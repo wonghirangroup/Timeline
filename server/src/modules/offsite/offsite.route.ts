@@ -79,9 +79,9 @@ export async function offsiteRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const success = await checkOutOffsiteCheckin(req.tenantId, req.params.id, req.body.employee_id, req.body)
-    if (!success) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ หรือเช็คเอาต์ไปแล้ว'))
-    return ok(null, 'เช็คเอาต์นอกสถานที่สำเร็จ')
+    const record = await checkOutOffsiteCheckin(req.tenantId, req.params.id, req.body.employee_id, req.body)
+    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ หรือเช็คเอาต์ไปแล้ว'))
+    return ok(record, 'เช็คเอาต์นอกสถานที่สำเร็จ')
   })
 
   // ── Employee (LIFF): ดูประวัติ/สถานะปัจจุบันของตัวเอง ──────────────

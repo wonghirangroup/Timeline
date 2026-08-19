@@ -1,5 +1,6 @@
 // server/src/modules/offsite/offsite.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { reverseGeocode } from '../../common/utils/geocode'
 
 export async function listOffsiteCheckins(tenantId: string, filters: {
   employeeId?: string
@@ -30,13 +31,16 @@ export async function createOffsiteCheckin(
   })
   if (open) throw new Error('ALREADY_CHECKED_IN')
 
+  const address = await reverseGeocode(data.lat, data.lng)
+
   return prisma.offsiteCheckin.create({
     data: {
-      tenant_id:    tenantId,
-      employee_id:  data.employee_id,
-      check_in_lat: data.lat,
-      check_in_lng: data.lng,
-      note:         data.note,
+      tenant_id:        tenantId,
+      employee_id:      data.employee_id,
+      check_in_lat:     data.lat,
+      check_in_lng:     data.lng,
+      check_in_address: address,
+      note:             data.note,
     },
   })
 }
@@ -47,13 +51,19 @@ export async function checkOutOffsiteCheckin(
   employeeId: string,
   data: { lat: number; lng: number },
 ) {
+  const address = await reverseGeocode(data.lat, data.lng)
+
+  // updateMany + count กันแข่ง (race) เช็คเอาต์ซ้ำสองครั้งพร้อมกัน — atomic ที่ระดับ DB
   const count = await prisma.offsiteCheckin.updateMany({
     where: { id, tenant_id: tenantId, employee_id: employeeId, check_out_at: null },
     data: {
-      check_out_at:  new Date(),
-      check_out_lat: data.lat,
-      check_out_lng: data.lng,
+      check_out_at:      new Date(),
+      check_out_lat:     data.lat,
+      check_out_lng:     data.lng,
+      check_out_address: address,
     },
   })
-  return count.count > 0
+  if (count.count === 0) return null
+
+  return prisma.offsiteCheckin.findUnique({ where: { id } })
 }

@@ -338,18 +338,20 @@ enum CheckInMethod {
 // (แทนที่แนวทางเดิมที่ต้องรอ Admin สร้างกะ shift_type=OFFSITE ล่วงหน้า
 // ซึ่งไม่มีช่องให้ Admin สร้างจริงในฟอร์ม เลยใช้งานไม่ได้ตั้งแต่แรก)
 model OffsiteCheckin {
-  id            String    @id @default(uuid())
-  tenant_id     String
-  employee_id   String
-  check_in_at   DateTime  @default(now())
-  check_in_lat  Decimal   @db.Decimal(10, 8)
-  check_in_lng  Decimal   @db.Decimal(11, 8)
-  check_out_at  DateTime?
-  check_out_lat Decimal?  @db.Decimal(10, 8)
-  check_out_lng Decimal?  @db.Decimal(11, 8)
-  note          String?
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  tenant_id         String
+  employee_id       String
+  check_in_at       DateTime  @default(now())
+  check_in_lat      Decimal   @db.Decimal(10, 8)
+  check_in_lng      Decimal   @db.Decimal(11, 8)
+  check_in_address  String?   @db.VarChar(500) // reverse geocode จาก Nominatim ตอนเช็คอิน — null ถ้า geocode ไม่สำเร็จ
+  check_out_at      DateTime?
+  check_out_lat     Decimal?  @db.Decimal(10, 8)
+  check_out_lng     Decimal?  @db.Decimal(11, 8)
+  check_out_address String?   @db.VarChar(500)
+  note              String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
