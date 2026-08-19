@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell, ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
+  ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
   Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
@@ -990,9 +990,6 @@ export default function LeavePage() {
             <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
               {employee?.first_name} {employee?.last_name} · จัดการวันลา
             </div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Bell size={18} color="#fff" strokeWidth={1.8} />
           </div>
         </div>
 

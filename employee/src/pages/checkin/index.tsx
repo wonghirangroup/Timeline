@@ -1,7 +1,7 @@
 // employee/src/pages/checkin/index.tsx
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Bell, X, Image, MapPin, Navigation, QrCode, Flag, CheckCircle2, AlertTriangle,
+  X, Image, MapPin, Navigation, QrCode, Flag, CheckCircle2, AlertTriangle,
   AlertOctagon, Ban, Wallet, Clock, Sparkles, ClipboardList, Loader2, Search, Keyboard,
 } from 'lucide-react'
 import jsQR from 'jsqr'
@@ -195,9 +195,9 @@ function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
 
       <div style={{ background: '#f8fafc', borderRadius: 16, padding: '8px 16px', marginBottom: 24 }}>
         {[
-          { label: 'สาขา',   value: preview.branchName },
-          { label: 'วันที่', value: new Date().toLocaleDateString('th-TH', { dateStyle: 'medium' }) },
-          { label: 'กะงาน',  value: isCheckout ? 'ตรวจจับจาก record วันนี้อัตโนมัติ' : 'ตรวจจับอัตโนมัติจากเวลา', icon: true },
+          { label: 'สาขา', value: preview.branchName },
+          { label: 'กะ',   value: isCheckout ? 'ตรวจจับจาก record วันนี้อัตโนมัติ' : 'ตรวจจับอัตโนมัติจากเวลา', icon: true },
+          { label: 'เวลา', value: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' น.' },
         ].map((r, i, arr) => (
           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
             <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>{r.label}</span>
@@ -571,9 +571,6 @@ export default function CheckinPage() {
             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.65)', fontWeight: 500, marginBottom: 1 }}>TimeLine HR</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{th}</div>
             <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>{en}</div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Bell size={18} color="#fff" strokeWidth={1.8} />
           </div>
         </div>
       </div>

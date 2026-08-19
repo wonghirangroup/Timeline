@@ -1,7 +1,7 @@
 // employee/src/pages/history/index.tsx
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet } from 'lucide-react'
+import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet } from 'lucide-react'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -72,9 +72,6 @@ export default function HistoryPage() {
             <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
               {employee ? `${employee.first_name} ${employee.last_name} · ${employee.branch.name}` : ''}
             </div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Bell size={18} color="#fff" strokeWidth={1.8} />
           </div>
         </div>
 
