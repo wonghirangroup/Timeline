@@ -3,7 +3,7 @@ import {
   LayoutGrid, Users, Building2, Clock, AlignLeft,
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
-  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal,
+  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
@@ -54,6 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'รายงาน & อื่นๆ',
     items: [
       { path: '/ot',           label: 'OT',      feature: 'ot_management', icon: <FileClock size={16}/> },
+      { path: '/offsite',      label: 'เช็คอินนอกสถานที่', feature: 'gps_checkin', icon: <MapPin size={16}/> },
       { path: '/report',       label: 'รายงาน',                             icon: <BarChart2 size={16}/> },
       { path: '/announcement', label: 'ประกาศ',  feature: 'announcement',  icon: <Megaphone size={16}/> },
     ],

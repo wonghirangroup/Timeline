@@ -12,6 +12,7 @@ import ReportPage           from './pages/report'
 import AttendancePage       from './pages/attendance'
 import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
+import OffsitePage          from './pages/offsite'
 import ShiftPage            from './pages/shift'
 import AnnouncementPage     from './pages/announcement'
 import ShiftSchedulePage    from './pages/shift-schedule'
@@ -40,6 +41,7 @@ function AdminRoutes() {
         <Route path="/leave-balance"  element={<Navigate to="/leave" replace />} />
         <Route path="/weekly-off"     element={<Navigate to="/leave" replace />} />
         <Route path="/ot"            element={<OtPage />} />
+        <Route path="/offsite"       element={<OffsitePage />} />
         <Route path="/report"        element={<ReportPage />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />

@@ -17,8 +17,8 @@ export const FEATURE_KEYS = [
 
 export type FeatureKey = typeof FEATURE_KEYS[number]
 
-// 5 ฟีเจอร์นี้บล็อกจริงที่ backend (แยกเป็น route module ของตัวเองชัดเจน)
-// อีก 5 อันฝังอยู่ใน logic ร่วมกับฟีเจอร์อื่น (gps_checkin/fine_system/multi_shift)
+// 6 ฟีเจอร์นี้บล็อกจริงที่ backend (แยกเป็น route module ของตัวเองชัดเจน)
+// อีก 4 อันฝังอยู่ใน logic ร่วมกับฟีเจอร์อื่น (fine_system/multi_shift)
 // หรือยังไม่มี module จริง (report_export) หรือปิดไม่ได้จริง (line_oa = ช่องทาง login เดียว)
 // — เก็บค่าไว้ให้ Super Admin สลับได้ ไม่หาย แต่ยังไม่บล็อกอะไร
 export const ENFORCED_FEATURES: FeatureKey[] = [
@@ -27,6 +27,7 @@ export const ENFORCED_FEATURES: FeatureKey[] = [
   'ot_management',
   'announcement',
   'feedback',
+  'gps_checkin', // เช็คอินนอกสถานที่แบบปักหมุด (offsite_checkins) ผูกกับ key นี้
 ]
 
 export function isFeatureEnabled(enabledFeatures: unknown, key: FeatureKey): boolean {

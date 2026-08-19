@@ -15,14 +15,14 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'leave_balance',    label: 'โควต้าวันลา',           desc: 'กำหนดและติดตามโควต้าวันลาต่อพนักงาน',      icon: '🗓' },
   { key: 'ot_management',    label: 'จัดการ OT',             desc: 'คำขอ / อนุมัติ / คำนวณค่า OT',             icon: '💰' },
   { key: 'announcement',     label: 'ประกาศ',                desc: 'ส่งข้อความหา Branch / แผนก / ทั้งหมด',     icon: '📢' },
-  { key: 'gps_checkin',      label: 'เช็คอิน GPS',           desc: 'เช็คอินผ่าน LIFF + ตรวจสอบพิกัด GPS',     icon: '📍' },
+  { key: 'gps_checkin',      label: 'เช็คอินนอกสถานที่',      desc: 'ปักหมุด GPS เช็คอิน-เช็คเอาต์นอกสถานที่ (ประชุม/Event)', icon: '📍' },
   { key: 'multi_shift',      label: 'หลายกะต่อวัน',          desc: 'พนักงาน 1 คนทำได้หลายกะต่อวัน',           icon: '⏰' },
   { key: 'fine_system',      label: 'ระบบค่าปรับ',           desc: 'ค่าปรับตามกะ / เปอร์เซ็นต์ / tier',       icon: '⚖️' },
   { key: 'report_export',    label: 'Export รายงาน',         desc: 'ดาวน์โหลด Excel / PDF รายงานเช็คชื่อ',     icon: '📊' },
   { key: 'feedback',         label: 'ระบบ Feedback',         desc: 'พนักงานส่ง feedback แบบไม่ระบุชื่อ',       icon: '💬' },
   { key: 'line_oa',          label: 'Line OA Integration',   desc: 'แจ้งเตือนผ่าน Line Messaging API',          icon: '💚' },
 ]
-const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback'])
+const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin'])
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },

@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/shift':        'กะ & เวลา',
   '/leave':        'วันลา & ปฏิทิน',
   '/ot':           'จัดการ OT',
+  '/offsite':      'เช็คอินนอกสถานที่',
   '/report':       'สรุปผลรายงาน',
   '/announcement': 'ประกาศ & ข้อความ',
   '/settings':     'การตั้งค่า',

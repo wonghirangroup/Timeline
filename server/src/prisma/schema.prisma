@@ -132,6 +132,7 @@ model Employee {
   branch              Branch              @relation(fields: [branch_id], references: [id])
   default_shift       Shift?              @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
   attendance_records  AttendanceRecord[]
+  offsite_checkins    OffsiteCheckin[]
   leave_requests      LeaveRequest[]
   leave_balances      LeaveBalance[]
   ot_requests         OtRequest[]
@@ -330,6 +331,31 @@ enum CheckInMethod {
   WEB_FALLBACK  // Phase 4: Line ล่ม fallback
   SELFIE        // Phase 4: offline selfie
   OFFSITE       // Phase 4: GPS off-site
+}
+
+// เช็คอินนอกสถานที่แบบ "ปักหมุด" — อิสระจากกะ/attendance ปกติ ไม่กระทบเวลา
+// เข้า-ออกงาน/มาสาย ใช้สำหรับพนักงานไปประชุม/ออกงาน Event นอกสถานที่
+// (แทนที่แนวทางเดิมที่ต้องรอ Admin สร้างกะ shift_type=OFFSITE ล่วงหน้า
+// ซึ่งไม่มีช่องให้ Admin สร้างจริงในฟอร์ม เลยใช้งานไม่ได้ตั้งแต่แรก)
+model OffsiteCheckin {
+  id            String    @id @default(uuid())
+  tenant_id     String
+  employee_id   String
+  check_in_at   DateTime  @default(now())
+  check_in_lat  Decimal   @db.Decimal(10, 8)
+  check_in_lng  Decimal   @db.Decimal(11, 8)
+  check_out_at  DateTime?
+  check_out_lat Decimal?  @db.Decimal(10, 8)
+  check_out_lng Decimal?  @db.Decimal(11, 8)
+  note          String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("offsite_checkins")
 }
 
 // ─────────────────────────────────────────────

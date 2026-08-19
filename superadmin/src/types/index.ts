@@ -66,7 +66,7 @@ export interface PlanFeatures {
   multi_shift: boolean         // หลายกะต่อวัน
   leave_balance: boolean       // โควต้าวันลา
   line_oa: boolean             // Line OA Integration
-  gps_checkin: boolean         // เช็คอิน GPS
+  gps_checkin: boolean         // เช็คอินนอกสถานที่ (ปักหมุด GPS)
   feedback: boolean            // ระบบ Feedback
 }
 
