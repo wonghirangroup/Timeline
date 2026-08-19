@@ -993,9 +993,9 @@ export default function LeavePage() {
           </div>
         </div>
 
-        {/* Leave balance stat row */}
+        {/* Leave balance stat row — วันลาคงเหลือทุกประเภท (ไม่ตัดแค่ 3 อันแรก) */}
         <div className="header-stat-row">
-          {balances.slice(0, 3).map((b, i) => {
+          {balances.map((b, i) => {
             const cfg = LEAVE_TYPES.find(t => t.code === b.leave_type)
             return (
               <div key={b.leave_type} className="header-stat-col">
