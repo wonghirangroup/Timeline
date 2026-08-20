@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Palmtree, Flag, Pencil, Check, CheckCircle2, Star } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -313,22 +313,22 @@ export default function ShiftSchedulePage() {
           )}
           {effective?.type === 'LEAVE' && (
             <div style={{ fontSize:11, color:'#1d4ed8', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
-              <span>🗓</span><span>กำลังลา (จากระบบวันลา — อนุมัติแล้ว)</span>
+              <CalendarDays size={11} /><span>กำลังลา (จากระบบวันลา — อนุมัติแล้ว)</span>
             </div>
           )}
           {effective?.type === 'WEEKLY_OFF' && effective.isDefault && (
             <div style={{ fontSize:11, color:'#c2410c', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
-              <span>🏖</span><span>หยุดประจำ (จากระบบจองวันหยุด — อนุมัติแล้ว)</span>
+              <Palmtree size={11} /><span>หยุดประจำ (จากระบบจองวันหยุด — อนุมัติแล้ว)</span>
             </div>
           )}
           {effective?.type === 'HOLIDAY' && effective.isDefault && (
             <div style={{ fontSize:11, color:'#b91c1c', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
-              <span>🎌</span><span>วันหยุดนักขัตฤกษ์</span>
+              <Flag size={11} /><span>วันหยุดนักขัตฤกษ์</span>
             </div>
           )}
           {hasOverride && (
             <div style={{ fontSize:11, color:'#f97316', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
-              <span>✏️</span>
+              <Pencil size={11} />
               <span>มีการเปลี่ยนแปลงเฉพาะวันนี้</span>
             </div>
           )}
@@ -350,7 +350,7 @@ export default function ShiftSchedulePage() {
                 }}>
                   <span style={{ width:8, height:8, borderRadius:'50%', background: isActive ? (sh.shift_type === 'SPECIAL' ? '#7c3aed' : '#22c55e') : '#d1d5db', flexShrink:0 }} />
                   <span style={{ color:'#374151', fontWeight: isActive ? 600 : 400 }}>
-                    {sh.shift_type === 'SPECIAL' && <span style={{ fontSize:10, marginRight:3 }}>⭐</span>}
+                    {sh.shift_type === 'SPECIAL' && <Star size={10} fill="#7c3aed" stroke="none" style={{ marginRight:3, verticalAlign:'-1px' }} />}
                     {sh.name}
                   </span>
                   <span style={{ color:'var(--text-muted)', fontSize:11, marginLeft:'auto' }}>{sh.start_time}–{sh.end_time}</span>
@@ -373,7 +373,7 @@ export default function ShiftSchedulePage() {
               padding:'6px 14px', border:'none', background: isActive ? '#f9fafb' : 'transparent', cursor:'pointer', textAlign:'left',
             }}>
               <span style={{ padding:'1px 6px', borderRadius:4, fontSize:11, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}` }}>{cfg.label}</span>
-              {isActive && <span style={{ fontSize:10, color:'var(--text-muted)', marginLeft:'auto' }}>✓</span>}
+              {isActive && <Check size={11} color="var(--text-muted)" style={{ marginLeft:'auto' }} />}
             </button>
           )
         })}
@@ -413,12 +413,12 @@ export default function ShiftSchedulePage() {
       const clr = isSpecial ? '#7c3aed' : '#15803d'
       content = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-          <span style={{ padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:clr, border:brd, whiteSpace:'nowrap' }}>
-            {isSpecial && '⭐ '}{sh?.name ?? 'กะ'}
+          <span style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'2px 6px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, color:clr, border:brd, whiteSpace:'nowrap' }}>
+            {isSpecial && <Star size={10} fill={clr} stroke="none" />}{sh?.name ?? 'กะ'}
           </span>
           {e.isDefault
             ? <span style={{ fontSize:9, color: isSpecial ? '#a78bfa' : '#a5b4fc' }}>ประจำ</span>
-            : <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
+            : <span style={{ fontSize:9, color:'#f97316', display:'inline-flex', alignItems:'center', gap:2 }}><Pencil size={9} /> เปลี่ยน</span>}
         </div>
       )
     } else {
@@ -428,7 +428,7 @@ export default function ShiftSchedulePage() {
           <span style={{ padding:'2px 5px', borderRadius:5, fontSize:11, fontWeight:600, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}`, whiteSpace:'nowrap' }}>
             {cfg.label}
           </span>
-          {!e.isDefault && <span style={{ fontSize:9, color:'#f97316' }}>✏ เปลี่ยน</span>}
+          {!e.isDefault && <span style={{ fontSize:9, color:'#f97316', display:'inline-flex', alignItems:'center', gap:2 }}><Pencil size={9} /> เปลี่ยน</span>}
         </div>
       )
     }
@@ -458,10 +458,10 @@ export default function ShiftSchedulePage() {
       inner = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
           <span style={{ width:6, height:6, borderRadius:'50%', background: isSpecial ? (e.isDefault ? '#c4b5fd' : '#7c3aed') : e.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
-          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : e.isDefault ? 'var(--text-muted)' : '#15803d', fontWeight: e.isDefault ? 400 : 700, lineHeight:1 }}>
-            {isSpecial ? '⭐' : (sh?.name?.slice(0,3) ?? 'W')}
+          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : e.isDefault ? 'var(--text-muted)' : '#15803d', fontWeight: e.isDefault ? 400 : 700, lineHeight:1, display: 'inline-flex', alignItems: 'center' }}>
+            {isSpecial ? <Star size={9} fill="#7c3aed" stroke="none" /> : (sh?.name?.slice(0,3) ?? 'W')}
           </span>
-          {hasOver && <span style={{ fontSize:8, color:'#f97316' }}>✏</span>}
+          {hasOver && <Pencil size={8} color="#f97316" />}
         </div>
       )
     } else {
@@ -522,9 +522,9 @@ export default function ShiftSchedulePage() {
         <button onClick={nextPeriod} style={{ padding:'6px 12px', border:'1px solid #e5e7eb', borderRadius:8, background:'#fff', cursor:'pointer', fontSize:14, color:'#374151' }}>ถัดไป ›</button>
         <button onClick={goToday} style={{ padding:'6px 12px', border:'1px solid #6366f1', borderRadius:8, background:'#f5f3ff', cursor:'pointer', fontSize:13, color:'#6366f1', fontWeight:600 }}>วันนี้</button>
         <div style={{ marginLeft:'auto', display:'flex', gap:8, fontSize:12, flexWrap:'wrap' }}>
-          <span style={{ padding:'4px 10px', background:'#dcfce7', color:'#15803d', borderRadius:6, fontWeight:600 }}>✅ ทำงาน {workCount}</span>
-          <span style={{ padding:'4px 10px', background:'#fff7ed', color:'#c2410c', borderRadius:6, fontWeight:600 }}>🏖 หยุด {offCount}</span>
-          {overrideCount > 0 && <span style={{ padding:'4px 10px', background:'#fff7ed', color:'#ea580c', borderRadius:6, fontWeight:600 }}>✏️ เปลี่ยน {overrideCount}</span>}
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 10px', background:'#dcfce7', color:'#15803d', borderRadius:6, fontWeight:600 }}><CheckCircle2 size={12} /> ทำงาน {workCount}</span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 10px', background:'#fff7ed', color:'#c2410c', borderRadius:6, fontWeight:600 }}><Palmtree size={12} /> หยุด {offCount}</span>
+          {overrideCount > 0 && <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 10px', background:'#fff7ed', color:'#ea580c', borderRadius:6, fontWeight:600 }}><Pencil size={12} /> เปลี่ยน {overrideCount}</span>}
         </div>
       </div>
 
@@ -636,7 +636,7 @@ export default function ShiftSchedulePage() {
         </span>
         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
           <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
-          <span style={{ color:'#f97316', fontSize:11 }}>✏ เปลี่ยน</span>
+          <span style={{ color:'#f97316', fontSize:11, display:'inline-flex', alignItems:'center', gap:2 }}><Pencil size={10} /> เปลี่ยน</span>
           <span style={{ color:'var(--text-muted)' }}>= มี override วันนี้</span>
         </span>
         <span style={{ color:'var(--text-muted)' }}>· คลิกเพื่อแก้</span>

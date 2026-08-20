@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -636,7 +636,7 @@ export default function ShiftPage() {
               <div style={{ background: headerBg, padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isSpecial && <span style={{ fontSize: '11px', background: '#ede9fe', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}>⭐ พิเศษ</span>}
+                    {isSpecial && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', background: '#ede9fe', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}><Star size={9} fill="#7c3aed" stroke="none" /> พิเศษ</span>}
                     {s.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{s.branch.name}</div>
@@ -661,8 +661,8 @@ export default function ShiftPage() {
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                 )}
                 {isSpecial && (
-                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '5px 8px', marginTop: 2 }}>
-                    ⭐ ทับซ้อนกะปกติได้ · ไม่นับสาย · เหมาะสำหรับ OT หรืองานนอกสถานที่
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, gridColumn: '1/-1', fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '5px 8px', marginTop: 2 }}>
+                    <Star size={11} fill="#7c3aed" stroke="none" /> ทับซ้อนกะปกติได้ · ไม่นับสาย · เหมาะสำหรับ OT หรืองานนอกสถานที่
                   </div>
                 )}
               </div>
@@ -773,8 +773,8 @@ export default function ShiftPage() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       {(['REGULAR', 'SPECIAL'] as const).map(t => (
                         <button key={t} type="button" onClick={() => setForm(f => ({ ...f, shift_type: t }))}
-                          style={{ flex: 1, padding: '9px', borderRadius: 8, border: `2px solid ${form.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: form.shift_type === t ? '#ede9fe' : '#fff', color: form.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
-                          {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
+                          style={{ flex: 1, padding: '9px', borderRadius: 8, border: `2px solid ${form.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: form.shift_type === t ? '#ede9fe' : '#fff', color: form.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                          {t === 'REGULAR' ? <><Clock size={13} /> กะทั่วไป</> : <><Star size={13} /> กะพิเศษ</>}
                         </button>
                       ))}
                     </div>
@@ -1085,7 +1085,7 @@ export default function ShiftPage() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      {isSpec && <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>⭐ พิเศษ</span>}
+                      {isSpec && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}><Star size={10} fill="#fff" stroke="none" /> พิเศษ</span>}
                       <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 700 }}>
                         {cfg.dot} {cfg.label}
                       </span>
@@ -1160,12 +1160,12 @@ export default function ShiftPage() {
                       <InfoItem label={<><Ban size={11} /> ขาด{s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}</>} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
-                      <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: 'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                      <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                     )}
                   </div>
                   {isSpec && (
-                    <div style={{ marginTop: 10, padding: '8px 12px', background: '#f5f3ff', borderRadius: 8, fontSize: '0.78rem', color: '#7c3aed' }}>
-                      ⭐ กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '8px 12px', background: '#f5f3ff', borderRadius: 8, fontSize: '0.78rem', color: '#7c3aed' }}>
+                      <Star size={12} fill="#7c3aed" stroke="none" /> กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
                     </div>
                   )}
                 </div>

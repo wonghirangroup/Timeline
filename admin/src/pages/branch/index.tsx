@@ -1437,7 +1437,7 @@ export default function BranchPage() {
                 <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:8 }}>
                   <div>
                     <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
-                      {isSpec && <span style={{ background:'rgba(255,255,255,0.2)',color:'#fff',borderRadius:6,padding:'2px 8px',fontSize:'11px',fontWeight:700 }}>⭐ พิเศษ</span>}
+                      {isSpec && <span style={{ display:'inline-flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.2)',color:'#fff',borderRadius:6,padding:'2px 8px',fontSize:'11px',fontWeight:700 }}><Star size={10} fill="#fff" stroke="none" /> พิเศษ</span>}
                       <span style={{ background:cfg.bg,color:cfg.color,borderRadius:99,padding:'2px 10px',fontSize:'0.7rem',fontWeight:700 }}>
                         {cfg.dot} {cfg.label}
                       </span>
@@ -1499,8 +1499,8 @@ export default function BranchPage() {
                     )}
                   </div>
                   {isSpec && (
-                    <div style={{ marginTop:10,padding:'8px 12px',background:'#f5f3ff',borderRadius:8,fontSize:'0.78rem',color:'#7c3aed' }}>
-                      ⭐ กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
+                    <div style={{ display:'flex',alignItems:'center',gap:5,marginTop:10,padding:'8px 12px',background:'#f5f3ff',borderRadius:8,fontSize:'0.78rem',color:'#7c3aed' }}>
+                      <Star size={12} fill="#7c3aed" stroke="none" /> กะพิเศษ — ทับซ้อนกะปกติได้ ไม่นับสาย เหมาะสำหรับ OT หรืองานนอกสถานที่
                     </div>
                   )}
                 </div>

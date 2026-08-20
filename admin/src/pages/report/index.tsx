@@ -1,7 +1,7 @@
 // admin/src/pages/report/index.tsx — Attendance History Report
 import { useState, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet } from 'lucide-react'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -309,13 +309,13 @@ export default function ReportPage() {
           {!isMobile && (
             <button onClick={exportAll} disabled={employees.length === 0}
               style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-              ⬇️ Export รวม
+              <Download size={13} /> Export รวม
             </button>
           )}
           {isMobile && (
             <button onClick={exportAll} disabled={employees.length === 0}
-              style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
-              ⬇️ Export
+              style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Download size={12} /> Export
             </button>
           )}
         </div>
@@ -390,8 +390,8 @@ export default function ReportPage() {
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); exportOne({ info, byDate }) }}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer' }}
-                    >⬇️</button>
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    ><Download size={11} /></button>
                   </div>
                 </div>
 
@@ -553,8 +553,8 @@ export default function ReportPage() {
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
                           </div>
                           <button onClick={() => exportOne({ info, byDate })} title="Export รายคน"
-                            style={{ flexShrink: 0, padding: '2px 6px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', fontSize: '0.68rem', cursor: 'pointer', lineHeight: 1.4 }}>
-                            ⬇️
+                            style={{ flexShrink: 0, padding: '2px 6px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Download size={11} />
                           </button>
                         </div>
                       </td>
