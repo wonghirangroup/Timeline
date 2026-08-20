@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -58,10 +58,10 @@ const sectionLabel: React.CSSProperties = {
   letterSpacing: '0.05em', marginBottom: 8, marginTop: 4,
 }
 
-function TimeInput({ label, value, onChange, sublabel }: { label: string; value: string; onChange: (v: string) => void; sublabel?: string }) {
+function TimeInput({ label, value, onChange, sublabel }: { label: ReactNode; value: string; onChange: (v: string) => void; sublabel?: string }) {
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 4 }}>{label}</label>
       {/* จองพื้นที่ไว้เสมอ (2 บรรทัด) ไม่งั้นช่องที่ไม่มี sublabel จะสูงน้อยกว่า ทำให้ input แถวเดียวกันเยื้องกัน */}
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4, minHeight: '2.6em', lineHeight: 1.3 }}>{sublabel || ' '}</div>
       <input type="time" value={value} onChange={e => onChange(e.target.value)} style={inputStyle} />
@@ -303,25 +303,25 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
 
         {/* Shift info chips */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <span style={{ background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-            🕐 {shift.start_time} – {shift.end_time}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+            <Clock size={11} /> {shift.start_time} – {shift.end_time}
           </span>
-          <span style={{ background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-            📍 รัศมี {radius}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+            <MapPin size={11} /> รัศมี {radius}
           </span>
           {shift.late_threshold_1 && (
-            <span style={{ background: '#fffbeb', color: '#d97706', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-              ⚠️ สาย {shift.late_threshold_1}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fffbeb', color: '#d97706', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              <AlertTriangle size={11} /> สาย {shift.late_threshold_1}
             </span>
           )}
           {shift.late_threshold_2 && (
-            <span style={{ background: '#fef2f2', color: '#ef4444', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-              🚫 สายระดับ 2: {shift.late_threshold_2}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#ef4444', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              <AlertOctagon size={11} /> สายระดับ 2: {shift.late_threshold_2}
             </span>
           )}
           {shift.absent_threshold && (
-            <span style={{ background: '#fdf2f8', color: '#be185d', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-              ⛔ ขาด: {shift.absent_threshold}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fdf2f8', color: '#be185d', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              <Ban size={11} /> ขาด: {shift.absent_threshold}
             </span>
           )}
         </div>
@@ -336,12 +336,12 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         {/* QR Code */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
           {qrQ.isLoading ? (
-            <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 16 }}>
-              ⏳ กำลังโหลด…
+            <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 16 }}>
+              <Loader2 size={16} className="animate-spin" /> กำลังโหลด…
             </div>
           ) : qrQ.isError || !qrString ? (
-            <div style={{ padding: '20px', color: '#dc2626', fontSize: '0.85rem', textAlign: 'center', background: '#fef2f2', borderRadius: 12, width: '100%', boxSizing: 'border-box' }}>
-              ⚠️ โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '20px', color: '#dc2626', fontSize: '0.85rem', textAlign: 'center', background: '#fef2f2', borderRadius: 12, width: '100%', boxSizing: 'border-box' }}>
+              <AlertTriangle size={15} /> โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
             </div>
           ) : (
             <>
@@ -359,14 +359,14 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         {/* DEV: copy JSON */}
         {qrString && (
           <div style={{ marginBottom: 12, padding: '10px 12px', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10 }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', marginBottom: 6 }}>🛠 DEV — คัดลอก JSON สำหรับทดสอบใน localhost</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><Wrench size={11} /> DEV — คัดลอก JSON สำหรับทดสอบใน localhost</div>
             <div style={{ display: 'flex', gap: 6 }}>
               <input readOnly value={qrString}
                 onClick={e => (e.target as HTMLInputElement).select()}
                 style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #fbbf24', fontSize: '0.7rem', fontFamily: 'monospace', background: '#fff', color: '#374151', minWidth: 0, cursor: 'text' }} />
               <button onClick={handleCopy}
-                style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: copied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s' }}>
-                {copied ? '✓ คัดลอก!' : 'คัดลอก'}
+                style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: copied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {copied ? <><Check size={12} /> คัดลอก!</> : 'คัดลอก'}
               </button>
             </div>
           </div>
@@ -376,11 +376,11 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handleDownload} disabled={!qrString}
             style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #d1d5db', background: qrString ? '#f9fafb' : '#f3f4f6', color: qrString ? '#374151' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            ⬇️ ดาวน์โหลด
+            <Download size={14} /> ดาวน์โหลด
           </button>
           <button onClick={handlePrint} disabled={!qrString}
             style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: qrString ? 'linear-gradient(135deg,#3b82f6,#2563eb)' : '#d1d5db', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            🖨️ พิมพ์
+            <Printer size={14} /> พิมพ์
           </button>
         </div>
       </div>
@@ -651,14 +651,14 @@ export default function ShiftPage() {
 
               {/* Time grid — flex:1 ทำให้ card สูงเท่ากัน */}
               <div data-tour={idx === 0 ? 'shift-threshold-0' : undefined} style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', flex: 1 }}>
-                <TimeRow icon="🟢" label="เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
-                <TimeRow icon="🔴" label="เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
-                {s.min_checkout && <TimeRow icon="🔒" label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
-                {!isSpecial && s.late_threshold_1 && <TimeRow icon="⚠️" label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
-                {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
-                {!isSpecial && s.absent_threshold && <TimeRow icon="⛔" label={`ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />}
+                <TimeRow icon={<Clock size={11} />} label="เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
+                <TimeRow icon={<Clock size={11} />} label="เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
+                {s.min_checkout && <TimeRow icon={<Lock size={11} />} label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
+                {!isSpecial && s.late_threshold_1 && <TimeRow icon={<AlertTriangle size={11} />} label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
+                {!isSpecial && s.late_threshold_2 && <TimeRow icon={<AlertOctagon size={11} />} label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
+                {!isSpecial && s.absent_threshold && <TimeRow icon={<Ban size={11} />} label={`ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />}
                 {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
-                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                 )}
                 {isSpecial && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '5px 8px', marginTop: 2 }}>
@@ -817,8 +817,10 @@ export default function ShiftPage() {
                   {/* เกณฑ์การสาย */}
                   <div>
                     <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
-                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                      ⚠️ ระดับ 1/2 = สายปกติ (โดนปรับตามยอด) · ⛔ ขาด = สายเกินจนนับเป็นวันขาด — <strong>ยังเช็คอินได้ปกติ</strong> แต่จะถูกหักค่าปรับในวันที่มาเช็คอินถัดไป
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 6px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={12} /> ระดับ 1/2 = สายปกติ (โดนปรับตามยอด)</span>
+                      <span>·</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={12} /> ขาด = สายเกินจนนับเป็นวันขาด — <strong>ยังเช็คอินได้ปกติ</strong> แต่จะถูกหักค่าปรับในวันที่มาเช็คอินถัดไป</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
@@ -843,7 +845,7 @@ export default function ShiftPage() {
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-                      <TimeInput label="⛔ ขาด (หลังจากนี้นับเป็นวันขาด)" value={form.absent_threshold}
+                      <TimeInput label={<><Ban size={12} /> ขาด (หลังจากนี้นับเป็นวันขาด)</>} value={form.absent_threshold}
                         onChange={v => setForm(f => ({ ...f, absent_threshold: v }))}
                         sublabel={timeDiff(form.start_time, form.absent_threshold, 'after') || 'เช่น 08:31'} />
                       <div>
@@ -863,7 +865,7 @@ export default function ShiftPage() {
                     <span style={{ color: 'var(--text-muted)' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
                     {form.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
                     {form.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
-                    {form.absent_threshold && <><span style={{ color: 'var(--text-muted)' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
+                    {form.absent_threshold && <><span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={11} /> ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
                     {form.min_checkout && <><span style={{ color: 'var(--text-muted)' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
                     <span style={{ color: 'var(--text-muted)' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
                   </div>
@@ -876,8 +878,8 @@ export default function ShiftPage() {
             <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
               <button onClick={() => setModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={saving}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'กำลังบันทึก...' : modal.mode === 'add' ? '+ เพิ่มกะ' : '💾 บันทึก'}
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {saving ? <><Loader2 size={14} className="animate-spin" /> กำลังบันทึก...</> : modal.mode === 'add' ? <><Plus size={14} /> เพิ่มกะ</> : <><Save size={14} /> บันทึก</>}
               </button>
             </div>
           </div>
@@ -1100,22 +1102,22 @@ export default function ShiftPage() {
 
                 {/* Quick time chips */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-                    🟢 {s.start_time} – {s.end_time} 🔴
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    <Clock size={12} /> {s.start_time} – {s.end_time}
                   </span>
                   {s.late_threshold_1 && (
-                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-                      ⚠️ สาย {s.late_threshold_1}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      <AlertTriangle size={12} /> สาย {s.late_threshold_1}
                     </span>
                   )}
                   {s.late_threshold_2 && (
-                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-                      🚫 สายระดับ 2 {s.late_threshold_2}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      <AlertOctagon size={12} /> สายระดับ 2 {s.late_threshold_2}
                     </span>
                   )}
                   {s.absent_threshold && (
-                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
-                      ⛔ ขาด {s.absent_threshold}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      <Ban size={12} /> ขาด {s.absent_threshold}
                     </span>
                   )}
                 </div>
@@ -1144,18 +1146,18 @@ export default function ShiftPage() {
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>รายละเอียดกะ</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>
-                    <InfoItem label="🟢 เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
-                    <InfoItem label="🔴 เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
-                    {s.min_checkout && <InfoItem label="🔒 เช็คเอาท์ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
-                    {s.gps_radius && <InfoItem label="📍 รัศมี GPS" value={`${s.gps_radius} ม.`} color="#0891b2" />}
+                    <InfoItem label={<><Clock size={11} /> เวลาเริ่มงาน</>} value={s.start_time} color="#15803d" />
+                    <InfoItem label={<><Clock size={11} /> เวลาเลิกงาน</>} value={s.end_time} color="#dc2626" />
+                    {s.min_checkout && <InfoItem label={<><Lock size={11} /> เช็คเอาท์ตั้งแต่</>} value={s.min_checkout} color="#7c3aed" />}
+                    {s.gps_radius && <InfoItem label={<><MapPin size={11} /> รัศมี GPS</>} value={`${s.gps_radius} ม.`} color="#0891b2" />}
                     {!isSpec && s.late_threshold_1 && (
-                      <InfoItem label={`⚠️ สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />
+                      <InfoItem label={<><AlertTriangle size={11} /> สายระดับ 1{s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}</>} value={s.late_threshold_1} color="#d97706" />
                     )}
                     {!isSpec && s.late_threshold_2 && (
-                      <InfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                      <InfoItem label={<><AlertOctagon size={11} /> สายระดับ 2{s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}</>} value={s.late_threshold_2} color="#dc2626" />
                     )}
                     {!isSpec && s.absent_threshold && (
-                      <InfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
+                      <InfoItem label={<><Ban size={11} /> ขาด{s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}</>} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
                       <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: 'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
@@ -1212,8 +1214,8 @@ export default function ShiftPage() {
                               </div>
                             </div>
                             {isAssigned && (
-                              <span style={{ fontSize: '0.68rem', background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontWeight: 700, flexShrink: 0 }}>
-                                ✓ ในกะ
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontWeight: 700, flexShrink: 0 }}>
+                                <Check size={10} /> ในกะ
                               </span>
                             )}
                           </div>
@@ -1231,19 +1233,19 @@ export default function ShiftPage() {
   )
 }
 
-function TimeRow({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+function TimeRow({ icon, label, value, color }: { icon: ReactNode; label: string; value: string; color: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{icon} {label}</span>
+      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>{icon} {label}</span>
       <span style={{ fontWeight: 700, color, fontSize: '1rem', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
   )
 }
 
-function InfoItem({ label, value, color }: { label: string; value: string; color: string }) {
+function InfoItem({ label, value, color }: { label: ReactNode; value: string; color: string }) {
   return (
     <div>
-      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3 }}>{label}</div>
       <div style={{ fontWeight: 700, color, fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   )
