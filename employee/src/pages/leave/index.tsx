@@ -952,7 +952,11 @@ export default function LeavePage() {
   const employee = useAuthStore(s => s.employee)
   const qc       = useQueryClient()
 
-  const [tab,        setTab]       = useState<Tab>('calendar')
+  // เปิดตรงไปแท็บที่ระบุผ่าน ?tab= ได้ (ใช้กับลิงก์แจ้งเตือน Line ตอนแอดมินเปิดจองวันหยุด)
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return (t === 'booking' || t === 'request' || t === 'calendar') ? t : 'calendar'
+  })
   const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)

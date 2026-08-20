@@ -1,7 +1,7 @@
 // server/src/modules/announcement/announcement.service.ts
 import { prisma } from '../../common/utils/prisma'
 
-async function lineMulticast(accessToken: string, toIds: string[], text: string) {
+export async function lineMulticast(accessToken: string, toIds: string[], text: string) {
   if (toIds.length === 0) return { sent: 0 }
   // LINE multicast รองรับสูงสุด 500 คนต่อ request
   const chunks: string[][] = []

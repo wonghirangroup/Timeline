@@ -1,5 +1,13 @@
 // server/src/modules/weekly-off/weekly-off-period.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { lineMulticast } from '../announcement/announcement.service'
+
+const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+function fmtMonthTH(ym: string): string {
+  const [y, m] = ym.split('-').map(Number)
+  return `${MONTHS_TH[m - 1]} ${y + 543}`
+}
 
 export async function listPeriods(tenantId: string, month: string) {
   // ดึง periods ที่มีอยู่
@@ -34,7 +42,14 @@ export async function listPeriods(tenantId: string, month: string) {
 export async function openPeriod(tenantId: string, data: {
   branch_id: string; month: string; deadline?: string | null; note?: string | null
 }) {
-  return prisma.weeklyOffPeriod.upsert({
+  const existing = await prisma.weeklyOffPeriod.findUnique({
+    where: { tenant_id_branch_id_month: { tenant_id: tenantId, branch_id: data.branch_id, month: data.month } },
+  })
+  // เพิ่งเปิดจริง (ปิดอยู่ก่อน หรือยังไม่เคยมี record เลย) — ใช้ตัดสินว่าต้องแจ้งเตือน
+  // Line ไหม กันไม่ให้ spam ทุกครั้งที่ admin แค่แก้ deadline/note ของช่วงที่เปิดอยู่แล้ว
+  const justOpened = !existing?.is_open
+
+  const period = await prisma.weeklyOffPeriod.upsert({
     where: { tenant_id_branch_id_month: { tenant_id: tenantId, branch_id: data.branch_id, month: data.month } },
     create: {
       tenant_id:  tenantId,
@@ -51,6 +66,44 @@ export async function openPeriod(tenantId: string, data: {
     },
     include: { branch: { select: { id: true, name: true } } },
   })
+
+  return { period, justOpened }
+}
+
+// ── แจ้งเตือน Line เมื่อเปิดจองวันหยุดใหม่ — ส่งลิงก์เปิดตรงไปหน้าจองในแอป ──────
+// ไม่ throw ออกไปเลย (แค่ log/return error info) กันไม่ให้การเปิดจองล้มเหลวเพราะ Line ส่งไม่ได้
+export async function notifyPeriodOpened(tenantId: string, branchId: string, month: string) {
+  const lineConfig = await prisma.tenantLineConfig.findUnique({
+    where: { tenant_id: tenantId },
+    select: { line_channel_access_token: true, line_liff_id: true },
+  })
+  if (!lineConfig?.line_channel_access_token || !lineConfig.line_liff_id) {
+    return { error: 'LINE ยังไม่ได้ตั้งค่าไว้' }
+  }
+
+  const branch = await prisma.branch.findFirst({ where: { id: branchId, tenant_id: tenantId }, select: { name: true } })
+
+  const employees = await prisma.employee.findMany({
+    where: { tenant_id: tenantId, branch_id: branchId, line_user_id: { not: null }, deleted_at: null, is_active: true },
+    select: { line_user_id: true },
+  })
+  const lineUserIds = employees.map(e => e.line_user_id!)
+  if (lineUserIds.length === 0) return { sent: 0 }
+
+  // liff.state = path จริงในแอปที่จะเปิดหลัง LIFF init เสร็จ (มาตรฐาน LIFF deep-link)
+  // ใส่ lid ต่อท้ายด้วยเพราะแอปฝั่ง employee อ่าน LIFF ID จาก query ?lid= เป็นหลัก
+  // (sessionStorage มักหายไปตอนเปิด LIFF รอบใหม่จากลิงก์ข้อความ ไม่ใช่จากในแอปเดิม)
+  const targetPath = `/leave?tab=booking&lid=${lineConfig.line_liff_id}`
+  const url = `https://liff.line.me/${lineConfig.line_liff_id}?liff.state=${encodeURIComponent(targetPath)}`
+
+  const message = `📅 เปิดจองวันหยุดประจำเดือน ${fmtMonthTH(month)} แล้ว\nสาขา: ${branch?.name ?? ''}\n\nกดลิงก์เพื่อจองวันหยุดได้เลย\n${url}`
+
+  try {
+    const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, message)
+    return result
+  } catch (err: any) {
+    return { error: err.message }
+  }
 }
 
 export async function closePeriod(tenantId: string, branchId: string, month: string) {

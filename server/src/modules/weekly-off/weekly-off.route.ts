@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
-import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen } from './weekly-off-period.service'
+import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
 
 export async function weeklyOffRoutes(app: FastifyInstance) {
@@ -187,7 +187,10 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       body: { type: 'object', required: ['branch_id', 'month'],
         properties: { branch_id: { type: 'string' }, month: { type: 'string' }, deadline: { type: ['string', 'null'] }, note: { type: ['string', 'null'] } } } },
   }, async (req: any, reply) => {
-    const period = await openPeriod(req.tenantId, req.body)
+    const { period, justOpened } = await openPeriod(req.tenantId, req.body)
+    // แจ้งเตือน Line ก็ต่อเมื่อเพิ่งเปิดจริง (ปิดอยู่ก่อน) — กัน spam ตอนแก้แค่ deadline/note
+    // ไม่ await ผล/ไม่โยน error ต่อ เพราะการเปิดจองสำเร็จแล้วไม่ควรพังเพราะ Line ส่งไม่ได้
+    if (justOpened) notifyPeriodOpened(req.tenantId, req.body.branch_id, req.body.month).catch(() => {})
     return reply.code(201).send(ok(period, 'เปิดการจองสำเร็จ'))
   })
 
