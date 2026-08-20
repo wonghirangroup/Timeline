@@ -1,6 +1,7 @@
 // admin/src/pages/report/index.tsx — Attendance History Report
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -156,37 +157,37 @@ export default function ReportPage() {
 
     if (leaveType && !hasRealCheckin) {
       if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์' || leaveType === 'COMPENSATE')
-        return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType, status: 'leave' }
+        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType, status: 'leave' }
       if (leaveType === 'SICK' || leaveType === 'ลาป่วย')
-        return { bg: '#fee2e2', label: '🤒', color: '#dc2626', tip: 'ลาป่วย', status: 'sick' }
+        return { bg: '#fee2e2', label: <Thermometer size={13} />, color: '#dc2626', tip: 'ลาป่วย', status: 'sick' }
       if (leaveType === 'VACATION' || leaveType === 'พักร้อน' || leaveType === 'ลาพักร้อน')
-        return { bg: '#fef9c3', label: '🌴', color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+        return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
       if (leaveType === 'PERSONAL' || leaveType === 'ลากิจ')
-        return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'หยุด/ลากิจ', status: 'leave' }
+        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุด/ลากิจ', status: 'leave' }
       if (leaveType === 'MATERNITY')
-        return { bg: '#fce7f3', label: '👶', color: '#be185d', tip: 'ลาคลอด', status: 'leave' }
-      return { bg: '#e0f2fe', label: '📋', color: '#0369a1', tip: leaveType, status: 'leave' }
+        return { bg: '#fce7f3', label: <Baby size={13} />, color: '#be185d', tip: 'ลาคลอด', status: 'leave' }
+      return { bg: '#e0f2fe', label: <ClipboardList size={13} />, color: '#0369a1', tip: leaveType, status: 'leave' }
     }
 
     const isWeekendOff = (dow === 0 || dow === 6) && dept === '02'
     if (!recs || recs.length === 0) {
-      if (isWeekendOff) return { bg: '#f3f4f6', label: '', color: 'var(--text-muted)', tip: 'วันหยุดสุดสัปดาห์', status: 'weekend' }
-      if (dow === 0 || dow === 6) return { bg: '#f3f4f6', label: '', color: 'var(--text-muted)', tip: '', status: 'weekend' }
-      return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ไม่มีข้อมูล', status: 'absent' }
+      if (isWeekendOff) return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: 'วันหยุดสุดสัปดาห์', status: 'weekend' }
+      if (dow === 0 || dow === 6) return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: '', status: 'weekend' }
+      return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ไม่มีข้อมูล', status: 'absent' }
     }
 
     // นับขาดจาก field จริง (is_absent) ก่อนเสมอ — มาเช็คอินจริงแต่สายเกินเกณฑ์
     // ไม่ต้องพึ่ง note-text sniffing แบบเดิมอีกต่อไป
-    if (recs.some(r => r.is_absent)) return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ขาด (สายเกินกำหนด)', status: 'absent' }
+    if (recs.some(r => r.is_absent)) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาด (สายเกินกำหนด)', status: 'absent' }
 
     const note = recs.map(r => r.note ?? '').join(' ')
-    if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
-    if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: '🌴', color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
-    if (note.includes('ลากิจ'))   return { bg: '#e0f2fe', label: '🏖', color: '#0369a1', tip: 'ลากิจ', status: 'leave' }
-    if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
-    if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: '!!', color: '#c2410c', tip: 'มาสาย ระดับ 2', status: 'late2' }
-    if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: '!', color: '#92400e', tip: 'มาสาย', status: 'late' }
-    return { bg: '#dcfce7', label: '✓', color: '#15803d', tip: 'มาปกติ', status: 'ok' }
+    if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
+    if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+    if (note.includes('ลากิจ'))   return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'ลากิจ', status: 'leave' }
+    if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
+    if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: <AlertOctagon size={13} />, color: '#c2410c', tip: 'มาสาย ระดับ 2', status: 'late2' }
+    if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: <AlertTriangle size={13} />, color: '#92400e', tip: 'มาสาย', status: 'late' }
+    return { bg: '#dcfce7', label: <Check size={13} />, color: '#15803d', tip: 'มาปกติ', status: 'ok' }
   }
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
@@ -287,9 +288,12 @@ export default function ReportPage() {
           {branches.map((b: Branch) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
 
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 ค้นหา..."
-          style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', flex: '1 1 140px', minWidth: 0 }} />
+        <div style={{ position: 'relative', flex: '1 1 140px', minWidth: 0 }}>
+          <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="ค้นหา..."
+            style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', boxSizing: 'border-box' }} />
+        </div>
 
         <button onClick={() => refetch()} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.85rem' }}>↻</button>
       </div>
@@ -297,10 +301,10 @@ export default function ReportPage() {
       {/* Stats row */}
       {!isLoading && employees.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ background: '#dcfce7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}>✓ มา {totalPresent} ครั้ง</span>
-          <span style={{ background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {totalLate}</span>
-          {totalAbsent > 0 && <span style={{ background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>✗ ขาด {totalAbsent}</span>}
-          {totalFine > 0 && <span style={{ background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}>💸 ค่าปรับรวม {totalFine} ฿</span>}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dcfce7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}><Check size={12} /> มา {totalPresent} ครั้ง</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}><AlertTriangle size={12} /> สาย {totalLate}</span>
+          {totalAbsent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}><X size={12} /> ขาด {totalAbsent}</span>}
+          {totalFine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}><Wallet size={12} /> ค่าปรับรวม {totalFine} ฿</span>}
           <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{employees.length} คน</span>
           {!isMobile && (
             <button onClick={exportAll} disabled={employees.length === 0}
@@ -367,7 +371,7 @@ export default function ReportPage() {
                     <div style={{ marginTop: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>มา {presentDays}/{workingDays} วัน</span>
-                        {lateDays > 0 && <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {lateDays} วัน</span>}
+                        {lateDays > 0 && <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={11} /> สาย {lateDays} วัน</span>}
                       </div>
                       <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
@@ -492,10 +496,19 @@ export default function ReportPage() {
         <>
           {/* Legend */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
-            {[['#dcfce7','✓','มาปกติ'],['#fef3c7','!','มาสาย 1'],['#fde8d8','!!','มาสาย 2'],['#fee2e2','✗','ขาด'],['#e0f2fe','🏖','หยุด'],['#fef9c3','🌴','พักร้อน'],['#fee2e2','🤒','ป่วย'],['#f3f4f6','','เสาร์/อา']].map(([bg, sym, label]) => (
-              <span key={label as string} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ background: bg as string, padding: '1px 7px', borderRadius: 4, fontSize: '0.72rem' }}>{sym as string}</span>
-                {label as string}
+            {[
+              { bg: '#dcfce7', sym: <Check size={11} />,         label: 'มาปกติ' },
+              { bg: '#fef3c7', sym: <AlertTriangle size={11} />, label: 'มาสาย 1' },
+              { bg: '#fde8d8', sym: <AlertOctagon size={11} />,  label: 'มาสาย 2' },
+              { bg: '#fee2e2', sym: <X size={11} />,             label: 'ขาด' },
+              { bg: '#e0f2fe', sym: <CalendarOff size={11} />,   label: 'หยุด' },
+              { bg: '#fef9c3', sym: <Palmtree size={11} />,      label: 'พักร้อน' },
+              { bg: '#fee2e2', sym: <Thermometer size={11} />,   label: 'ป่วย' },
+              { bg: '#f3f4f6', sym: null,                        label: 'เสาร์/อา' },
+            ].map(({ bg, sym, label }) => (
+              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ background: bg, padding: '1px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center' }}>{sym}</span>
+                {label}
               </span>
             ))}
             <span style={{ color: 'var(--text-muted)' }}>กดวันที่มีข้อมูลเพื่อดูเวลา</span>
@@ -555,7 +568,7 @@ export default function ReportPage() {
                             <div
                               onClick={() => recs?.length && setDetail({ emp: `${info.first_name} ${info.last_name}`, date: dateKey, records: recs })}
                               title={tip}
-                              style={{ width: 26, height: 26, borderRadius: 5, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: label === '!!' ? '0.6rem' : '0.68rem', fontWeight: 700, cursor: recs?.length ? 'pointer' : 'default', color }}
+                              style={{ width: 26, height: 26, borderRadius: 5, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 700, cursor: recs?.length ? 'pointer' : 'default', color }}
                             >{label}</div>
                           </td>
                         )
@@ -593,11 +606,11 @@ export default function ReportPage() {
                   <span>ออก: <strong style={{ color: 'var(--text-dark)' }}>{fmtTime(r.check_out_at)}</strong></span>
                 </div>
                 {r.is_absent
-                  ? <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: 5, fontWeight: 600 }}>✗ ขาด (สายเกินกำหนด)</div>
-                  : r.is_late && <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: 5, fontWeight: 600 }}>⚠ มาสาย</div>}
+                  ? <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: 5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><X size={12} /> ขาด (สายเกินกำหนด)</div>
+                  : r.is_late && <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: 5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> มาสาย</div>}
                 {(Number(r.fine) + Number(r.carried_fine)) > 0 && (
-                  <div style={{ fontSize: '0.75rem', color: '#be185d', marginTop: 3, fontWeight: 600 }}>
-                    💸 ค่าปรับ {Number(r.fine) + Number(r.carried_fine)} ฿
+                  <div style={{ fontSize: '0.75rem', color: '#be185d', marginTop: 3, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Wallet size={12} /> ค่าปรับ {Number(r.fine) + Number(r.carried_fine)} ฿
                     {Number(r.carried_fine) > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (รวมยกมา {Number(r.carried_fine)})</span>}
                   </div>
                 )}
