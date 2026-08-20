@@ -554,7 +554,10 @@ export default function CheckinPage() {
   const allCheckedOut = todayRecords.length > 0 && todayRecords.every(r => r.check_out_at)
 
   // ── Parse QR raw ───────────────────────────────────────────────────────────
-  const handleQrRaw = useCallback((raw: string, action: 'checkin' | 'checkout') => {
+  // สาขาที่สแกนได้ไม่จำเป็นต้องเป็นสาขาตัวเอง (เช็คเอาต์ทำจากสาขาไหนก็ได้) — ถ้า bid
+  // ไม่ตรงกับสาขาตัวเอง ต้องไปดึงชื่อสาขาจริงมาโชว์ ไม่ใช้ employee.branch.name เฉยๆ
+  // (เดิม hardcode เป็นสาขาตัวเองเสมอ ทำให้หน้ายืนยันโชว์ชื่อสาขาผิดตอนเช็คเอาต์ต่างสาขา)
+  const handleQrRaw = useCallback(async (raw: string, action: 'checkin' | 'checkout') => {
     setError(null)
     try {
       const payload = JSON.parse(raw) as QrPayload
@@ -562,7 +565,13 @@ export default function CheckinPage() {
         setError('QR Code ไม่ถูกต้อง — กรุณาสแกนใหม่')
         return
       }
-      const branchName = employee?.branch.name ?? 'สาขา'
+      let branchName = employee?.branch.name ?? 'สาขา'
+      if (payload.bid !== employee?.branch.id) {
+        try {
+          const res = await api.get(`/employee/branches/${payload.bid}`)
+          branchName = res.data.data.name
+        } catch { /* เดี๋ยวรู้ชื่อจริงตอนเช็คเอาต์สำเร็จอยู่ดี ไม่ต้อง block การสแกน */ }
+      }
       setPreview({ payload, branchName, action })
     } catch {
       setError('QR Code ไม่ถูกต้อง — กรุณาสแกนใหม่')

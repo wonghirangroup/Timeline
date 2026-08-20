@@ -1,6 +1,6 @@
 // employee/src/components/layout/BottomNav.tsx — Premium Floating Bottom Navigation
 import { NavLink, useLocation } from 'react-router-dom'
-import { QrCode, BarChart2, ArrowLeftRight, Layers, User } from 'lucide-react'
+import { QrCode, BarChart2, Layers, User } from 'lucide-react'
 import { COLOR, SHADOW } from '../ui/tokens'
 
 interface NavItem {
@@ -9,10 +9,12 @@ interface NavItem {
   Icon: React.ElementType
 }
 
+// เช็คเอาท์ไม่มีแท็บแยกแล้ว — รวมเข้ากับหน้าเช็คอิน (ปุ่ม "เช็คเอาท์" สแกน QR
+// สาขาไหนก็ได้อยู่ในหน้าเดียวกัน) กันซ้ำซ้อนกับ /checkout เดิมที่ยังอยู่ (เข้าถึงได้
+// ถ้ามีลิงก์ตรงมา แต่ไม่ผูกกับ nav หลักแล้ว)
 const NAV_ITEMS: NavItem[] = [
   { path: '/checkin',  label: 'เช็คอิน',  Icon: QrCode },
   { path: '/history',  label: 'ประวัติ',  Icon: BarChart2 },
-  { path: '/checkout', label: 'เช็คเอาท์', Icon: ArrowLeftRight },
   { path: '/leave',    label: 'วันลา',    Icon: Layers },
   { path: '/profile',  label: 'โปรไฟล์', Icon: User },
 ]

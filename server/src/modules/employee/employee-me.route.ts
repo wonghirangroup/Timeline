@@ -65,4 +65,25 @@ export async function employeeMeRoutes(app: FastifyInstance) {
 
     return ok(applicable)
   })
+
+  // GET /api/v1/employee/branches/:id
+  // ดูชื่อสาขาจาก id — ใช้ตอน scan QR เช็คเอาต์ที่สาขาอื่น (ไม่ใช่สาขาตัวเอง) เพื่อโชว์
+  // ชื่อสาขาที่ถูกต้องในหน้ายืนยันก่อนเช็คเอาต์จริง (QR payload มีแค่ branch id ไม่มีชื่อ)
+  // ไม่เช็คว่าตรงกับสาขาพนักงานเอง เพราะเช็คเอาต์ทำจากสาขาไหนก็ได้ตามดีไซน์
+  app.get('/employee/branches/:id', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูชื่อสาขาจาก id (LIFF) — ใช้แสดงผลตอนสแกน QR เช็คเอาต์ต่างสาขา',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const branch = await prisma.branch.findFirst({
+      where: { id: req.params.id, tenant_id: req.tenantId, deleted_at: null },
+      select: { id: true, name: true },
+    })
+    if (!branch) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
+    return ok(branch)
+  })
 }
