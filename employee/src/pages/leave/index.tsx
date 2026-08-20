@@ -92,6 +92,14 @@ function fmtMonthTH(ym: string) {
 function getDaysInMonth(ym: string) { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm, 0).getDate() }
 function getFirstDow(ym: string)    { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm - 1, 1).getDay() }
 function toDateStr(ym: string, d: number) { return `${ym}-${String(d).padStart(2, '0')}` }
+// เหมือน toDateStr แต่รับ day ที่ overflow นอกเดือนได้ (0, -1, daysInMonth+1, ...)
+// ให้ Date object ของ JS normalize เดือน/ปีให้เอง — ใช้เติมวันของเดือนก่อน/ถัดไปในช่อง
+// ปฏิทินที่เกินขอบเดือน ให้ตารางเต็มทุกแถว 7 ช่อง (อา-ส) เสมอ
+function cellDateStr(ym: string, day: number): string {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1, day)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 type Tab = 'calendar' | 'booking' | 'request'
 
@@ -397,11 +405,25 @@ function getMondayOfDate(dateStr: string): string {
   d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day))
   return d.toISOString().slice(0, 10)
 }
-function getWeeksOfMonth(month: string): string[] {
+function addDaysStr(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+// ทุกสัปดาห์ (Monday) ของเดือนนี้ — ไม่กรองอะไร ใช้สำหรับ match ประวัติที่ส่งไปแล้ว
+// (รวมสัปดาห์ที่ผ่านไปแล้ว เพื่อให้ยังเห็น record เก่าในเดือนนี้ครบ)
+function getAllWeeksOfMonth(month: string): string[] {
   const days = getDaysInMonth(month)
   const mondays = new Set<string>()
   for (let day = 1; day <= days; day++) mondays.add(getMondayOfDate(toDateStr(month, day)))
   return [...mondays].sort()
+}
+// สัปดาห์ที่ "ต้องเลือกให้ครบ" ในตัวเลือกปฏิทิน — ไม่นับสัปดาห์ที่ผ่านไปแล้วทั้งสัปดาห์
+// (ถ้านับ ผู้ใช้จะติด deadlock: สัปดาห์ที่ผ่านไปแล้วทุกวันถูก disable จาก isPast
+// แต่ requiredWeeks ยังนับรวมอยู่ → ไม่มีทางเลือกให้ครบ (0/6) ได้เลยถ้าเปิดดูกลางเดือน)
+// สัปดาห์ปัจจุบัน (ที่ยังไม่จบ) ยังนับรวมอยู่ — เลือกได้แค่วันที่เหลือของสัปดาห์นั้น
+function getWeeksOfMonth(month: string, todayStr: string): string[] {
+  return getAllWeeksOfMonth(month).filter(monday => addDaysStr(monday, 6) >= todayStr)
 }
 
 function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
@@ -412,7 +434,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const [picks, setPicks] = useState<Record<string, string>>({})   // mondayISO → dateStr เลือกไว้
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const requiredWeeks = getWeeksOfMonth(month)
+  const requiredWeeks = getWeeksOfMonth(month, todayStr)
   const daysInMonth   = getDaysInMonth(month)
   const firstDow      = getFirstDow(month)
   const totalCells    = Math.ceil((daysInMonth + firstDow) / 7) * 7
@@ -435,7 +457,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
 
   const isOpen     = periodQ.data?.is_open ?? false
   const allOwn     = historyQ.data ?? []
-  const ownThisMonth = allOwn.filter(r => requiredWeeks.includes(r.week_start.slice(0, 10)))
+  const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)))
   const colleagues = colleagueQ.data?.colleagues ?? []
   const pickedCount = Object.keys(picks).length
   const complete     = pickedCount === requiredWeeks.length
@@ -552,8 +574,15 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
         </div>
       )}
 
+      {/* ── เดือนที่ผ่านไปแล้วทั้งเดือน — ไม่มีสัปดาห์ให้จอง ───────── */}
+      {isOpen && ownThisMonth.length === 0 && requiredWeeks.length === 0 && (
+        <div style={{ padding: '14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 14, textAlign: 'center', color: '#6B7D90', fontSize: '0.82rem' }}>
+          เดือนนี้ผ่านไปแล้ว ไม่สามารถจองย้อนหลังได้
+        </div>
+      )}
+
       {/* ── Month grid picker ───────────────────────────────────── */}
-      {isOpen && ownThisMonth.length === 0 && (
+      {isOpen && ownThisMonth.length === 0 && requiredWeeks.length > 0 && (
         <>
           <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
             เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ ({pickedCount}/{requiredWeeks.length})
@@ -564,21 +593,26 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 16 }}>
             {Array.from({ length: totalCells }, (_, i) => {
               const day = i - firstDow + 1
-              if (day < 1 || day > daysInMonth) return <div key={i} />
-              const dateStr = toDateStr(month, day)
+              const inMonth = day >= 1 && day <= daysInMonth
+              const dateStr = cellDateStr(month, day)
               const monday  = getMondayOfDate(dateStr)
-              const isPast  = dateStr < todayStr
-              const isSel   = picks[monday] === dateStr
+              // ช่องนอกเดือน (เดือนก่อน/ถัดไป) เติมไว้ให้ตารางครบ 7 ช่องทุกแถว — เลือกได้
+              // เฉพาะตอนที่สัปดาห์นั้นเป็นสัปดาห์ที่ "ต้องเลือกให้ครบ" ของเดือนนี้จริงๆ (สัปดาห์คาบ
+              // เกี่ยวต้นเดือน/ท้ายเดือน) ไม่งั้นเป็นแค่ตัวเลขจางๆ ให้เห็นบริบทของสัปดาห์เฉยๆ
+              const isRequiredWeek = requiredWeeks.includes(monday)
+              const isPast     = dateStr < todayStr
+              const isPickable = isRequiredWeek && !isPast
+              const isSel      = picks[monday] === dateStr
               const hasColleague = colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
               return (
-                <button key={i} disabled={isPast} onClick={() => toggleDay(dateStr)} style={{
+                <button key={i} disabled={!isPickable} onClick={() => toggleDay(dateStr)} style={{
                   aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${COLOR.primary}` : '1px solid #E5E7EB',
-                  background: isSel ? COLOR.primary : isPast ? '#F9FAFB' : '#fff',
-                  color: isSel ? '#fff' : isPast ? '#D1D5DB' : '#1A2B3C',
-                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: isPast ? 'not-allowed' : 'pointer',
+                  background: isSel ? COLOR.primary : !isPickable ? '#F9FAFB' : '#fff',
+                  color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : !isPickable ? '#D1D5DB' : '#1A2B3C',
+                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: isPickable ? 'pointer' : 'not-allowed',
                   fontFamily: 'inherit', position: 'relative', padding: 0,
                 }}>
-                  {day}
+                  {day >= 1 && day <= daysInMonth ? day : Number(dateStr.slice(8))}
                   {hasColleague && (
                     <div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: isSel ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
                   )}

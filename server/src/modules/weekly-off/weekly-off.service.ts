@@ -128,6 +128,15 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
 // พนักงาน mode นี้ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว (1 วัน/สัปดาห์ x 4-5 สัปดาห์)
 // ไม่บังคับจำนวนตายตัวเป็น 4 — คำนวณจากจำนวนวันจันทร์จริงในเดือนนั้น (บางเดือนมี 5)
 
+function getTodayStrBangkok(): string {
+  const bkk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+  return `${bkk.getFullYear()}-${String(bkk.getMonth() + 1).padStart(2, '0')}-${String(bkk.getDate()).padStart(2, '0')}`
+}
+
+// สัปดาห์ที่ "ต้องเลือกให้ครบ" จริง — ไม่นับสัปดาห์ที่ผ่านไปแล้วทั้งสัปดาห์ (mirror ของ
+// getWeeksOfMonth ฝั่ง frontend employee/src/pages/leave/index.tsx) กันเคส user เปิดดู
+// เดือนปัจจุบันตอนผ่านไปแล้วบางส่วน แล้วติด deadlock เลือกวันในสัปดาห์ที่ผ่านไปแล้วไม่ได้
+// แต่ระบบยังบังคับให้ครบทุกสัปดาห์รวมสัปดาห์เก่าด้วย
 function getWeeksOfMonth(month: string): string[] {
   const [y, m] = month.split('-').map(Number)
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
@@ -136,7 +145,12 @@ function getWeeksOfMonth(month: string): string[] {
     const dateStr = `${month}-${String(day).padStart(2, '0')}`
     mondays.add(getMondayOf(dateStr).toISOString().slice(0, 10))
   }
-  return [...mondays].sort()
+  const today = getTodayStrBangkok()
+  return [...mondays].filter(monday => {
+    const sunday = new Date(monday + 'T00:00:00Z')
+    sunday.setUTCDate(sunday.getUTCDate() + 6)
+    return sunday.toISOString().slice(0, 10) >= today
+  }).sort()
 }
 
 export async function createMonthlyBatchOff(tenantId: string, data: {
