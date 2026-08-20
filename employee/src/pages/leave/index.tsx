@@ -437,7 +437,12 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const requiredWeeks = getWeeksOfMonth(month, todayStr)
   const daysInMonth   = getDaysInMonth(month)
   const firstDow      = getFirstDow(month)
-  const totalCells    = Math.ceil((daysInMonth + firstDow) / 7) * 7
+  // ต้องใช้จำนวน "สัปดาห์ที่แตะเดือนนี้จริง" (ไม่ใช่แค่ปัดเศษจากจำนวนวัน) เป็นตัวกำหนด
+  // ขนาดตาราง เพราะ 2 อย่างนี้ไม่เท่ากันเสมอไป — เคสท้ายเดือนที่วันสุดท้ายตรงกับวันจันทร์พอดี
+  // (เช่น พ.ย. 2569 มี 30 วัน วันแรกเป็นอาทิตย์ → ปัดเศษได้พอดี 5 แถว แต่จริงๆ มี 6 สัปดาห์ที่
+  // แตะเดือนนี้ เพราะสัปดาห์สุดท้ายเริ่มวันที่ 30 พ.ย. ยาวไปจนถึง 6 ธ.ค.) ถ้าใช้แค่ปัดเศษจะขาด
+  // แถวสุดท้ายไป ทำให้เลือกวันของสัปดาห์ที่ 6 (ต้องเลือกให้ครบ) ไม่ได้เลย
+  const totalCells    = getAllWeeksOfMonth(month).length * 7
 
   const periodQ = useQuery<PeriodStatus>({
     queryKey: ['employee', 'weekly-off-period', branchId, month],
