@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
+import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle } from 'lucide-react'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -63,11 +63,11 @@ function getWeeklyApprovedHours(rows: OtRequest[], employeeId: string, weekStart
 }
 
 /** สี + ข้อความตาม cap level */
-function capLevel(hrs: number): { color: string; bg: string; border: string; emoji: string; label: string } {
-  if (hrs >= OT_WEEKLY_CAP) return { color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', emoji: '🔴', label: 'เกินขีดจำกัด!' }
-  if (hrs >= 30)            return { color: '#ea580c', bg: '#fff7ed', border: '#fdba74', emoji: '🟠', label: 'ใกล้เกิน' }
-  if (hrs >= 24)            return { color: '#d97706', bg: '#fffbeb', border: '#fde68a', emoji: '🟡', label: 'ใกล้ถึง' }
-  return                           { color: '#15803d', bg: '#f0fdf4', border: '#86efac', emoji: '🟢', label: 'ปกติ' }
+function capLevel(hrs: number): { color: string; bg: string; border: string; emoji: ReactNode; label: string } {
+  if (hrs >= OT_WEEKLY_CAP) return { color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', emoji: <Circle size={9} fill="#dc2626" stroke="none" />, label: 'เกินขีดจำกัด!' }
+  if (hrs >= 30)            return { color: '#ea580c', bg: '#fff7ed', border: '#fdba74', emoji: <Circle size={9} fill="#ea580c" stroke="none" />, label: 'ใกล้เกิน' }
+  if (hrs >= 24)            return { color: '#d97706', bg: '#fffbeb', border: '#fde68a', emoji: <Circle size={9} fill="#d97706" stroke="none" />, label: 'ใกล้ถึง' }
+  return                           { color: '#15803d', bg: '#f0fdf4', border: '#86efac', emoji: <Circle size={9} fill="#15803d" stroke="none" />, label: 'ปกติ' }
 }
 
 const card: React.CSSProperties = {
@@ -293,7 +293,7 @@ export default function OtPage() {
             onClick={() => { setShowBulkPay(true); setBulkEmpId(''); setBulkDailyRate('') }}
             style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #7c3aed', background: '#faf5ff', color: '#7c3aed', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
           >
-            💸 รวมจ่าย OT
+            <Wallet size={14} /> รวมจ่าย OT
           </button>
           <button
             onClick={() => { setShowAddModal(true); setAddForm(INIT_FORM) }}
@@ -324,8 +324,8 @@ export default function OtPage() {
       {/* ── Cap Warning Panel ── */}
       {capWarnings.length > 0 && (
         <div style={{ ...card, padding: isMobile ? 12 : 16, border: '1px solid #fca5a5', background: '#fff5f5' }}>
-          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
-            ⚠️ ขีดจำกัด OT รายสัปดาห์ (Cap {OT_WEEKLY_CAP} ชม./สัปดาห์)
+          <p style={{ display: 'flex', alignItems: 'center', gap: 5, margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
+            <AlertTriangle size={14} /> ขีดจำกัด OT รายสัปดาห์ (Cap {OT_WEEKLY_CAP} ชม./สัปดาห์)
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {capWarnings.map(emp => {
@@ -417,17 +417,17 @@ export default function OtPage() {
                     </div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.78rem', color: '#374151' }}>⏰ {r.start_time}–{r.end_time} ({r.hours} ชม.)</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', color: '#374151' }}><Clock size={12} /> {r.start_time}–{r.end_time} ({r.hours} ชม.)</span>
                     <span style={{ fontSize: '0.78rem', color: '#374151' }}>× {r.multiplier}</span>
                     {r.status === 'PENDING' && (
                       <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                        <button onClick={() => openApprove(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '0.78rem', fontWeight: 600 }}>✓ อนุมัติ</button>
-                        <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 600 }}>✕</button>
+                        <button onClick={() => openApprove(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={12} /> อนุมัติ</button>
+                        <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center' }}><X size={12} /></button>
                       </div>
                     )}
                     {r.status === 'APPROVED' && (
-                      <button onClick={() => openPay(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '0.78rem', fontWeight: 600, marginLeft: 'auto' }}>
-                        💸 จ่าย OT
+                      <button onClick={() => openPay(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '0.78rem', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Wallet size={12} /> จ่าย OT
                       </button>
                     )}
                     {r.status === 'PAID' && r.payment_amount && (
@@ -493,12 +493,12 @@ export default function OtPage() {
                       <td style={{ padding: '11px 14px' }}>
                         {r.status === 'PENDING' ? (
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => openApprove(r)} style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '11px', fontWeight: 600 }}>✓ อนุมัติ</button>
+                            <button onClick={() => openApprove(r)} style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> อนุมัติ</button>
                             <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>ไม่อนุมัติ</button>
                           </div>
                         ) : r.status === 'APPROVED' ? (
                           <button onClick={() => openPay(r)} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            💸 จ่าย OT
+                            <Wallet size={11} /> จ่าย OT
                           </button>
                         ) : r.status === 'PAID' && r.payment_amount ? (
                           <span style={{ fontSize: '12px', fontWeight: 700, color: '#6d28d9' }}>฿{r.payment_amount.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</span>
@@ -562,7 +562,7 @@ export default function OtPage() {
 
             {/* ── คิดเร็ว (Inline Calculator) ── */}
             <div style={{ border: '1px dashed #d1d5db', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>🧮 คิดเร็ว (ไม่บันทึกในระบบ)</p>
+              <p style={{ display: 'flex', alignItems: 'center', gap: 5, margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}><Calculator size={13} /> คิดเร็ว (ไม่บันทึกในระบบ)</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 {/* อัตรา/ชม. */}
                 <div>
@@ -616,7 +616,7 @@ export default function OtPage() {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setApproveTarget(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={doApprove} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>✓ อนุมัติ OT</button>
+              <button onClick={doApprove} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Check size={14} /> อนุมัติ OT</button>
             </div>
           </div>
         </div>
@@ -626,7 +626,7 @@ export default function OtPage() {
       {showAddModal && (
         <div style={modalBackdrop(showAddModal)} onClick={() => setShowAddModal(false)}>
           <div style={{ ...modalBox, width: isMobile ? '100%' : 460 }} onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 16px' }}>➕ เพิ่มรายการ OT</p>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 16px' }}><Plus size={15} /> เพิ่มรายการ OT</p>
 
             {/* Employee select */}
             <div style={{ marginBottom: 12 }}>
@@ -769,7 +769,7 @@ export default function OtPage() {
       {showBulkPay && (
         <div style={modalBackdrop(showBulkPay)} onClick={() => setShowBulkPay(false)}>
           <div style={{ ...modalBox, width: isMobile ? '100%' : 500 }} onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 4px' }}>💸 รวมจ่าย OT</p>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 4px' }}><Wallet size={15} /> รวมจ่าย OT</p>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 16px' }}>จ่าย OT ทุกรายการที่ "อนุมัติแล้ว" ของพนักงานคนเดียวพร้อมกัน</p>
 
             {/* Employee select */}
@@ -803,7 +803,7 @@ export default function OtPage() {
                   </div>
                 ) : (
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
-                    <span style={{ fontSize: '12px', color: '#d97706', fontWeight: 600 }}>⚠️ ไม่มีข้อมูลบัญชีธนาคาร</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '12px', color: '#d97706', fontWeight: 600 }}><AlertTriangle size={12} /> ไม่มีข้อมูลบัญชีธนาคาร</span>
                   </div>
                 )}
 
@@ -863,9 +863,9 @@ export default function OtPage() {
               <button
                 onClick={doBulkPay}
                 disabled={!bulkEmpId || bulkRows.length === 0}
-                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !bulkEmpId || bulkRows.length === 0 ? '#e5e7eb' : '#7c3aed', color: !bulkEmpId || bulkRows.length === 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !bulkEmpId || bulkRows.length === 0 ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !bulkEmpId || bulkRows.length === 0 ? '#e5e7eb' : '#7c3aed', color: !bulkEmpId || bulkRows.length === 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !bulkEmpId || bulkRows.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                💸 ยืนยันรวมจ่าย {bulkRows.length > 0 ? `(${bulkRows.length} รายการ)` : ''}
+                <Wallet size={14} /> ยืนยันรวมจ่าย {bulkRows.length > 0 ? `(${bulkRows.length} รายการ)` : ''}
               </button>
             </div>
           </div>
@@ -878,7 +878,7 @@ export default function OtPage() {
           <div style={modalBox} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '18px' }}>💸</div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Wallet size={17} color="#7c3aed" /></div>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>จ่าย OT</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{payTarget.full_name} · {thDate(payTarget.date)}</p>
@@ -907,14 +907,14 @@ export default function OtPage() {
                 {payTarget.bank_account ? (
                   <span style={{ fontWeight: 700, color: '#7c3aed', fontFamily: 'monospace', fontSize: '13px' }}>{payTarget.bank_account}</span>
                 ) : (
-                  <span style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 600 }}>⚠️ ไม่มีข้อมูลบัญชี</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#f59e0b', fontSize: '12px', fontWeight: 600 }}><AlertTriangle size={12} /> ไม่มีข้อมูลบัญชี</span>
                 )}
               </div>
             </div>
 
             {/* Calculator — daily_rate × multiplier */}
             <div style={{ border: '1px dashed #d1d5db', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>🧮 คำนวณยอดจ่าย</p>
+              <p style={{ display: 'flex', alignItems: 'center', gap: 5, margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}><Calculator size={13} /> คำนวณยอดจ่าย</p>
               <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>ค่า OT ต่อวัน (฿)</label>
                 <input
@@ -945,7 +945,7 @@ export default function OtPage() {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setPayTarget(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={doPay} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>💸 ยืนยันจ่าย OT</button>
+              <button onClick={doPay} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Wallet size={14} /> ยืนยันจ่าย OT</button>
             </div>
           </div>
         </div>
