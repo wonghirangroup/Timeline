@@ -410,9 +410,12 @@ export default function AttendancePage() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────
-  const branchShifts = branchFilter
-    ? shifts.filter(s => (s as any).branch_id === branchFilter)
-    : shifts
+  // กะที่เลือกในโมดัล "ลงเวลาแทนพนักงาน" ต้องกรองตามสาขาของ "พนักงานที่เลือก" เสมอ
+  // (ไม่ใช่ branch filter ของหน้า — ไม่งั้นถ้าหน้าเลือก "ทุกสาขา" อยู่ กะจากทุกสาขาจะ
+  // ปนกันมาให้เลือกหมด ทั้งที่พนักงานคนนี้ทำงานสาขาเดียว)
+  const manualTargetShifts = manualTarget
+    ? shifts.filter(s => (s as any).branch_id === manualTarget.branch_id)
+    : []
 
   return (
     <div>
@@ -771,14 +774,14 @@ export default function AttendancePage() {
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงเวลาแทนพนักงาน</h3>
             <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {manualTarget.first_name} {manualTarget.last_name} · {date}
+              {manualTarget.first_name} {manualTarget.last_name} · {manualTarget.branch.name} · {date}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>กะ *</label>
                 <select value={manualForm.shift_id} onChange={e => setManualForm(f => ({ ...f, shift_id: e.target.value }))} style={inp}>
                   <option value="">— เลือกกะ —</option>
-                  {(branchShifts.length > 0 ? branchShifts : shifts).map(s => (
+                  {manualTargetShifts.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
                   ))}
                 </select>

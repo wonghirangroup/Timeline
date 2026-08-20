@@ -166,12 +166,17 @@ function BulkModePanel() {
 }
 
 // ─── PeriodManager component ──────────────────────────────────────────────────
-function PeriodManager({ month }: { month: string }) {
+function PeriodManager({ month, requests, onApprove, onReject }: {
+  month: string; requests: WeeklyOffRequest[]
+  onApprove: (id: string) => void
+  onReject: (id: string) => void
+}) {
   const { showToast } = useToast()
   const qc = useQueryClient()
   const [editId, setEditId] = useState<string | null>(null)
   const [editDeadline, setEditDeadline] = useState('')
   const [editNote, setEditNote] = useState('')
+  const [viewBookingsBranch, setViewBookingsBranch] = useState<string | null>(null)
 
   const { data: periods = [], isLoading } = useQuery<WeeklyOffPeriod[]>({
     queryKey: ['admin', 'weekly-off-periods', month],
@@ -203,6 +208,10 @@ function PeriodManager({ month }: { month: string }) {
         const isEditing = editId === p.branch_id
         const deadlinePast = p.deadline ? new Date() > new Date(p.deadline) : false
         const effectiveOpen = p.is_open && !deadlinePast
+        const bookings = requests
+          .filter(r => r.employee.branch.id === p.branch_id && resolveDate(r.week_start, r.day_of_week).slice(0, 7) === p.month)
+          .sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week)))
+        const pendingBookings = bookings.filter(b => b.status === 'PENDING').length
 
         return (
           <div key={p.branch_id} style={{
@@ -299,9 +308,74 @@ function PeriodManager({ month }: { month: string }) {
                 </button>
               </div>
             )}
+
+            {/* ดูรายการจอง */}
+            {!isEditing && bookings.length > 0 && (
+              <button onClick={() => setViewBookingsBranch(p.branch_id)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                <CalendarDays size={13} />
+                ดูรายการจอง ({bookings.length}){pendingBookings > 0 && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', borderRadius: 99, padding: '1px 7px' }}>{pendingBookings} รอ</span>}
+              </button>
+            )}
           </div>
         )
       })}
+
+      {/* Bookings modal */}
+      {viewBookingsBranch && (() => {
+        const p = periods.find(pp => pp.branch_id === viewBookingsBranch)
+        const bookings = requests
+          .filter(r => r.employee.branch.id === viewBookingsBranch && resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month)
+          .sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week)))
+        return (
+          <div onClick={() => setViewBookingsBranch(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: 14, width: 420, maxWidth: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
+              <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p?.branch.name}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtYM(month)} · {bookings.length} รายการ</div>
+                </div>
+                <button onClick={() => setViewBookingsBranch(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '8px 10px' }}>
+                {bookings.map(b => {
+                  const sc = STATUS_CFG[b.status]
+                  return (
+                    <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>
+                          {b.employee.first_name} {b.employee.last_name}{b.employee.nickname ? ` (${b.employee.nickname})` : ''}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                          {fmtDate(resolveDate(b.week_start, b.day_of_week))}
+                        </div>
+                      </div>
+                      {b.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                          <button onClick={() => onApprove(b.id)}
+                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Check size={12} /> อนุมัติ
+                          </button>
+                          <button onClick={() => onReject(b.id)}
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex' }}>
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ flexShrink: 0, fontSize: '0.72rem', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -451,7 +525,10 @@ export default function WeeklyOffPage() {
       {tab === 'periods' && (
         <>
           <BulkModePanel />
-          <PeriodManager month={month} />
+          <PeriodManager month={month} requests={requests}
+            onApprove={id => approveMutation.mutate(id)}
+            onReject={id => rejectMutation.mutate({ id, note: '' })}
+          />
         </>
       )}
 

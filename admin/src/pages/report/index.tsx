@@ -69,10 +69,30 @@ export default function ReportPage() {
   const [expandedEmp, setExpandedEmp] = useState<string | null>(null)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
 
+  // ── มุมมอง: ปฏิทิน (1 เดือนเต็ม) หรือ ช่วงเวลาที่กำหนดเอง (ข้ามเดือนได้) ──
+  const [viewMode, setViewMode] = useState<'month' | 'range'>('month')
+  const [rangeStart, setRangeStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10) })
+  const [rangeEnd,   setRangeEnd]   = useState(() => new Date().toISOString().slice(0, 10))
+  const [expandedRangeEmp, setExpandedRangeEmp] = useState<string | null>(null)
+
   const startDate = toYMD(year, month, 1)
   const endDate   = toYMD(year, month, getDaysInMonth(year, month))
   const daysCount = getDaysInMonth(year, month)
   const days      = Array.from({ length: daysCount }, (_, i) => i + 1)
+
+  // ช่วงเวลาที่ query จริง — ผูกกับเดือนที่เลือก หรือช่วงกำหนดเองแล้วแต่มุมมอง
+  const queryStartDate = viewMode === 'range' ? rangeStart : startDate
+  const queryEndDate   = viewMode === 'range' ? rangeEnd   : endDate
+
+  // รายการวันที่ (YYYY-MM-DD) ในช่วงกำหนดเอง — ไม่ผูกกับปฏิทินเดือนเดียวเหมือน `days`
+  const rangeDateKeys = useMemo(() => {
+    if (viewMode !== 'range') return []
+    const out: string[] = []
+    const cur = new Date(rangeStart + 'T00:00:00')
+    const end = new Date(rangeEnd + 'T00:00:00')
+    while (cur <= end) { out.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 1) }
+    return out
+  }, [viewMode, rangeStart, rangeEnd])
 
   const { data: branches = [] } = useQuery<Branch[]>({
     queryKey: ['admin', 'branches'],
@@ -80,9 +100,9 @@ export default function ReportPage() {
   })
 
   const { data: records = [], isLoading: loadingRecords, refetch } = useQuery<AttendanceRecord[]>({
-    queryKey: ['admin', 'attendance-report', year, month, branch],
+    queryKey: ['admin', 'attendance-report', viewMode, year, month, rangeStart, rangeEnd, branch],
     queryFn:  () => api.get('/api/v1/admin/attendance', {
-      params: { startDate, endDate, ...(branch ? { branchId: branch } : {}) },
+      params: { startDate: queryStartDate, endDate: queryEndDate, ...(branch ? { branchId: branch } : {}) },
     }).then((r: any) => r.data.data),
   })
 
@@ -147,10 +167,27 @@ export default function ReportPage() {
     )
   }, [allEmployees, empMap, search])
 
-  function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, day: number) {
-    const dow     = new Date(year, month - 1, day).getDay()
+  // ── สรุปรายพนักงานสำหรับมุมมอง "ช่วงเวลา" — นับจาก cellInfo() ทีละวันในช่วงที่เลือก ──
+  const rangeSummary = useMemo(() => {
+    if (viewMode !== 'range') return []
+    return employees.map(({ info, byDate }) => {
+      let ok = 0, late = 0, absent = 0, leave = 0, fine = 0
+      for (const dateKey of rangeDateKeys) {
+        const recs = byDate.get(dateKey)
+        const { status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+        if (status === 'ok') ok++
+        else if (status === 'late' || status === 'late2') late++
+        else if (status === 'absent') absent++
+        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday') leave++
+        for (const r of recs ?? []) fine += Number(r.fine) + Number(r.carried_fine)
+      }
+      return { info, byDate, ok, late, absent, leave, fine }
+    })
+  }, [viewMode, employees, rangeDateKeys])
+
+  function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string) {
+    const dow     = new Date(dateKey + 'T00:00:00').getDay()
     const dept    = empCode.split('-')[1] ?? ''
-    const dateKey = toYMD(year, month, day)
     const leaveType = leaveMap.get(empId)?.get(dateKey)
     // มีเช็คอินจริงในวันนั้น → ยึดตามการเช็คอินจริงเสมอ กัน case ที่มี
     // record หยุด/ลา ที่จองไว้ล่วงหน้า (จาก schedule เดิม) แต่พนักงานมาทำงานจริง
@@ -195,13 +232,12 @@ export default function ReportPage() {
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
 
   // ── Export CSV ──────────────────────────────────────────────────────────────
-  function buildCsvRows(empList: typeof employees) {
+  function buildCsvRows(empList: typeof employees, dateKeys: string[] = days.map(d => toYMD(year, month, d))) {
     const header = ['รหัสพนักงาน','ชื่อ','นามสกุล','ชื่อเล่น','สาขา','วันที่','วัน','กะ','เวลาเข้า','เวลาออก','สถานะ','สาย','ค่าปรับ','หมายเหตุ']
     const rows: string[][] = []
     for (const { info, byDate } of empList) {
-      for (const day of days) {
-        const dateKey = toYMD(year, month, day)
-        const dow     = new Date(year, month - 1, day).getDay()
+      for (const dateKey of dateKeys) {
+        const dow     = new Date(dateKey + 'T00:00:00').getDay()
         const recs    = byDate.get(dateKey)
         const leaveType = leaveMap.get(info.id)?.get(dateKey)
         const hasRealCheckin = !!recs?.some(r => r.check_in_at)
@@ -217,7 +253,7 @@ export default function ReportPage() {
           continue
         }
         for (const r of recs) {
-          const { tip } = cellInfo([r], info.employee_code, info.id, day)
+          const { tip } = cellInfo([r], info.employee_code, info.id, dateKey)
           const totalFine = Number(r.fine) + Number(r.carried_fine)
           rows.push([
             info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
@@ -240,10 +276,14 @@ export default function ReportPage() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     a.download = filename; a.click()
   }
-  function exportAll() { downloadCsv(buildCsvRows(employees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`) }
+  function exportAll() {
+    if (viewMode === 'range') downloadCsv(buildCsvRows(employees, rangeDateKeys), `รายงาน_${rangeStart}_ถึง_${rangeEnd}.csv`)
+    else downloadCsv(buildCsvRows(employees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`)
+  }
   function exportOne(emp: typeof employees[0]) {
     const name = `${emp.info.first_name}_${emp.info.last_name}`
-    downloadCsv(buildCsvRows([emp]), `รายงาน_${name}_${MONTHS_TH[month-1]}_${year+543}.csv`)
+    if (viewMode === 'range') downloadCsv(buildCsvRows([emp], rangeDateKeys), `รายงาน_${name}_${rangeStart}_ถึง_${rangeEnd}.csv`)
+    else downloadCsv(buildCsvRows([emp]), `รายงาน_${name}_${MONTHS_TH[month-1]}_${year+543}.csv`)
   }
 
   const totalPresent = [...empMap.values()].reduce((s, e) => s + e.byDate.size, 0)
@@ -274,7 +314,27 @@ export default function ReportPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
-        {/* Month nav */}
+        {/* View mode toggle */}
+        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+          {([['month', 'ปฏิทิน'], ['range', 'ช่วงเวลา']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => setViewMode(v)}
+              style={{ padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: viewMode === v ? 700 : 500, background: viewMode === v ? '#fff' : 'transparent', color: viewMode === v ? '#f97316' : 'var(--text-muted)', boxShadow: viewMode === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {viewMode === 'range' ? (
+          /* Custom date range */
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
+            <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} max={rangeEnd}
+              style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>–</span>
+            <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} min={rangeStart} max={now.toISOString().slice(0, 10)}
+              style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
+          </div>
+        ) : (
+        /* Month nav */
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
           <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
           <button onClick={() => setShowMonthPicker(s => !s)}
@@ -303,6 +363,7 @@ export default function ReportPage() {
             </>
           )}
         </div>
+        )}
 
         <select value={branch} onChange={e => setBranch(e.target.value)}
           style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', flex: isMobile ? '1 1 120px' : 'none' }}>
@@ -350,8 +411,80 @@ export default function ReportPage() {
         </div>
       )}
 
+      {/* ── RANGE VIEW: สรุปรายพนักงานในช่วงเวลาที่กำหนดเอง (ไม่ใช่ grid ปฏิทิน) ── */}
+      {!isLoading && viewMode === 'range' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rangeSummary.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
+              {search.trim() ? 'ไม่พบพนักงานที่ค้นหา' : 'ไม่พบข้อมูลพนักงาน'}
+            </div>
+          )}
+          {rangeSummary.map(({ info, byDate, ok, late, absent, leave, fine }) => {
+            const isExpanded = expandedRangeEmp === info.id
+            return (
+              <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                <div onClick={() => setExpandedRangeEmp(isExpanded ? null : info.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#f97316,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
+                    {initials(info.first_name, info.last_name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {info.first_name} {info.last_name}
+                      {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{info.employee_code} · {info.branch.name}</div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', borderRadius: 6, padding: '2px 7px' }}><Check size={10} /> {ok}</span>
+                      {late > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '2px 7px' }}><AlertTriangle size={10} /> {late}</span>}
+                      {absent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '2px 7px' }}><X size={10} /> {absent}</span>}
+                      {leave > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '2px 7px' }}><CalendarOff size={10} /> {leave}</span>}
+                      {fine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#be185d', background: '#fdf2f8', borderRadius: 6, padding: '2px 7px' }}><Wallet size={10} /> {fine} ฿</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#f97316' : 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</div>
+                    <button onClick={e => { e.stopPropagation(); exportOne({ info, byDate }) }}
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                      <Download size={11} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded: day-by-day breakdown ในช่วงที่เลือก */}
+                {isExpanded && (
+                  <div style={{ borderTop: '1px solid #f3f4f6' }}>
+                    {rangeDateKeys.map(dateKey => {
+                      const d = new Date(dateKey + 'T00:00:00')
+                      const dow = d.getDay()
+                      const recs = byDate.get(dateKey)
+                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+                      if (status === 'weekend') return null
+                      const firstRec = recs?.[0]
+                      return (
+                        <div key={dateKey}
+                          onClick={() => recs?.length && setDetail({ emp: `${info.first_name} ${info.last_name}`, date: dateKey, records: recs })}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: '1px solid #f9fafb', cursor: recs?.length ? 'pointer' : 'default' }}>
+                          <div style={{ width: 34, textAlign: 'center', flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151' }}>{d.getDate()}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
+                          </div>
+                          <div style={{ width: 24, height: 24, borderRadius: 6, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{label}</div>
+                          <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#374151' }}>{tip}</div>
+                          {firstRec && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{fmtTime(firstRec.check_in_at)}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── MOBILE VIEW: Employee cards ─────────────────────────────────────── */}
-      {!isLoading && employees.length > 0 && isMobile && (
+      {!isLoading && employees.length > 0 && isMobile && viewMode === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {employees.map(({ info, byDate }) => {
             const presentDays = [...byDate.entries()].filter(([dk]) => {
@@ -424,7 +557,7 @@ export default function ReportPage() {
                       const dow = new Date(year, month - 1, d).getDay()
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
-                      const { status } = cellInfo(recs, info.employee_code, info.id, d)
+                      const { status } = cellInfo(recs, info.employee_code, info.id, dateKey)
                       const isToday = dateKey === now.toISOString().slice(0, 10)
                       return (
                         <div
@@ -458,7 +591,7 @@ export default function ReportPage() {
                       const dow = new Date(year, month - 1, d).getDay()
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
-                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, d)
+                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey)
                       if (status === 'weekend') return null
                       const firstRec = recs?.[0]
                       return (
@@ -514,7 +647,7 @@ export default function ReportPage() {
       )}
 
       {/* ── DESKTOP VIEW: Matrix table ──────────────────────────────────────── */}
-      {!isLoading && employees.length > 0 && !isMobile && (
+      {!isLoading && employees.length > 0 && !isMobile && viewMode === 'month' && (
         <>
           {/* Legend */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
@@ -584,7 +717,7 @@ export default function ReportPage() {
                       {days.map(d => {
                         const dateKey = toYMD(year, month, d)
                         const recs = byDate.get(dateKey)
-                        const { bg, label, color, tip } = cellInfo(recs, info.employee_code, info.id, d)
+                        const { bg, label, color, tip } = cellInfo(recs, info.employee_code, info.id, dateKey)
                         return (
                           <td key={d} style={{ padding: 2, textAlign: 'center' }}>
                             <div
