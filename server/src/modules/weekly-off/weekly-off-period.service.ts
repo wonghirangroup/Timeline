@@ -73,11 +73,13 @@ export async function openPeriod(tenantId: string, data: {
 // ── แจ้งเตือน Line เมื่อเปิดจองวันหยุดใหม่ — ส่งลิงก์เปิดตรงไปหน้าจองในแอป ──────
 // ไม่ throw ออกไปเลย (แค่ log/return error info) กันไม่ให้การเปิดจองล้มเหลวเพราะ Line ส่งไม่ได้
 export async function notifyPeriodOpened(tenantId: string, branchId: string, month: string) {
+  console.log(`[notifyPeriodOpened] start tenant=${tenantId} branch=${branchId} month=${month}`)
   const lineConfig = await prisma.tenantLineConfig.findUnique({
     where: { tenant_id: tenantId },
     select: { line_channel_access_token: true, line_liff_id: true },
   })
   if (!lineConfig?.line_channel_access_token || !lineConfig.line_liff_id) {
+    console.log('[notifyPeriodOpened] no LINE config — skipped')
     return { error: 'LINE ยังไม่ได้ตั้งค่าไว้' }
   }
 
@@ -88,6 +90,7 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
     select: { line_user_id: true },
   })
   const lineUserIds = employees.map(e => e.line_user_id!)
+  console.log(`[notifyPeriodOpened] branch=${branch?.name} recipients=${lineUserIds.length}`)
   if (lineUserIds.length === 0) return { sent: 0 }
 
   // liff.state = path จริงในแอปที่จะเปิดหลัง LIFF init เสร็จ (มาตรฐาน LIFF deep-link)
@@ -100,8 +103,10 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
 
   try {
     const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, message)
+    console.log(`[notifyPeriodOpened] sent ok:`, JSON.stringify(result))
     return result
   } catch (err: any) {
+    console.error(`[notifyPeriodOpened] LINE send FAILED:`, err.message)
     return { error: err.message }
   }
 }

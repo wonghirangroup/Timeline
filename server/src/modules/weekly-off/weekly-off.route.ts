@@ -188,9 +188,10 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         properties: { branch_id: { type: 'string' }, month: { type: 'string' }, deadline: { type: ['string', 'null'] }, note: { type: ['string', 'null'] } } } },
   }, async (req: any, reply) => {
     const { period, justOpened } = await openPeriod(req.tenantId, req.body)
+    console.log(`[openPeriod route] branch=${req.body.branch_id} month=${req.body.month} justOpened=${justOpened}`)
     // แจ้งเตือน Line ก็ต่อเมื่อเพิ่งเปิดจริง (ปิดอยู่ก่อน) — กัน spam ตอนแก้แค่ deadline/note
     // ไม่ await ผล/ไม่โยน error ต่อ เพราะการเปิดจองสำเร็จแล้วไม่ควรพังเพราะ Line ส่งไม่ได้
-    if (justOpened) notifyPeriodOpened(req.tenantId, req.body.branch_id, req.body.month).catch(() => {})
+    if (justOpened) notifyPeriodOpened(req.tenantId, req.body.branch_id, req.body.month).catch((e: any) => console.error('[notifyPeriodOpened] uncaught:', e.message))
     return reply.code(201).send(ok(period, 'เปิดการจองสำเร็จ'))
   })
 
