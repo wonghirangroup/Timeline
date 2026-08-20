@@ -34,7 +34,11 @@ export async function getAttendanceReport(tenantId: string, filters: {
           branch: { select: { id: true, name: true } },
         },
       },
-      shift: { select: { id: true, name: true, start_time: true, end_time: true, late_threshold_1: true, late_threshold_2: true } },
+      shift: { select: {
+        id: true, name: true, branch_id: true, start_time: true, end_time: true,
+        late_threshold_1: true, late_threshold_2: true, absent_threshold: true,
+        late_fine_1: true, late_fine_2: true,
+      } },
     },
     orderBy: [{ date: 'asc' }, { check_in_at: 'asc' }],
   })
@@ -183,10 +187,28 @@ export async function createManualAttendance(tenantId: string, data: {
   })
 }
 
+// map สถานะที่ Admin เลือกเอง (override) → flag ภายใน — ใช้ตอนแอดมินแก้ผลลัพธ์
+// auto-calculation ด้วยมือ (เช่น รู้ว่ามีเหตุผลสมควรก็เลยยกเว้นให้ไม่นับสาย)
+// late_minutes คงค่าที่ auto-calc ล่าสุดไว้ (เผื่ออ้างอิง) ยกเว้น ON_TIME ที่ต้องเป็น 0 เสมอ
+function applyStatusOverride(
+  status: 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT',
+  currentLateMinutes: number,
+): { is_late: boolean; late_minutes: number; is_absent: boolean } {
+  switch (status) {
+    case 'ON_TIME': return { is_late: false, late_minutes: 0,                       is_absent: false }
+    case 'LATE_1':  return { is_late: true,  late_minutes: currentLateMinutes || 1, is_absent: false }
+    case 'LATE_2':  return { is_late: true,  late_minutes: currentLateMinutes || 1, is_absent: false }
+    case 'ABSENT':  return { is_late: true,  late_minutes: currentLateMinutes || 1, is_absent: true  }
+  }
+}
+
 export async function updateAttendanceTime(tenantId: string, id: string, data: {
   date?: string
-  check_in_at?: string | null   // HH:mm หรือ null
-  check_out_at?: string | null  // HH:mm หรือ null
+  shift_id?: string              // เปลี่ยนกะที่บันทึกนี้สังกัดอยู่
+  check_in_at?: string | null    // HH:mm หรือ null
+  check_out_at?: string | null   // HH:mm หรือ null
+  status?: 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT'  // override ผลคำนวณอัตโนมัติด้วยมือ
+  fine?: number                  // override ค่าปรับด้วยมือ (บาท)
   note?: string
 }) {
   const record = await prisma.attendanceRecord.findFirst({
@@ -197,6 +219,20 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
 
   const dateStr = data.date ?? record.date.toISOString().slice(0, 10)
 
+  // เปลี่ยนกะ (ทั้งกะอื่นในสาขาเดิม หรือสาขาอื่นไปเลย) — ต้องเช็ค unique constraint
+  // (employee+shift+date) กันชนกับ record อื่นที่มีอยู่แล้วในกะปลายทาง
+  let shift = record.shift
+  const shiftChanged = data.shift_id !== undefined && data.shift_id !== record.shift_id
+  if (shiftChanged) {
+    const newShift = await prisma.shift.findFirst({ where: { id: data.shift_id, tenant_id: tenantId, deleted_at: null } })
+    if (!newShift) throw new Error('SHIFT_NOT_FOUND')
+    const conflict = await prisma.attendanceRecord.findFirst({
+      where: { id: { not: id }, employee_id: record.employee_id, shift_id: newShift.id, date: record.date },
+    })
+    if (conflict) throw new Error('ALREADY_CHECKED_IN')
+    shift = newShift
+  }
+
   let is_late      = record.is_late
   let late_minutes = record.late_minutes
   let is_absent    = record.is_absent
@@ -206,15 +242,25 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
     ? (data.check_in_at ? buildDateTime(dateStr, data.check_in_at) : null)
     : record.check_in_at
 
-  if (data.check_in_at !== undefined && checkInAt && record.shift) {
-    const late = computeLateStatus(record.shift, dateToBangkokMins(checkInAt))
+  // Auto-calculation: เปลี่ยนเวลาเข้า หรือเปลี่ยนกะ (ซึ่งอาจอยู่คนละสาขา/เกณฑ์สาย
+  // ต่างกัน) → คำนวณสถานะ+ค่าปรับใหม่จากเกณฑ์ของกะที่ใช้อยู่ตอนนี้เสมอ
+  if ((data.check_in_at !== undefined || shiftChanged) && checkInAt && shift) {
+    const late = computeLateStatus(shift, dateToBangkokMins(checkInAt))
     is_late      = late.is_late
     late_minutes = late.late_minutes
     is_absent    = late.is_absent
-    fine         = late.is_absent ? 0 : fineForLevel(record.shift, late.late_level)
+    fine         = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
   } else if (data.check_in_at !== undefined && !checkInAt) {
     is_late = false; late_minutes = 0; is_absent = false; fine = 0
   }
+
+  // Override ด้วยมือ (ทับผล auto-calculation ด้านบน) — ใช้ตอน Admin ไม่เห็นด้วยกับ
+  // ผลคำนวณอัตโนมัติ เช่น รู้เหตุผลที่สมควรยกเว้นให้
+  if (data.status !== undefined) {
+    const ov = applyStatusOverride(data.status, late_minutes)
+    is_late = ov.is_late; late_minutes = ov.late_minutes; is_absent = ov.is_absent
+  }
+  if (data.fine !== undefined) fine = data.fine
 
   const checkOutAt = data.check_out_at !== undefined
     ? (data.check_out_at ? buildDateTime(dateStr, data.check_out_at) : null)
@@ -223,6 +269,7 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
   return prisma.attendanceRecord.update({
     where: { id },
     data: {
+      ...(shiftChanged ? { shift_id: shift!.id } : {}),
       check_in_at:  checkInAt,
       check_out_at: checkOutAt,
       is_late,

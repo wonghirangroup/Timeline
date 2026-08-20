@@ -1,7 +1,7 @@
 // admin/src/pages/attendance/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
@@ -10,7 +10,11 @@ import { api } from '../../lib/axios'
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface ApiBranch  { id: string; name: string }
-interface ApiShift   { id: string; name: string; start_time: string; end_time: string; late_threshold_1: string | null; late_threshold_2: string | null }
+interface ApiShift   {
+  id: string; name: string; branch_id: string; start_time: string; end_time: string
+  late_threshold_1: string | null; late_threshold_2: string | null; absent_threshold: string | null
+  late_fine_1: string | null; late_fine_2: string | null
+}
 
 interface ApiRecord {
   id: string
@@ -91,6 +95,43 @@ function toMins(hhmm: string): number {
   return h * 60 + m
 }
 
+// "YYYY-MM-DD" → "DD/MM/YYYY" (ปีคริสต์ศักราช ตรงกับที่ใช้แสดงในโมดัลแก้ไข)
+function thDateShort(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// ─── Edit modal: สถานะ override (แยกจาก Status ด้านบนที่มี PENDING เพราะตอนแก้ไข
+// ต้องมี record อยู่แล้วเสมอ ไม่มีสถานะ "ยังไม่เช็ค") ───────────────────────
+type EditStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT'
+const EDIT_STATUS_CFG: Record<EditStatus, string> = {
+  ON_TIME: 'มาปกติ', LATE_1: 'มาสาย (ระดับ 1)', LATE_2: 'มาสาย (ระดับ 2)', ABSENT: 'ขาดงาน',
+}
+
+// mirror ของ computeLateStatus ฝั่ง backend (attendance.service.ts) — ใช้พรีวิว
+// สถานะ/ค่าปรับให้เห็นทันทีตอนแก้เวลา/กะในหน้านี้เท่านั้น ไม่ใช่ค่าที่ยึดเป็นจริง
+// เสมอไป — ตอนบันทึกจริงถ้า admin ไม่ได้แก้สถานะ/ค่าปรับเองมือ จะไม่ส่งค่านี้ไป
+// ปล่อยให้ backend คำนวณอัตโนมัติ (authoritative) แทน กันกรณี edge case ที่ mirror
+// นี้ไม่ครบ (เช่น legacy late_threshold แบบเก่าที่ backend ยังรองรับ fallback อยู่)
+function previewStatus(shift: ApiShift, checkInHHMM: string): EditStatus {
+  if (!checkInHHMM) return 'ON_TIME'
+  const ciMins = toMins(checkInHHMM)
+  const startMins = toMins(shift.start_time)
+  if (ciMins <= startMins) return 'ON_TIME'
+  const absentM = shift.absent_threshold  ? toMins(shift.absent_threshold)  : null
+  const late2M  = shift.late_threshold_2  ? toMins(shift.late_threshold_2)  : null
+  const late1M  = shift.late_threshold_1  ? toMins(shift.late_threshold_1)  : null
+  if (absentM != null && ciMins >= absentM) return 'ABSENT'
+  if (late2M  != null && ciMins >= late2M)  return 'LATE_2'
+  if (late1M  != null && ciMins >= late1M)  return 'LATE_1'
+  return 'ON_TIME' // สายแต่ยังไม่ถึงเกณฑ์ไหน (grace period)
+}
+function previewFine(shift: ApiShift, status: EditStatus): number {
+  if (status === 'LATE_1') return shift.late_fine_1 ? Number(shift.late_fine_1) : 0
+  if (status === 'LATE_2') return shift.late_fine_2 ? Number(shift.late_fine_2) : 0
+  return 0 // ON_TIME/ABSENT ไม่คิดจาก fine field นี้ (ABSENT ใช้ absent_fine ยกไปหักวันถัดไปคนละกลไก)
+}
+
 function deriveStatus(record: ApiRecord | null, dateStr: string): Status {
   if (!record) {
     return dateStr < todayStr() ? 'ABSENT' : 'PENDING'
@@ -137,12 +178,26 @@ export default function AttendancePage() {
   const [editTarget, setEditTarget]     = useState<Row | null>(null)
   const [manualTarget, setManualTarget] = useState<ApiEmployee | null>(null)
   const [resetTarget, setResetTarget]   = useState<Row | null>(null)
-  const [editForm, setEditForm]         = useState({ check_in_at: '', check_out_at: '', note: '' })
+  const [editForm, setEditForm] = useState({
+    branch_id: '', shift_id: '', check_in_at: '', check_out_at: '',
+    status: 'ON_TIME' as EditStatus, fine: '0', note: '',
+  })
+  // สถานะ/ค่าปรับที่ admin แก้เองด้วยมือ (ต่างจาก auto-calc ล่าสุด) — ถ้า true จะส่ง
+  // ค่านี้ไป backend เป็น override ตอนบันทึก ถ้า false ปล่อยให้ backend คำนวณเอง
+  const [editStatusTouched, setEditStatusTouched] = useState(false)
+  const [editFineTouched,   setEditFineTouched]   = useState(false)
   const [manualForm, setManualForm]     = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
 
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['admin', 'branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  // ทุกกะทุกสาขา (ไม่กรองตาม branchFilter ของหน้า) — ใช้ในโมดัลแก้ไข/ลงเวลา
+  // เพื่อให้เลือกสาขา/กะที่ไม่ตรงกับ filter ปัจจุบันของหน้าได้ด้วย
+  const { data: allShifts = [] } = useQuery<ApiShift[]>({
+    queryKey: ['admin', 'shifts', 'all'],
+    queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
   })
 
   const { data: employees = [], isLoading: empLoading } = useQuery<ApiEmployee[]>({
@@ -179,7 +234,12 @@ export default function AttendancePage() {
       showToast('success', 'แก้ไขเวลาสำเร็จ')
       setEditTarget(null)
     },
-    onError: () => showToast('error', 'แก้ไขไม่สำเร็จ'),
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'ALREADY_CHECKED_IN') showToast('error', 'พนักงานนี้มีบันทึกในกะที่เลือกของวันนี้อยู่แล้ว')
+      else if (code === 'SHIFT_NOT_FOUND') showToast('error', 'ไม่พบกะที่เลือก')
+      else showToast('error', 'แก้ไขไม่สำเร็จ')
+    },
   })
 
   const manualMutation = useMutation({
@@ -260,12 +320,50 @@ export default function AttendancePage() {
   }), [rows, employees])
 
   function openEdit(row: Row) {
+    if (!row.record) return
     setEditForm({
-      check_in_at:  timeToStr(row.record?.check_in_at ?? null),
-      check_out_at: timeToStr(row.record?.check_out_at ?? null),
-      note: row.record?.note ?? '',
+      branch_id:    row.record.shift.branch_id,
+      shift_id:     row.record.shift_id,
+      check_in_at:  timeToStr(row.record.check_in_at),
+      check_out_at: timeToStr(row.record.check_out_at),
+      status:       row.status === 'PENDING' ? 'ON_TIME' : row.status,
+      fine:         String(Number(row.record.fine) || 0),
+      note:         row.record.note ?? '',
     })
+    setEditStatusTouched(false)
+    setEditFineTouched(false)
     setEditTarget(row)
+  }
+
+  // เปลี่ยนเวลาเข้า/กะ = auto-calculation สถานะ+ค่าปรับใหม่ (พรีวิวฝั่ง browser
+  // ตาม previewStatus/previewFine) — reset touched flag เพราะถือว่าเป็นค่า auto
+  // ล่าสุดแล้ว ไม่ใช่ที่ admin ตั้งเองอีกต่อไป
+  function recalcEditForm(nextShiftId: string, nextCheckIn: string) {
+    const shift = allShifts.find(s => s.id === nextShiftId)
+    if (!shift || !nextCheckIn) return
+    const status = previewStatus(shift, nextCheckIn)
+    const fine   = previewFine(shift, status)
+    setEditForm(f => ({ ...f, status, fine: String(fine) }))
+    setEditStatusTouched(false)
+    setEditFineTouched(false)
+  }
+
+  function handleEditBranchChange(branchId: string) {
+    // เปลี่ยนสาขา = กะเดิมอาจไม่อยู่ในสาขาใหม่แล้ว เลือกกะแรกของสาขานั้นให้อัตโนมัติ
+    const shiftsInBranch = allShifts.filter(s => s.branch_id === branchId)
+    const nextShiftId = shiftsInBranch.some(s => s.id === editForm.shift_id) ? editForm.shift_id : (shiftsInBranch[0]?.id ?? '')
+    setEditForm(f => ({ ...f, branch_id: branchId, shift_id: nextShiftId }))
+    recalcEditForm(nextShiftId, editForm.check_in_at)
+  }
+
+  function handleEditShiftChange(shiftId: string) {
+    setEditForm(f => ({ ...f, shift_id: shiftId }))
+    recalcEditForm(shiftId, editForm.check_in_at)
+  }
+
+  function handleEditCheckInChange(checkIn: string) {
+    setEditForm(f => ({ ...f, check_in_at: checkIn }))
+    recalcEditForm(editForm.shift_id, checkIn)
   }
 
   function handleEdit() {
@@ -273,8 +371,14 @@ export default function AttendancePage() {
     editMutation.mutate({
       id: editTarget.record.id,
       body: {
+        shift_id:     editForm.shift_id !== editTarget.record.shift_id ? editForm.shift_id : undefined,
         check_in_at:  editForm.check_in_at  || undefined,
         check_out_at: editForm.check_out_at || undefined,
+        // ส่ง status/fine เป็น override เฉพาะตอนที่ admin แก้เองด้วยมือเท่านั้น —
+        // ถ้าไม่แตะเลยปล่อยให้ backend คำนวณอัตโนมัติ (authoritative กว่า preview
+        // ฝั่ง browser เพราะรองรับ edge case ครบกว่า)
+        status: editStatusTouched ? editForm.status : undefined,
+        fine:   editFineTouched   ? Number(editForm.fine) : undefined,
         note: editForm.note || undefined,
       },
     })
@@ -567,38 +671,105 @@ export default function AttendancePage() {
       )}
 
       {/* Edit Modal */}
-      {editTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
-          onClick={() => setEditTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
-            onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>แก้ไขเวลา</h3>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {editTarget.employee.first_name} {editTarget.employee.last_name} · {editTarget.record?.shift.name}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาเข้างาน</label>
-                <input type="time" value={editForm.check_in_at} onChange={e => setEditForm(f => ({ ...f, check_in_at: e.target.value }))} style={inp} />
+      {editTarget && editTarget.record && (() => {
+        const shiftsInBranch = allShifts.filter(s => s.branch_id === editForm.branch_id)
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
+            onClick={() => setEditTarget(null)}>
+            <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 460, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+                <h3 style={{ margin: 0, fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Pencil size={16} /> แก้ไขข้อมูล: {editTarget.employee.first_name} {editTarget.employee.last_name}
+                  <span style={{ fontSize: '0.78rem', fontWeight: 400, color: 'var(--text-muted)' }}>({thDateShort(date)})</span>
+                </h3>
+                <button onClick={() => setEditTarget(null)} aria-label="ปิด" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}><X size={18} /></button>
               </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาออกงาน</label>
-                <input type="time" value={editForm.check_out_at} onChange={e => setEditForm(f => ({ ...f, check_out_at: e.target.value }))} style={inp} />
+
+              {/* Auto Calculation info banner */}
+              <div style={{ display: 'flex', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 18 }}>
+                <Info size={16} color="#2563eb" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e40af' }}>Auto Calculation</div>
+                  <div style={{ fontSize: '0.76rem', color: '#1e40af', marginTop: 2, lineHeight: 1.5 }}>
+                    เปลี่ยนเวลาเข้า/กะ/สาขา = คำนวณสถานะใหม่อัตโนมัติ (อิงตามเวลาสาขา) — แก้สถานะ/ค่าปรับเองด้วยมือได้ทีหลังถ้าต้องการ
+                  </div>
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>หมายเหตุ</label>
-                <input value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} placeholder="ไม่บังคับ" style={inp} />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>กะการทำงาน</label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {shiftsInBranch.length === 0 && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ไม่มีกะในสาขานี้</span>}
+                      {shiftsInBranch.map(s => (
+                        <button key={s.id} type="button" onClick={() => handleEditShiftChange(s.id)}
+                          style={{
+                            flex: '1 1 auto', padding: '9px 10px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+                            border: editForm.shift_id === s.id ? '2px solid #f97316' : '1px solid #e5e7eb',
+                            background: editForm.shift_id === s.id ? '#f97316' : '#fff',
+                            color: editForm.shift_id === s.id ? '#fff' : '#374151',
+                          }}>
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>สาขา</label>
+                    <select value={editForm.branch_id} onChange={e => handleEditBranchChange(e.target.value)} style={inp}>
+                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาเข้างาน</label>
+                    <input type="time" value={editForm.check_in_at} onChange={e => handleEditCheckInChange(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาออกงาน</label>
+                    <input type="time" value={editForm.check_out_at} onChange={e => setEditForm(f => ({ ...f, check_out_at: e.target.value }))} style={inp} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> สถานะ</label>
+                    <select value={editForm.status} onChange={e => { setEditForm(f => ({ ...f, status: e.target.value as EditStatus })); setEditStatusTouched(true) }} style={inp}>
+                      {(Object.keys(EDIT_STATUS_CFG) as EditStatus[]).map(s => <option key={s} value={s}>{EDIT_STATUS_CFG[s]}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>ค่าปรับ (บาท)</label>
+                    <div style={{ position: 'relative' }}>
+                      <Wallet size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                      <input type="number" min={0} value={editForm.fine}
+                        onChange={e => { setEditForm(f => ({ ...f, fine: e.target.value })); setEditFineTouched(true) }}
+                        style={{ ...inp, paddingLeft: 32 }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>หมายเหตุ</label>
+                  <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} placeholder="ไม่บังคับ" rows={2}
+                    style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setEditTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-              </button>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={() => setEditTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
+                <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Pencil size={14} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Manual Check-in Modal */}
       {manualTarget && (

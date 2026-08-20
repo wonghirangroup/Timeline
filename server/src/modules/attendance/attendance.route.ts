@@ -79,22 +79,31 @@ export async function attendanceRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: ['Admin'],
-      summary: 'แก้ไขเวลาเช็คอิน/เช็คเอาต์',
+      summary: 'แก้ไขเวลาเช็คอิน/เช็คเอาต์ — เปลี่ยนกะ/สถานะ/ค่าปรับได้ด้วย (auto-calc เมื่อเปลี่ยนเวลา/กะ, override ด้วยมือได้)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: {
         type: 'object',
         properties: {
+          shift_id:     { type: 'string' },
           check_in_at:  { type: 'string', description: 'HH:mm' },
           check_out_at: { type: 'string', description: 'HH:mm' },
+          status:       { type: 'string', enum: ['ON_TIME', 'LATE_1', 'LATE_2', 'ABSENT'], description: 'override ผลคำนวณอัตโนมัติด้วยมือ' },
+          fine:         { type: 'number', description: 'override ค่าปรับด้วยมือ (บาท)' },
           note:         { type: 'string' },
         },
       },
     },
   }, async (req: any, reply) => {
-    const record = await updateAttendanceTime(req.tenantId, req.params.id, req.body)
-    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
-    return ok(record, 'แก้ไขเวลาสำเร็จ')
+    try {
+      const record = await updateAttendanceTime(req.tenantId, req.params.id, req.body)
+      if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบันทึก'))
+      return ok(record, 'แก้ไขเวลาสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'SHIFT_NOT_FOUND') return reply.code(404).send(fail('SHIFT_NOT_FOUND', 'ไม่พบกะที่เลือก'))
+      if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'พนักงานนี้มีบันทึกในกะนั้นของวันนี้อยู่แล้ว'))
+      throw e
+    }
   })
 
   // ── Admin: Reset (ลบ) บันทึกเช็คชื่อ ────────────────────────────────
