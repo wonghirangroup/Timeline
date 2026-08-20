@@ -98,11 +98,47 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
   // (sessionStorage มักหายไปตอนเปิด LIFF รอบใหม่จากลิงก์ข้อความ ไม่ใช่จากในแอปเดิม)
   const targetPath = `/leave?tab=booking&lid=${lineConfig.line_liff_id}`
   const url = `https://liff.line.me/${lineConfig.line_liff_id}?liff.state=${encodeURIComponent(targetPath)}`
+  const monthLabel = fmtMonthTH(month)
 
-  const message = `📅 เปิดจองวันหยุดประจำเดือน ${fmtMonthTH(month)} แล้ว\nสาขา: ${branch?.name ?? ''}\n\nกดลิงก์เพื่อจองวันหยุดได้เลย\n${url}`
+  // Flex Message — การ์ดพร้อมปุ่มกดตรงไปหน้าจอง แทนข้อความล้วน+ลิงก์แปะท้าย
+  const flexMessage = {
+    type: 'flex',
+    altText: `เปิดจองวันหยุดประจำเดือน ${monthLabel} แล้ว — กดจองได้เลย`,
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '20px',
+        contents: [
+          { type: 'text', text: '📅 เปิดจองวันหยุดแล้ว', weight: 'bold', size: 'lg', color: '#EA580C', wrap: true },
+          {
+            type: 'box', layout: 'vertical', spacing: 'sm', margin: 'md',
+            contents: [
+              { type: 'box', layout: 'baseline', contents: [
+                { type: 'text', text: 'เดือน', size: 'sm', color: '#9CA3AF', flex: 2 },
+                { type: 'text', text: monthLabel, size: 'sm', color: '#1A2B3C', weight: 'bold', flex: 5, wrap: true },
+              ] },
+              { type: 'box', layout: 'baseline', contents: [
+                { type: 'text', text: 'สาขา', size: 'sm', color: '#9CA3AF', flex: 2 },
+                { type: 'text', text: branch?.name ?? '', size: 'sm', color: '#1A2B3C', weight: 'bold', flex: 5, wrap: true },
+              ] },
+            ],
+          },
+        ],
+      },
+      footer: {
+        type: 'box', layout: 'vertical', paddingAll: '12px',
+        contents: [
+          {
+            type: 'button', style: 'primary', color: '#F97316', height: 'sm',
+            action: { type: 'uri', label: 'จองวันหยุดเลย', uri: url },
+          },
+        ],
+      },
+    },
+  }
 
   try {
-    const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, message)
+    const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, flexMessage)
     console.log(`[notifyPeriodOpened] sent ok:`, JSON.stringify(result))
     return result
   } catch (err: any) {

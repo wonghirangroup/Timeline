@@ -1,8 +1,11 @@
 // server/src/modules/announcement/announcement.service.ts
 import { prisma } from '../../common/utils/prisma'
 
-export async function lineMulticast(accessToken: string, toIds: string[], text: string) {
+// messages รับได้ทั้งข้อความล้วน (string — เดิม) หรือ LINE message object เต็มๆ
+// (เช่น Flex Message) — ทำให้ผู้เรียกเลือกได้ว่าจะส่งแบบไหน โดยไม่ต้องมีฟังก์ชันแยก
+export async function lineMulticast(accessToken: string, toIds: string[], message: string | object) {
   if (toIds.length === 0) return { sent: 0 }
+  const messages = typeof message === 'string' ? [{ type: 'text', text: message }] : [message]
   // LINE multicast รองรับสูงสุด 500 คนต่อ request
   const chunks: string[][] = []
   for (let i = 0; i < toIds.length; i += 500) chunks.push(toIds.slice(i, i + 500))
@@ -14,10 +17,7 @@ export async function lineMulticast(accessToken: string, toIds: string[], text: 
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        to: chunk,
-        messages: [{ type: 'text', text }],
-      }),
+      body: JSON.stringify({ to: chunk, messages }),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
