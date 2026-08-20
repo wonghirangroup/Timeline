@@ -200,9 +200,9 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             const dayNames = ['อา','จ','อ','พ','พฤ','ศ','ส']
             return (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 16px', borderBottom: idx < recent.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-                <div style={{ width: 54, flexShrink: 0 }}>
+                <div style={{ width: 130, flexShrink: 0 }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>{dayNames[d.getDay()]}</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{dateStr.slice(8)} {MONTH_TH[d.getMonth()].slice(0,3)}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{thDate(dateStr)}</div>
                 </div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: bg, color, flexShrink: 0 }}>{label}</span>
                 <div style={{ flex: 1, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -347,7 +347,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                 borderBottom: dayNum < daysInMonth(year, month) ? '1px solid #f8fafc' : 'none',
                 background: bg,
               }}>
-                <div style={{ padding: '9px 12px', fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center' }}>{dateKey.slice(8)} {MONTH_TH[month-1].slice(0,3)}</div>
+                <div style={{ padding: '9px 12px', fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center' }}>{dateKey.slice(8)}</div>
                 <div style={{ padding: '9px 12px', fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center' }}>{dayNames[dow]}</div>
                 <div style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '0.82rem', color: '#059669', display: 'flex', alignItems: 'center', fontWeight: 600 }}>
                   {fmtTime(r?.check_in_at) ?? '—'}
