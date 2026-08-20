@@ -5,12 +5,14 @@ import { reverseGeocode } from '../../common/utils/geocode'
 export async function listOffsiteCheckins(tenantId: string, filters: {
   employeeId?: string
   branchId?: string
+  activeOnly?: boolean // true = เฉพาะรายการที่ยังไม่เช็คเอาต์ (กำลังนอกสถานที่ตอนนี้)
 }) {
   return prisma.offsiteCheckin.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...(filters.employeeId ? { employee_id: filters.employeeId } : {}),
       ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.activeOnly ? { check_out_at: null } : {}),
     },
     include: {
       employee: {

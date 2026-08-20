@@ -13,19 +13,21 @@ export async function offsiteRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('gps_checkin')],
     schema: {
       tags: ['Admin'],
-      summary: 'ดูรายการเช็คอินนอกสถานที่ (กรอง branchId / employeeId ได้)',
+      summary: 'ดูรายการเช็คอินนอกสถานที่ (กรอง branchId / employeeId / status=active ได้)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
         properties: {
           branchId:   { type: 'string' },
           employeeId: { type: 'string' },
+          status:     { type: 'string', enum: ['active'], description: 'active = เฉพาะที่ยังไม่เช็คเอาต์ (กำลังนอกสถานที่ตอนนี้)' },
         },
       },
     },
   }, async (req: any) => {
     const list = await listOffsiteCheckins(req.tenantId, {
       branchId: req.query.branchId, employeeId: req.query.employeeId,
+      activeOnly: req.query.status === 'active',
     })
     return ok(list)
   })

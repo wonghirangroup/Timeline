@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
+import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 
 interface ApiBranch {
@@ -100,6 +101,7 @@ export default function EmployeePage() {
     queryKey: ['branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
+  const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
   const [branchFilter, setBranchFilter] = useState('')
@@ -466,12 +468,20 @@ export default function EmployeePage() {
                       : <span style={{ background: '#f3f4f6', color: '#9ca3af', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem' }}>— ยังไม่ผูก</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
-                    <button
-                      onClick={() => setStatusModalTarget(e)}
-                      title="คลิกเพื่อเปลี่ยนสถานะ"
-                      style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      ● {STATUS_CFG[e.status].label}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                      <button
+                        onClick={() => setStatusModalTarget(e)}
+                        title="คลิกเพื่อเปลี่ยนสถานะ"
+                        style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        ● {STATUS_CFG[e.status].label}
+                      </button>
+                      {activeOffsiteByEmployee.has(e.id) && (
+                        <span title={activeOffsiteByEmployee.get(e.id)!.check_in_address ?? undefined}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          <MapPin size={10} /> นอกสถานที่
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 5 }}>
@@ -527,15 +537,22 @@ export default function EmployeePage() {
                   </button>
                   <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${e.department}` : ''}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button
-                    onClick={() => setStatusModalTarget(e)}
-                    style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer' }}>
-                    ● {STATUS_CFG[e.status].label}
-                  </button>
-                  {e.line_user_id
-                    ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line ✓</span>
-                    : <span style={{ background: '#f3f4f6', color: '#9ca3af', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      onClick={() => setStatusModalTarget(e)}
+                      style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer' }}>
+                      ● {STATUS_CFG[e.status].label}
+                    </button>
+                    {e.line_user_id
+                      ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line ✓</span>
+                      : <span style={{ background: '#f3f4f6', color: '#9ca3af', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
+                  </div>
+                  {activeOffsiteByEmployee.has(e.id) && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
+                      <MapPin size={10} /> นอกสถานที่
+                    </span>
+                  )}
                 </div>
               </div>
               {e.phone && <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}

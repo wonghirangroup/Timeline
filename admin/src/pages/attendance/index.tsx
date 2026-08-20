@@ -5,6 +5,7 @@ import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTr
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
+import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -151,6 +152,7 @@ export default function AttendancePage() {
       api.get('/api/v1/admin/employees', { params: { ...(branchFilter ? { branchId: branchFilter } : {}), includeInactive: true } })
          .then(r => r.data.data),
   })
+  const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const { data: records = [], isLoading: recLoading, refetch } = useQuery<ApiRecord[]>({
     queryKey: ['admin', 'attendance', date, branchFilter],
@@ -392,6 +394,11 @@ export default function AttendancePage() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
                         <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{s.label}</span>
+                        {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.68rem', fontWeight: 600 }}>
+                            <MapPin size={9} /> นอกสถานที่
+                          </span>
+                        )}
                         {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
                           <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#dc2626' }}>💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿</span>
                         )}
@@ -497,6 +504,11 @@ export default function AttendancePage() {
                         <td style={{ padding: '11px 14px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
                             <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</span>
+                            {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
+                                <MapPin size={9} /> นอกสถานที่
+                              </span>
+                            )}
                             {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
                               <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#dc2626' }}>
                                 💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿

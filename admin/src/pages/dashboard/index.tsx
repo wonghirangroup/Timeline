@@ -2,9 +2,10 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export default function DashboardPage() {
     queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { status: 'PENDING' } }).then(r => r.data.data),
   })
 
+  const { activeOffsite } = useActiveOffsite()
+
   // ── Merge employees + records into rows ───────────────────────────────────
   const allRows = useMemo(() => {
     const byEmpId: Record<string, ApiRecord[]> = {}
@@ -183,6 +186,32 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '12px', color: 'var(--warning)', fontWeight: 600, marginTop: 2 }}>{pendingLeaveCount} รายการ</div>
                 </div>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── กำลังนอกสถานที่ตอนนี้ ───────────────────────────────────── */}
+        {activeOffsite.length > 0 && (
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <MapPin size={12} style={{ color: '#2563eb' }}/> กำลังนอกสถานที่ตอนนี้ ({activeOffsite.length})
+            </div>
+            <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
+              {activeOffsite.map((r, i) => (
+                <button key={r.id} onClick={() => navigate('/offsite')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+                    borderBottom: i < activeOffsite.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none', background: 'var(--bg-card)' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}>
+                    <MapPin size={16}/>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>{r.employee.first_name} {r.employee.last_name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      ตั้งแต่ {fmtTime(r.check_in_at)} · {r.check_in_address ?? r.employee.branch.name}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}

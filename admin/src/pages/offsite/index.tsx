@@ -31,8 +31,9 @@ function thDateTime(iso: string) {
   const d = new Date(iso)
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543} · ${d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`
 }
-function mapsUrl(lat: string, lng: string) {
-  return `https://www.google.com/maps?q=${lat},${lng}`
+// ลิงก์นำทาง (directions) แทนที่จะแค่โชว์หมุด — กดแล้ว Google Maps นำทางจากตำแหน่งปัจจุบันของแอดมินไปจุดนี้ทันที
+function directionsUrl(lat: string, lng: string) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
 }
 function duration(startIso: string, endIso: string | null): string {
   if (!endIso) return '—'
@@ -111,7 +112,7 @@ export default function OffsitePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: '#9ca3af', minWidth: 46 }}>เข้า</span>
                     <span>{thDateTime(r.check_in_at)}</span>
-                    <a href={mapsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
                       <MapPin size={12} /><ExternalLink size={10} />
                     </a>
                   </div>
@@ -122,7 +123,7 @@ export default function OffsitePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ color: '#9ca3af', minWidth: 46 }}>ออก</span>
                       <span>{thDateTime(r.check_out_at)}</span>
-                      <a href={mapsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <a href={directionsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
                         <MapPin size={12} /><ExternalLink size={10} />
                       </a>
                     </div>
@@ -163,7 +164,7 @@ export default function OffsitePage() {
                     <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', maxWidth: 220 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                         {thDateTime(r.check_in_at)}
-                        <a href={mapsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                        <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
                       </div>
                       {r.check_in_address && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{r.check_in_address}</div>}
                     </td>
@@ -172,7 +173,7 @@ export default function OffsitePage() {
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                             {thDateTime(r.check_out_at)}
-                            <a href={mapsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                            <a href={directionsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
                           </div>
                           {r.check_out_address && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{r.check_out_address}</div>}
                         </>
