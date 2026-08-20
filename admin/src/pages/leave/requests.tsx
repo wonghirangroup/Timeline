@@ -62,7 +62,7 @@ function cleanReason(reason?: string | null) {
 
 const inp: React.CSSProperties = {
   width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
-  fontSize: '0.875rem', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none',
+  fontSize: '0.875rem', boxSizing: 'border-box', fontFamily: 'inherit',
 }
 
 const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
@@ -88,7 +88,7 @@ function MonthYearPicker({ value, onChange, requests }: {
         padding: '7px 14px', borderRadius: 10,
         border: `2px solid ${value ? '#f97316' : '#e5e7eb'}`,
         background: value ? '#fff7ed' : '#fff',
-        color: value ? '#ea580c' : '#6b7280',
+        color: value ? '#ea580c' : 'var(--text-muted)',
         fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
       }}>
         📅 {label}
@@ -306,7 +306,7 @@ export default function LeaveRequestsTab() {
       {/* Header / Action */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
         <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
-          style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? '#6b7280' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
+          style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
           {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}
         </button>
       </div>
@@ -332,7 +332,7 @@ export default function LeaveRequestsTab() {
           <MonthYearPicker value={monthFilter} onChange={setMonth} requests={requests} />
           {monthFilter && (
             <button onClick={() => setMonth('')}
-              style={{ fontSize: '0.75rem', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
               ดูทั้งหมด
             </button>
           )}
@@ -366,7 +366,7 @@ export default function LeaveRequestsTab() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {LEAVE_TYPES.map(t => (
                   <button key={t} onClick={() => setAddForm(f => ({ ...f, leave_type: t }))}
-                    style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${addForm.leave_type === t ? TYPE_CFG[t].color : '#e5e7eb'}`, background: addForm.leave_type === t ? TYPE_CFG[t].bg : '#fff', color: addForm.leave_type === t ? TYPE_CFG[t].color : '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${addForm.leave_type === t ? TYPE_CFG[t].color : '#e5e7eb'}`, background: addForm.leave_type === t ? TYPE_CFG[t].bg : '#fff', color: addForm.leave_type === t ? TYPE_CFG[t].color : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                     {TYPE_CFG[t].label}
                   </button>
                 ))}
@@ -431,13 +431,13 @@ export default function LeaveRequestsTab() {
             </select>
           </div>
 
-          {loading && <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 0' }}>กำลังโหลด...</p>}
+          {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>กำลังโหลด...</p>}
 
           {!loading && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
               {isMobile ? (
                 <div>
-                  {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบรายการ</p>}
+                  {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</p>}
                   {filtered.map(r => {
                     const tc = getTypeCfg(r.leave_type, r.reason)
                     const sc = STATUS_CFG[r.status]
@@ -446,7 +446,7 @@ export default function LeaveRequestsTab() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div>
                             <div style={{ fontWeight: 700 }}>{r.employee.first_name} {r.employee.last_name}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{r.employee.employee_code} · {r.employee.branch.name}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch.name}</div>
                           </div>
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
                         </div>
@@ -455,14 +455,14 @@ export default function LeaveRequestsTab() {
                           <span style={{ fontSize: '0.78rem', color: '#374151' }}>{fmtDate(r.start_date)} – {fmtDate(r.end_date)}</span>
                           <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>{r.days} วัน</span>
                         </div>
-                        {r.reason && <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0 0 10px' }}>{cleanReason(r.reason)}</p>}
+                        {r.reason && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 10px' }}>{cleanReason(r.reason)}</p>}
                         <div style={{ display: 'flex', gap: 8 }}>
                           {r.status === 'PENDING' && <>
                             <button onClick={() => setApproveTarget(r)} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Check size={13}/> อนุมัติ</button>
                             <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><X size={13}/> ปฏิเสธ</button>
                           </>}
                           <button onClick={() => openEdit(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', cursor: 'pointer' }}><Pencil size={13}/></button>
-                          <button onClick={() => setDeleteTarget(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={13}/></button>
+                          <button onClick={() => setDeleteTarget(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={13}/></button>
                         </div>
                         {r.status === 'REJECTED' && r.reject_note && (
                           <p style={{ fontSize: '0.75rem', color: '#dc2626', margin: '6px 0 0', background: '#fef2f2', padding: '6px 10px', borderRadius: 6 }}>หมายเหตุ: {r.reject_note}</p>
@@ -482,7 +482,7 @@ export default function LeaveRequestsTab() {
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบรายการ</td></tr>
+                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</td></tr>
                     )}
                     {filtered.map((r, i) => {
                       const tc = getTypeCfg(r.leave_type, r.reason)
@@ -491,9 +491,9 @@ export default function LeaveRequestsTab() {
                         <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                           <td style={{ padding: '11px 14px' }}>
                             <div style={{ fontWeight: 600 }}>{r.employee.first_name} {r.employee.last_name}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{r.employee.employee_code}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code}</div>
                           </td>
-                          <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
+                          <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                           <td style={{ padding: '11px 14px' }}>
                             <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600 }}>{tc.displayLabel}</span>
                           </td>
@@ -501,7 +501,7 @@ export default function LeaveRequestsTab() {
                             {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
                           </td>
                           <td style={{ padding: '11px 14px', fontWeight: 700, color: '#6366f1', textAlign: 'center' }}>{r.days}</td>
-                          <td style={{ padding: '11px 14px', fontSize: '0.78rem', color: '#6b7280', maxWidth: 160 }}>
+                          <td style={{ padding: '11px 14px', fontSize: '0.78rem', color: 'var(--text-muted)', maxWidth: 160 }}>
                             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanReason(r.reason)}</div>
                           </td>
                           <td style={{ padding: '11px 14px' }}>
@@ -516,12 +516,12 @@ export default function LeaveRequestsTab() {
                                 <button onClick={() => setApproveTarget(r)}
                                   style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}><Check size={13}/></button>
                                 <button onClick={() => { setRejectTarget(r); setRejectNote('') }}
-                                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}><X size={13}/></button>
+                                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }} aria-label="ลบ"><X size={13}/></button>
                               </>}
                               <button onClick={() => openEdit(r)}
                                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer' }}><Pencil size={13}/></button>
                               <button onClick={() => setDeleteTarget(r)}
-                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={13}/></button>
+                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={13}/></button>
                             </div>
                           </td>
                         </tr>
@@ -542,7 +542,7 @@ export default function LeaveRequestsTab() {
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: 24, width: isMobile ? '100%' : 480, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>แก้ไขคำขอวันลา</h3>
-            <p style={{ margin: '0 0 18px', fontSize: '0.82rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 18px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {editTarget.employee.first_name} {editTarget.employee.last_name} · {editTarget.employee.employee_code}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -551,7 +551,7 @@ export default function LeaveRequestsTab() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {LEAVE_TYPES.map(t => (
                     <button key={t} onClick={() => setEditForm(f => ({ ...f, leave_type: t }))}
-                      style={{ padding: '5px 12px', borderRadius: 20, border: `2px solid ${editForm.leave_type === t ? TYPE_CFG[t].color : '#e5e7eb'}`, background: editForm.leave_type === t ? TYPE_CFG[t].bg : '#fff', color: editForm.leave_type === t ? TYPE_CFG[t].color : '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                      style={{ padding: '5px 12px', borderRadius: 20, border: `2px solid ${editForm.leave_type === t ? TYPE_CFG[t].color : '#e5e7eb'}`, background: editForm.leave_type === t ? TYPE_CFG[t].bg : '#fff', color: editForm.leave_type === t ? TYPE_CFG[t].color : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                       {TYPE_CFG[t].label}
                     </button>
                   ))}
@@ -626,7 +626,7 @@ export default function LeaveRequestsTab() {
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: 24, width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>ปฏิเสธวันลา</h3>
-            <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {rejectTarget.employee.first_name} {rejectTarget.employee.last_name} — {TYPE_CFG[rejectTarget.leave_type].label} {rejectTarget.days} วัน
             </p>
             <div>

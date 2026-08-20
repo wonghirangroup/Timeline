@@ -122,7 +122,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</div>
-            <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>admin@timeline.app</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>admin@timeline.app</div>
             <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: roleColor.bg, color: roleColor.color, marginTop: 4, display: 'inline-block' }}>{roleLabel}</span>
           </div>
         </div>
@@ -142,9 +142,9 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>แก้ไขชื่อที่แสดง</div>
-              <div style={{ fontSize: '11px', color: '#9ca3af' }}>Display Name</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display Name</div>
             </div>
-            <ChevronRight size={14} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+            <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
           </button>
 
           <button
@@ -158,9 +158,9 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>เปลี่ยนรหัสผ่าน</div>
-              <div style={{ fontSize: '11px', color: '#9ca3af' }}>Reset Password</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Reset Password</div>
             </div>
-            <ChevronRight size={14} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+            <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
           </button>
 
           <div style={{ height: 1, background: '#f1f5f9', margin: '8px 0' }} />
@@ -182,7 +182,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           {/* Back */}
           <button
             onClick={() => setView('profile')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '12px', marginBottom: 16, padding: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', marginBottom: 16, padding: 0 }}
           >
             <ChevronLeft size={14} />
             กลับ
@@ -203,7 +203,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
                   style={inputStyle}
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, current: !s.current }))}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}>
                   {showPw.current ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -221,7 +221,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
                   style={{ ...inputStyle, borderColor: pwForm.next && pwForm.next.length < 6 ? '#fca5a5' : '#e5e7eb' }}
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, next: !s.next }))}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}>
                   {showPw.next ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -242,7 +242,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
                   style={{ ...inputStyle, borderColor: pwForm.confirm && pwForm.confirm !== pwForm.next ? '#fca5a5' : '#e5e7eb' }}
                 />
                 <button onClick={() => setShowPw(s => ({ ...s, confirm: !s.confirm }))}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}>
                   {showPw.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -266,7 +266,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           {/* Back */}
           <button
             onClick={() => setView('profile')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '12px', marginBottom: 16, padding: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', marginBottom: 16, padding: 0 }}
           >
             <ChevronLeft size={14} />
             กลับ
@@ -286,8 +286,8 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
               autoFocus
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-              <span style={{ fontSize: '11px', color: '#9ca3af' }}>ชื่อนี้จะแสดงบน Topbar และรายงาน</span>
-              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#f97316' : '#9ca3af' }}>{nameInput.length}/40</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ชื่อนี้จะแสดงบน Topbar และรายงาน</span>
+              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#f97316' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
             </div>
           </div>
 
@@ -298,7 +298,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={handleSaveName}
               disabled={!nameInput.trim()}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#f97316' : '#f3f4f6', color: nameInput.trim() ? '#fff' : '#9ca3af', fontSize: '13px', fontWeight: 600, cursor: nameInput.trim() ? 'pointer' : 'not-allowed' }}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#f97316' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: nameInput.trim() ? 'pointer' : 'not-allowed' }}
             >
               บันทึก
             </button>
@@ -344,7 +344,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
           {!isMobile && (
             <>
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>{formatDateTime(now)}</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatDateTime(now)}</span>
               <div style={{ width: '1px', height: 16, background: '#e5e7eb' }} />
             </>
           )}
@@ -368,7 +368,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
               {!isMobile && (
                 <>
                   <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 500 }}>{name || 'Admin'}</span>
-                  <ChevronDown size={12} color="#9ca3af" />
+                  <ChevronDown size={12} color="var(--text-muted)" />
                 </>
               )}
             </button>

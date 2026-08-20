@@ -1,6 +1,7 @@
 // admin/src/pages/login/index.tsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 import axios from 'axios'
@@ -54,6 +55,8 @@ export default function LoginPage() {
     }
   }
 
+  // Demo account quick-fill — เฉพาะตอน dev เท่านั้น ห้ามหลุดไป production bundle
+  // (เดิมมี username/password จริงโชว์อยู่บนหน้า login สาธารณะ ใครก็เข้าระบบได้โดยไม่ต้องมีบัญชี)
   function fillDemo(demoUsername: string, demoPassword: string) {
     setUsername(demoUsername); setPassword(demoPassword); setError('')
   }
@@ -78,10 +81,10 @@ export default function LoginPage() {
               }}>TL</div>
               <div style={{ textAlign: 'left' }}>
                 <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>TimeLine</span>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>HR Management Platform</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>HR Management Platform</div>
               </div>
             </div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
               เข้าสู่ระบบเพื่อจัดการพนักงาน
             </p>
           </div>
@@ -95,7 +98,7 @@ export default function LoginPage() {
                   onChange={e => setUsername(e.target.value)}
                   placeholder="username"
                   autoComplete="username"
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
                   onFocus={e => { e.target.style.borderColor = '#f97316' }}
                   onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
                 />
@@ -108,37 +111,44 @@ export default function LoginPage() {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    style={{ width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+                    style={{ width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
                     onFocus={e => { e.target.style.borderColor = '#f97316' }}
                     onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
                   />
-                  <button type="button" onClick={() => setShowPwd(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>{showPwd ? '🙈' : '👁'}</button>
+                  <button type="button" onClick={() => setShowPwd(p => !p)} aria-label={showPwd ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                    {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
                 </div>
               </div>
 
               {error && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626' }}>⚠ {error}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626' }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
+                </div>
               )}
 
-              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#fed7aa' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(249,115,22,0.4)', transition: 'all 0.2s' }}>
-                {loading ? '⏳ กำลังเข้าสู่ระบบ...' : '🔐 เข้าสู่ระบบ'}
+              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#fed7aa' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(249,115,22,0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {loading ? <><Loader2 size={17} className="animate-spin" /> กำลังเข้าสู่ระบบ...</> : <><LogIn size={17} /> เข้าสู่ระบบ</>}
               </button>
             </div>
           </form>
 
-          {/* Demo accounts */}
-          <div style={{ marginTop: 24, borderTop: '1px solid #f3f4f6', paddingTop: 18 }}>
-            <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid #f9731625', background: '#fff7ed', cursor: 'pointer' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f97316' }}>🏢 Admin</span>
-                <span style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace' }}>wonghi_admin</span>
-              </button>
+          {/* Demo accounts — เฉพาะตอน dev เท่านั้น (npm run dev) ไม่ต้องขึ้น production build เลย */}
+          {import.meta.env.DEV && (
+            <div style={{ marginTop: 24, borderTop: '1px solid #f3f4f6', paddingTop: 18 }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo (DEV only)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <button type="button" onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid #f9731625', background: '#fff7ed', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f97316', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={14} /> Admin</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>wonghi_admin</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 16, fontSize: '0.72rem', color: '#9ca3af' }}>
+        <div style={{ textAlign: 'center', marginTop: 16, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           TimeLine HR System · Powered by WH Group
         </div>
       </div>

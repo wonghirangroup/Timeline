@@ -25,7 +25,7 @@ const FEEDBACK_CATEGORY_CFG: Record<string, { label: string; icon: ReactNode; co
   WORK_ENV:   { label: 'สภาพแวดล้อม', icon: <Building2 size={14}/>, color: '#2563eb', bg: '#dbeafe' },
   MANAGEMENT: { label: 'การบริหาร',   icon: <BarChart3 size={14}/>, color: '#7c3aed', bg: '#ede9fe' },
   SALARY:     { label: 'เงินเดือน',   icon: <Wallet size={14}/>,    color: '#16a34a', bg: '#dcfce7' },
-  OTHER:      { label: 'อื่น ๆ',      icon: <MessageSquare size={14}/>, color: '#6b7280', bg: '#f3f4f6' },
+  OTHER:      { label: 'อื่น ๆ',      icon: <MessageSquare size={14}/>, color: 'var(--text-muted)', bg: '#f3f4f6' },
 }
 
 export default function AnnouncementPage() {
@@ -122,7 +122,7 @@ export default function AnnouncementPage() {
     fontSize: isMobile ? '0.8rem' : '0.875rem',
     fontWeight: active ? 700 : 400,
     background: active ? '#f97316' : '#f3f4f6',
-    color: active ? '#fff' : '#6b7280',
+    color: active ? '#fff' : 'var(--text-muted)',
     transition: 'all 0.15s',
     whiteSpace: 'nowrap',
     flexShrink: 0,
@@ -135,7 +135,7 @@ export default function AnnouncementPage() {
     <div>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Megaphone size={18} style={{ color: '#ea580c' }}/>ประกาศ & ข้อความ</h2>
-        <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
+        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
       </div>
 
       {/* Tabs — scrollable on mobile */}
@@ -159,7 +159,7 @@ export default function AnnouncementPage() {
               <div>
                 <label style={labelStyle}>รายละเอียด</label>
                 <textarea value={bBody} onChange={e => setBBody(e.target.value)} rows={5} placeholder="เนื้อหาประกาศ..." style={{ ...inputStyle, resize: 'vertical' }} />
-                <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#9ca3af', marginTop: 4 }}>{bBody.length} ตัวอักษร</div>
+                <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{bBody.length} ตัวอักษร</div>
               </div>
               <div>
                 <label style={labelStyle}>ส่งถึง</label>
@@ -185,17 +185,17 @@ export default function AnnouncementPage() {
             <h3 style={{ margin: '0 0 16px', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><Clock size={15} style={{ color: '#64748b' }}/>ประกาศที่ผ่านมา</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {announcements.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '0.82rem' }}>ยังไม่มีประกาศ</div>
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>ยังไม่มีประกาศ</div>
               )}
               {announcements.map(a => (
                 <div key={a.id} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#111827', marginBottom: 4 }}>{a.title}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 8, lineHeight: 1.5 }}>{a.content}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.5 }}>{a.content}</div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                    <span style={{ fontSize: '0.72rem', background: a.send_line ? '#dcfce7' : '#f3f4f6', color: a.send_line ? '#15803d' : '#6b7280', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.72rem', background: a.send_line ? '#dcfce7' : '#f3f4f6', color: a.send_line ? '#15803d' : 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>
                       {a.send_line ? 'ส่งผ่าน Line แล้ว' : 'ไม่ได้ส่ง Line'}
                     </span>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{thDateTime(a.created_at)}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{thDateTime(a.created_at)}</div>
                   </div>
                 </div>
               ))}
@@ -267,14 +267,14 @@ export default function AnnouncementPage() {
                         <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           {cfg.icon}{cfg.label}
                         </span>
-                        <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{thDateTime(f.created_at)}</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{thDateTime(f.created_at)}</span>
                       </div>
                       <div style={{ fontSize: '0.82rem', color: '#374151', lineHeight: 1.5 }}>{f.content}</div>
                     </div>
                   )
                 })}
                 {feedbacks.length === 0 && (
-                  <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ยังไม่มี Feedback</div>
+                  <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มี Feedback</div>
                 )}
               </div>
             ) : (
@@ -297,12 +297,12 @@ export default function AnnouncementPage() {
                           </span>
                         </td>
                         <td style={{ padding: '11px 14px', color: '#374151', maxWidth: 400, lineHeight: 1.5 }}>{f.content}</td>
-                        <td style={{ padding: '11px 14px', color: '#9ca3af', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{thDateTime(f.created_at)}</td>
+                        <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{thDateTime(f.created_at)}</td>
                       </tr>
                     )
                   })}
                   {feedbacks.length === 0 && (
-                    <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ยังไม่มี Feedback</td></tr>
+                    <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มี Feedback</td></tr>
                   )}
                 </tbody>
               </table>

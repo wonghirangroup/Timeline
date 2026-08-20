@@ -178,18 +178,18 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{initial?.id ? 'แก้ไขวันหยุด' : '➕ เพิ่มวันหยุด'}</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>กรอกข้อมูลวันหยุดที่ต้องการเพิ่ม</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
         </div>
         <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>วันที่ <span style={{ color: '#dc2626' }}>*</span></label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }} />
+              style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>ชื่อวันหยุด <span style={{ color: '#dc2626' }}>*</span></label>
             <input value={name} onChange={e => setName(e.target.value.slice(0, 80))} placeholder="เช่น วันขึ้นปีใหม่, วันหยุดพิเศษบริษัท"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }} />
+              style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             <div style={{ textAlign: 'right', fontSize: '0.7rem', color: '#94a3b8', marginTop: 3 }}>{name.length}/80</div>
           </div>
           <div>

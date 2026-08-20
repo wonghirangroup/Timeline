@@ -104,7 +104,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
               {balance.full_name} ({balance.nickname}) — {balance.branch_name}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
         </div>
 
         {/* Quota inputs */}
@@ -134,7 +134,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
                     min={0}
                     value={q}
                     onChange={e => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                    style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: `1.5px solid ${overUsed ? '#fca5a5' : '#e2e8f0'}`, fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', outline: 'none', color: overUsed ? '#dc2626' : '#0f172a' }}
+                    style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: `1.5px solid ${overUsed ? '#fca5a5' : '#e2e8f0'}`, fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', color: overUsed ? '#dc2626' : '#0f172a' }}
                   />
                   <button
                     onClick={() => setQuotas(p => ({ ...p, [lt.key]: p[lt.key] + 1 }))}
@@ -196,7 +196,7 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
                 min={0}
                 value={defaults[lt.key]}
                 onChange={e => onChange({ ...defaults, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) })}
-                style={{ flex: 1, padding: '4px 4px', borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', fontSize: '0.95rem', fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', background: 'rgba(255,255,255,0.7)', color: lt.color, outline: 'none', minWidth: 0 }}
+                style={{ flex: 1, padding: '4px 4px', borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', fontSize: '0.95rem', fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', background: 'rgba(255,255,255,0.7)', color: lt.color, minWidth: 0 }}
               />
               <button
                 onClick={() => onChange({ ...defaults, [lt.key]: defaults[lt.key] + 1 })}
@@ -392,7 +392,7 @@ export default function LeaveBalancePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {loading && <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>กำลังโหลด...</div>}
+      {loading && <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
       {!loading && saving && <div style={{ textAlign: 'center', padding: '8px 0', color: '#4f46e5', fontSize: '0.82rem' }}>⏳ กำลังบันทึก...</div>}
 
 
@@ -485,14 +485,14 @@ export default function LeaveBalancePage() {
                         onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, min_years: parseInt(e.target.value) || 0 } : r))}
                         style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
                       />
-                      <span style={{ color: '#6b7280' }}>–</span>
+                      <span style={{ color: 'var(--text-muted)' }}>–</span>
                       <input
                         type="number" min={0} value={rule.max_years ?? ''}
                         placeholder="∞"
                         onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, max_years: e.target.value === '' ? null : parseInt(e.target.value) || null } : r))}
                         style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
                       />
-                      <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>ปี</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>ปี</span>
                     </div>
                   </td>
                   <td style={{ padding: '8px 12px' }}>
@@ -502,13 +502,14 @@ export default function LeaveBalancePage() {
                         onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, vacation_days: parseInt(e.target.value) || 0 } : r))}
                         style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
                       />
-                      <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>วัน</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>วัน</span>
                     </div>
                   </td>
                   <td style={{ padding: '8px 12px' }}>
                     <button
                       onClick={() => setSeniorityRules(rs => rs.filter(r => r.id !== rule.id))}
                       style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      aria-label="ลบ"
                     ><X size={14}/></button>
                   </td>
                 </tr>
@@ -549,7 +550,7 @@ export default function LeaveBalancePage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="ค้นหาชื่อหรือชื่อเล่น..."
-            style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+            style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
 
@@ -739,7 +740,7 @@ export default function LeaveBalancePage() {
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าพร้อมกัน</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>จะนำไปใช้กับพนักงานที่เลือก {selectedIds.size} คน</div>
               </div>
-              <button onClick={() => setBulkEditOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
+              <button onClick={() => setBulkEditOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               {LEAVE_TYPES.map(lt => (
@@ -748,7 +749,7 @@ export default function LeaveBalancePage() {
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: lt.color, flex: 1 }}>{lt.label}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <button onClick={() => setBulkQuotas(p => ({ ...p, [lt.key]: Math.max(0, p[lt.key] - 1) }))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                    <input type="number" min={0} value={bulkQuotas[lt.key]} onChange={e => setBulkQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', outline: 'none' }} />
+                    <input type="number" min={0} value={bulkQuotas[lt.key]} onChange={e => setBulkQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit' }} />
                     <button onClick={() => setBulkQuotas(p => ({ ...p, [lt.key]: p[lt.key] + 1 }))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                     <span style={{ fontSize: '0.72rem', color: '#94a3b8', width: 24 }}>วัน</span>
                   </div>

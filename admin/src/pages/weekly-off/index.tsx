@@ -96,7 +96,7 @@ function DatePicker({ month, value, onChange, disabledDates = [] }: {
         <button onClick={() => setYm(addMonths(ym, 1))}  style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}>›</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
-        {DAYS_TH.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600 }}>{d}</div>)}
+        {DAYS_TH.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{d}</div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
         {Array.from({ length: totalCells }, (_, i) => {
@@ -192,8 +192,8 @@ function PeriodManager({ month }: { month: string }) {
     onError: () => showToast('error', 'ไม่สำเร็จ'),
   })
 
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>กำลังโหลด...</div>
-  if (periods.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่มีสาขา</div>
+  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+  if (periods.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีสาขา</div>
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
@@ -212,11 +212,11 @@ function PeriodManager({ month }: { month: string }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.branch.name}</div>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
                   📅 {monthRangeLabel(p.month)}
                 </div>
                 {p.deadline && (
-                  <div style={{ fontSize: '0.72rem', color: deadlinePast ? '#dc2626' : '#6b7280', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.72rem', color: deadlinePast ? '#dc2626' : 'var(--text-muted)', marginTop: 2 }}>
                     {deadlinePast ? '⛔ หมดเวลาแล้ว' : `⏰ deadline: ${fmtDate(p.deadline.slice(0, 10))}`}
                   </div>
                 )}
@@ -225,7 +225,7 @@ function PeriodManager({ month }: { month: string }) {
               <span style={{
                 padding: '4px 12px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700,
                 background: effectiveOpen ? '#dcfce7' : '#f3f4f6',
-                color: effectiveOpen ? '#16a34a' : '#9ca3af',
+                color: effectiveOpen ? '#16a34a' : 'var(--text-muted)',
               }}>
                 {effectiveOpen ? '🟢 เปิดจอง' : '🔴 ปิดจอง'}
               </span>
@@ -233,7 +233,7 @@ function PeriodManager({ month }: { month: string }) {
 
             {/* Note */}
             {p.note && !isEditing && (
-              <div style={{ fontSize: '0.78rem', color: '#6b7280', background: '#f9fafb', borderRadius: 7, padding: '6px 10px' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 7, padding: '6px 10px' }}>
                 📝 {p.note}
               </div>
             )}
@@ -242,12 +242,12 @@ function PeriodManager({ month }: { month: string }) {
             {isEditing && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280' }}>Deadline (ไม่บังคับ)</label>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Deadline (ไม่บังคับ)</label>
                   <input type="date" value={editDeadline} onChange={e => setEditDeadline(e.target.value)}
                     style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.82rem', marginTop: 3, fontFamily: 'inherit', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280' }}>หมายเหตุถึงพนักงาน</label>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>หมายเหตุถึงพนักงาน</label>
                   <input value={editNote} onChange={e => setEditNote(e.target.value)}
                     placeholder="เช่น กรุณาจองภายใน 20 มิ.ย."
                     style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.82rem', marginTop: 3, fontFamily: 'inherit', boxSizing: 'border-box' }} />
@@ -290,7 +290,7 @@ function PeriodManager({ month }: { month: string }) {
                   setEditId(p.branch_id)
                   setEditDeadline(p.deadline ? p.deadline.slice(0, 10) : '')
                   setEditNote(p.note ?? '')
-                }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '0.8rem', cursor: 'pointer' }}>
+                }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}>
                   <Settings2 size={13} />
                 </button>
               </div>
@@ -406,11 +406,11 @@ export default function WeeklyOffPage() {
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 12px', flexShrink: 0 }}>
           <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-            <ChevronLeft size={16} color="#6b7280" />
+            <ChevronLeft size={16} color="var(--text-muted)" />
           </button>
           <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: isMobile ? 100 : 130, textAlign: 'center' }}>{fmtYM(month)}</span>
           <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-            <ChevronRight size={16} color="#6b7280" />
+            <ChevronRight size={16} color="var(--text-muted)" />
           </button>
         </div>
 
@@ -420,7 +420,7 @@ export default function WeeklyOffPage() {
             <button key={t} onClick={() => setTab(t as any)} style={{
               padding: isMobile ? '6px 10px' : '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
               background: tab === t ? '#fff' : 'transparent',
-              color: tab === t ? '#f97316' : '#6b7280',
+              color: tab === t ? '#f97316' : 'var(--text-muted)',
               fontWeight: tab === t ? 700 : 500,
               fontSize: isMobile ? '0.75rem' : '0.82rem',
               boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
@@ -451,7 +451,7 @@ export default function WeeklyOffPage() {
           </button>
         )}
         <button onClick={() => { setShowAdd(s => !s); setShowCalendar(false) }}
-          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: showAdd ? '#6b7280' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: showAdd ? 'var(--text-muted)' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={14} /> {showAdd ? 'ยกเลิก' : 'เพิ่มวันหยุด'}
         </button>
       </div>
@@ -494,9 +494,9 @@ export default function WeeklyOffPage() {
                 <button onClick={() => setShowCalendar(c => !c)} style={{
                   width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
                   background: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '0.875rem',
-                  color: addForm.date ? '#111827' : '#9ca3af', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+                  color: addForm.date ? '#111827' : 'var(--text-muted)', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
                 }}>
-                  <CalendarDays size={15} color="#9ca3af" />
+                  <CalendarDays size={15} color="var(--text-muted)" />
                   {addForm.date
                     ? `${fmtDate(addForm.date)} (${DAYS_TH[new Date(addForm.date + 'T00:00:00').getDay()]})`
                     : 'เลือกวันที่'}
@@ -538,9 +538,9 @@ export default function WeeklyOffPage() {
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {isLoading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>กำลังโหลด...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่มีรายการวันหยุดในเดือนนี้</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการวันหยุดในเดือนนี้</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
@@ -558,14 +558,14 @@ export default function WeeklyOffPage() {
                   <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ fontWeight: 600 }}>{r.employee.first_name} {r.employee.last_name}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {r.employee.employee_code}{r.employee.nickname ? ` · ${r.employee.nickname}` : ''}
                       </div>
                     </td>
-                    <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
+                    <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                     <td style={{ padding: '11px 14px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
                       {fmtDate(date)}
-                      <span style={{ marginLeft: 6, fontSize: '0.72rem', background: '#f3f4f6', color: '#6b7280', borderRadius: 4, padding: '1px 5px' }}>
+                      <span style={{ marginLeft: 6, fontSize: '0.72rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>
                         {DAYS_TH[r.day_of_week]}
                       </span>
                     </td>
@@ -590,7 +590,7 @@ export default function WeeklyOffPage() {
                           </button>
                         </>}
                         <button onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}
-                          style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af', fontSize: '12px', cursor: 'pointer' }}>
+                          style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>
                           <Trash2 size={12} />
                         </button>
                       </div>
@@ -697,14 +697,14 @@ function OverviewTab({ requests, isLoading, month, branches }: {
             <button key={v} onClick={() => setStatus(v as any)} style={{
               padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.78rem',
               background: statusFilter === v ? '#fff' : 'transparent',
-              color: statusFilter === v ? '#f97316' : '#6b7280',
+              color: statusFilter === v ? '#f97316' : 'var(--text-muted)',
               fontWeight: statusFilter === v ? 700 : 500,
               boxShadow: statusFilter === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
             }}>{label}</button>
           ))}
         </div>
 
-        <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#6b7280' }}>{filtered.length} รายการ</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{filtered.length} รายการ</span>
 
         <button onClick={exportCsv} disabled={filtered.length === 0}
           style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.82rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: filtered.length === 0 ? 0.5 : 1 }}>
@@ -713,7 +713,7 @@ function OverviewTab({ requests, isLoading, month, branches }: {
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>กำลังโหลด...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
           {/* Day headers */}
@@ -774,7 +774,7 @@ function OverviewTab({ requests, isLoading, month, branches }: {
                       )
                     })}
                     {entries.length > 0 && (
-                      <div style={{ fontSize: '0.62rem', color: '#9ca3af', paddingLeft: 2 }}>
+                      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', paddingLeft: 2 }}>
                         {entries.length} คน
                       </div>
                     )}
@@ -791,7 +791,7 @@ function OverviewTab({ requests, isLoading, month, branches }: {
         {Object.entries(STATUS_CFG).map(([k, v]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem' }}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: v.bg, border: `1.5px solid ${v.color}`, display: 'inline-block' }} />
-            <span style={{ color: '#6b7280' }}>{v.label}</span>
+            <span style={{ color: 'var(--text-muted)' }}>{v.label}</span>
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem' }}>

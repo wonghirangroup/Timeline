@@ -98,7 +98,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
           <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff', flex: 1 }}>
             {screen === 'confirm' ? 'ยืนยันการจอง' : screen === 'success' ? 'จองสำเร็จ' : 'จองวันหยุดประจำเดือน'}
           </span>
-          <button onClick={resetAndClose} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8, display: 'flex' }}><X size={16}/></button>
+          <button onClick={resetAndClose} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8, display: 'flex' }} aria-label="ปิด"><X size={16}/></button>
         </div>
 
         {/* Content */}
@@ -197,7 +197,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
                                 <span style={{ fontSize: '16px', fontWeight: 800, color: isSelected ? '#fff' : '#1e293b', lineHeight: 1 }}>{d.getDate()}</span>
                               </div>
                               <div style={{ textAlign: 'left' }}>
-                                <p style={{ fontSize: '13px', fontWeight: 700, color: isBooked ? '#9ca3af' : '#1e293b', margin: 0 }}>{fmtThai(s)}</p>
+                                <p style={{ fontSize: '13px', fontWeight: 700, color: isBooked ? 'var(--text-muted)' : '#1e293b', margin: 0 }}>{fmtThai(s)}</p>
                                 <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>{weekLabel(s)}</p>
                               </div>
                             </div>

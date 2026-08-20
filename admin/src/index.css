@@ -53,9 +53,14 @@
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
   --text-body:   #374151;  /* gray-700 — body / form labels */
-  --text-gray:   #6b7280;  /* gray-500 — secondary labels */
-  --text-subtle: #9ca3af;  /* gray-400 — meta / placeholder */
-  --text-faint:  #94a3b8;  /* slate-400 — very light meta */
+  --text-gray:   #6b7280;  /* gray-500 — secondary labels (~4.6:1 on white, passes WCAG AA) */
+  /* --text-subtle/--text-faint เดิมเป็น gray-400/slate-400 (~2.8:1) — ไม่ผ่าน
+     WCAG AA 4.5:1 สำหรับตัวหนังสือปกติ ใช้กันมากในทั้งแอป (timestamp/sub-label/
+     placeholder) เลยรวมเป็นระดับเดียวกับ --text-gray แทนการมี tier ที่จางกว่านี้
+     สำหรับข้อความจริง — ถ้าต้องการจางกว่านี้จริงๆ ให้ใช้กับ border/background
+     เท่านั้น ไม่ใช่ตัวหนังสือ */
+  --text-subtle: #6b7280;  /* gray-500 — meta / placeholder (passes AA) */
+  --text-faint:  #6b7280;  /* gray-500 — very light meta (passes AA) */
 
   /* ── Extended surfaces ── */
   --bg-subtle:      #f8fafc;
@@ -185,8 +190,11 @@ button {
 .stagger > *:nth-child(4) { animation-delay: 180ms; }
 
 /* ── Focus Visible ─────────────────────────────────────────── */
+/* ใช้ --accent-primary (ส้ม) ของแอปนี้เอง — เดิมอ้าง --sa-accent (ม่วง/indigo
+   ของ Super Admin) หลุดมาข้าม portal ทำให้ผู้ใช้ที่ tab ด้วยคีย์บอร์ดในแอป
+   Admin เห็นสีผิดจากระบบ ขัดกับกฎ "ห้ามผสมส้ม/ม่วงในเลย์เอาต์เดียวกัน" ของ DESIGN.md */
 :focus-visible {
-  outline: 2px solid var(--sa-accent);
+  outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -195,7 +203,7 @@ button {
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--sa-accent);
+  outline: 2px solid var(--accent-primary);
   outline-offset: 0;
   border-radius: 6px;
 }

@@ -6,6 +6,9 @@ dist/
 # Brain — ห้าม commit ขึ้น public repo
 brain/
 
+# Impeccable design-critique snapshots — local tooling artifact, not project source
+.impeccable/
+
 # Claude settings ที่มี key
 .claude/settings.local.json
 

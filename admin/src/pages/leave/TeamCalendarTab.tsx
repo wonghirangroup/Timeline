@@ -84,7 +84,7 @@ function getLeaveCfg(l: LeaveReq) {
   if (HOLIDAY_LABELS.has(l.display_label)) {
     return { color: '#EF4444', light: '#FEE2E2', icon: LEAVE_CFG.PERSONAL.icon, label: l.display_label }
   }
-  return LEAVE_CFG[l.leave_type] ? { ...LEAVE_CFG[l.leave_type], label: l.display_label } : { color: '#6b7280', light: '#f3f4f6', icon: null, label: l.display_label }
+  return LEAVE_CFG[l.leave_type] ? { ...LEAVE_CFG[l.leave_type], label: l.display_label } : { color: 'var(--text-muted)', light: '#f3f4f6', icon: null, label: l.display_label }
 }
 
 function toDisplayLeave(l: ApiLeave): LeaveReq {
@@ -213,7 +213,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
             )
           })}
           {overflow > 0 && (
-            <div style={{ fontSize: '0.56rem', color: '#9ca3af', fontWeight: 700, paddingLeft: 2 }}>+{overflow} คน</div>
+            <div style={{ fontSize: '0.56rem', color: 'var(--text-muted)', fontWeight: 700, paddingLeft: 2 }}>+{overflow} คน</div>
           )}
         </div>
       )}
@@ -242,7 +242,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
               )
             })}
             {leaveOverflow > 0 && (
-              <div style={{ fontSize: '0.56rem', color: '#9ca3af', fontWeight: 700, paddingLeft: 2 }}>+{leaveOverflow} คน</div>
+              <div style={{ fontSize: '0.56rem', color: 'var(--text-muted)', fontWeight: 700, paddingLeft: 2 }}>+{leaveOverflow} คน</div>
             )}
           </div>
         )
@@ -279,14 +279,14 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             รายละเอียด
           </div>
           <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', marginTop: 2 }}>
             {fmtDateFull(date)}
           </div>
         </div>
-        <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: '#6b7280', display: 'flex' }}>
+        <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
           <X size={14} />
         </button>
       </div>
@@ -300,7 +300,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
 
       {/* Nothing to show */}
       {evDayOffs.length === 0 && activeLeaves.length === 0 && !holiday && (
-        <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: '0.8rem' }}>
+        <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           ไม่มีการลาหรือวันหยุดในวันนี้
         </div>
       )}
@@ -322,7 +322,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
               <AvatarChip name={d.name} isPending={false} />
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{d.branch_name}</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
               </div>
             </div>
           ))}
@@ -346,7 +346,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
               <AvatarChip name={d.name} isPending={true} />
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{d.branch_name}</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
               </div>
             </div>
           ))}
@@ -357,8 +357,8 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
       {activeLeaves.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <CalendarDays size={13} color="#6b7280" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
+            <CalendarDays size={13} color="var(--text-muted)" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
               วันลา ({activeLeaves.length})
             </span>
           </div>
@@ -374,7 +374,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.nickname || l.name}</div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{l.display_label} · {l.branch_name}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{l.display_label} · {l.branch_name}</div>
                 </div>
                 {l.status === 'PENDING' && (
                   <span style={{ fontSize: '0.6rem', background: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>
@@ -547,7 +547,7 @@ export default function TeamCalendarTab() {
           { label: 'รออนุมัติ',    value: `${pendingCount}`,                                                                 unit: 'รายการ', color: '#d97706', bg: '#fffbeb' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: isMobile ? '10px 12px' : '12px 16px', border: `1px solid ${s.color}20` }}>
-            <div style={{ fontSize: '0.68rem', color: '#6b7280', marginBottom: 2 }}>{s.label}</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 2 }}>{s.label}</div>
             <div style={{ fontSize: isMobile ? '1.3rem' : '1.5rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>
               {s.value} <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{s.unit}</span>
             </div>
@@ -560,7 +560,7 @@ export default function TeamCalendarTab() {
         <select
           value={branchFilter}
           onChange={e => setBranchFilter(e.target.value)}
-          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none', flex: isMobile ? '1 1 auto' : 'none' }}
+          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
         >
           <option value="all">ทุกสาขา</option>
           {branches.map(b => (
@@ -599,7 +599,7 @@ export default function TeamCalendarTab() {
         {/* Day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: isMobile ? 2 : 4, marginBottom: isMobile ? 2 : 4 }}>
           {DAYS_SHORT.map(d => (
-            <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af', padding: '4px 0' }}>
+            <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', padding: '4px 0' }}>
               {d}
             </div>
           ))}
@@ -678,21 +678,21 @@ export default function TeamCalendarTab() {
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: isMobile ? 8 : 16, marginTop: 16, flexWrap: 'wrap', padding: '10px 12px', background: '#f8fafc', borderRadius: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: '#6b7280' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg,#fb923c,#ea580c)', flexShrink: 0 }} />
           หยุดประจำ (อนุมัติ)
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: '#6b7280' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', border: '2px dashed #f59e0b', flexShrink: 0 }} />
           หยุดประจำ (รอ)
         </div>
         {Object.entries(LEAVE_CFG).map(([k, cfg]) => (
-          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: '#6b7280' }}>
+          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
             {cfg.label}
           </div>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: '#6b7280' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
           <div style={{ width: 12, height: 12, borderRadius: 3, background: '#fef2f2', border: '1px solid #fecaca', flexShrink: 0 }} />
           วันหยุดนักขัตฤกษ์
         </div>

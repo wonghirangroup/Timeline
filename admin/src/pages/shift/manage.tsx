@@ -54,7 +54,7 @@ const labelStyle: React.CSSProperties = {
   fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block',
 }
 const sectionLabel: React.CSSProperties = {
-  fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
+  fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase',
   letterSpacing: '0.05em', marginBottom: 8, marginTop: 4,
 }
 
@@ -63,7 +63,7 @@ function TimeInput({ label, value, onChange, sublabel }: { label: string; value:
     <div>
       <label style={labelStyle}>{label}</label>
       {/* จองพื้นที่ไว้เสมอ (2 บรรทัด) ไม่งั้นช่องที่ไม่มี sublabel จะสูงน้อยกว่า ทำให้ input แถวเดียวกันเยื้องกัน */}
-      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 4, minHeight: '2.6em', lineHeight: 1.3 }}>{sublabel || ' '}</div>
+      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4, minHeight: '2.6em', lineHeight: 1.3 }}>{sublabel || ' '}</div>
       <input type="time" value={value} onChange={e => onChange(e.target.value)} style={inputStyle} />
     </div>
   )
@@ -85,7 +85,7 @@ function getShiftStatus(s: ApiShift): ShiftStatus {
 }
 
 const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string; dot: string }> = {
-  inactive: { label: 'ปิดใช้งาน',     color: '#9ca3af', bg: '#f3f4f6', dot: '○' },
+  inactive: { label: 'ปิดใช้งาน',     color: 'var(--text-muted)', bg: '#f3f4f6', dot: '○' },
   upcoming: { label: 'ยังไม่เริ่ม',   color: '#d97706', bg: '#fef3c7', dot: '◷' },
   active:   { label: 'กำลังทำงาน',    color: '#16a34a', bg: '#dcfce7', dot: '●' },
   done:     { label: 'เลิกงานแล้ว',   color: '#6366f1', bg: '#eef2ff', dot: '✓' },
@@ -213,7 +213,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div style={{ padding:'4px 16px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <button onClick={onClose} style={{ padding:'7px 10px', borderRadius:8, border:'1px solid #e5e7eb', background:'#fff', color:'#9ca3af', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>✕ ปิด</button>
+          <button onClick={onClose} style={{ padding:'7px 10px', borderRadius:8, border:'1px solid #e5e7eb', background:'#fff', color:'var(--text-muted)', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>✕ ปิด</button>
           <div style={{ display:'flex', gap:6 }}>
             {step > 0 && (
               <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px', borderRadius:8, border:'1px solid #e5e7eb', background:'#f9fafb', color:'#374151', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>← ก่อนหน้า</button>
@@ -296,9 +296,9 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#1e293b' }}>QR เช็คอิน</div>
-            <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>{shift.name} · {shift.branch.name}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{shift.name} · {shift.branch.name}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><X size={20}/></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }} aria-label="ปิด"><X size={20}/></button>
         </div>
 
         {/* Shift info chips */}
@@ -336,7 +336,7 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         {/* QR Code */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
           {qrQ.isLoading ? (
-            <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', background: '#f9fafb', borderRadius: 16 }}>
+            <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 16 }}>
               ⏳ กำลังโหลด…
             </div>
           ) : qrQ.isError || !qrString ? (
@@ -348,7 +348,7 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
               <div ref={qrWrapRef} style={{ padding: 16, background: '#fff', border: '2px solid #e5e7eb', borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
                 <QRCodeSVG value={qrString} size={210} level="H" />
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', lineHeight: 1.6 }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
                 ใช้ได้เฉพาะวันที่ <strong style={{ color: '#374151' }}>{date}</strong> เท่านั้น<br/>
                 พนักงานสแกนผ่าน LINE LIFF
               </div>
@@ -375,7 +375,7 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handleDownload} disabled={!qrString}
-            style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #d1d5db', background: qrString ? '#f9fafb' : '#f3f4f6', color: qrString ? '#374151' : '#9ca3af', fontSize: '0.82rem', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #d1d5db', background: qrString ? '#f9fafb' : '#f3f4f6', color: qrString ? '#374151' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             ⬇️ ดาวน์โหลด
           </button>
           <button onClick={handlePrint} disabled={!qrString}
@@ -553,7 +553,7 @@ export default function ShiftPage() {
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <button
           onClick={() => setTourActive(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
         >
           <HelpCircle size={14} /> วิธีใช้
         </button>
@@ -574,7 +574,7 @@ export default function ShiftPage() {
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -582,7 +582,7 @@ export default function ShiftPage() {
       {/* Branch filter */}
       {branches.length > 1 && (
         <div data-tour="shift-branch-filter" style={{ flexShrink: 0, marginBottom: 12 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
               <button
@@ -618,12 +618,12 @@ export default function ShiftPage() {
           setSwipeStart(null)
         }}
       >
-        {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
+        {loading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
 
         {!loading && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>
           {filtered.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
               <p style={{ marginBottom: 12 }}>{shifts.length === 0 ? 'ยังไม่มีกะ' : 'ไม่พบกะในสาขาที่เลือก'}</p>
               {shifts.length === 0 && <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มกะแรก</button>}
             </div>
@@ -651,7 +651,7 @@ export default function ShiftPage() {
                     {isSpecial && <span style={{ fontSize: '11px', background: '#ede9fe', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}>⭐ พิเศษ</span>}
                     {s.name}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 1 }}>{s.branch.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{s.branch.name}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -670,7 +670,7 @@ export default function ShiftPage() {
                 {!isSpecial && s.late_threshold_2 && <TimeRow icon="🚫" label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
                 {!isSpecial && s.absent_threshold && <TimeRow icon="⛔" label={`ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />}
                 {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
-                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
                 )}
                 {isSpecial && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff', borderRadius: 6, padding: '5px 8px', marginTop: 2 }}>
@@ -701,7 +701,7 @@ export default function ShiftPage() {
       {/* Pagination — always pinned at bottom */}
       {!loading && (
         <div data-tour="shift-pagination" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
-          <span style={{ fontSize: '12px', color: '#6b7280' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {filtered.length === 0
               ? 'ไม่มีกะ'
               : `หน้า ${page}/${totalPages} · ${filtered.length} กะ`}
@@ -741,7 +741,7 @@ export default function ShiftPage() {
               <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>
                 {modal.mode === 'add' ? '+ เพิ่มกะใหม่' : `แก้ไขกะ: ${modal.data?.name}`}
               </p>
-              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={18}/></button>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} aria-label="ปิด"><X size={18}/></button>
             </div>
 
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -790,7 +790,7 @@ export default function ShiftPage() {
                         </button>
                       ))}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 6 }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>
                       {form.shift_type === 'REGULAR' ? 'Auto-detect จากเวลาสแกน — ไม่ทับซ้อนกับกะอื่น' : 'เงื่อนไขพิเศษ เช่น OT หรืองานนอกสถานที่'}
                     </div>
                   </div>
@@ -818,7 +818,7 @@ export default function ShiftPage() {
                         style={{ ...inputStyle, width: 110 }}
                       />
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       ปล่อยว่าง = ใช้ค่าเริ่มต้นของสาขา
                     </div>
                   </div>
@@ -872,12 +872,12 @@ export default function ShiftPage() {
                 <div style={{ background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '12px 14px' }}>
                   <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, color: '#4338ca' }}>ตัวอย่างกะ "{form.name || '...'}"</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
-                    <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
-                    {form.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
-                    {form.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
-                    {form.absent_threshold && <><span style={{ color: '#6b7280' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
-                    {form.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
-                    <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
+                    {form.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
+                    {form.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
+                    {form.absent_threshold && <><span style={{ color: 'var(--text-muted)' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
+                    {form.min_checkout && <><span style={{ color: 'var(--text-muted)' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
+                    <span style={{ color: 'var(--text-muted)' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
                   </div>
                 </div>
               )}
@@ -943,7 +943,7 @@ export default function ShiftPage() {
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{empViewShift.name} — {empViewShift.branch.name}</div>
-                  <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18}/></button>
+                  <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {empViewShift.start_time} – {empViewShift.end_time} · {inShift.length} คน
@@ -954,10 +954,10 @@ export default function ShiftPage() {
               <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
                 {([
                   ['in',  <><Users size={13}/> ในกะนี้ ({inShift.length})</>],
-                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: '#6b7280' }}>{allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length}</span>}</>],
+                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)' }}>{allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length}</span>}</>],
                 ] as const).map(([tab, label]) => (
                   <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch(''); setRemoveConfirm(null) }}
-                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#f97316' : 'transparent'}`, color: addEmpTab === tab ? '#f97316' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#f97316' : 'transparent'}`, color: addEmpTab === tab ? '#f97316' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                     {label}
                   </button>
                 ))}
@@ -965,11 +965,11 @@ export default function ShiftPage() {
 
               {/* Search */}
               <div style={{ padding: '10px 16px', borderBottom: '1px solid #f8fafc', flexShrink: 0, position: 'relative' }}>
-                <Search size={13} style={{ position: 'absolute', left: 28, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', pointerEvents: 'none' }} />
+                <Search size={13} style={{ position: 'absolute', left: 28, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                 <input
                   value={empSearch} onChange={e => setEmpSearch(e.target.value)}
                   placeholder="ค้นหาชื่อ / ชื่อเล่น / รหัส..."
-                  style={{ width: '100%', padding: '7px 12px 7px 32px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
+                  style={{ width: '100%', padding: '7px 12px 7px 32px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -977,7 +977,7 @@ export default function ShiftPage() {
               <div style={{ overflowY: 'auto', flex: 1, overscrollBehavior: 'contain', position: 'relative' }}>
                 {addEmpTab === 'in' ? (
                   inShiftFiltered.length === 0 ? (
-                    <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
+                    <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
                       {inShift.length === 0 ? 'ยังไม่มีพนักงานในกะนี้' : 'ไม่พบพนักงานที่ค้นหา'}
                     </div>
                   ) : inShiftFiltered.map((e, idx) => (
@@ -997,7 +997,7 @@ export default function ShiftPage() {
                           >ยืนยัน</button>
                           <button
                             onClick={() => setRemoveConfirm(null)}
-                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
                           >ยกเลิก</button>
                         </div>
                       ) : (
@@ -1013,7 +1013,7 @@ export default function ShiftPage() {
                   ))
                 ) : (
                   notInShift.length === 0 ? (
-                    <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
+                    <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
                       {q ? 'ไม่พบพนักงานที่ค้นหา' : 'พนักงานทุกคนอยู่ในกะนี้แล้ว'}
                     </div>
                   ) : notInShift.map((e, idx) => {
@@ -1105,6 +1105,7 @@ export default function ShiftPage() {
                   </div>
                   <button
                     onClick={() => setDetailShift(null)}
+                    aria-label="ปิด"
                     style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center' }}
                   ><X size={18}/></button>
                 </div>
@@ -1169,7 +1170,7 @@ export default function ShiftPage() {
                       <InfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
-                      <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: '#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                      <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: 'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
                     )}
                   </div>
                   {isSpec && (
@@ -1192,7 +1193,7 @@ export default function ShiftPage() {
                   </div>
 
                   {branchEmps.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                       ยังไม่มีพนักงานในสาขานี้
                     </div>
                   ) : (
@@ -1245,7 +1246,7 @@ export default function ShiftPage() {
 function TimeRow({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{icon} {label}</span>
+      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{icon} {label}</span>
       <span style={{ fontWeight: 700, color, fontSize: '1rem', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
   )

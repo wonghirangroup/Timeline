@@ -309,14 +309,14 @@ export default function OtPage() {
         {[
           { label: 'รอพิจารณา',        icon: <Clock size={15}/>,         value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
           { label: 'ชม. OT อนุมัติ',   icon: <CheckCircle2 size={15}/>,  value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
-          { label: 'ใกล้/เกิน Cap',    icon: <AlertTriangle size={15}/>, value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : '#6b7280', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
+          { label: 'ใกล้/เกิน Cap',    icon: <AlertTriangle size={15}/>, value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : 'var(--text-muted)', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: s.color, display: 'flex' }}>{s.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -336,7 +336,7 @@ export default function OtPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{emp.full_name}</span>
-                      <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: 6 }}>{emp.nickname} · {emp.branch_name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 6 }}>{emp.nickname} · {emp.branch_name}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: lv.color }}>{emp.hrs} / {OT_WEEKLY_CAP} ชม.</span>
@@ -363,13 +363,13 @@ export default function OtPage() {
 
       {/* ── Filters ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>กรอง</div>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>กรอง</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Status Filter */}
           <select 
             value={statusFilter} 
             onChange={e => setStatusFilter(e.target.value as any)}
-            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}
           >
             <option value="">ทุกสถานะ</option>
             <option value="PENDING">รออนุมัติ {pending > 0 ? `(${pending})` : ''}</option>
@@ -380,7 +380,7 @@ export default function OtPage() {
           <select 
             value={branchFilter} 
             onChange={e => setBranchFilter(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', outline: 'none' }}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}
           >
             <option value="">ทุกสาขา</option>
             {[...new Set(rows.map(r => r.branch_name))].map(name => (
@@ -404,7 +404,7 @@ export default function OtPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{r.full_name}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 1 }}>{r.branch_name} · {thDate(r.date)}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{r.branch_name} · {thDate(r.date)}</div>
                     </div>
                     <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{s.label}</span>
                   </div>
@@ -440,7 +440,7 @@ export default function OtPage() {
               )
             })}
             {filtered.length === 0 && (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่มีรายการ OT</div>
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการ OT</div>
             )}
           </div>
         ) : (
@@ -463,13 +463,13 @@ export default function OtPage() {
                     <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc', background: r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                       <td style={{ padding: '11px 14px' }}>
                         <p style={{ margin: 0, fontWeight: 600, color: '#111827' }}>{r.full_name}</p>
-                        <p style={{ margin: 0, fontSize: '11px', color: '#9ca3af' }}>{r.nickname}</p>
+                        <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{r.nickname}</p>
                       </td>
                       <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.branch_name}</td>
                       <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>{thDate(r.date)}</td>
                       <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '12px' }}>{r.start_time}–{r.end_time}</td>
                       <td style={{ padding: '11px 14px', fontWeight: 700, color: '#111827', textAlign: 'center' }}>{r.hours}</td>
-                      <td style={{ padding: '11px 14px', color: '#6b7280', textAlign: 'center', fontSize: '12px' }}>{r.multiplier}×</td>
+                      <td style={{ padding: '11px 14px', color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{r.multiplier}×</td>
                       {/* Weekly OT cap column */}
                       <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                         {wh > 0 ? (
@@ -486,7 +486,7 @@ export default function OtPage() {
                           </div>
                         ) : <span style={{ color: '#d1d5db', fontSize: '12px' }}>—</span>}
                       </td>
-                      <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '12px', maxWidth: 160 }}>{r.note || '—'}</td>
+                      <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '12px', maxWidth: 160 }}>{r.note || '—'}</td>
                       <td style={{ padding: '11px 14px' }}>
                         <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>{s.label}</span>
                       </td>
@@ -508,7 +508,7 @@ export default function OtPage() {
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>ไม่มีรายการ OT</td></tr>
+                  <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการ OT</td></tr>
                 )}
               </tbody>
             </table>
@@ -527,7 +527,7 @@ export default function OtPage() {
               </div>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>อนุมัติ OT</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{approveTarget.full_name} · {thDate(approveTarget.date)}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{approveTarget.full_name} · {thDate(approveTarget.date)}</p>
               </div>
             </div>
 
@@ -562,23 +562,23 @@ export default function OtPage() {
 
             {/* ── คิดเร็ว (Inline Calculator) ── */}
             <div style={{ border: '1px dashed #d1d5db', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>🧮 คิดเร็ว (ไม่บันทึกในระบบ)</p>
+              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>🧮 คิดเร็ว (ไม่บันทึกในระบบ)</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 {/* อัตรา/ชม. */}
                 <div>
-                  <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: 4 }}>อัตรา (฿/ชม.)</label>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>อัตรา (฿/ชม.)</label>
                   <input
                     type="number"
                     min="0"
                     placeholder="เช่น 65"
                     value={calcRate}
                     onChange={e => setCalcRate(e.target.value)}
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
                   />
                 </div>
                 {/* ตัวคูณ */}
                 <div>
-                  <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: 4 }}>ตัวคูณ</label>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>ตัวคูณ</label>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {[1.0, 1.5, 2.0].map(m => (
                       <button
@@ -588,7 +588,7 @@ export default function OtPage() {
                           flex: 1, padding: '7px 0', borderRadius: 6, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                           border: calcMultiplier === m ? '1.5px solid #f97316' : '1px solid #e5e7eb',
                           background: calcMultiplier === m ? '#fff7ed' : '#fff',
-                          color: calcMultiplier === m ? '#ea580c' : '#6b7280',
+                          color: calcMultiplier === m ? '#ea580c' : 'var(--text-muted)',
                         }}
                       >
                         {m}×
@@ -601,7 +601,7 @@ export default function OtPage() {
               <div style={{ background: calcResult != null ? '#f0fdf4' : '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
                 {calcResult != null ? (
                   <div>
-                    <p style={{ margin: '0 0 2px', fontSize: '11px', color: '#6b7280' }}>
+                    <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--text-muted)' }}>
                       {approveTarget.hours} ชม. × ฿{calcRate} × {calcMultiplier} =
                     </p>
                     <p style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#15803d' }}>
@@ -609,7 +609,7 @@ export default function OtPage() {
                     </p>
                   </div>
                 ) : (
-                  <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>กรอกอัตรา/ชม. เพื่อคำนวณ</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>กรอกอัตรา/ชม. เพื่อคำนวณ</p>
                 )}
               </div>
             </div>
@@ -634,7 +634,7 @@ export default function OtPage() {
               <select
                 value={addForm.employee_id}
                 onChange={e => setAddForm(f => ({ ...f, employee_id: e.target.value }))}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${!addForm.employee_id ? '#fca5a5' : '#e5e7eb'}`, fontSize: '13px', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${!addForm.employee_id ? '#fca5a5' : '#e5e7eb'}`, fontSize: '13px', background: '#fff', boxSizing: 'border-box' }}
               >
                 <option value="">-- เลือกพนักงาน --</option>
                 {employees.map(e => (
@@ -650,7 +650,7 @@ export default function OtPage() {
                 type="date"
                 value={addForm.date}
                 onChange={e => setAddForm(f => ({ ...f, date: e.target.value }))}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -662,7 +662,7 @@ export default function OtPage() {
                   type="time"
                   value={addForm.start_time}
                   onChange={e => setAddForm(f => ({ ...f, start_time: e.target.value }))}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
@@ -671,7 +671,7 @@ export default function OtPage() {
                   type="time"
                   value={addForm.end_time}
                   onChange={e => setAddForm(f => ({ ...f, end_time: e.target.value }))}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
@@ -694,7 +694,7 @@ export default function OtPage() {
                       flex: 1, padding: '9px 0', borderRadius: 8, fontSize: '13px', fontWeight: 600, cursor: 'pointer',
                       border: addForm.multiplier === m ? '1.5px solid #f97316' : '1px solid #e5e7eb',
                       background: addForm.multiplier === m ? '#fff7ed' : '#fff',
-                      color: addForm.multiplier === m ? '#ea580c' : '#6b7280',
+                      color: addForm.multiplier === m ? '#ea580c' : 'var(--text-muted)',
                     }}
                   >
                     {m}×
@@ -715,7 +715,7 @@ export default function OtPage() {
                       flex: 1, padding: '8px 0', borderRadius: 8, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                       border: addForm.status === s ? `1.5px solid ${STATUS_CFG[s].color}` : '1px solid #e5e7eb',
                       background: addForm.status === s ? STATUS_CFG[s].bg : '#fff',
-                      color: addForm.status === s ? STATUS_CFG[s].color : '#6b7280',
+                      color: addForm.status === s ? STATUS_CFG[s].color : 'var(--text-muted)',
                     }}
                   >
                     {STATUS_CFG[s].label}
@@ -728,14 +728,14 @@ export default function OtPage() {
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>
                 เลขบัญชีธนาคาร
-                <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400, marginLeft: 4 }}>(สำหรับโอน OT)</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>(สำหรับโอน OT)</span>
               </label>
               <input
                 type="text"
                 placeholder="เช่น กสิกร 012-3-45678-9"
                 value={addForm.bank_account}
                 onChange={e => setAddForm(f => ({ ...f, bank_account: e.target.value }))}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -747,7 +747,7 @@ export default function OtPage() {
                 placeholder="เช่น ปิดงบเดือน / จัดงาน Event"
                 value={addForm.note}
                 onChange={e => setAddForm(f => ({ ...f, note: e.target.value }))}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -756,7 +756,7 @@ export default function OtPage() {
               <button
                 onClick={doAddOt}
                 disabled={!addForm.employee_id || addHours <= 0}
-                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !addForm.employee_id || addHours <= 0 ? '#e5e7eb' : '#f97316', color: !addForm.employee_id || addHours <= 0 ? '#9ca3af' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !addForm.employee_id || addHours <= 0 ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !addForm.employee_id || addHours <= 0 ? '#e5e7eb' : '#f97316', color: !addForm.employee_id || addHours <= 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !addForm.employee_id || addHours <= 0 ? 'not-allowed' : 'pointer' }}
               >
                 บันทึก OT
               </button>
@@ -770,7 +770,7 @@ export default function OtPage() {
         <div style={modalBackdrop(showBulkPay)} onClick={() => setShowBulkPay(false)}>
           <div style={{ ...modalBox, width: isMobile ? '100%' : 500 }} onClick={e => e.stopPropagation()}>
             <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 4px' }}>💸 รวมจ่าย OT</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 16px' }}>จ่าย OT ทุกรายการที่ "อนุมัติแล้ว" ของพนักงานคนเดียวพร้อมกัน</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 16px' }}>จ่าย OT ทุกรายการที่ "อนุมัติแล้ว" ของพนักงานคนเดียวพร้อมกัน</p>
 
             {/* Employee select */}
             <div style={{ marginBottom: 12 }}>
@@ -778,7 +778,7 @@ export default function OtPage() {
               <select
                 value={bulkEmpId}
                 onChange={e => { setBulkEmpId(e.target.value); setBulkDailyRate('') }}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', background: '#fff', boxSizing: 'border-box' }}
               >
                 <option value="">-- เลือกพนักงาน --</option>
                 {/* แสดงเฉพาะคนที่มี APPROVED อยู่ */}
@@ -798,7 +798,7 @@ export default function OtPage() {
                 {/* Bank */}
                 {bulkBank ? (
                   <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>บัญชีโอนเงิน</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>บัญชีโอนเงิน</span>
                     <span style={{ fontWeight: 700, color: '#7c3aed', fontFamily: 'monospace' }}>{bulkBank}</span>
                   </div>
                 ) : (
@@ -816,15 +816,15 @@ export default function OtPage() {
                     placeholder="เช่น 300"
                     value={bulkDailyRate}
                     onChange={e => setBulkDailyRate(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '14px', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 {/* รายการแยกวัน */}
                 <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
                   <div style={{ background: '#fafafa', padding: '8px 14px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280' }}>รายการ OT ({bulkRows.length} วัน)</span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280' }}>ยอดต่อวัน</span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>รายการ OT ({bulkRows.length} วัน)</span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>ยอดต่อวัน</span>
                   </div>
                   {bulkRows.map(r => {
                     const amt = bulkTotalPerDay(r)
@@ -832,8 +832,8 @@ export default function OtPage() {
                       <div key={r.id} style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500 }}>{thDate(r.date)}</span>
-                          <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: 8 }}>{r.start_time}–{r.end_time} · {r.multiplier}×</span>
-                          {r.note && <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: 6 }}>· {r.note}</span>}
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 8 }}>{r.start_time}–{r.end_time} · {r.multiplier}×</span>
+                          {r.note && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 6 }}>· {r.note}</span>}
                         </div>
                         <span style={{ fontSize: '13px', fontWeight: 700, color: amt != null ? '#7c3aed' : '#d1d5db' }}>
                           {amt != null ? `฿${amt.toLocaleString('th-TH', { maximumFractionDigits: 2 })}` : '—'}
@@ -853,7 +853,7 @@ export default function OtPage() {
             )}
 
             {bulkEmpId && bulkRows.length === 0 && (
-              <div style={{ background: '#f9fafb', borderRadius: 8, padding: '20px', textAlign: 'center', color: '#9ca3af', marginBottom: 12, fontSize: '13px' }}>
+              <div style={{ background: '#f9fafb', borderRadius: 8, padding: '20px', textAlign: 'center', color: 'var(--text-muted)', marginBottom: 12, fontSize: '13px' }}>
                 ไม่มีรายการ OT ที่อนุมัติแล้วรอจ่าย
               </div>
             )}
@@ -863,7 +863,7 @@ export default function OtPage() {
               <button
                 onClick={doBulkPay}
                 disabled={!bulkEmpId || bulkRows.length === 0}
-                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !bulkEmpId || bulkRows.length === 0 ? '#e5e7eb' : '#7c3aed', color: !bulkEmpId || bulkRows.length === 0 ? '#9ca3af' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !bulkEmpId || bulkRows.length === 0 ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !bulkEmpId || bulkRows.length === 0 ? '#e5e7eb' : '#7c3aed', color: !bulkEmpId || bulkRows.length === 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !bulkEmpId || bulkRows.length === 0 ? 'not-allowed' : 'pointer' }}
               >
                 💸 ยืนยันรวมจ่าย {bulkRows.length > 0 ? `(${bulkRows.length} รายการ)` : ''}
               </button>
@@ -881,7 +881,7 @@ export default function OtPage() {
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '18px' }}>💸</div>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>จ่าย OT</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{payTarget.full_name} · {thDate(payTarget.date)}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{payTarget.full_name} · {thDate(payTarget.date)}</p>
               </div>
             </div>
 
@@ -898,7 +898,7 @@ export default function OtPage() {
               {payTarget.note && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span>หมายเหตุ</span>
-                  <span style={{ color: '#6b7280' }}>{payTarget.note}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{payTarget.note}</span>
                 </div>
               )}
               {/* Bank account */}
@@ -914,23 +914,23 @@ export default function OtPage() {
 
             {/* Calculator — daily_rate × multiplier */}
             <div style={{ border: '1px dashed #d1d5db', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>🧮 คำนวณยอดจ่าย</p>
+              <p style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>🧮 คำนวณยอดจ่าย</p>
               <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: 4 }}>ค่า OT ต่อวัน (฿)</label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>ค่า OT ต่อวัน (฿)</label>
                 <input
                   type="number"
                   min="0"
                   placeholder="เช่น 300"
                   value={payRate}
                   onChange={e => setPayRate(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
               {/* Result */}
               <div style={{ background: payAmountSingle != null ? '#f5f3ff' : '#f9fafb', borderRadius: 8, padding: '10px 14px' }}>
                 {payAmountSingle != null ? (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       ฿{payRate} × {payTarget!.multiplier}× =
                     </span>
                     <span style={{ fontSize: '22px', fontWeight: 800, color: '#7c3aed' }}>
@@ -938,7 +938,7 @@ export default function OtPage() {
                     </span>
                   </div>
                 ) : (
-                  <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>กรอกค่า OT ต่อวัน เพื่อดูยอดจ่าย</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>กรอกค่า OT ต่อวัน เพื่อดูยอดจ่าย</p>
                 )}
               </div>
             </div>
@@ -956,7 +956,7 @@ export default function OtPage() {
         <div style={modalBackdrop(!!rejectTarget)} onClick={() => setRejectTarget(null)}>
           <div style={modalBox} onClick={e => e.stopPropagation()}>
             <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 4px' }}>ไม่อนุมัติ OT</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 16px' }}>{rejectTarget.full_name} · {thDate(rejectTarget.date)} · {rejectTarget.hours} ชม.</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 16px' }}>{rejectTarget.full_name} · {thDate(rejectTarget.date)} · {rejectTarget.hours} ชม.</p>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 5, display: 'block' }}>เหตุผล (ไม่บังคับ)</label>
               <textarea
@@ -964,7 +964,7 @@ export default function OtPage() {
                 onChange={e => setRejectNote(e.target.value)}
                 rows={3}
                 placeholder="ระบุเหตุผล..."
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

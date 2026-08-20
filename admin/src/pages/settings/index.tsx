@@ -87,7 +87,7 @@ function LoadingImageSettings() {
         </div>
         <div>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>ภาพหน้าจอ Loading (แอปพนักงาน)</p>
-          <p style={{ fontSize: '12px', color: '#9ca3af', margin: '3px 0 0' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
             ภาพที่แสดงบนหน้าจอ Loading ตอนพนักงานเปิดแอปผ่าน Line — ถ้าไม่กำหนดจะใช้ภาพเริ่มต้นของระบบ
           </p>
         </div>
@@ -138,7 +138,7 @@ function LoadingImageSettings() {
               </button>
             )}
           </div>
-          <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>รองรับ JPG, PNG, WEBP, GIF ขนาดไม่เกิน 5MB</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>รองรับ JPG, PNG, WEBP, GIF ขนาดไม่เกิน 5MB</p>
         </div>
       </div>
     </div>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>เกณฑ์การสาย & ค่าปรับ</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '3px 0 0' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
               ตั้งค่าแยกทีละกะ — ไปที่ <strong>กะ & เวลา → จัดการกะ</strong> เลือกกะที่ต้องการ แล้วดูส่วน "เกณฑ์การสาย & ค่าปรับ"
             </p>
           </div>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>รัศมีเช็คอิน GPS</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '3px 0 0' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
               ตั้งค่าแยกทีละกะเช่นกัน — ไปที่ <strong>กะ & เวลา → จัดการกะ</strong>
             </p>
           </div>

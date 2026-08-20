@@ -43,7 +43,7 @@ export default function ConfirmDialog({
           </div>
           <div>
             <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>{title}</p>
-            <p style={{ fontSize: '13px', color: '#6b7280', margin: '6px 0 0', lineHeight: 1.5 }}>{message}</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>{message}</p>
           </div>
         </div>
 

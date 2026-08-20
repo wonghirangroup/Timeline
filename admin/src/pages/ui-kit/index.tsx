@@ -17,8 +17,8 @@ export const TOKENS = {
     // Text
     textPrimary:    '#111827',   // gray-900    → ชื่อหัวข้อ, label
     textSecondary:  '#374151',   // gray-700    → body text
-    textMuted:      '#6b7280',   // gray-500    → placeholder, sub-text
-    textDisabled:   '#9ca3af',   // gray-400    → disabled
+    textMuted:      'var(--text-muted)',   // gray-500    → placeholder, sub-text
+    textDisabled:   'var(--text-muted)',   // gray-400    → disabled
 
     // Surface
     white:          '#ffffff',
@@ -175,7 +175,7 @@ function InputDemo() {
   const baseInput: React.CSSProperties = {
     width: '100%', padding: '9px 12px', borderRadius: T.radius.md,
     border: `1.5px solid ${T.color.border}`, fontSize: T.font.sm,
-    fontFamily: 'inherit', color: T.color.textPrimary, outline: 'none',
+    fontFamily: 'inherit', color: T.color.textPrimary,
     boxSizing: 'border-box', background: '#fff',
   }
   return (

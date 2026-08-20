@@ -69,7 +69,7 @@ function getShiftStatus(s: ApiShift): ShiftStatus {
 }
 
 const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string; dot: string }> = {
-  inactive: { label: 'ปิดใช้งาน',   color: '#9ca3af', bg: '#f3f4f6', dot: '○' },
+  inactive: { label: 'ปิดใช้งาน',   color: 'var(--text-muted)', bg: '#f3f4f6', dot: '○' },
   upcoming: { label: 'ยังไม่เริ่ม', color: '#d97706', bg: '#fef3c7', dot: '◷' },
   active:   { label: 'กำลังทำงาน',  color: '#16a34a', bg: '#dcfce7', dot: '●' },
   done:     { label: 'เลิกงานแล้ว', color: '#6366f1', bg: '#eef2ff', dot: '✓' },
@@ -107,7 +107,7 @@ const card: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '8px 12px', fontSize: '13px',
   borderRadius: 8, border: '1px solid #e5e7eb',
-  outline: 'none', boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit',
+  boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit',
 }
 
 
@@ -203,7 +203,7 @@ function BranchTour({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div style={{ padding:'4px 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-          <button onClick={onClose} style={{ padding:'7px 10px',borderRadius:8,border:'1px solid #e5e7eb',background:'#fff',color:'#9ca3af',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>✕ ปิด</button>
+          <button onClick={onClose} style={{ padding:'7px 10px',borderRadius:8,border:'1px solid #e5e7eb',background:'#fff',color:'var(--text-muted)',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>✕ ปิด</button>
           <div style={{ display:'flex',gap:6 }}>
             {step > 0 && (
               <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px',borderRadius:8,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#374151',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>← ก่อนหน้า</button>
@@ -597,7 +597,7 @@ export default function BranchPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
         <button
           onClick={() => setTourActive(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
         >
           <HelpCircle size={14} /> วิธีใช้
         </button>
@@ -619,19 +619,19 @@ export default function BranchPage() {
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Loading */}
-      {loading && <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>}
+      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>}
 
       {/* Branch cards */}
       {!loading && (
         <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {branches.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
               <p style={{ fontSize: '14px', marginBottom: 12 }}>ยังไม่มีสาขา</p>
               <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มสาขาแรก</button>
             </div>
@@ -645,23 +645,23 @@ export default function BranchPage() {
                   </div>
                   <div>
                     <p style={{ fontWeight: 700, color: '#111827', margin: 0, fontSize: '13px' }}>{b.name}</p>
-                    <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
                       {b._count.employees} คน · {b._count.shifts} กะ
                     </p>
                   </div>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: b.is_active ? '#fff7ed' : '#f9fafb', color: b.is_active ? '#c2410c' : '#9ca3af' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: b.is_active ? '#fff7ed' : '#f9fafb', color: b.is_active ? '#c2410c' : 'var(--text-muted)' }}>
                   {b.is_active ? 'เปิด' : 'ปิด'}
                 </span>
               </div>
 
               {b.location && (
-                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 6px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 6px', lineHeight: 1.5 }}>
                   📍 {b.location}
                 </p>
               )}
               {b.lat && b.lng && (
-                <p data-tour={idx === 0 ? 'branch-geo-0' : undefined} style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 4px', fontFamily: 'monospace' }}>
+                <p data-tour={idx === 0 ? 'branch-geo-0' : undefined} style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 4px', fontFamily: 'monospace' }}>
                   🌐 {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)} · {b.gps_radius}m
                 </p>
               )}
@@ -679,7 +679,7 @@ export default function BranchPage() {
                 return (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         กะทำงาน ({branchShifts.length})
                       </div>
                       <button
@@ -709,7 +709,7 @@ export default function BranchPage() {
                           >
                             <Clock size={11} color={cfg.color} />
                             {s.name}
-                            <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 400 }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>
                               {s.start_time}–{s.end_time}
                             </span>
                             {assignedCount > 0 && (
@@ -753,7 +753,7 @@ export default function BranchPage() {
       {!loading && totalPages > 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -765,11 +765,11 @@ export default function BranchPage() {
                 </div>
               )}
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronLeft size={16} />
               </button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -788,7 +788,7 @@ export default function BranchPage() {
           width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '13px', fontWeight: 700, flexShrink: 0,
           background: step > n ? '#f97316' : step === n ? '#f97316' : '#e5e7eb',
-          color: step >= n ? '#fff' : '#9ca3af',
+          color: step >= n ? '#fff' : 'var(--text-muted)',
           boxShadow: step === n ? '0 0 0 4px rgba(249,115,22,0.15)' : 'none',
           transition: 'all 0.2s',
         })
@@ -806,11 +806,11 @@ export default function BranchPage() {
                   <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>
                     {modal === 'add' ? 'เพิ่มสาขาใหม่' : `แก้ไข: ${editTarget?.name}`}
                   </p>
-                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
                     ขั้นตอน {step} จาก {maxStep} — {STEPS[step - 1].label}
                   </p>
                 </div>
-                <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
+                <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
                   <X size={18} />
                 </button>
               </div>
@@ -826,7 +826,7 @@ export default function BranchPage() {
                             ? <Check size={14} />
                             : s.n}
                         </div>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: step >= s.n ? '#f97316' : '#9ca3af', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: step >= s.n ? '#f97316' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                           {s.label}
                         </span>
                       </div>
@@ -867,7 +867,7 @@ export default function BranchPage() {
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#374151', margin: 0 }}>เลือกวิธีกรอกพิกัด GPS</p>
                       <button type="button" onClick={() => setShowInfo(v => !v)}
                         title="ดูวิธีทั้ง 3 แบบ"
-                        style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid #9ca3af', background: showInfo ? '#f3f4f6' : '#fff', color: '#6b7280', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid #9ca3af', background: showInfo ? '#f3f4f6' : '#fff', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         i
                       </button>
                     </div>
@@ -903,18 +903,18 @@ export default function BranchPage() {
                     {/* Lat/Lng inputs */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: 5 }}>Latitude (ละติจูด)</label>
+                        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 5 }}>Latitude (ละติจูด)</label>
                         <input value={form.lat} onChange={e => setForm(f => ({ ...f, lat: e.target.value }))} placeholder="เช่น 13.7563" style={inputStyle} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: 5 }}>Longitude (ลองจิจูด)</label>
+                        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 5 }}>Longitude (ลองจิจูด)</label>
                         <input value={form.lng} onChange={e => setForm(f => ({ ...f, lng: e.target.value }))} placeholder="เช่น 100.5018" style={inputStyle} />
                       </div>
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: 5 }}>หรือ paste lat, lng พร้อมกัน</label>
-                      <input placeholder='เช่น 13.7563, 100.5018' style={{ ...inputStyle, color: '#9ca3af' }}
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 5 }}>หรือ paste lat, lng พร้อมกัน</label>
+                      <input placeholder='เช่น 13.7563, 100.5018' style={{ ...inputStyle, color: 'var(--text-muted)' }}
                         onPaste={e => {
                           const text = e.clipboardData.getData('text')
                           const parts = text.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean)
@@ -931,12 +931,12 @@ export default function BranchPage() {
                         <Check size={15} />
                         พิกัด {parseFloat(form.lat).toFixed(6)}, {parseFloat(form.lng).toFixed(6)}
                         <button type="button" onClick={() => setForm(f => ({ ...f, lat: '', lng: '' }))}
-                          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '16px', lineHeight: 1 }}>×</button>
+                          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '16px', lineHeight: 1 }}>×</button>
                       </div>
                     )}
 
                     {!form.lat && !form.lng && (
-                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0, textAlign: 'center', padding: '8px 0' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, textAlign: 'center', padding: '8px 0' }}>
                         ไม่บังคับ — ข้ามได้ถ้ายังไม่มีพิกัด
                       </p>
                     )}
@@ -994,11 +994,11 @@ export default function BranchPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Clock size={13} color="#16a34a" />
                               <span style={{ fontWeight: 600, fontSize: '13px', color: '#15803d' }}>{s.name}</span>
-                              <span style={{ fontSize: '12px', color: '#6b7280' }}>{s.start_time}–{s.end_time}</span>
+                              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.start_time}–{s.end_time}</span>
                               {s.shift_type === 'SPECIAL' && <span style={{ fontSize: '11px', background: '#fef3c7', color: '#d97706', borderRadius: 99, padding: '1px 6px', fontWeight: 600 }}>SPECIAL</span>}
                             </div>
                             <button onClick={() => setPendingShifts(prev => prev.filter((_, j) => j !== i))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2, display: 'flex' }}>
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex' }}>
                               <X size={14} />
                             </button>
                           </div>
@@ -1007,7 +1007,7 @@ export default function BranchPage() {
                     )}
 
                     {pendingShifts.length === 0 && (
-                      <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', margin: 0 }}>ยังไม่มีกะ — กดเพิ่มกะด้านบน หรือกด "เพิ่มสาขา" เพื่อข้าม</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>ยังไม่มีกะ — กดเพิ่มกะด้านบน หรือกด "เพิ่มสาขา" เพื่อข้าม</p>
                     )}
                   </>
                 )}
@@ -1025,7 +1025,7 @@ export default function BranchPage() {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>รัศมี (เมตร)</label>
                         <input type="number" min="50" max="5000" value={form.gps_radius}
                           onChange={e => setForm(f => ({ ...f, gps_radius: e.target.value }))} style={inputStyle} />
-                        <p style={{ fontSize: '11px', color: '#9ca3af', margin: '5px 0 0' }}>แนะนำ 100–300 เมตร</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>แนะนำ 100–300 เมตร</p>
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>โหมดนอกพื้นที่</label>
@@ -1046,11 +1046,11 @@ export default function BranchPage() {
                     <div style={{ padding: '14px 16px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px' }}>
                       <p style={{ fontWeight: 700, color: '#374151', margin: '0 0 8px' }}>สรุปข้อมูลสาขา</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: '#9ca3af', minWidth: 80 }}>ชื่อสาขา</span><span style={{ color: '#111827', fontWeight: 600 }}>{form.name || '—'}</span></div>
-                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: '#9ca3af', minWidth: 80 }}>ที่อยู่</span><span style={{ color: '#374151' }}>{form.location || '—'}</span></div>
-                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: '#9ca3af', minWidth: 80 }}>พิกัด GPS</span><span style={{ color: '#374151', fontFamily: 'monospace', fontSize: '12px' }}>{form.lat && form.lng ? `${parseFloat(form.lat).toFixed(6)}, ${parseFloat(form.lng).toFixed(6)}` : 'ไม่ได้ตั้งค่า'}</span></div>
-                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: '#9ca3af', minWidth: 80 }}>รัศมี</span><span style={{ color: '#374151' }}>{form.gps_radius} เมตร</span></div>
-                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: '#9ca3af', minWidth: 80 }}>โหมด</span><span style={{ color: form.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706', fontWeight: 600 }}>{form.geo_mode}</span></div>
+                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--text-muted)', minWidth: 80 }}>ชื่อสาขา</span><span style={{ color: '#111827', fontWeight: 600 }}>{form.name || '—'}</span></div>
+                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--text-muted)', minWidth: 80 }}>ที่อยู่</span><span style={{ color: '#374151' }}>{form.location || '—'}</span></div>
+                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--text-muted)', minWidth: 80 }}>พิกัด GPS</span><span style={{ color: '#374151', fontFamily: 'monospace', fontSize: '12px' }}>{form.lat && form.lng ? `${parseFloat(form.lat).toFixed(6)}, ${parseFloat(form.lng).toFixed(6)}` : 'ไม่ได้ตั้งค่า'}</span></div>
+                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--text-muted)', minWidth: 80 }}>รัศมี</span><span style={{ color: '#374151' }}>{form.gps_radius} เมตร</span></div>
+                        <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--text-muted)', minWidth: 80 }}>โหมด</span><span style={{ color: form.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706', fontWeight: 600 }}>{form.geo_mode}</span></div>
                       </div>
                     </div>
                   </>
@@ -1100,9 +1100,9 @@ export default function BranchPage() {
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '14px', color: '#111827', margin: 0 }}>ปักหมุดตำแหน่งสาขา</p>
-                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>คลิกบนแผนที่เพื่อเลือกตำแหน่ง</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>คลิกบนแผนที่เพื่อเลือกตำแหน่ง</p>
               </div>
-              <button onClick={() => setMapModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
+              <button onClick={() => setMapModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
                 <X size={18} />
               </button>
             </div>
@@ -1123,7 +1123,7 @@ export default function BranchPage() {
                   </button>
                 </div>
               ) : (
-                <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0, textAlign: 'center' }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
                   👆 คลิกบนแผนที่เพื่อเลือกตำแหน่ง
                 </p>
               )}
@@ -1141,9 +1141,9 @@ export default function BranchPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
                 <p style={{ fontWeight: 800, fontSize: '15px', color: '#111827', margin: 0 }}>QR Code เช็คอิน</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', margin: '3px 0 0' }}>{qrTarget.name}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>{qrTarget.name}</p>
               </div>
-              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
@@ -1164,7 +1164,7 @@ export default function BranchPage() {
             {/* QR Code */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
               {qrQ.isLoading ? (
-                <div style={{ width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', borderRadius: 14, color: '#9ca3af', fontSize: '13px' }}>
+                <div style={{ width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', borderRadius: 14, color: 'var(--text-muted)', fontSize: '13px' }}>
                   ⏳ กำลังสร้าง QR…
                 </div>
               ) : qrQ.isError || !qrString ? (
@@ -1176,7 +1176,7 @@ export default function BranchPage() {
                   <div ref={qrWrapRef} style={{ padding: 14, background: '#fff', border: '2px solid #e5e7eb', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,0.07)' }}>
                     <QRCodeSVG value={qrString} size={200} level="H" />
                   </div>
-                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
                     QR Code ถาวร — ไม่มีวันหมดอายุ<br/>
                     <span style={{ color: '#16a34a', fontWeight: 600 }}>ระบบตรวจจับกะอัตโนมัติจากเวลาที่สแกน</span>
                   </p>
@@ -1235,11 +1235,11 @@ export default function BranchPage() {
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827' }}>+ เพิ่มกะใหม่</div>
-                <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Building2 size={11} /> {addShiftBranch.name}
                 </div>
               </div>
-              <button onClick={() => setAddShiftBranch(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={18}/></button>
+              <button onClick={() => setAddShiftBranch(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} aria-label="ปิด"><X size={18}/></button>
             </div>
 
             {/* Form */}
@@ -1254,7 +1254,7 @@ export default function BranchPage() {
 
               {/* เวลาเข้า-ออก */}
               <div>
-                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>เข้า–ออกงาน</label>
+                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>เข้า–ออกงาน</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   {[
                     { label: 'เวลาเริ่มงาน', key: 'start_time' as const },
@@ -1286,7 +1286,7 @@ export default function BranchPage() {
 
               {/* เกณฑ์การสาย */}
               <div>
-                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>เกณฑ์การสาย & ค่าปรับ</label>
+                <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>เกณฑ์การสาย & ค่าปรับ</label>
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
                   ⚠️ ระดับ 1/2 = สายปกติ · ⛔ ขาด = สายเกินจนนับเป็นวันขาด (ยังเช็คอินได้ปกติ แต่หักค่าปรับวันถัดไป)
                 </div>
@@ -1352,12 +1352,12 @@ export default function BranchPage() {
                     ตัวอย่างกะ "{shiftForm.name || '...'}" · {addShiftBranch.name}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
-                    <span style={{ color: '#6b7280' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{shiftForm.start_time}</span>
-                    {shiftForm.late_threshold_1 && <><span style={{ color: '#6b7280' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {shiftForm.late_threshold_1}{shiftForm.late_fine_1 ? ` (฿${shiftForm.late_fine_1})` : ''}</span></>}
-                    {shiftForm.late_threshold_2 && <><span style={{ color: '#6b7280' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {shiftForm.late_threshold_2}{shiftForm.late_fine_2 ? ` (฿${shiftForm.late_fine_2})` : ''}</span></>}
-                    {shiftForm.absent_threshold && <><span style={{ color: '#6b7280' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {shiftForm.absent_threshold}{shiftForm.absent_fine ? ` (+฿${shiftForm.absent_fine} วันถัดไป)` : ''}</span></>}
-                    {shiftForm.min_checkout && <><span style={{ color: '#6b7280' }}>เช็คเอาท์ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{shiftForm.min_checkout}</span></>}
-                    <span style={{ color: '#6b7280' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{shiftForm.end_time}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{shiftForm.start_time}</span>
+                    {shiftForm.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {shiftForm.late_threshold_1}{shiftForm.late_fine_1 ? ` (฿${shiftForm.late_fine_1})` : ''}</span></>}
+                    {shiftForm.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {shiftForm.late_threshold_2}{shiftForm.late_fine_2 ? ` (฿${shiftForm.late_fine_2})` : ''}</span></>}
+                    {shiftForm.absent_threshold && <><span style={{ color: 'var(--text-muted)' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {shiftForm.absent_threshold}{shiftForm.absent_fine ? ` (+฿${shiftForm.absent_fine} วันถัดไป)` : ''}</span></>}
+                    {shiftForm.min_checkout && <><span style={{ color: 'var(--text-muted)' }}>เช็คเอาท์ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{shiftForm.min_checkout}</span></>}
+                    <span style={{ color: 'var(--text-muted)' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{shiftForm.end_time}</span>
                   </div>
                 </div>
               )}
@@ -1443,7 +1443,7 @@ export default function BranchPage() {
                     <div style={{ fontWeight:800,fontSize:'1.2rem',color:'#fff',lineHeight:1.2 }}>{s.name}</div>
                     <div style={{ fontSize:'0.8rem',color:'rgba(255,255,255,0.75)',marginTop:2 }}>{s.branch.name}</div>
                   </div>
-                  <button onClick={() => setDetailShift(null)}
+                  <button onClick={() => setDetailShift(null)} aria-label="ปิด"
                     style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:6,cursor:'pointer',color:'#fff',display:'flex' }}>
                     <X size={18}/>
                   </button>
@@ -1493,7 +1493,7 @@ export default function BranchPage() {
                       <BranchInfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
-                      <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'#9ca3af' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                      <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
                     )}
                   </div>
                   {isSpec && (
@@ -1526,7 +1526,7 @@ export default function BranchPage() {
                       </div>
 
                       {inShiftEmps.length === 0 ? (
-                        <div style={{ textAlign:'center',padding:'24px 0',color:'#9ca3af',fontSize:'0.85rem' }}>ยังไม่มีพนักงานในกะนี้</div>
+                        <div style={{ textAlign:'center',padding:'24px 0',color:'var(--text-muted)',fontSize:'0.85rem' }}>ยังไม่มีพนักงานในกะนี้</div>
                       ) : (
                         <div style={{ display:'flex',flexDirection:'column',gap:2, marginBottom: showAddEmpToShift ? 16 : 0 }}>
                           {inShiftEmps.map((e, idx) => (
@@ -1585,10 +1585,10 @@ export default function BranchPage() {
                               style={{ width:'100%', padding:'7px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:'0.8rem', marginBottom:8, boxSizing:'border-box', fontFamily:'inherit' }} />
 
                             {searchedOtherEmps.length === 0 ? (
-                              <div style={{ textAlign:'center',padding:'16px 0',color:'#9ca3af',fontSize:'0.8rem' }}>ไม่พบพนักงาน</div>
+                              <div style={{ textAlign:'center',padding:'16px 0',color:'var(--text-muted)',fontSize:'0.8rem' }}>ไม่พบพนักงาน</div>
                             ) : (
                               <>
-                                <label style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 4px 8px', fontSize:'0.75rem', color:'#6b7280', cursor:'pointer', userSelect:'none' }}>
+                                <label style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 4px 8px', fontSize:'0.75rem', color:'var(--text-muted)', cursor:'pointer', userSelect:'none' }}>
                                   <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ width:14, height:14, cursor:'pointer' }} />
                                   เลือกทั้งหมด ({searchedOtherEmps.length})
                                 </label>
@@ -1627,7 +1627,7 @@ export default function BranchPage() {
                                   style={{
                                     width:'100%', marginTop:10, padding:'9px', borderRadius:8, border:'none',
                                     background: selectedAddIds.size === 0 ? '#e5e7eb' : '#16a34a',
-                                    color: selectedAddIds.size === 0 ? '#9ca3af' : '#fff',
+                                    color: selectedAddIds.size === 0 ? 'var(--text-muted)' : '#fff',
                                     fontSize:'0.82rem', fontWeight:700,
                                     cursor: selectedAddIds.size === 0 ? 'not-allowed' : 'pointer',
                                   }}>

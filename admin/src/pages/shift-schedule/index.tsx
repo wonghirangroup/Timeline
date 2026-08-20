@@ -80,7 +80,7 @@ type EffectiveType = ShiftAssignmentTypeValue | 'LEAVE'
 
 const TYPE_CFG: Record<EffectiveType, { label: string; short: string; bg: string; color: string; border: string }> = {
   WORK:       { label: 'ทำงาน',            short: 'W',   bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-  DAY_OFF:    { label: 'หยุดพัก',          short: '–',   bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
+  DAY_OFF:    { label: 'หยุดพัก',          short: '–',   bg: '#f3f4f6', color: 'var(--text-muted)', border: '#d1d5db' },
   WEEKLY_OFF: { label: 'หยุดประจำสัปดาห์', short: 'OFF', bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   HOLIDAY:    { label: 'หยุดนักขัตฤกษ์',  short: 'H',   bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
   LEAVE:      { label: 'ลา',               short: 'L',   bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
@@ -337,7 +337,7 @@ export default function ShiftSchedulePage() {
         {/* กะทำงาน */}
         {empShifts.length > 0 && (
           <>
-            <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>กะทำงาน</div>
+            <div style={{ padding:'6px 14px 2px', fontSize:11, color:'var(--text-muted)', fontWeight:600 }}>กะทำงาน</div>
             {empShifts.map(sh => {
               const isActive = effective?.shift_id === sh.id
               const isDefault = isActive && effective?.isDefault
@@ -353,7 +353,7 @@ export default function ShiftSchedulePage() {
                     {sh.shift_type === 'SPECIAL' && <span style={{ fontSize:10, marginRight:3 }}>⭐</span>}
                     {sh.name}
                   </span>
-                  <span style={{ color:'#9ca3af', fontSize:11, marginLeft:'auto' }}>{sh.start_time}–{sh.end_time}</span>
+                  <span style={{ color:'var(--text-muted)', fontSize:11, marginLeft:'auto' }}>{sh.start_time}–{sh.end_time}</span>
                   {isDefault && <span style={{ fontSize:10, color:'#6366f1', background:'#e0e7ff', borderRadius:4, padding:'0 5px' }}>ประจำ</span>}
                   {sh.shift_type === 'SPECIAL' && <span style={{ fontSize:10, color:'#7c3aed', background:'#ede9fe', borderRadius:4, padding:'0 5px' }}>พิเศษ</span>}
                 </button>
@@ -363,7 +363,7 @@ export default function ShiftSchedulePage() {
         )}
 
         {/* ประเภทวัน (manual override เท่านั้น — วันลา/หยุดจริงมาจากระบบลา/จองวันหยุดโดยอัตโนมัติอยู่แล้ว) */}
-        <div style={{ padding:'6px 14px 2px', fontSize:11, color:'#9ca3af', fontWeight:600 }}>ตั้งเป็นวันหยุด (แก้เฉพาะวันนี้)</div>
+        <div style={{ padding:'6px 14px 2px', fontSize:11, color:'var(--text-muted)', fontWeight:600 }}>ตั้งเป็นวันหยุด (แก้เฉพาะวันนี้)</div>
         {(['DAY_OFF','WEEKLY_OFF','HOLIDAY'] as ShiftAssignmentTypeValue[]).map(t => {
           const cfg = TYPE_CFG[t]
           const isActive = effective?.type === t && !effective.shift_id
@@ -373,7 +373,7 @@ export default function ShiftSchedulePage() {
               padding:'6px 14px', border:'none', background: isActive ? '#f9fafb' : 'transparent', cursor:'pointer', textAlign:'left',
             }}>
               <span style={{ padding:'1px 6px', borderRadius:4, fontSize:11, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}` }}>{cfg.label}</span>
-              {isActive && <span style={{ fontSize:10, color:'#9ca3af', marginLeft:'auto' }}>✓</span>}
+              {isActive && <span style={{ fontSize:10, color:'var(--text-muted)', marginLeft:'auto' }}>✓</span>}
             </button>
           )
         })}
@@ -388,7 +388,7 @@ export default function ShiftSchedulePage() {
               color:'#6366f1', fontSize:13, fontWeight:600,
             }}>
               ↩ กลับค่าอัตโนมัติ
-              {defaultShift && <span style={{ fontSize:11, color:'#9ca3af', fontWeight:400, marginLeft:4 }}>({defaultShift.name} {defaultShift.start_time})</span>}
+              {defaultShift && <span style={{ fontSize:11, color:'var(--text-muted)', fontWeight:400, marginLeft:4 }}>({defaultShift.name} {defaultShift.start_time})</span>}
             </button>
           </>
         )}
@@ -458,7 +458,7 @@ export default function ShiftSchedulePage() {
       inner = (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
           <span style={{ width:6, height:6, borderRadius:'50%', background: isSpecial ? (e.isDefault ? '#c4b5fd' : '#7c3aed') : e.isDefault ? '#86efac' : '#22c55e', display:'block' }} />
-          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : e.isDefault ? '#6b7280' : '#15803d', fontWeight: e.isDefault ? 400 : 700, lineHeight:1 }}>
+          <span style={{ fontSize:9, color: isSpecial ? '#7c3aed' : e.isDefault ? 'var(--text-muted)' : '#15803d', fontWeight: e.isDefault ? 400 : 700, lineHeight:1 }}>
             {isSpecial ? '⭐' : (sh?.name?.slice(0,3) ?? 'W')}
           </span>
           {hasOver && <span style={{ fontSize:8, color:'#f97316' }}>✏</span>}
@@ -502,7 +502,7 @@ export default function ShiftSchedulePage() {
           {/* View toggle */}
           <div style={{ display:'flex', border:'1px solid #e5e7eb', borderRadius:8, overflow:'hidden' }}>
             {(['week','month'] as const).map(m => (
-              <button key={m} onClick={()=>setViewMode(m)} style={{ padding:'6px 14px', border:'none', cursor:'pointer', fontSize:13, fontWeight:600, background: viewMode===m?'#f97316':'#fff', color: viewMode===m?'#fff':'#6b7280' }}>
+              <button key={m} onClick={()=>setViewMode(m)} style={{ padding:'6px 14px', border:'none', cursor:'pointer', fontSize:13, fontWeight:600, background: viewMode===m?'#f97316':'#fff', color: viewMode===m?'#fff':'var(--text-muted)' }}>
                 {m==='week'?'รายสัปดาห์':'รายเดือน'}
               </button>
             ))}
@@ -533,18 +533,18 @@ export default function ShiftSchedulePage() {
         <table style={{ borderCollapse:'collapse', width:'100%', minWidth: viewMode==='week'?600:900 }}>
           <thead>
             <tr style={{ background:'#f9fafb' }}>
-              <th style={{ padding:'10px 14px', textAlign:'left', fontSize:12, color:'#6b7280', fontWeight:600, borderRight:'2px solid #e5e7eb', whiteSpace:'nowrap', minWidth:130, position:'sticky', left:0, background:'#f9fafb', zIndex:2 }}>
+              <th style={{ padding:'10px 14px', textAlign:'left', fontSize:12, color:'var(--text-muted)', fontWeight:600, borderRight:'2px solid #e5e7eb', whiteSpace:'nowrap', minWidth:130, position:'sticky', left:0, background:'#f9fafb', zIndex:2 }}>
                 พนักงาน ({filteredEmps.length})
               </th>
               {viewMode==='week' ? weekDates.map(date => {
                 const dow=new Date(date).getDay(), isToday=date===TODAY
-                return <th key={date} style={{ padding:'8px 4px', textAlign:'center', fontSize:12, color: isToday?'#6366f1':dow===0?'#ef4444':'#6b7280', fontWeight: isToday?700:600, borderRight:'1px solid #f3f4f6', minWidth: isMobile?60:84, background: isToday?'#fefce8':undefined }}>
+                return <th key={date} style={{ padding:'8px 4px', textAlign:'center', fontSize:12, color: isToday?'#6366f1':dow===0?'#ef4444':'var(--text-muted)', fontWeight: isToday?700:600, borderRight:'1px solid #f3f4f6', minWidth: isMobile?60:84, background: isToday?'#fefce8':undefined }}>
                   <div style={{ fontWeight:700 }}>{DAY_SHORT[dow]}</div>
                   <div style={{ fontSize:11, marginTop:1 }}>{new Date(date).getDate()}</div>
                 </th>
               }) : monthDates.map(date => {
                 const d=new Date(date), dow=d.getDay(), isToday=date===TODAY
-                return <th key={date} style={{ padding:'5px 2px', textAlign:'center', fontSize:11, color: isToday?'#6366f1':dow===0?'#ef4444':dow===6?'#f97316':'#6b7280', fontWeight: isToday?700:500, borderRight:'1px solid #f3f4f6', borderLeft: dow===1?'2px solid #e5e7eb':undefined, minWidth:40, background: isToday?'#fefce8':dow===0?'#fef9f9':undefined }}>
+                return <th key={date} style={{ padding:'5px 2px', textAlign:'center', fontSize:11, color: isToday?'#6366f1':dow===0?'#ef4444':dow===6?'#f97316':'var(--text-muted)', fontWeight: isToday?700:500, borderRight:'1px solid #f3f4f6', borderLeft: dow===1?'2px solid #e5e7eb':undefined, minWidth:40, background: isToday?'#fefce8':dow===0?'#fef9f9':undefined }}>
                   <div style={{ fontSize:12, fontWeight:700 }}>{d.getDate()}</div>
                   <div style={{ fontSize:9, marginTop:1 }}>{DAY_SHORT[dow]}</div>
                 </th>
@@ -592,7 +592,7 @@ export default function ShiftSchedulePage() {
               </tr>
             )})}
             {filteredEmps.length===0 && (
-              <tr><td colSpan={displayDates.length+1} style={{ padding:40, textAlign:'center', color:'#9ca3af', fontSize:14 }}>ไม่พบพนักงาน</td></tr>
+              <tr><td colSpan={displayDates.length+1} style={{ padding:40, textAlign:'center', color:'var(--text-muted)', fontSize:14 }}>ไม่พบพนักงาน</td></tr>
             )}
           </tbody>
         </table>
@@ -603,7 +603,7 @@ export default function ShiftSchedulePage() {
       {totalPages > 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filteredEmps.length)} จาก {filteredEmps.length} พนักงาน
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -615,11 +615,11 @@ export default function ShiftSchedulePage() {
                 </div>
               )}
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronLeft size={16} />
               </button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -632,15 +632,15 @@ export default function ShiftSchedulePage() {
       <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>
         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
           <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#f0fdf4', color:'#15803d', border:'1px dashed #86efac', fontWeight:600 }}>กะเช้า</span>
-          <span style={{ color:'#6b7280' }}>= อัตโนมัติ (กะประจำ/วันลา/วันหยุด — ไม่ได้ตั้งเอง)</span>
+          <span style={{ color:'var(--text-muted)' }}>= อัตโนมัติ (กะประจำ/วันลา/วันหยุด — ไม่ได้ตั้งเอง)</span>
         </span>
         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
           <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
           <span style={{ color:'#f97316', fontSize:11 }}>✏ เปลี่ยน</span>
-          <span style={{ color:'#6b7280' }}>= มี override วันนี้</span>
+          <span style={{ color:'var(--text-muted)' }}>= มี override วันนี้</span>
         </span>
-        <span style={{ color:'#9ca3af' }}>· คลิกเพื่อแก้</span>
-        <span style={{ color:'#9ca3af' }}>· "↩ กลับค่าอัตโนมัติ" เพื่อยกเลิก override</span>
+        <span style={{ color:'var(--text-muted)' }}>· คลิกเพื่อแก้</span>
+        <span style={{ color:'var(--text-muted)' }}>· "↩ กลับค่าอัตโนมัติ" เพื่อยกเลิก override</span>
       </div>
     </div>
   )

@@ -179,7 +179,7 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
             {lat.toFixed(6)}, {lng.toFixed(6)}
           </span>
         ) : (
-          <span style={{ fontSize: '11px', color: '#9ca3af' }}>แตะบนแผนที่หรือกด "ตำแหน่งปัจจุบัน" เพื่อปักหมุด</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>แตะบนแผนที่หรือกด "ตำแหน่งปัจจุบัน" เพื่อปักหมุด</span>
         )}
 
         {hasPin && (

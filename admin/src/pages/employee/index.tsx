@@ -46,7 +46,7 @@ interface StatusLogEntry {
 
 const STATUS_CFG: Record<EmployeeStatusValue, { label: string; color: string; bg: string; border: string }> = {
   ACTIVE:     { label: 'ใช้งาน',     color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
-  INACTIVE:   { label: 'ไม่ใช้งาน',  color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  INACTIVE:   { label: 'ไม่ใช้งาน',  color: 'var(--text-muted)', bg: '#f3f4f6', border: '#e5e7eb' },
   RESIGNED:   { label: 'ลาออก',     color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
   TERMINATED: { label: 'เลิกจ้าง',  color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
 }
@@ -72,11 +72,11 @@ const EMPTY_FORM = {
 const input: React.CSSProperties = {
   width: '100%', padding: '10px 12px', fontSize: '14px',
   borderRadius: 8, border: '1px solid #e5e7eb',
-  outline: 'none', boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit',
+  boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit',
   background: '#fff',
 }
 const disabledInput: React.CSSProperties = {
-  ...input, background: '#f9fafb', color: '#9ca3af',
+  ...input, background: '#f9fafb', color: 'var(--text-muted)',
 }
 const label: React.CSSProperties = {
   display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6,
@@ -308,7 +308,7 @@ export default function EmployeePage() {
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -339,7 +339,7 @@ export default function EmployeePage() {
         {/* Search row */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', pointerEvents: 'none' }} />
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / ชื่อเล่น / รหัส..."
               style={{ ...filterInput, width: '100%', paddingLeft: 32, borderRadius: 10 }} />
           </div>
@@ -390,7 +390,7 @@ export default function EmployeePage() {
               )}
             </div>
 
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สาขา</p>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สาขา</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
               {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
                 <button key={b.id} onClick={() => setBranchFilter(b.id)}
@@ -400,7 +400,7 @@ export default function EmployeePage() {
               ))}
             </div>
 
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะ</p>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะ</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               {[['', 'ทั้งหมด'], ...Object.entries(STATUS_CFG).map(([v, cfg]) => [v, cfg.label])].map(([v, lb]) => (
                 <button key={v} onClick={() => setStatusFilter(v as any)}
@@ -410,7 +410,7 @@ export default function EmployeePage() {
               ))}
             </div>
 
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line</p>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
               {[['', 'ทั้งหมด'], ['linked', '✓ ผูกแล้ว'], ['unlinked', 'ยังไม่ผูก']].map(([v, lb]) => (
                 <button key={v} onClick={() => setLineFilter(v as any)}
@@ -428,7 +428,7 @@ export default function EmployeePage() {
         </div>
       )}
 
-      {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
+      {loading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
 
       {/* Desktop table */}
       {!loading && !isMobile && (
@@ -443,7 +443,7 @@ export default function EmployeePage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>
+                <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   {employees.length === 0 ? 'ยังไม่มีพนักงาน กรุณาเพิ่มพนักงานแรก' : 'ไม่พบพนักงานที่ตรงกับเงื่อนไข'}
                 </td></tr>
               )}
@@ -451,21 +451,21 @@ export default function EmployeePage() {
                 <tr key={e.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa', transition: 'background 0.15s' }}
                 onMouseEnter={ev => (ev.currentTarget.style.background = '#fff7ed')}
                 onMouseLeave={ev => (ev.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}>
-                  <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: '0.8rem', color: '#6b7280' }}>{e.employee_code}</td>
+                  <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{e.employee_code}</td>
                   <td style={{ padding: '11px 14px' }}>
                     <button onClick={() => navigate(`/employee/${e.id}`)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: '#ea580c', fontSize: '0.875rem', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2 }}>
                       {e.first_name} {e.last_name}
                     </button>
-                    {e.nickname && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: 5 }}>({e.nickname})</span>}
+                    {e.nickname && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 5 }}>({e.nickname})</span>}
                   </td>
-                  <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{e.department ?? '—'}</td>
-                  <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{e.branch.name}</td>
+                  <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.department ?? '—'}</td>
+                  <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.branch.name}</td>
                   <td style={{ padding: '11px 14px', color: '#374151', fontSize: '0.82rem' }}>{e.phone ?? '—'}</td>
                   <td style={{ padding: '11px 14px' }}>
                     {e.line_user_id
                       ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>✓ ผูกแล้ว</span>
-                      : <span style={{ background: '#f3f4f6', color: '#9ca3af', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem' }}>— ยังไม่ผูก</span>}
+                      : <span style={{ background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem' }}>— ยังไม่ผูก</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
@@ -485,8 +485,8 @@ export default function EmployeePage() {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 5 }}>
-                      <button onClick={() => openEdit(e)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#374151' }}><Pencil size={13}/></button>
-                      <button onClick={() => setDeleteTarget(e)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#dc2626' }}><Trash2 size={13}/></button>
+                      <button onClick={() => openEdit(e)} aria-label={`แก้ไข ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#374151' }}><Pencil size={13}/></button>
+                      <button onClick={() => setDeleteTarget(e)} aria-label={`ลบ ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#dc2626' }}><Trash2 size={13}/></button>
                     </div>
                   </td>
                 </tr>
@@ -497,21 +497,21 @@ export default function EmployeePage() {
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fff' }}>
-              <span style={{ fontSize: '13px', color: '#6b7280' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                 แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} aria-label="หน้าก่อนหน้า" 
                   disabled={page === 1}
-                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} aria-label="หน้าถัดไป" 
                   disabled={page === totalPages}
-                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -525,7 +525,7 @@ export default function EmployeePage() {
       {!loading && isMobile && (
         <div {...swipeHandlers} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 0', fontSize: '13px' }}>ไม่พบพนักงาน</p>
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0', fontSize: '13px' }}>ไม่พบพนักงาน</p>
           )}
           {paginated.map(e => (
             <div key={e.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -533,9 +533,9 @@ export default function EmployeePage() {
                 <div>
                   <button onClick={() => navigate(`/employee/${e.id}`)} style={{ fontWeight: 700, color: '#ea580c', fontSize: '14px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
                     {e.first_name} {e.last_name}
-                    {e.nickname && <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 400, marginLeft: 4 }}>({e.nickname})</span>}
+                    {e.nickname && <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>({e.nickname})</span>}
                   </button>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${e.department}` : ''}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${e.department}` : ''}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                   <div style={{ display: 'flex', gap: 4 }}>
@@ -546,7 +546,7 @@ export default function EmployeePage() {
                     </button>
                     {e.line_user_id
                       ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line ✓</span>
-                      : <span style={{ background: '#f3f4f6', color: '#9ca3af', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
+                      : <span style={{ background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
                   </div>
                   {activeOffsiteByEmployee.has(e.id) && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
@@ -555,7 +555,7 @@ export default function EmployeePage() {
                   )}
                 </div>
               </div>
-              {e.phone && <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}
+              {e.phone && <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => openEdit(e)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#ea580c', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Pencil size={13}/> แก้ไข</button>
                 <button onClick={() => setDeleteTarget(e)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
@@ -568,9 +568,9 @@ export default function EmployeePage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => setPage(p => Math.max(1, p - 1))} aria-label="หน้าก่อนหน้า"
                   disabled={page === 1}
-                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
                 >
                   <ChevronLeft size={18} />
                 </button>
@@ -580,9 +580,9 @@ export default function EmployeePage() {
                   ))}
                 </div>
                 <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} aria-label="หน้าถัดไป"
                   disabled={page === totalPages}
-                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ padding: '8px 16px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
                 >
                   <ChevronRight size={18} />
                 </button>
@@ -616,9 +616,9 @@ export default function EmployeePage() {
               <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: '16px', color: '#111827', margin: '0 0 2px' }}>เพิ่มพนักงานใหม่</p>
-                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>กรอกข้อมูลพนักงานให้ครบถ้วน</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>กรอกข้อมูลพนักงานให้ครบถ้วน</p>
                 </div>
-                <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4, marginTop: -2 }}><X size={18}/></button>
+                <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, marginTop: -2 }} aria-label="ปิด"><X size={18}/></button>
               </div>
 
               {/* Step indicator */}
@@ -634,10 +634,10 @@ export default function EmployeePage() {
                   {STEPS.map((s, i) => (
                     <React.Fragment key={s.n}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0, background: addStep > s.n ? '#16a34a' : addStep === s.n ? '#f97316' : '#e5e7eb', color: addStep >= s.n ? '#fff' : '#9ca3af', boxShadow: addStep === s.n ? '0 0 0 3px rgba(249,115,22,0.18)' : 'none', transition: 'all 0.2s' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0, background: addStep > s.n ? '#16a34a' : addStep === s.n ? '#f97316' : '#e5e7eb', color: addStep >= s.n ? '#fff' : 'var(--text-muted)', boxShadow: addStep === s.n ? '0 0 0 3px rgba(249,115,22,0.18)' : 'none', transition: 'all 0.2s' }}>
                           {addStep > s.n ? <Check size={13} strokeWidth={3}/> : s.n}
                         </div>
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: addStep > s.n ? '#16a34a' : addStep === s.n ? '#f97316' : '#9ca3af', whiteSpace: 'nowrap' }}>{s.label}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: addStep > s.n ? '#16a34a' : addStep === s.n ? '#f97316' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{s.label}</span>
                       </div>
                       {i < STEPS.length - 1 && (
                         <div style={{ flex: 1, height: 2, background: addStep > s.n ? '#16a34a' : '#e5e7eb', marginBottom: 16, transition: 'background 0.3s' }} />
@@ -656,7 +656,7 @@ export default function EmployeePage() {
                   {/* รหัสพนักงาน */}
                   <div>
                     <label style={lbl}>รหัสพนักงาน</label>
-                    <input value="EMP001" readOnly style={{ ...inp, background: '#f9fafb', color: '#9ca3af', cursor: 'not-allowed' }} />
+                    <input value="EMP001" readOnly style={{ ...inp, background: '#f9fafb', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
                   </div>
 
                   {/* คำนำหน้า + ชื่อ* + นามสกุล* */}
@@ -700,7 +700,7 @@ export default function EmployeePage() {
 
                   {/* Optional fields toggle */}
                   <button type="button" onClick={() => setShowOptionalFields(v => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: '12px', color: '#6b7280', cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
                     {showOptionalFields ? '▲ ซ่อนข้อมูลเพิ่มเติม' : '▼ ข้อมูลเพิ่มเติม (เลขบัตร, วันเกิด, ผู้ติดต่อฉุกเฉิน)'}
                   </button>
 
@@ -713,7 +713,7 @@ export default function EmployeePage() {
                       </div>
                       <div>
                         <label style={lbl}>เลขประกันสังคม</label>
-                        <input value={''} readOnly placeholder="X-XXXX-XXXXX-XX-X" style={{ ...inp, color: '#9ca3af' }} />
+                        <input value={''} readOnly placeholder="X-XXXX-XXXXX-XX-X" style={{ ...inp, color: 'var(--text-muted)' }} />
                       </div>
                     </div>
 
@@ -748,14 +748,14 @@ export default function EmployeePage() {
                         </button>
                       </div>
                       {af.emergency_contacts.length === 0 ? (
-                        <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีผู้ติดต่อฉุกเฉิน</p>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีผู้ติดต่อฉุกเฉิน</p>
                       ) : (
                         af.emergency_contacts.map((ec, i) => (
                           <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 100px 1fr auto', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
                             <div><label style={lbl}>ชื่อ</label><input value={ec.name} onChange={e => { const c = [...af.emergency_contacts]; c[i].name = e.target.value; setAf({ emergency_contacts: c }) }} style={inp} /></div>
                             <div><label style={lbl}>ความสัมพันธ์</label><input value={ec.relation} onChange={e => { const c = [...af.emergency_contacts]; c[i].relation = e.target.value; setAf({ emergency_contacts: c }) }} style={inp} /></div>
                             <div><label style={lbl}>เบอร์โทร</label><input value={ec.phone} onChange={e => { const c = [...af.emergency_contacts]; c[i].phone = e.target.value; setAf({ emergency_contacts: c }) }} style={inp} /></div>
-                            <button type="button" onClick={() => setAf({ emergency_contacts: af.emergency_contacts.filter((_, j) => j !== i) })} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }}><X size={13}/></button>
+                            <button type="button" onClick={() => setAf({ emergency_contacts: af.emergency_contacts.filter((_, j) => j !== i) })} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }} aria-label="ลบ"><X size={13}/></button>
                           </div>
                         ))
                       )}
@@ -777,7 +777,7 @@ export default function EmployeePage() {
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                     <p style={sec}>ที่อยู่ปัจจุบัน</p>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
                       <input type="checkbox" checked={af.addr_cur_same} onChange={e => setAf({ addr_cur_same: e.target.checked })} />
                       ที่อยู่เดียวกันในบัตรประชาชน
                     </label>
@@ -806,7 +806,7 @@ export default function EmployeePage() {
                       </button>
                     </div>
                     {af.educations.length === 0 ? (
-                      <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลการศึกษา คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลการศึกษา คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
                     ) : (
                       af.educations.map((ed, i) => (
                         <div key={i} style={{ padding: '12px', background: '#f9fafb', borderRadius: 8, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -832,13 +832,13 @@ export default function EmployeePage() {
                       </button>
                     </div>
                     {af.skills.length === 0 ? (
-                      <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลทักษะ คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลทักษะ คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
                     ) : (
                       af.skills.map((sk, i) => (
                         <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1fr 140px auto', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
                           <div><label style={lbl}>ชื่อทักษะ</label><input value={sk.name} onChange={e => { const c = [...af.skills]; c[i].name = e.target.value; setAf({ skills: c }) }} style={inp} /></div>
                           <div><label style={lbl}>ระดับ</label><select value={sk.level} onChange={e => { const c = [...af.skills]; c[i].level = e.target.value; setAf({ skills: c }) }} style={inp}>{['เบื้องต้น','ปานกลาง','ชำนาญ','เชี่ยวชาญ'].map(l => <option key={l}>{l}</option>)}</select></div>
-                          <button type="button" onClick={() => setAf({ skills: af.skills.filter((_, j) => j !== i) })} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }}><X size={13}/></button>
+                          <button type="button" onClick={() => setAf({ skills: af.skills.filter((_, j) => j !== i) })} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }} aria-label="ลบ"><X size={13}/></button>
                         </div>
                       ))
                     )}
@@ -880,7 +880,7 @@ export default function EmployeePage() {
                       <label style={lbl}>สถานะบัญชี</label>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input value={af.account_status} readOnly style={{ ...inp, flex: 1, background: '#f9fafb', color: '#374151' }} />
-                        <button type="button" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: '11px', color: '#6b7280', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <button type="button" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                           <Clock size={12}/>
                           ดูประวัติ
                         </button>
@@ -901,11 +901,11 @@ export default function EmployeePage() {
                       <User size={22} stroke="#9ca3af" strokeWidth={1.5}/>
                     </div>
                     <div>
-                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: '0 0 5px' }}>รูปโปรไฟล์ <span style={{ fontWeight: 400, color: '#9ca3af' }}>(ไม่บังคับ)</span></p>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: '0 0 5px' }}>รูปโปรไฟล์ <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(ไม่บังคับ)</span></p>
                       <button type="button" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
                         <Upload size={12}/>อัปโหลดรูป
                       </button>
-                      <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block', marginTop: 3 }}>JPG, PNG ≤ 5MB</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: 3 }}>JPG, PNG ≤ 5MB</span>
                     </div>
                   </div>
 
@@ -935,7 +935,7 @@ export default function EmployeePage() {
                   </div>
 
                   {af.branch_accesses.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>
+                    <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
                       <Building2 size={36} stroke="#d1d5db" strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 8px' }}/>
                       <p style={{ fontSize: '13px', margin: 0 }}>ยังไม่มีสาขาที่เข้าถึงได้</p>
                       <p style={{ fontSize: '11px', margin: '4px 0 0' }}>เลือกสาขาด้านบนเพื่อเริ่มต้น</p>
@@ -948,7 +948,7 @@ export default function EmployeePage() {
                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
                             <span style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>{a.branch_name}</span>
                           </div>
-                          <button type="button" onClick={() => setAf({ branch_accesses: af.branch_accesses.filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><X size={14}/></button>
+                          <button type="button" onClick={() => setAf({ branch_accesses: af.branch_accesses.filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }} aria-label="ลบ"><X size={14}/></button>
                         </div>
                       ))}
                     </div>
@@ -1006,7 +1006,7 @@ export default function EmployeePage() {
               <p style={{ fontWeight: 700, fontSize: '16px', color: '#111827', margin: 0 }}>
                 แก้ไข: {editTarget?.first_name} {editTarget?.last_name}
               </p>
-              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}><X size={18}/></button>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }} aria-label="ปิด"><X size={18}/></button>
             </div>
             <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}>
@@ -1120,19 +1120,19 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <p style={{ fontWeight: 700, fontSize: '16px', color: '#111827', margin: '0 0 2px' }}>เปลี่ยนสถานะบัญชีพนักงาน</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>เปลี่ยนสถานะบัญชีพนักงาน โดยต้องระบุหมายเหตุทุกครั้ง</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>เปลี่ยนสถานะบัญชีพนักงาน โดยต้องระบุหมายเหตุทุกครั้ง</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}><X size={18}/></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }} aria-label="ปิด"><X size={18}/></button>
         </div>
 
         <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Employee info card */}
           <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', fontWeight: 600, color: '#374151' }}>
-              <User size={14} color="#9ca3af" />
+              <User size={14} color="var(--text-muted)" />
               {employee.employee_code} — {employee.first_name} {employee.last_name}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: '#6b7280' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: 'var(--text-muted)' }}>
               สถานะปัจจุบัน:
               <span style={{ background: STATUS_CFG[employee.status].bg, color: STATUS_CFG[employee.status].color, borderRadius: 99, padding: '2px 10px', fontWeight: 700, fontSize: '12px' }}>
                 {STATUS_CFG[employee.status].label}
@@ -1166,15 +1166,15 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
             </button>
             {showHistory && (
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
-                {historyQ.isLoading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>กำลังโหลด...</div>}
-                {historyQ.data?.length === 0 && <div style={{ fontSize: '12px', color: '#9ca3af' }}>ยังไม่มีประวัติการเปลี่ยนสถานะ</div>}
+                {historyQ.isLoading && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
+                {historyQ.data?.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่มีประวัติการเปลี่ยนสถานะ</div>}
                 {historyQ.data?.map(log => (
                   <div key={log.id} style={{ fontSize: '12px', background: '#f9fafb', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={{ fontWeight: 600, color: '#374151' }}>
                       {log.from_status ? STATUS_CFG[log.from_status].label : '—'} → {STATUS_CFG[log.to_status].label}
                     </div>
-                    <div style={{ color: '#6b7280', marginTop: 2 }}>{log.reason}</div>
-                    <div style={{ color: '#9ca3af', marginTop: 2, fontSize: '11px' }}>
+                    <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{log.reason}</div>
+                    <div style={{ color: 'var(--text-muted)', marginTop: 2, fontSize: '11px' }}>
                       {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
                     </div>
                   </div>

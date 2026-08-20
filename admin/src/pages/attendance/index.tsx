@@ -114,7 +114,7 @@ function deriveStatus(record: ApiRecord | null, dateStr: string): Status {
 // ─── Component ───────────────────────────────────────────────────────
 const inp: React.CSSProperties = {
   padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db',
-  fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
+  fontSize: '0.875rem', boxSizing: 'border-box',
   width: '100%', fontFamily: 'inherit',
 }
 
@@ -314,7 +314,7 @@ export default function AttendancePage() {
     <div>
       {/* KPI bar */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
           สถานะวันนี้
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
@@ -331,7 +331,7 @@ export default function AttendancePage() {
                 <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
                 <span style={{ fontSize: '1.6rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>{k.label}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -369,14 +369,14 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {loading && <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 0' }}>กำลังโหลด...</p>}
+      {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>กำลังโหลด...</p>}
 
       {/* Table */}
       {!loading && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           {isMobile ? (
             <div {...swipeHandlers}>
-              {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</p>}
+              {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</p>}
               {paginated.map(row => {
                 const s = STATUS_CFG[row.status]
                 const e = row.employee
@@ -385,9 +385,9 @@ export default function AttendancePage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{e.first_name} {e.last_name}
-                          {e.nickname && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: 4 }}>({e.nickname})</span>}
+                          {e.nickname && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 4 }}>({e.nickname})</span>}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
                           {e.employee_code} · {e.branch.name}
                           {row.record && ` · ${row.record.shift.name}`}
                         </div>
@@ -405,10 +405,10 @@ export default function AttendancePage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
                       {row.record?.check_in_at && !row.record?.check_out_at
                         ? <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
-                        : <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>ออก: <b>{fmtTime(row.record?.check_out_at ?? null) || '—'}</b></span>}
+                        : <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ออก: <b>{fmtTime(row.record?.check_out_at ?? null) || '—'}</b></span>}
                       {row.record?.check_in_method && (() => {
                         const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
                         return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
@@ -425,8 +425,8 @@ export default function AttendancePage() {
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                         {row.record ? (
                           <>
-                            <button onClick={() => openEdit(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}><Pencil size={13}/></button>
-                            <button onClick={() => setResetTarget(row)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
+                            <button onClick={() => openEdit(row)} aria-label={`แก้ไข ${row.employee.first_name} ${row.employee.last_name}`} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.78rem' }}><Pencil size={13}/></button>
+                            <button onClick={() => setResetTarget(row)} aria-label={`รีเซ็ตเวลาของ ${row.employee.first_name} ${row.employee.last_name}`} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
                           </>
                         ) : (
                           <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงเวลา</button>
@@ -449,19 +449,19 @@ export default function AttendancePage() {
                 </thead>
                 <tbody>
                   {filtered.length === 0 && (
-                    <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>ไม่พบข้อมูล</td></tr>
+                    <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</td></tr>
                   )}
                   {paginated.map((row, i) => {
                     const s = STATUS_CFG[row.status]
                     const e = row.employee
                     return (
                       <tr key={row.key} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                        <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#6b7280' }}>{e.employee_code}</td>
+                        <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{e.employee_code}</td>
                         <td style={{ padding: '11px 14px' }}>
                           <div style={{ fontWeight: 600 }}>{e.first_name} {e.last_name}</div>
-                          {e.nickname && <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{e.nickname}</div>}
+                          {e.nickname && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{e.nickname}</div>}
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#6b7280', fontSize: '0.82rem' }}>{e.branch.name}</td>
+                        <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.branch.name}</td>
                         <td style={{ padding: '11px 14px' }}>
                           {row.record
                             ? <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '2px 8px', fontSize: '0.78rem', fontWeight: 600 }}>{row.record.shift.name}</span>
@@ -512,7 +512,7 @@ export default function AttendancePage() {
                             {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
                               <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#dc2626' }}>
                                 💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿
-                                {Number(row.record.carried_fine) > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> (รวมยกมา {Number(row.record.carried_fine)})</span>}
+                                {Number(row.record.carried_fine) > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (รวมยกมา {Number(row.record.carried_fine)})</span>}
                               </span>
                             )}
                           </div>
@@ -521,7 +521,7 @@ export default function AttendancePage() {
                           {row.record ? (
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button onClick={() => openEdit(row)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#374151', display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={12}/> แก้ไข</button>
-                              <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต"><Trash2 size={13}/></button>
+                              <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต" aria-label="รีเซ็ตเวลา"><Trash2 size={13}/></button>
                             </div>
                           ) : (
                             <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงเวลา</button>
@@ -539,7 +539,7 @@ export default function AttendancePage() {
           {totalPages > 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderTop: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                   แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -550,12 +550,12 @@ export default function AttendancePage() {
                       ))}
                     </div>
                   )}
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} aria-label="หน้าก่อนหน้า" disabled={page === 1}
+                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                     <ChevronLeft size={16} />
                   </button>
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? '#9ca3af' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} aria-label="หน้าถัดไป" disabled={page === totalPages}
+                    style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                     <ChevronRight size={16} />
                   </button>
                 </div>
@@ -573,7 +573,7 @@ export default function AttendancePage() {
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>แก้ไขเวลา</h3>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {editTarget.employee.first_name} {editTarget.employee.last_name} · {editTarget.record?.shift.name}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -607,7 +607,7 @@ export default function AttendancePage() {
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงเวลาแทนพนักงาน</h3>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {manualTarget.first_name} {manualTarget.last_name} · {date}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -651,10 +651,10 @@ export default function AttendancePage() {
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: '#ef4444' }}><Trash2 size={32}/></div>
             <h3 style={{ margin: '0 0 8px', fontWeight: 700, textAlign: 'center' }}>รีเซ็ตบันทึกเช็คชื่อ?</h3>
-            <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: '#6b7280', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
               {resetTarget.employee.first_name} {resetTarget.employee.last_name}
             </p>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6b7280', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>
               กะ: {resetTarget.record?.shift.name} · เวลาเข้า: {fmtTime(resetTarget.record?.check_in_at ?? null)}
             </p>
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>

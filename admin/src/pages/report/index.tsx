@@ -170,8 +170,8 @@ export default function ReportPage() {
 
     const isWeekendOff = (dow === 0 || dow === 6) && dept === '02'
     if (!recs || recs.length === 0) {
-      if (isWeekendOff) return { bg: '#f3f4f6', label: '', color: '#9ca3af', tip: 'วันหยุดสุดสัปดาห์', status: 'weekend' }
-      if (dow === 0 || dow === 6) return { bg: '#f3f4f6', label: '', color: '#9ca3af', tip: '', status: 'weekend' }
+      if (isWeekendOff) return { bg: '#f3f4f6', label: '', color: 'var(--text-muted)', tip: 'วันหยุดสุดสัปดาห์', status: 'weekend' }
+      if (dow === 0 || dow === 6) return { bg: '#f3f4f6', label: '', color: 'var(--text-muted)', tip: '', status: 'weekend' }
       return { bg: '#fee2e2', label: '✗', color: '#ef4444', tip: 'ไม่มีข้อมูล', status: 'absent' }
     }
 
@@ -267,18 +267,18 @@ export default function ReportPage() {
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: isMobile ? '1.05rem' : '1.2rem', fontWeight: 700 }}>รายงานการเข้างาน</h2>
-        {!isMobile && <p style={{ margin: 0, fontSize: '0.85rem', color: '#6b7280' }}>ประวัติการมาทำงานรายพนักงานแต่ละวัน</p>}
+        {!isMobile && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>ประวัติการมาทำงานรายพนักงานแต่ละวัน</p>}
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#6b7280', lineHeight: 1, padding: 0 }}>‹</button>
+          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
           <span style={{ fontWeight: 700, fontSize: '0.85rem', minWidth: isMobile ? 110 : 140, textAlign: 'center' }}>
             {MONTHS_TH[month - 1]} {year + 543}
           </span>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#6b7280', lineHeight: 1, padding: 0 }}>›</button>
+          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
         </div>
 
         <select value={branch} onChange={e => setBranch(e.target.value)}
@@ -301,7 +301,7 @@ export default function ReportPage() {
           <span style={{ background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {totalLate}</span>
           {totalAbsent > 0 && <span style={{ background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>✗ ขาด {totalAbsent}</span>}
           {totalFine > 0 && <span style={{ background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}>💸 ค่าปรับรวม {totalFine} ฿</span>}
-          <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#6b7280', fontWeight: 600 }}>{employees.length} คน</span>
+          <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{employees.length} คน</span>
           {!isMobile && (
             <button onClick={exportAll} disabled={employees.length === 0}
               style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -317,9 +317,9 @@ export default function ReportPage() {
         </div>
       )}
 
-      {isLoading && <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>กำลังโหลด...</div>}
+      {isLoading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
       {!isLoading && employees.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
           {search.trim() ? 'ไม่พบพนักงานที่ค้นหา' : 'ไม่พบข้อมูลพนักงาน'}
         </div>
       )}
@@ -360,13 +360,13 @@ export default function ReportPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {info.first_name} {info.last_name}
-                      {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: '#9ca3af' }}>({info.nickname})</span>}
+                      {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 1 }}>{info.employee_code} · {info.branch.name}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{info.employee_code} · {info.branch.name}</div>
                     {/* Progress bar */}
                     <div style={{ marginTop: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: '0.68rem', color: '#6b7280' }}>มา {presentDays}/{workingDays} วัน</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>มา {presentDays}/{workingDays} วัน</span>
                         {lateDays > 0 && <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600 }}>⚠ สาย {lateDays} วัน</span>}
                       </div>
                       <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
@@ -381,12 +381,12 @@ export default function ReportPage() {
 
                   {/* Right side */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#f97316' : '#9ca3af' }}>
+                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#f97316' : 'var(--text-muted)' }}>
                       {isExpanded ? '▲' : '▼'}
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); exportOne({ info, byDate }) }}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', fontSize: '0.65rem', cursor: 'pointer' }}
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer' }}
                     >⬇️</button>
                   </div>
                 </div>
@@ -415,7 +415,7 @@ export default function ReportPage() {
                     })}
                   </div>
                   {/* Dot legend inline */}
-                  <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: '0.6rem', color: '#9ca3af' }}>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: '0.6rem', color: 'var(--text-muted)' }}>
                     {[['#22c55e','มา'],['#f59e0b','สาย'],['#ef4444','ขาด'],['#38bdf8','ลา'],['#e5e7eb','หยุด']].map(([c, l]) => (
                       <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, display: 'inline-block' }} />
@@ -449,7 +449,7 @@ export default function ReportPage() {
                           {/* Date */}
                           <div style={{ width: 36, flexShrink: 0, textAlign: 'center' }}>
                             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>{d}</div>
-                            <div style={{ fontSize: '0.62rem', color: '#9ca3af' }}>{DAYS_TH[dow]}</div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
                           </div>
 
                           {/* Status badge */}
@@ -462,13 +462,13 @@ export default function ReportPage() {
                             {firstRec ? (
                               <>
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>{firstRec.shift.name}</div>
-                                <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                   เข้า {fmtTime(firstRec.check_in_at)} · ออก {fmtTime(firstRec.check_out_at)}
                                   {recs && recs.length > 1 && <span style={{ color: '#f97316', marginLeft: 4 }}>+{recs.length - 1} กะ</span>}
                                 </div>
                               </>
                             ) : (
-                              <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{tip || '—'}</div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tip || '—'}</div>
                             )}
                           </div>
 
@@ -491,14 +491,14 @@ export default function ReportPage() {
       {!isLoading && employees.length > 0 && !isMobile && (
         <>
           {/* Legend */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: '#6b7280', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
             {[['#dcfce7','✓','มาปกติ'],['#fef3c7','!','มาสาย 1'],['#fde8d8','!!','มาสาย 2'],['#fee2e2','✗','ขาด'],['#e0f2fe','🏖','หยุด'],['#fef9c3','🌴','พักร้อน'],['#fee2e2','🤒','ป่วย'],['#f3f4f6','','เสาร์/อา']].map(([bg, sym, label]) => (
               <span key={label as string} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ background: bg as string, padding: '1px 7px', borderRadius: 4, fontSize: '0.72rem' }}>{sym as string}</span>
                 {label as string}
               </span>
             ))}
-            <span style={{ color: '#9ca3af' }}>กดวันที่มีข้อมูลเพื่อดูเวลา</span>
+            <span style={{ color: 'var(--text-muted)' }}>กดวันที่มีข้อมูลเพื่อดูเวลา</span>
           </div>
 
           <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff' }}>
@@ -513,7 +513,7 @@ export default function ReportPage() {
                     return (
                       <th key={d} style={{ padding: '6px 1px', textAlign: 'center', borderBottom: '1px solid #e5e7eb', minWidth: 30, color: (dow === 0 || dow === 6) ? '#d1d5db' : 'var(--text-dark)', fontWeight: 600 }}>
                         <div style={{ fontSize: '0.72rem' }}>{d}</div>
-                        <div style={{ fontSize: '0.62rem', fontWeight: 400, color: '#9ca3af' }}>{DAYS_TH[dow]}</div>
+                        <div style={{ fontSize: '0.62rem', fontWeight: 400, color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
                       </th>
                     )
                   })}
@@ -535,12 +535,12 @@ export default function ReportPage() {
                           <div>
                             <div style={{ fontWeight: 600, color: 'var(--text-dark)', whiteSpace: 'nowrap' }}>
                               {info.first_name} {info.last_name}
-                              {info.nickname && <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>({info.nickname})</span>}
+                              {info.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>({info.nickname})</span>}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
                           </div>
                           <button onClick={() => exportOne({ info, byDate })} title="Export รายคน"
-                            style={{ flexShrink: 0, padding: '2px 6px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', fontSize: '0.68rem', cursor: 'pointer', lineHeight: 1.4 }}>
+                            style={{ flexShrink: 0, padding: '2px 6px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', fontSize: '0.68rem', cursor: 'pointer', lineHeight: 1.4 }}>
                             ⬇️
                           </button>
                         </div>
@@ -582,13 +582,13 @@ export default function ReportPage() {
             onClick={e => e.stopPropagation()}>
             {isMobile && <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e7eb', margin: '0 auto 16px' }} />}
             <h3 style={{ margin: '0 0 2px', fontSize: '1rem', fontWeight: 700 }}>{detail.emp}</h3>
-            <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: '#6b7280' }}>
+            <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {new Date(detail.date + 'T12:00:00Z').toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
             {detail.records.map(r => (
               <div key={r.id} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 6 }}>{r.shift.name}</div>
-                <div style={{ display: 'flex', gap: 20, fontSize: '0.82rem', color: '#6b7280' }}>
+                <div style={{ display: 'flex', gap: 20, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                   <span>เข้า: <strong style={{ color: 'var(--text-dark)' }}>{fmtTime(r.check_in_at)}</strong></span>
                   <span>ออก: <strong style={{ color: 'var(--text-dark)' }}>{fmtTime(r.check_out_at)}</strong></span>
                 </div>
@@ -598,10 +598,10 @@ export default function ReportPage() {
                 {(Number(r.fine) + Number(r.carried_fine)) > 0 && (
                   <div style={{ fontSize: '0.75rem', color: '#be185d', marginTop: 3, fontWeight: 600 }}>
                     💸 ค่าปรับ {Number(r.fine) + Number(r.carried_fine)} ฿
-                    {Number(r.carried_fine) > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> (รวมยกมา {Number(r.carried_fine)})</span>}
+                    {Number(r.carried_fine) > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (รวมยกมา {Number(r.carried_fine)})</span>}
                   </div>
                 )}
-                {r.note && <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 5 }}>{r.note}</div>}
+                {r.note && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 5 }}>{r.note}</div>}
               </div>
             ))}
             <button onClick={() => setDetail(null)}
