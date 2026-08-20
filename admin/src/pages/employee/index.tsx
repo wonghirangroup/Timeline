@@ -315,24 +315,14 @@ export default function EmployeePage() {
 
       {/* Filters */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Branch pills — desktop only (mobile uses filter sheet) */}
+        {/* Branch filter — desktop only (mobile uses filter sheet) */}
         {!isMobile && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
-              <button
-                key={b.id}
-                onClick={() => setBranchFilter(b.id)}
-                style={{
-                  padding: '4px 14px', borderRadius: 99, border: '2px solid #f97316',
-                  fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  background: branchFilter === b.id ? '#f97316' : '#fff',
-                  color: branchFilter === b.id ? '#fff' : '#f97316',
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-              >
-                {b.name}
-              </button>
-            ))}
+          <div>
+            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+              style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+              <option value="">ทุกสาขา</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
           </div>
         )}
 
@@ -391,13 +381,12 @@ export default function EmployeePage() {
             </div>
 
             <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สาขา</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-              {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
-                <button key={b.id} onClick={() => setBranchFilter(b.id)}
-                  style={{ padding: '6px 16px', borderRadius: 99, border: '2px solid #f97316', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: branchFilter === b.id ? '#f97316' : '#fff', color: branchFilter === b.id ? '#fff' : '#f97316' }}>
-                  {b.name}
-                </button>
-              ))}
+            <div style={{ marginBottom: 16 }}>
+              <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+                style={{ width: '100%', padding: '9px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151', boxSizing: 'border-box' }}>
+                <option value="">ทุกสาขา</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
             </div>
 
             <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะ</p>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock } from 'lucide-react'
+import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -656,19 +656,19 @@ export default function BranchPage() {
               </div>
 
               {b.location && (
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 6px', lineHeight: 1.5 }}>
-                  📍 {b.location}
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 6px', lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <MapPin size={12} style={{ flexShrink: 0 }} /> {b.location}
                 </p>
               )}
               {b.lat && b.lng && (
-                <p data-tour={idx === 0 ? 'branch-geo-0' : undefined} style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 4px', fontFamily: 'monospace' }}>
-                  🌐 {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)} · {b.gps_radius}m
+                <p data-tour={idx === 0 ? 'branch-geo-0' : undefined} style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 4px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Globe size={11} style={{ flexShrink: 0 }} /> {parseFloat(b.lat).toFixed(6)}, {parseFloat(b.lng).toFixed(6)} · {b.gps_radius}m
                 </p>
               )}
               {b.lat && b.lng && (
                 <p style={{ fontSize: '11px', margin: '0 0 8px' }}>
-                  <span style={{ padding: '2px 7px', borderRadius: 99, fontWeight: 600, fontSize: '11px', background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
-                    {b.geo_mode === 'BLOCK' ? '🚫 BLOCK' : '⚠️ WARN'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, fontWeight: 600, fontSize: '11px', background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
+                    {b.geo_mode === 'BLOCK' ? <><Ban size={10} /> BLOCK</> : <><AlertTriangle size={10} /> WARN</>}
                   </span>
                 </p>
               )}
@@ -875,9 +875,9 @@ export default function BranchPage() {
                     {showInfo && (
                       <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: '12px', color: '#374151', lineHeight: 1.8 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div><span style={{ fontWeight: 700, color: '#4f46e5' }}>📡 วิธีที่ 1</span> — กด "ดึงตำแหน่งปัจจุบัน" แล้วอนุญาต GPS ในเบราว์เซอร์</div>
-                          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8 }}><span style={{ fontWeight: 700, color: '#059669' }}>🗺️ วิธีที่ 2</span> — กด "ปักหมุดในแมพ" → คลิกตำแหน่งบนแผนที่ → กด "ใช้พิกัดนี้"</div>
-                          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8 }}><span style={{ fontWeight: 700, color: '#d97706' }}>✏️ วิธีที่ 3</span> — พิมพ์ lat/lng เอง หรือ paste "13.7563, 100.5018" ในช่อง paste</div>
+                          <div><span style={{ fontWeight: 700, color: '#4f46e5', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Radio size={12} /> วิธีที่ 1</span> — กด "ดึงตำแหน่งปัจจุบัน" แล้วอนุญาต GPS ในเบราว์เซอร์</div>
+                          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8 }}><span style={{ fontWeight: 700, color: '#059669', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Map size={12} /> วิธีที่ 2</span> — กด "ปักหมุดในแมพ" → คลิกตำแหน่งบนแผนที่ → กด "ใช้พิกัดนี้"</div>
+                          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8 }}><span style={{ fontWeight: 700, color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Pencil size={12} /> วิธีที่ 3</span> — พิมพ์ lat/lng เอง หรือ paste "13.7563, 100.5018" ในช่อง paste</div>
                         </div>
                       </div>
                     )}
@@ -886,17 +886,17 @@ export default function BranchPage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" onClick={getGPS} disabled={gpsLoading}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 8, border: '1.5px solid #4f46e5', background: '#ede9fe', color: '#4f46e5', fontSize: '13px', fontWeight: 600, cursor: gpsLoading ? 'not-allowed' : 'pointer', opacity: gpsLoading ? 0.7 : 1 }}>
-                        {gpsLoading ? '⏳ กำลังดึง...' : (
+                        {gpsLoading ? <><Loader2 size={14} className="animate-spin" /> กำลังดึง...</> : (
                           <>
                             <MapPin size={14} />
-                            📡 ดึงตำแหน่งปัจจุบัน
+                            ดึงตำแหน่งปัจจุบัน
                           </>
                         )}
                       </button>
                       <button type="button" onClick={openMapPicker}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 8, border: '1.5px solid #059669', background: '#ecfdf5', color: '#059669', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                         <Map size={14} />
-                        🗺️ ปักหมุดในแมพ
+                        ปักหมุดในแมพ
                       </button>
                     </div>
 
@@ -1036,10 +1036,10 @@ export default function BranchPage() {
                       </div>
                     </div>
 
-                    <div style={{ padding: '12px 16px', background: form.geo_mode === 'BLOCK' ? '#fef2f2' : '#fefce8', borderRadius: 10, border: `1px solid ${form.geo_mode === 'BLOCK' ? '#fecaca' : '#fde68a'}`, fontSize: '13px', color: form.geo_mode === 'BLOCK' ? '#991b1b' : '#78350f', lineHeight: 1.6 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '12px 16px', background: form.geo_mode === 'BLOCK' ? '#fef2f2' : '#fefce8', borderRadius: 10, border: `1px solid ${form.geo_mode === 'BLOCK' ? '#fecaca' : '#fde68a'}`, fontSize: '13px', color: form.geo_mode === 'BLOCK' ? '#991b1b' : '#78350f', lineHeight: 1.6 }}>
                       {form.geo_mode === 'BLOCK'
-                        ? '🚫 BLOCK: พนักงานจะเช็คอินไม่ได้ถ้าอยู่นอกพื้นที่ — ต้องสแกน QR ที่สาขาเท่านั้น'
-                        : '⚠️ WARN: เช็คอินได้แม้อยู่นอกพื้นที่ แต่จะบันทึกว่า "นอกพื้นที่" ไว้ในรายงาน'}
+                        ? <><Ban size={15} style={{ flexShrink: 0, marginTop: 2 }} /> <span>BLOCK: พนักงานจะเช็คอินไม่ได้ถ้าอยู่นอกพื้นที่ — ต้องสแกน QR ที่สาขาเท่านั้น</span></>
+                        : <><AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} /> <span>WARN: เช็คอินได้แม้อยู่นอกพื้นที่ แต่จะบันทึกว่า "นอกพื้นที่" ไว้ในรายงาน</span></>}
                     </div>
 
                     {/* Summary */}
@@ -1114,8 +1114,8 @@ export default function BranchPage() {
             <div style={{ padding: '12px 18px', borderTop: '1px solid #f1f5f9', background: '#fafafa', flexShrink: 0 }}>
               {pickedCoords ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, fontSize: '12px', color: '#15803d', fontFamily: 'monospace' }}>
-                    ✓ {pickedCoords.lat.toFixed(6)}, {pickedCoords.lng.toFixed(6)}
+                  <div style={{ flex: 1, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, fontSize: '12px', color: '#15803d', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Check size={13} /> {pickedCoords.lat.toFixed(6)}, {pickedCoords.lng.toFixed(6)}
                   </div>
                   <button onClick={applyPickedCoords}
                     style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -1123,8 +1123,8 @@ export default function BranchPage() {
                   </button>
                 </div>
               ) : (
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
-                  👆 คลิกบนแผนที่เพื่อเลือกตำแหน่ง
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <MousePointerClick size={13} /> คลิกบนแผนที่เพื่อเลือกตำแหน่ง
                 </p>
               )}
             </div>
@@ -1150,26 +1150,26 @@ export default function BranchPage() {
 
             {/* Info chips */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-              <span style={{ background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
-                📍 รัศมี {qrTarget.gps_radius} เมตร
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#f0fdf4', color: '#16a34a', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                <MapPin size={11} /> รัศมี {qrTarget.gps_radius} เมตร
               </span>
-              <span style={{ background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
-                {qrTarget.geo_mode === 'BLOCK' ? '🚫 บล็อกนอกพื้นที่' : '⚠️ แจ้งเตือนนอกพื้นที่'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#eff6ff', color: '#2563eb', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                {qrTarget.geo_mode === 'BLOCK' ? <><Ban size={11} /> บล็อกนอกพื้นที่</> : <><AlertTriangle size={11} /> แจ้งเตือนนอกพื้นที่</>}
               </span>
-              <span style={{ background: '#f5f3ff', color: '#7c3aed', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
-                🤖 Auto-detect กะจากเวลา
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#f5f3ff', color: '#7c3aed', borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                <Bot size={11} /> Auto-detect กะจากเวลา
               </span>
             </div>
 
             {/* QR Code */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 14px' }}>
               {qrQ.isLoading ? (
-                <div style={{ width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', borderRadius: 14, color: 'var(--text-muted)', fontSize: '13px' }}>
-                  ⏳ กำลังสร้าง QR…
+                <div style={{ width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#f9fafb', borderRadius: 14, color: 'var(--text-muted)', fontSize: '13px' }}>
+                  <Loader2 size={16} className="animate-spin" /> กำลังสร้าง QR…
                 </div>
               ) : qrQ.isError || !qrString ? (
-                <div style={{ padding: '16px', background: '#fef2f2', borderRadius: 12, color: '#dc2626', fontSize: '13px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
-                  ⚠️ โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '16px', background: '#fef2f2', borderRadius: 12, color: '#dc2626', fontSize: '13px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
+                  <AlertTriangle size={15} /> โหลด QR ไม่สำเร็จ — กรุณาลองใหม่
                 </div>
               ) : (
                 <>
@@ -1187,13 +1187,13 @@ export default function BranchPage() {
             {/* DEV copy */}
             {qrString && (
               <div style={{ marginBottom: 12, padding: '9px 12px', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10 }}>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400e', marginBottom: 5 }}>🛠 DEV — คัดลอก JSON สำหรับทดสอบ</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400e', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}><Wrench size={11} /> DEV — คัดลอก JSON สำหรับทดสอบ</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input readOnly value={qrString} onClick={e => (e.target as HTMLInputElement).select()}
                     style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #fbbf24', fontSize: '0.68rem', fontFamily: 'monospace', background: '#fff', minWidth: 0 }} />
                   <button onClick={handleQrCopy}
-                    style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: qrCopied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s' }}>
-                    {qrCopied ? '✓' : 'คัดลอก'}
+                    style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: qrCopied ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {qrCopied ? <Check size={12} /> : 'คัดลอก'}
                   </button>
                 </div>
               </div>
@@ -1202,12 +1202,12 @@ export default function BranchPage() {
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleQrDownload} disabled={!qrString}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed' }}>
-                ⬇️ ดาวน์โหลด PNG
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Download size={14} /> ดาวน์โหลด PNG
               </button>
               <button onClick={handleQrPrint} disabled={!qrString}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: qrString ? '#f97316' : '#d1d5db', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed' }}>
-                🖨️ พิมพ์
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: qrString ? '#f97316' : '#d1d5db', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Printer size={14} /> พิมพ์
               </button>
             </div>
           </div>
@@ -1277,8 +1277,8 @@ export default function BranchPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   {(['REGULAR', 'SPECIAL'] as const).map(t => (
                     <button key={t} type="button" onClick={() => setShiftForm(f => ({ ...f, shift_type: t }))}
-                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `2px solid ${shiftForm.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: shiftForm.shift_type === t ? '#ede9fe' : '#fff', color: shiftForm.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
-                      {t === 'REGULAR' ? '⏰ กะทั่วไป' : '⭐ กะพิเศษ'}
+                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `2px solid ${shiftForm.shift_type === t ? '#4f46e5' : '#e5e7eb'}`, background: shiftForm.shift_type === t ? '#ede9fe' : '#fff', color: shiftForm.shift_type === t ? '#4f46e5' : '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      {t === 'REGULAR' ? <><Clock size={13} /> กะทั่วไป</> : <><Star size={13} /> กะพิเศษ</>}
                     </button>
                   ))}
                 </div>
@@ -1287,8 +1287,10 @@ export default function BranchPage() {
               {/* เกณฑ์การสาย */}
               <div>
                 <label style={{ ...shiftLabelStyle, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>เกณฑ์การสาย & ค่าปรับ</label>
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                  ⚠️ ระดับ 1/2 = สายปกติ · ⛔ ขาด = สายเกินจนนับเป็นวันขาด (ยังเช็คอินได้ปกติ แต่หักค่าปรับวันถัดไป)
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 6px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={12} /> ระดับ 1/2 = สายปกติ</span>
+                  <span>·</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={12} /> ขาด = สายเกินจนนับเป็นวันขาด (ยังเช็คอินได้ปกติ แต่หักค่าปรับวันถัดไป)</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
@@ -1326,7 +1328,7 @@ export default function BranchPage() {
                       placeholder="เช่น 200" style={shiftInputStyle} />
                   </div>
                   <div>
-                    <label style={shiftLabelStyle}>⛔ ขาด (หลังจากนี้นับขาด)</label>
+                    <label style={{ ...shiftLabelStyle, display: 'flex', alignItems: 'center', gap: 4 }}><Ban size={12} /> ขาด (หลังจากนี้นับขาด)</label>
                     <input type="time" value={shiftForm.absent_threshold}
                       onChange={e => setShiftForm(f => ({ ...f, absent_threshold: e.target.value }))}
                       style={shiftInputStyle} />
@@ -1355,7 +1357,7 @@ export default function BranchPage() {
                     <span style={{ color: 'var(--text-muted)' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{shiftForm.start_time}</span>
                     {shiftForm.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {shiftForm.late_threshold_1}{shiftForm.late_fine_1 ? ` (฿${shiftForm.late_fine_1})` : ''}</span></>}
                     {shiftForm.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {shiftForm.late_threshold_2}{shiftForm.late_fine_2 ? ` (฿${shiftForm.late_fine_2})` : ''}</span></>}
-                    {shiftForm.absent_threshold && <><span style={{ color: 'var(--text-muted)' }}>⛔ ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {shiftForm.absent_threshold}{shiftForm.absent_fine ? ` (+฿${shiftForm.absent_fine} วันถัดไป)` : ''}</span></>}
+                    {shiftForm.absent_threshold && <><span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={11} /> ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {shiftForm.absent_threshold}{shiftForm.absent_fine ? ` (+฿${shiftForm.absent_fine} วันถัดไป)` : ''}</span></>}
                     {shiftForm.min_checkout && <><span style={{ color: 'var(--text-muted)' }}>เช็คเอาท์ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{shiftForm.min_checkout}</span></>}
                     <span style={{ color: 'var(--text-muted)' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{shiftForm.end_time}</span>
                   </div>
@@ -1451,22 +1453,22 @@ export default function BranchPage() {
 
                 {/* Time chips */}
                 <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginTop:10 }}>
-                  <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
-                    🟢 {s.start_time} – {s.end_time} 🔴
+                  <span style={{ display:'inline-flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                    <Clock size={12} /> {s.start_time} – {s.end_time}
                   </span>
                   {s.late_threshold_1 && (
-                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
-                      ⚠️ สาย {s.late_threshold_1}
+                    <span style={{ display:'inline-flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      <AlertTriangle size={12} /> สาย {s.late_threshold_1}
                     </span>
                   )}
                   {s.late_threshold_2 && (
-                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
-                      🚫 สายระดับ 2 {s.late_threshold_2}
+                    <span style={{ display:'inline-flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      <AlertOctagon size={12} /> สายระดับ 2 {s.late_threshold_2}
                     </span>
                   )}
                   {s.absent_threshold && (
-                    <span style={{ background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
-                      ⛔ ขาด {s.absent_threshold}
+                    <span style={{ display:'inline-flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.15)',color:'#fff',borderRadius:99,padding:'4px 12px',fontSize:'0.75rem',fontWeight:700 }}>
+                      <Ban size={12} /> ขาด {s.absent_threshold}
                     </span>
                   )}
                 </div>
@@ -1479,21 +1481,21 @@ export default function BranchPage() {
                 <div style={{ padding:'16px 20px',borderBottom:'1px solid #f1f5f9' }}>
                   <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12 }}>รายละเอียดกะ</div>
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px 20px' }}>
-                    <BranchInfoItem label="🟢 เวลาเริ่มงาน"   value={s.start_time}  color="#15803d" />
-                    <BranchInfoItem label="🔴 เวลาเลิกงาน"   value={s.end_time}    color="#dc2626" />
-                    {s.min_checkout && <BranchInfoItem label="🔒 เช็คเอาท์ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
-                    {s.gps_radius   && <BranchInfoItem label="📍 รัศมี GPS"         value={`${s.gps_radius} ม.`} color="#0891b2" />}
+                    <BranchInfoItem label={<><Clock size={11} /> เวลาเริ่มงาน</>}   value={s.start_time}  color="#15803d" />
+                    <BranchInfoItem label={<><Clock size={11} /> เวลาเลิกงาน</>}   value={s.end_time}    color="#dc2626" />
+                    {s.min_checkout && <BranchInfoItem label={<><Lock size={11} /> เช็คเอาท์ตั้งแต่</>} value={s.min_checkout} color="#7c3aed" />}
+                    {s.gps_radius   && <BranchInfoItem label={<><MapPin size={11} /> รัศมี GPS</>}         value={`${s.gps_radius} ม.`} color="#0891b2" />}
                     {!isSpec && s.late_threshold_1 && (
-                      <BranchInfoItem label={`⚠️ สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />
+                      <BranchInfoItem label={<><AlertTriangle size={11} /> สายระดับ 1{s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}</>} value={s.late_threshold_1} color="#d97706" />
                     )}
                     {!isSpec && s.late_threshold_2 && (
-                      <BranchInfoItem label={`🚫 สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />
+                      <BranchInfoItem label={<><AlertOctagon size={11} /> สายระดับ 2{s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}</>} value={s.late_threshold_2} color="#dc2626" />
                     )}
                     {!isSpec && s.absent_threshold && (
-                      <BranchInfoItem label={`⛔ ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />
+                      <BranchInfoItem label={<><Ban size={11} /> ขาด{s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}</>} value={s.absent_threshold} color="#be185d" />
                     )}
                     {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
-                      <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'var(--text-muted)' }}>⏱ สายได้ {s.late_threshold} นาที</div>
+                      <div style={{ gridColumn:'1/-1',fontSize:'0.8rem',color:'var(--text-muted)',display:'flex',alignItems:'center',gap:4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                     )}
                   </div>
                   {isSpec && (
@@ -1652,10 +1654,10 @@ export default function BranchPage() {
   )
 }
 
-function BranchInfoItem({ label, value, color }: { label: string; value: string; color: string }) {
+function BranchInfoItem({ label, value, color }: { label: React.ReactNode; value: string; color: string }) {
   return (
     <div>
-      <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginBottom:2,display:'flex',alignItems:'center',gap:3 }}>{label}</div>
       <div style={{ fontWeight:700,color,fontSize:'1.05rem',fontVariantNumeric:'tabular-nums' }}>{value}</div>
     </div>
   )

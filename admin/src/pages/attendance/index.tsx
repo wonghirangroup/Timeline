@@ -443,24 +443,13 @@ export default function AttendancePage() {
 
       {/* Filters */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Branch pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[{ id: '', name: 'ทั้งหมด' }, ...branches].map(b => (
-            <button
-              key={b.id}
-              onClick={() => { setBranch(b.id); setPage(1) }}
-              style={{
-                padding: '4px 14px', borderRadius: 99,
-                border: branchFilter === b.id ? '2px solid #f97316' : '2px solid #f97316',
-                fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                background: branchFilter === b.id ? '#f97316' : '#fff',
-                color: branchFilter === b.id ? '#fff' : '#f97316',
-                transition: 'background 0.15s, color 0.15s',
-              }}
-            >
-              {b.name}
-            </button>
-          ))}
+        {/* Branch filter */}
+        <div>
+          <select value={branchFilter} onChange={e => { setBranch(e.target.value); setPage(1) }}
+            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+            <option value="">ทุกสาขา</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
         </div>
         {/* Compact controls */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

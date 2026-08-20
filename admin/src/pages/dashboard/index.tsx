@@ -260,16 +260,13 @@ export default function DashboardPage() {
       {/* ── Right Column (รายชื่อวันนี้) ──────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
 
-        {/* Branch filter pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[{ id: 'all', name: 'ทั้งหมด' }, ...branches].map(b => (
-            <button key={b.id} onClick={() => setBranch(b.id)}
-              style={{ padding: '4px 14px', borderRadius: 99, border: '2px solid #f97316', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                background: branchFilter === b.id ? '#f97316' : '#fff',
-                color: branchFilter === b.id ? '#fff' : '#f97316', transition: 'background 0.15s, color 0.15s' }}>
-              {b.name}
-            </button>
-          ))}
+        {/* Branch filter */}
+        <div>
+          <select value={branchFilter} onChange={e => setBranch(e.target.value)}
+            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+            <option value="all">ทุกสาขา</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
         </div>
 
         {/* List card */}

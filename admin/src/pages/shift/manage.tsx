@@ -106,7 +106,7 @@ interface ShiftTourStep { selector: string; title: string; body: string }
 const SHIFT_TOUR_STEPS: ShiftTourStep[] = [
   { selector: 'shift-kpi',           title: '📊 ภาพรวมกะทำงาน',       body: 'ดูจำนวนกะทั้งหมด กะที่กำลังเปิดอยู่ตอนนี้ และจำนวนสาขาในระบบ — อัพเดทอัตโนมัติทุกครั้งที่เพิ่มหรือแก้ไขกะ' },
   { selector: 'shift-add-btn',       title: '➕ สร้างกะใหม่',          body: 'กดเพื่อเปิด form เพิ่มกะ — ตั้งชื่อ เวลาเข้า-ออก เช็คเอาท์ขั้นต่ำ เกณฑ์การสาย และค่าปรับ ระบบจะ preview ให้เห็นก่อนบันทึก' },
-  { selector: 'shift-branch-filter', title: '🏢 กรองตามสาขา',          body: 'กดชื่อสาขาเพื่อดูเฉพาะกะของสาขานั้น · กด "ทุกสาขา" เพื่อดูทั้งหมด' },
+  { selector: 'shift-branch-filter', title: '🏢 กรองตามสาขา',          body: 'เลือกสาขาเพื่อดูเฉพาะกะของสาขานั้น · เลือก "ทุกสาขา" เพื่อดูทั้งหมด' },
   { selector: 'shift-card-0',        title: '📋 การ์ดกะ',              body: 'แต่ละการ์ดคือ 1 กะ — แสดงชื่อกะ สถานะปัจจุบัน เวลาเข้า-ออก เกณฑ์การสาย และจำนวนพนักงานที่อยู่ในกะนั้น' },
   { selector: 'shift-threshold-0',   title: '⚠️ เกณฑ์การสาย',          body: '🟢 เวลาเริ่มงาน · ⚠️ สายระดับ 1 = เวลาที่นับว่าสาย (หักเงิน) · 🚫 สายระดับ 2 / ขาด = ปิดรับเช็คอิน หลังจากนี้ถือว่าขาดงาน' },
   { selector: 'shift-actions-0',     title: '👥 จัดการพนักงานและกะ',   body: '"พนักงาน" = ดู/เพิ่ม/ถอดพนักงานออกจากกะ · "แก้ไข" = แก้ไขเวลาและเกณฑ์ · 🗑 = ลบกะออกจากระบบ' },
@@ -583,23 +583,11 @@ export default function ShiftPage() {
       {branches.length > 1 && (
         <div data-tour="shift-branch-filter" style={{ flexShrink: 0, marginBottom: 12 }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[{ id: '', name: 'ทุกสาขา' }, ...branches].map(b => (
-              <button
-                key={b.id}
-                onClick={() => setBranchFilter(b.id)}
-                style={{
-                  padding: '4px 14px', borderRadius: 99, border: '2px solid #f97316',
-                  fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  background: branchFilter === b.id ? '#f97316' : '#fff',
-                  color: branchFilter === b.id ? '#fff' : '#f97316',
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
+          <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+            <option value="">ทุกสาขา</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
         </div>
       )}
 
