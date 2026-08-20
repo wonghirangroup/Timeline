@@ -1,7 +1,7 @@
 // admin/src/pages/leave-balance/index.tsx
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 
@@ -97,7 +97,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
       <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🗓</div>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', flexShrink: 0 }}><CalendarDays size={18} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าวันลา</div>
             <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 1 }}>
@@ -120,7 +120,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
                   <div style={{ fontSize: '0.875rem', fontWeight: 700, color: lt.color }}>{lt.label}</div>
                   <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>
                     ใช้ไปแล้ว {used} วัน
-                    {overUsed && <span style={{ color: '#dc2626', fontWeight: 700, marginLeft: 6 }}>⚠ เกินโควต้า!</span>}
+                    {overUsed && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#dc2626', fontWeight: 700, marginLeft: 6 }}><AlertTriangle size={11} /> เกินโควต้า!</span>}
                   </div>
                   <MiniBar used={used} quota={q} color={lt.color} />
                 </div>
@@ -175,7 +175,7 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
   return (
     <div style={{ background: '#fff', border: '2px solid #c7d2fe', borderRadius: 14, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(79,70,229,0.08)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>⚙️</div>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}><Settings size={15} /></div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>โควต้าเริ่มต้น (Default)</div>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>กำหนดโควต้าพื้นฐานแล้วนำไปใช้กับพนักงานทั้งหมดหรือเฉพาะรายใหม่</div>
@@ -222,10 +222,11 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
           </>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 8, background: '#fef3c7', border: '1px solid #fde68a', flex: 1 }}>
-            <span style={{ fontSize: '0.82rem', color: '#92400e', flex: 1 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', color: '#92400e', flex: 1 }}>
+              <AlertTriangle size={13} style={{ flexShrink: 0 }} />
               {applyConfirm === 'all'
-                ? `⚠️ จะเขียนทับโควต้าของพนักงานทุกคน (${totalCount} คน) — ยืนยัน?`
-                : '⚠️ จะตั้งโควต้าให้พนักงานที่ยังไม่มี — ยืนยัน?'}
+                ? `จะเขียนทับโควต้าของพนักงานทุกคน (${totalCount} คน) — ยืนยัน?`
+                : 'จะตั้งโควต้าให้พนักงานที่ยังไม่มี — ยืนยัน?'}
             </span>
             <button
               onClick={() => setApplyConfirm(null)}
@@ -393,7 +394,7 @@ export default function LeaveBalancePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {loading && <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
-      {!loading && saving && <div style={{ textAlign: 'center', padding: '8px 0', color: '#4f46e5', fontSize: '0.82rem' }}>⏳ กำลังบันทึก...</div>}
+      {!loading && saving && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 0', color: '#4f46e5', fontSize: '0.82rem' }}><Loader2 size={13} className="animate-spin" /> กำลังบันทึก...</div>}
 
 
       {/* Header */}
@@ -422,7 +423,7 @@ export default function LeaveBalancePage() {
                 color: showSeniority ? '#d97706' : '#374151',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
-            >⏳ เงื่อนไขอายุงาน {showSeniority ? '▲' : '▼'}</button>
+            ><CalendarDays size={14} /> เงื่อนไขอายุงาน {showSeniority ? '▲' : '▼'}</button>
             <button
               onClick={() => setShowDefault(s => !s)}
               style={{
@@ -433,7 +434,7 @@ export default function LeaveBalancePage() {
                 color: showDefault ? '#4f46e5' : '#374151',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
-            >⚙️ โควต้า Default {showDefault ? '▲' : '▼'}</button>
+            ><Settings size={14} /> โควต้า Default {showDefault ? '▲' : '▼'}</button>
           </div>
         </div>
 
@@ -460,7 +461,7 @@ export default function LeaveBalancePage() {
       {showSeniority && (
         <div style={{ background: '#fff', border: '2px solid #fcd34d', borderRadius: 14, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(217,119,6,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>📅</div>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}><CalendarDays size={15} /></div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>เงื่อนไขวันพักร้อนตามอายุงาน</div>
               <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>กำหนดจำนวนวันพักร้อนตามระยะเวลาทำงาน</div>
@@ -545,7 +546,7 @@ export default function LeaveBalancePage() {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '12px 16px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Search */}
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.9rem' }}>🔍</span>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -664,12 +665,12 @@ export default function LeaveBalancePage() {
                 </div>
                 {hasOverQuota && (
                   <div style={{ marginTop: 4, fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3, width: 'fit-content' }}>
-                    🚨 เกินโควต้า
+                    <AlertOctagon size={10} /> เกินโควต้า
                   </div>
                 )}
                 {hasNearLimit && (
                   <div style={{ marginTop: 4, fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3, width: 'fit-content' }}>
-                    ⚠️ ใกล้หมด
+                    <AlertTriangle size={10} /> ใกล้หมด
                   </div>
                 )}
               </div>
