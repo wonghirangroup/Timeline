@@ -80,6 +80,7 @@ export async function createWeeklyOff(tenantId: string, data: {
 
 export async function updateWeeklyOff(tenantId: string, id: string, data: {
   day_of_week?: number
+  week_start?: string   // YYYY-MM-DD — ย้ายไปสัปดาห์อื่น (ปฏิทินรวม: ลากวางย้ายวันหยุด) normalize เป็น Monday อัตโนมัติ
   status?: 'APPROVED' | 'REJECTED'
   reviewed_by?: string
   reject_note?: string
@@ -87,10 +88,23 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
   const req = await prisma.weeklyOffRequest.findFirst({ where: { id, tenant_id: tenantId } })
   if (!req) return null
 
+  let monday: Date | undefined
+  if (data.week_start !== undefined) {
+    monday = getMondayOf(data.week_start)
+    // ย้ายข้ามสัปดาห์ต้องเช็ค unique (employee_id + week_start) ก่อน — เว้นตัวเอง
+    if (monday.getTime() !== req.week_start.getTime()) {
+      const conflict = await prisma.weeklyOffRequest.findUnique({
+        where: { employee_id_week_start: { employee_id: req.employee_id, week_start: monday } },
+      })
+      if (conflict && conflict.id !== id) throw new Error('ALREADY_REQUESTED')
+    }
+  }
+
   return prisma.weeklyOffRequest.update({
     where: { id },
     data: {
       ...(data.day_of_week !== undefined ? { day_of_week: data.day_of_week } : {}),
+      ...(monday !== undefined ? { week_start: monday } : {}),
       ...(data.status ? { status: data.status, reviewed_by: data.reviewed_by, reviewed_at: new Date() } : {}),
       ...(data.reject_note ? { reject_note: data.reject_note } : {}),
     },

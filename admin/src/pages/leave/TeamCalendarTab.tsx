@@ -1,9 +1,11 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useToast } from '../../components/ui/Toast'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; branch: { id: string; name: string } }
@@ -13,7 +15,7 @@ interface ApiHoliday { id: string; date: string; name: string; target_branches: 
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
-interface DayOff { date: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
 interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
 interface Holiday { date: string; name: string; target_branches: string[] | null }
 
@@ -62,6 +64,7 @@ function weeklyOffToDate(weekStart: string, dayOfWeek: number): string {
 
 function toDisplayDayOff(w: ApiWeeklyOff): DayOff {
   return {
+    id:          w.id,
     date:        weeklyOffToDate(w.week_start, w.day_of_week),
     employee_id: w.employee_id,
     name:        `${w.employee.first_name} ${w.employee.last_name}`,
@@ -136,10 +139,15 @@ function AvatarChip({ name, isPending }: { name: string; isPending: boolean }) {
   )
 }
 
+// ─── Drag payload — ลากพนักงานจาก cell หนึ่งไปวางอีก cell เพื่อย้ายวันหยุด/วันลา ──────
+type DragPayload = { kind: 'dayoff' | 'leave'; id: string; label: string }
+const DND_MIME = 'application/x-timeline-calendar-item'
+
 // ─── Calendar cell ─────────────────────────────────────────────────────────────
-function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOffs, leaves, holidays, compact = false }: {
+function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOffs, leaves, holidays, compact = false, onDropItem }: {
   day: number; month: string; branchFilter: string; isToday: boolean; isSelected: boolean; onClick: () => void
   dayOffs: DayOff[]; leaves: LeaveReq[]; holidays: Holiday[]; compact?: boolean
+  onDropItem: (payload: DragPayload, date: string) => void
 }) {
   const dateStr = toDateStr(month, day)
   const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(dateStr, branchFilter, dayOffs, leaves, holidays)
@@ -147,17 +155,36 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
   const totalOff   = evDayOffs.length
   const totalLeave = evLeaves.filter(l => l.status !== 'REJECTED').length
   const hasEvent   = totalOff > 0 || totalLeave > 0
+  const [dragOver, setDragOver] = useState(false)
 
   const MAX_SHOW = 3
   const shown    = evDayOffs.slice(0, MAX_SHOW)
   const overflow = totalOff - MAX_SHOW
 
+  function handleDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(DND_MIME)) return
+    e.preventDefault()
+    setDragOver(true)
+  }
+  function handleDrop(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(DND_MIME)) return
+    e.preventDefault()
+    setDragOver(false)
+    try {
+      const payload: DragPayload = JSON.parse(e.dataTransfer.getData(DND_MIME))
+      onDropItem(payload, dateStr)
+    } catch { /* ignore malformed payload */ }
+  }
+
   return (
     <button
       onClick={onClick}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
       style={{
-        background: holiday ? '#fef2f2' : isSelected ? '#fff7ed' : '#fff',
-        border: isSelected ? '2px solid #f97316' : '1px solid #f1f5f9',
+        background: dragOver ? '#fff7ed' : holiday ? '#fef2f2' : isSelected ? '#fff7ed' : '#fff',
+        border: dragOver ? '2px dashed #f97316' : isSelected ? '2px solid #f97316' : '1px solid #f1f5f9',
         borderRadius: compact ? 6 : 10, padding: compact ? '5px 3px 4px' : '8px 6px 6px',
         minHeight: compact ? 58 : 88, cursor: 'pointer', textAlign: 'left',
         position: 'relative', transition: 'all 0.12s',
@@ -201,9 +228,11 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
           {shown.map(d => {
             const short = d.nickname || d.name.split(' ')[0]
             return (
-              <div key={d.employee_id} title={d.name} style={{
+              <div key={d.id} title={`${d.name} · ลากเพื่อย้ายวันหยุด`} draggable
+                onDragStart={e => { e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'dayoff', id: d.id, label: d.name } as DragPayload)); e.dataTransfer.effectAllowed = 'move' }}
+                style={{
                 fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
-                padding: '0px 5px', borderRadius: 5,
+                padding: '0px 5px', borderRadius: 5, cursor: 'grab',
                 background: '#FFF7ED', color: '#c2410c',
                 border: d.status === 'PENDING' ? '1px dashed #ea580c' : '1px solid #ea580c55',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -229,10 +258,14 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
             {shownLeaves.map(l => {
               const cfg  = getLeaveCfg(l)
               const short = l.nickname || l.name.split(' ')[0]
+              const isSingleDay = l.start_date === l.end_date
               return (
-                <div key={l.id} title={`${l.display_label} — ${l.name}`} style={{
+                <div key={l.id} title={isSingleDay ? `${l.display_label} — ${l.name} · ลากเพื่อย้ายวันลา` : `${l.display_label} — ${l.name}`}
+                  draggable={isSingleDay}
+                  onDragStart={isSingleDay ? e => { e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'leave', id: l.id, label: l.name } as DragPayload)); e.dataTransfer.effectAllowed = 'move' } : undefined}
+                  style={{
                   fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
-                  padding: '0px 5px', borderRadius: 5,
+                  padding: '0px 5px', borderRadius: 5, cursor: isSingleDay ? 'grab' : 'default',
                   background: cfg.light, color: cfg.color,
                   border: l.status === 'PENDING' ? `1px dashed ${cfg.color}` : `1px solid ${cfg.color}55`,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -261,20 +294,54 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
 }
 
 // ─── Day detail panel ─────────────────────────────────────────────────────────
-function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays }: {
+function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays, onMoveDayOff, onMoveLeave, onDeleteDayOff, onDeleteLeave }: {
   date: string; branchFilter: string; onClose: () => void
   dayOffs: DayOff[]; leaves: LeaveReq[]; holidays: Holiday[]
+  onMoveDayOff: (id: string, date: string) => void
+  onMoveLeave: (id: string, date: string) => void
+  onDeleteDayOff: (id: string, label: string) => void
+  onDeleteLeave: (id: string, label: string) => void
 }) {
   const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(date, branchFilter, dayOffs, leaves, holidays)
   const approved     = evDayOffs.filter(d => d.status === 'APPROVED')
   const pending      = evDayOffs.filter(d => d.status === 'PENDING')
   const activeLeaves = evLeaves.filter(l => l.status !== 'REJECTED')
+  const [movingId, setMovingId] = useState<string | null>(null)
+
+  function RowActions({ id, onDelete }: { id: string; onDelete: () => void }) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        <button onClick={() => setMovingId(m => m === id ? null : id)} title="ย้ายวันที่"
+          style={{ width: 24, height: 24, border: 'none', background: movingId === id ? '#fff7ed' : 'none', cursor: 'pointer', color: movingId === id ? '#ea580c' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
+          onMouseEnter={e => { if (movingId !== id) e.currentTarget.style.background = '#f3f4f6' }} onMouseLeave={e => { if (movingId !== id) e.currentTarget.style.background = 'none' }}>
+          <Pencil size={12} />
+        </button>
+        <button onClick={onDelete} title="ลบ"
+          style={{ width: 24, height: 24, border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
+          onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+          <Trash2 size={12} />
+        </button>
+      </div>
+    )
+  }
+
+  function MoveDateRow({ id, onMove }: { id: string; onMove: (date: string) => void }) {
+    if (movingId !== id) return null
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0 8px', marginLeft: 36 }}>
+        <Move size={11} color="var(--text-muted)" />
+        <input type="date" defaultValue={date} autoFocus
+          onChange={e => { if (e.target.value) { onMove(e.target.value); setMovingId(null) } }}
+          style={{ padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.72rem', fontFamily: 'inherit' }} />
+      </div>
+    )
+  }
 
   return (
     <div style={{
       background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14,
-      padding: 20, minWidth: 260, flexShrink: 0,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      padding: 20, width: 340, maxWidth: '100%', maxHeight: '80vh', overflowY: 'auto',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -315,15 +382,19 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
             </span>
           </div>
           {approved.map(d => (
-            <div key={d.employee_id} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
-              borderBottom: '1px solid #f9fafb',
-            }}>
-              <AvatarChip name={d.name} isPending={false} />
-              <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
+            <div key={d.id}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+                borderBottom: movingId === d.id ? 'none' : '1px solid #f9fafb',
+              }}>
+                <AvatarChip name={d.name} isPending={false} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
+                </div>
+                <RowActions id={d.id} onDelete={() => onDeleteDayOff(d.id, d.nickname || d.name)} />
               </div>
+              <MoveDateRow id={d.id} onMove={newDate => onMoveDayOff(d.id, newDate)} />
             </div>
           ))}
         </div>
@@ -339,15 +410,19 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
             </span>
           </div>
           {pending.map(d => (
-            <div key={d.employee_id} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
-              borderBottom: '1px solid #f9fafb',
-            }}>
-              <AvatarChip name={d.name} isPending={true} />
-              <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
+            <div key={d.id}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+                borderBottom: movingId === d.id ? 'none' : '1px solid #f9fafb',
+              }}>
+                <AvatarChip name={d.name} isPending={true} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
+                </div>
+                <RowActions id={d.id} onDelete={() => onDeleteDayOff(d.id, d.nickname || d.name)} />
               </div>
+              <MoveDateRow id={d.id} onMove={newDate => onMoveDayOff(d.id, newDate)} />
             </div>
           ))}
         </div>
@@ -364,23 +439,36 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
           </div>
           {activeLeaves.map(l => {
             const cfg = getLeaveCfg(l)
+            const isSingleDay = l.start_date === l.end_date
             return (
-              <div key={l.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
-                borderBottom: '1px solid #f9fafb',
-              }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: cfg.light, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
-                  {cfg.icon}
+              <div key={l.id}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+                  borderBottom: movingId === l.id ? 'none' : '1px solid #f9fafb',
+                }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: cfg.light, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
+                    {cfg.icon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.nickname || l.name}</div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{l.display_label} · {l.branch_name}</div>
+                  </div>
+                  {l.status === 'PENDING' && (
+                    <span style={{ fontSize: '0.6rem', background: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>
+                      รอ
+                    </span>
+                  )}
+                  {isSingleDay
+                    ? <RowActions id={l.id} onDelete={() => onDeleteLeave(l.id, l.nickname || l.name)} />
+                    : (
+                      <button onClick={() => onDeleteLeave(l.id, l.nickname || l.name)} title="ลบ"
+                        style={{ width: 24, height: 24, border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5, flexShrink: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.nickname || l.name}</div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{l.display_label} · {l.branch_name}</div>
-                </div>
-                {l.status === 'PENDING' && (
-                  <span style={{ fontSize: '0.6rem', background: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>
-                    รอ
-                  </span>
-                )}
+                {isSingleDay && <MoveDateRow id={l.id} onMove={newDate => onMoveLeave(l.id, newDate)} />}
               </div>
             )
           })}
@@ -395,12 +483,62 @@ export default function TeamCalendarTab() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayYM  = todayStr.slice(0, 7)
   const isMobile = useIsMobile()
+  const { showToast } = useToast()
+  const qc = useQueryClient()
 
   const [month,        setMonth]        = useState(todayYM)
   const [branchFilter, setBranchFilter] = useState('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
 
   const year = Number(month.slice(0, 4))
+
+  const invalidateCalendar = () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
+    qc.invalidateQueries({ queryKey: ['admin', 'leave-requests-cal'] })
+    qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
+  }
+
+  // ย้ายวันหยุดประจำ (weekly-off) ไปวันที่อื่น — ใช้ทั้ง popup date-picker และ drag-drop
+  const moveDayOffMutation = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) =>
+      api.patch(`/api/v1/admin/weekly-off/${id}`, { week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'ย้ายวันหยุดสำเร็จ') },
+    onError: (e: any) => {
+      const code = e?.response?.data?.error?.code
+      showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์ที่ย้ายไปแล้ว' : 'ย้ายไม่สำเร็จ')
+    },
+  })
+
+  // ย้ายวันลา (เฉพาะวันลาแบบ 1 วัน — เก็บจำนวนวันเท่าเดิม)
+  const moveLeaveMutation = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) =>
+      api.patch(`/api/v1/admin/leave-requests/${id}`, { start_date: date, end_date: date }),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'ย้ายวันลาสำเร็จ') },
+    onError: (e: any) => {
+      const code = e?.response?.data?.error?.code
+      showToast('error', code === 'LEAVE_OVERLAP' ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว' : 'ย้ายไม่สำเร็จ')
+    },
+  })
+
+  const deleteDayOffMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/weekly-off/${id}`),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'ลบวันหยุดแล้ว'); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+  const deleteLeaveMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/leave-requests/${id}`),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'ลบวันลาแล้ว'); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+
+  function handleMoveDayOff(id: string, date: string) { moveDayOffMutation.mutate({ id, date }) }
+  function handleMoveLeave(id: string, date: string)  { moveLeaveMutation.mutate({ id, date }) }
+  function handleConfirmDelete() {
+    if (!deleteTarget) return
+    if (deleteTarget.kind === 'dayoff') deleteDayOffMutation.mutate(deleteTarget.id)
+    else deleteLeaveMutation.mutate(deleteTarget.id)
+  }
 
   const { data: rawWeeklyOff = [] } = useQuery<ApiWeeklyOff[]>({
     queryKey: ['admin', 'weekly-off', month],
@@ -628,13 +766,17 @@ export default function TeamCalendarTab() {
                 leaves={leaves}
                 holidays={holidays}
                 compact={isMobile}
+                onDropItem={(payload, date) => {
+                  if (payload.kind === 'dayoff') handleMoveDayOff(payload.id, date)
+                  else handleMoveLeave(payload.id, date)
+                }}
               />
             )
           })}
         </div>
       </div>
 
-      {/* Detail panel — bottom sheet on mobile, inline on desktop */}
+      {/* Detail panel — popup ทั้งมือถือ (bottom sheet) และ desktop (modal กลางจอ) */}
       {selectedDate && (
         isMobile ? (
           <>
@@ -659,21 +801,50 @@ export default function TeamCalendarTab() {
                 dayOffs={dayOffs}
                 leaves={leaves}
                 holidays={holidays}
+                onMoveDayOff={handleMoveDayOff}
+                onMoveLeave={handleMoveLeave}
+                onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
+                onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
               />
             </div>
           </>
         ) : (
-          <div style={{ marginTop: 16 }}>
-            <DayDetailPanel
-              date={selectedDate}
-              branchFilter={branchFilter}
-              onClose={() => setSelectedDate(null)}
-              dayOffs={dayOffs}
-              leaves={leaves}
-              holidays={holidays}
-            />
-          </div>
+          <>
+            {/* Desktop: backdrop */}
+            <div
+              onClick={() => setSelectedDate(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            >
+              {/* Modal panel — stopPropagation กันปิดตอนคลิกในกล่อง */}
+              <div onClick={e => e.stopPropagation()}>
+                <DayDetailPanel
+                  date={selectedDate}
+                  branchFilter={branchFilter}
+                  onClose={() => setSelectedDate(null)}
+                  dayOffs={dayOffs}
+                  leaves={leaves}
+                  holidays={holidays}
+                  onMoveDayOff={handleMoveDayOff}
+                  onMoveLeave={handleMoveLeave}
+                  onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
+                  onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
+                />
+              </div>
+            </div>
+          </>
         )
+      )}
+
+      {/* Delete confirm */}
+      {deleteTarget && (
+        <ConfirmDialog
+          title={deleteTarget.kind === 'dayoff' ? 'ลบวันหยุดประจำ?' : 'ลบวันลา?'}
+          message={`ลบรายการของ "${deleteTarget.label}" — ยกเลิกไม่ได้`}
+          confirmLabel="ลบ"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
 
       {/* Legend */}

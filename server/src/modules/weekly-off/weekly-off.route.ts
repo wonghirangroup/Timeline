@@ -96,20 +96,31 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธวันหยุดแล้ว')
   })
 
-  // ── Admin: แก้ไขวัน (เปลี่ยน day_of_week) ───────────────────────────
+  // ── Admin: แก้ไขวัน (เปลี่ยน day_of_week / ย้ายสัปดาห์) ───────────────
   app.patch('/admin/weekly-off/:id', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: ['Admin'],
-      summary: 'แก้ไขวันหยุดสัปดาห์',
+      summary: 'แก้ไขวันหยุดสัปดาห์ (เปลี่ยนวันในสัปดาห์เดิม หรือย้ายไปสัปดาห์อื่นทั้งที — ปฏิทินรวม: ลากวาง)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { day_of_week: { type: 'integer', minimum: 0, maximum: 6 } } },
+      body: {
+        type: 'object',
+        properties: {
+          day_of_week: { type: 'integer', minimum: 0, maximum: 6 },
+          week_start:  { type: 'string', description: 'YYYY-MM-DD — ย้ายไปสัปดาห์อื่น (normalize เป็น Monday อัตโนมัติ)' },
+        },
+      },
     },
   }, async (req: any, reply) => {
-    const result = await updateWeeklyOff(req.tenantId, req.params.id, req.body)
-    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
-    return ok(result, 'แก้ไขสำเร็จ')
+    try {
+      const result = await updateWeeklyOff(req.tenantId, req.params.id, req.body)
+      if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+      return ok(result, 'แก้ไขสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'พนักงานนี้มีวันหยุดในสัปดาห์ที่ย้ายไปแล้ว'))
+      throw e
+    }
   })
 
   // ── Admin: ลบ ────────────────────────────────────────────────────────
