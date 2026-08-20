@@ -1,7 +1,7 @@
 // admin/src/pages/attendance/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
@@ -455,9 +455,12 @@ export default function AttendancePage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ ...inp, width: 'auto', borderRadius: 10 }} />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="🔍 ค้นหาชื่อ / รหัส"
-            style={{ ...inp, flex: 1, minWidth: 160, borderRadius: 10 }} />
+          <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="ค้นหาชื่อ / รหัส"
+              style={{ ...inp, width: '100%', paddingLeft: 30, borderRadius: 10, boxSizing: 'border-box' }} />
+          </div>
           <button onClick={() => refetch()} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
         </div>
       </div>
@@ -493,7 +496,7 @@ export default function AttendancePage() {
                           </span>
                         )}
                         {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#dc2626' }}>💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#dc2626' }}><Wallet size={10} /> {Number(row.record.fine) + Number(row.record.carried_fine)} ฿</span>
                         )}
                       </div>
                     </div>
@@ -566,7 +569,7 @@ export default function AttendancePage() {
                               ? <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '2px 10px', fontWeight: 700, width: 'fit-content' }}>{fmtTime(row.record.check_in_at)}</span>
                               : <span style={{ color: '#d1d5db' }}>—</span>}
                             {row.record?.is_outside_area && (
-                              <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#fef3c7', color: '#d97706', width: 'fit-content' }}>⚠️ นอกพื้นที่</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#fef3c7', color: '#d97706', width: 'fit-content' }}><AlertTriangle size={9} /> นอกพื้นที่</span>
                             )}
                           </div>
                         </td>
@@ -603,8 +606,8 @@ export default function AttendancePage() {
                               </span>
                             )}
                             {row.record && (Number(row.record.fine) + Number(row.record.carried_fine)) > 0 && (
-                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#dc2626' }}>
-                                💸 {Number(row.record.fine) + Number(row.record.carried_fine)} ฿
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, color: '#dc2626' }}>
+                                <Wallet size={10} /> {Number(row.record.fine) + Number(row.record.carried_fine)} ฿
                                 {Number(row.record.carried_fine) > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (รวมยกมา {Number(row.record.carried_fine)})</span>}
                               </span>
                             )}

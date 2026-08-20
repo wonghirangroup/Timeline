@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, CalendarDays, Palmtree, Flag, Pencil, Check, CheckCircle2, Star } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ChevronLeft, ChevronRight, CalendarDays, Palmtree, Flag, Pencil, Check, CheckCircle2, Star, Search } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -136,6 +137,7 @@ export default function ShiftSchedulePage() {
   const [weekStart, setWeekStart] = useState(() => getMondayOf(TODAY))
   const [selMonth, setSelMonth]   = useState(() => { const d = new Date(TODAY); return { y: d.getFullYear(), m: d.getMonth()+1 } })
   const [filterBranch, setFilterBranch] = useState('ALL')
+  const [search, setSearch]       = useState('')
   const [page, setPage]           = useState(1)
   const pageSize                  = 6
   const [editCell, setEditCell]   = useState<{ empId: string; date: string }|null>(null)
@@ -221,14 +223,18 @@ export default function ShiftSchedulePage() {
     onError: () => showToast('error', 'ยกเลิก override ไม่สำเร็จ'),
   })
 
-  const filteredEmps = filterBranch === 'ALL'
-    ? employees
-    : employees.filter(e => e.branch_id === filterBranch)
+  const filteredEmps = employees
+    .filter(e => filterBranch === 'ALL' || e.branch_id === filterBranch)
+    .filter(e => {
+      if (!search.trim()) return true
+      const q = search.trim().toLowerCase()
+      return `${e.first_name} ${e.last_name} ${e.nickname ?? ''} ${e.employee_code}`.toLowerCase().includes(q)
+    })
 
   const totalPages = Math.ceil(filteredEmps.length / pageSize)
   const paginatedEmps = filteredEmps.slice((page - 1) * pageSize, page * pageSize)
 
-  useEffect(() => { setPage(1) }, [filterBranch, viewMode, weekStart, selMonth])
+  useEffect(() => { setPage(1) }, [filterBranch, search, viewMode, weekStart, selMonth])
 
   function getShiftsForEmp(emp: ApiEmployee): ApiShift[] {
     return shifts.filter(s => s.branch_id === emp.branch_id)
@@ -269,10 +275,15 @@ export default function ShiftSchedulePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // popup ใช้ portal + position:fixed (viewport coords ตรงๆ) แทน absolute ใน
+  // ตารางที่ scroll ได้ — กันไม่ให้ popup โดน overflow ของตารางบัง/ตัด ต้อง
+  // เลื่อนตารางถึงจะเห็น (z-index สูงกว่าตารางเสมอเพราะอยู่คนละ stacking context)
+  const POPUP_W = 260
   function openEdit(e: React.MouseEvent<HTMLButtonElement>, empId: string, date: string) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const t = tableRef.current?.getBoundingClientRect()
-    setPopupPos({ top: r.bottom + window.scrollY - (t?.top??0) + (tableRef.current?.scrollTop??0) + 4, left: r.left - (t?.left??0) + (tableRef.current?.scrollLeft??0) })
+    const left = Math.min(r.left, window.innerWidth - POPUP_W - 12)
+    const top  = r.bottom + 4
+    setPopupPos({ top, left: Math.max(12, left) })
     setEditCell({ empId, date })
   }
 
@@ -293,11 +304,11 @@ export default function ShiftSchedulePage() {
     const hasOverride = overrides.some(a => a.employee_id === empId && a.date.slice(0, 10) === date)
     const defaultShift = emp?.default_shift_id ? shifts.find(s => s.id === emp.default_shift_id) : null
 
-    return (
+    return createPortal((
       <div ref={popupRef} style={{
-        position:'absolute', top:popupPos.top, left:popupPos.left, zIndex:999,
+        position:'fixed', top:popupPos.top, left:popupPos.left, zIndex:1000,
         background:'#fff', border:'1px solid #e5e7eb', borderRadius:10,
-        boxShadow:'0 8px 24px rgba(0,0,0,0.12)', minWidth:240, padding:'10px 0', fontSize:13,
+        boxShadow:'0 8px 24px rgba(0,0,0,0.16)', width:POPUP_W, maxHeight:'80vh', overflowY:'auto', padding:'10px 0', fontSize:13,
       }}>
         {/* Header */}
         <div style={{ padding:'4px 14px 8px', borderBottom:'1px solid #f3f4f6' }}>
@@ -393,7 +404,7 @@ export default function ShiftSchedulePage() {
           </>
         )}
       </div>
-    )
+    ), document.body)
   }
 
   // ── Week Cell ─────────────────────────────────────────────────────────────
@@ -498,7 +509,12 @@ export default function ShiftSchedulePage() {
 
       {/* Header - Title removed */}
       <div style={{ display:'flex', alignItems: isMobile?'flex-start':'center', flexDirection: isMobile?'column':'row', gap:12, marginBottom:16 }}>
-        <div style={{ marginLeft: 'auto', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ position:'relative', width: isMobile ? '100%' : 220 }}>
+          <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', pointerEvents:'none' }} />
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ค้นหาพนักงาน..."
+            style={{ width:'100%', padding:'7px 10px 7px 32px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:13, fontFamily:'inherit', boxSizing:'border-box' }} />
+        </div>
+        <div style={{ marginLeft: isMobile ? 0 : 'auto', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           {/* View toggle */}
           <div style={{ display:'flex', border:'1px solid #e5e7eb', borderRadius:8, overflow:'hidden' }}>
             {(['week','month'] as const).map(m => (
@@ -629,18 +645,34 @@ export default function ShiftSchedulePage() {
       )}
 
       {/* Legend */}
-      <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>
-        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#f0fdf4', color:'#15803d', border:'1px dashed #86efac', fontWeight:600 }}>กะเช้า</span>
-          <span style={{ color:'var(--text-muted)' }}>= อัตโนมัติ (กะประจำ/วันลา/วันหยุด — ไม่ได้ตั้งเอง)</span>
-        </span>
-        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
-          <span style={{ color:'#f97316', fontSize:11, display:'inline-flex', alignItems:'center', gap:2 }}><Pencil size={10} /> เปลี่ยน</span>
-          <span style={{ color:'var(--text-muted)' }}>= มี override วันนี้</span>
-        </span>
-        <span style={{ color:'var(--text-muted)' }}>· คลิกเพื่อแก้</span>
-        <span style={{ color:'var(--text-muted)' }}>· "↩ กลับค่าอัตโนมัติ" เพื่อยกเลิก override</span>
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:14 }}>
+        {viewMode === 'month' && (
+          <div style={{ display:'flex', gap:14, flexWrap:'wrap', fontSize:12, alignItems:'center', padding:'10px 14px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:10 }}>
+            <span style={{ fontWeight:700, color:'var(--text-muted)', fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em' }}>ตัวย่อในตาราง</span>
+            {(Object.keys(TYPE_CFG) as EffectiveType[]).map(k => {
+              const cfg = TYPE_CFG[k]
+              return (
+                <span key={k} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', minWidth:22, padding:'2px 5px', borderRadius:5, fontSize:11, fontWeight:700, background:cfg.bg, color:cfg.color, border:`1px solid ${cfg.border}` }}>{cfg.short}</span>
+                  <span style={{ color:'var(--text-muted)' }}>{cfg.label}</span>
+                </span>
+              )
+            })}
+          </div>
+        )}
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:12, alignItems:'center' }}>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#f0fdf4', color:'#15803d', border:'1px dashed #86efac', fontWeight:600 }}>กะเช้า</span>
+            <span style={{ color:'var(--text-muted)' }}>= อัตโนมัติ (กะประจำ/วันลา/วันหยุด — ไม่ได้ตั้งเอง)</span>
+          </span>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ padding:'2px 7px', borderRadius:5, fontSize:11, background:'#dcfce7', color:'#15803d', border:'1px solid #86efac', fontWeight:600 }}>กะเช้า</span>
+            <span style={{ color:'#f97316', fontSize:11, display:'inline-flex', alignItems:'center', gap:2 }}><Pencil size={10} /> เปลี่ยน</span>
+            <span style={{ color:'var(--text-muted)' }}>= มี override วันนี้</span>
+          </span>
+          <span style={{ color:'var(--text-muted)' }}>· คลิกเพื่อแก้</span>
+          <span style={{ color:'var(--text-muted)' }}>· "↩ กลับค่าอัตโนมัติ" เพื่อยกเลิก override</span>
+        </div>
       </div>
     </div>
   )

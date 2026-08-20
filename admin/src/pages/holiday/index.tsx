@@ -1,9 +1,10 @@
 // admin/src/pages/holiday/index.tsx
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Check, Repeat2 } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Repeat2, Plus, Landmark, Building2, Target, Flag, Download } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
+import { deptName } from '../../lib/format'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
@@ -175,7 +176,7 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
       <div style={{ background: '#fff', borderRadius: 18, width: 480, maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{initial?.id ? 'แก้ไขวันหยุด' : '➕ เพิ่มวันหยุด'}</div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>{initial?.id ? 'แก้ไขวันหยุด' : <><Plus size={16} /> เพิ่มวันหยุด</>}</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>กรอกข้อมูลวันหยุดที่ต้องการเพิ่ม</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
@@ -242,7 +243,7 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
                   <button key={d} type="button" onClick={() => toggleDept(d)}
                     style={{ padding: '6px 12px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
                       border: `1.5px solid ${active ? '#4f46e5' : '#e2e8f0'}`, background: active ? '#eef2ff' : '#fff', color: active ? '#4f46e5' : '#64748b' }}>
-                    {active && <Check size={11} style={{ verticalAlign: -1, marginRight: 3 }}/>}{d}
+                    {active && <Check size={11} style={{ verticalAlign: -1, marginRight: 3 }}/>}{deptName(d)}
                   </button>
                 )
               })}
@@ -396,7 +397,7 @@ export default function HolidayPage() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setImportConfirm(true)}
                 style={{ padding: '9px 16px', borderRadius: 9, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-                🇹🇭 นำเข้าวันหยุดไทย {year}
+                <Download size={14} /> นำเข้าวันหยุดไทย {year}
               </button>
               <button onClick={() => setModal({ mode: 'add' })}
                 style={{ padding: '9px 18px', borderRadius: 9, border: 'none', background: '#4f46e5', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(79,70,229,0.3)' }}>
@@ -414,13 +415,13 @@ export default function HolidayPage() {
               <button onClick={() => setYear(y => y + 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '2px 8px', fontSize: '1rem', borderRadius: 6 }}>›</button>
             </div>
             {[
-              { label: `รวม ${stats.total} วัน`,           color: '#4f46e5', bg: '#eef2ff' },
-              { label: `🇹🇭 นักขัตฤกษ์ ${stats.national}`,  color: '#dc2626', bg: '#fee2e2' },
-              { label: `🕌 ศาสนา ${stats.religious}`,        color: '#d97706', bg: '#fef3c7' },
-              { label: `🏢 บริษัท ${stats.company}`,         color: '#2563eb', bg: '#dbeafe' },
-              { label: `🔁 ทำซ้ำ ${stats.recurring}`,        color: '#7c3aed', bg: '#ede9fe' },
+              { icon: null,      label: `รวม ${stats.total} วัน`,          color: '#4f46e5', bg: '#eef2ff' },
+              { icon: Flag,      label: `นักขัตฤกษ์ ${stats.national}`,    color: '#dc2626', bg: '#fee2e2' },
+              { icon: Landmark,  label: `ศาสนา ${stats.religious}`,        color: '#d97706', bg: '#fef3c7' },
+              { icon: Building2, label: `บริษัท ${stats.company}`,         color: '#2563eb', bg: '#dbeafe' },
+              { icon: Repeat2,   label: `ทำซ้ำ ${stats.recurring}`,        color: '#7c3aed', bg: '#ede9fe' },
             ].map(s => (
-              <span key={s.label} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: s.bg, color: s.color }}>{s.label}</span>
+              <span key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: s.bg, color: s.color }}>{s.icon && <s.icon size={12} />}{s.label}</span>
             ))}
           </div>
 
@@ -472,8 +473,8 @@ export default function HolidayPage() {
                               <div style={{ fontSize: '0.84rem', fontWeight: 700, color: tc.color }}>{h.name}</div>
                               <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: tc.color, fontWeight: 600 }}>{tc.label}</span>
-                                {h.recurring && <span style={{ fontSize: '0.68rem', background: 'rgba(124,58,237,0.1)', padding: '1px 6px', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}>🔁 ทำซ้ำ</span>}
-                                {targetLabel(h) && <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: '#374151', fontWeight: 600 }}>🎯 {targetLabel(h)}</span>}
+                                {h.recurring && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: 'rgba(124,58,237,0.1)', padding: '1px 6px', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}><Repeat2 size={10} /> ทำซ้ำ</span>}
+                                {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: '#374151', fontWeight: 600 }}><Target size={10} /> {targetLabel(h)}</span>}
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -518,8 +519,8 @@ export default function HolidayPage() {
                           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</div>
                           <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: tc.bg, color: tc.color }}>{tc.label}</span>
-                            {h.recurring && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}>🔁</span>}
-                            {targetLabel(h) && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}>🎯 {targetLabel(h)}</span>}
+                            {h.recurring && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}><Repeat2 size={10} /></span>}
+                            {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}><Target size={10} /> {targetLabel(h)}</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
@@ -552,7 +553,7 @@ export default function HolidayPage() {
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: 360, padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: 12, textAlign: 'center' }}>🗑️</div>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#dc2626' }}><Trash2 size={28} /></div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: 8 }}>ยืนยันการลบ</div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', textAlign: 'center', marginBottom: 20, lineHeight: 1.6 }}>
               ต้องการลบ <strong>"{deleteConfirm.name}"</strong><br />
@@ -570,7 +571,7 @@ export default function HolidayPage() {
       {importConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: 12, textAlign: 'center' }}>🇹🇭</div>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#4f46e5' }}><Download size={28} /></div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: 8 }}>นำเข้าวันหยุดนักขัตฤกษ์ {year}</div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', textAlign: 'center', marginBottom: 6, lineHeight: 1.6 }}>
               ระบบจะนำเข้าวันหยุดราชการไทยปี {year + 543} จำนวน {THAI_NATIONAL_2026.length} รายการ

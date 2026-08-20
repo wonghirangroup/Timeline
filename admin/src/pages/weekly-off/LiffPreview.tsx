@@ -1,6 +1,6 @@
 // admin/src/pages/weekly-off/LiffPreview.tsx
 import { useState } from 'react'
-import { X, CalendarOff, CheckCircle2, Clock, XCircle, ChevronLeft } from 'lucide-react'
+import { X, CalendarOff, CheckCircle2, Clock, XCircle, ChevronLeft, MessageCircle, AlertTriangle } from 'lucide-react'
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_FULL  = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
@@ -120,7 +120,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
               </div>
               <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
                 <p style={{ fontSize: '12px', color: '#9a3412', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
-                  💬 เมื่อแอดมินเปิดการจอง<br/>
+                  <MessageCircle size={12} style={{ verticalAlign: -1 }} /> เมื่อแอดมินเปิดการจอง<br/>
                   ระบบจะส่งแจ้งเตือนทาง Line
                 </p>
               </div>
@@ -237,7 +237,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
               </div>
               <div style={{ background: '#fffbeb', borderRadius: 12, padding: '12px 14px', border: '1px solid #fde68a' }}>
                 <p style={{ fontSize: '12px', color: '#92400e', margin: 0, lineHeight: 1.6 }}>
-                  ⚠️ หลังจากจองแล้วจะ<strong>รอการอนุมัติ</strong>จากแอดมิน
+                  <AlertTriangle size={12} style={{ verticalAlign: -1 }} /> หลังจากจองแล้วจะ<strong>รอการอนุมัติ</strong>จากแอดมิน
                   ระบบจะแจ้งผ่าน Line เมื่อได้รับการพิจารณา
                 </p>
               </div>

@@ -67,6 +67,7 @@ export default function ReportPage() {
   const [search, setSearch] = useState('')
   const [detail, setDetail] = useState<{ emp: string; date: string; records: AttendanceRecord[] } | null>(null)
   const [expandedEmp, setExpandedEmp] = useState<string | null>(null)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
 
   const startDate = toYMD(year, month, 1)
   const endDate   = toYMD(year, month, getDaysInMonth(year, month))
@@ -274,12 +275,33 @@ export default function ReportPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
         {/* Month nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
           <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: '0.85rem', minWidth: isMobile ? 110 : 140, textAlign: 'center' }}>
+          <button onClick={() => setShowMonthPicker(s => !s)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', minWidth: isMobile ? 110 : 140, textAlign: 'center', color: 'inherit', fontFamily: 'inherit', padding: '2px 4px', borderRadius: 6 }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
             {MONTHS_TH[month - 1]} {year + 543}
-          </span>
+          </button>
           <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+
+          {showMonthPicker && (
+            <>
+              <div onClick={() => setShowMonthPicker(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 41, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 10, display: 'flex', gap: 6 }}>
+                <select value={month} onChange={e => setMonth(Number(e.target.value))}
+                  style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                  {MONTHS_TH.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                </select>
+                <select value={year} onChange={e => setYear(Number(e.target.value))}
+                  style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                  {Array.from({ length: 6 }, (_, i) => now.getFullYear() - 2 + i).map(y => (
+                    <option key={y} value={y}>{y + 543}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
         <select value={branch} onChange={e => setBranch(e.target.value)}

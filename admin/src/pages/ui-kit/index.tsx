@@ -64,7 +64,7 @@ import { useState } from 'react'
 import {
   CheckCircle2, XCircle, AlertTriangle, Info,
   Bell, Settings, User, LogOut, Search, Plus,
-  ChevronDown, Eye, EyeOff,
+  ChevronDown, Eye, EyeOff, Palette, Lightbulb,
 } from 'lucide-react'
 
 const T = TOKENS  // shorthand
@@ -219,7 +219,7 @@ export default function UiKitPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       {/* Title */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: T.radius.full, background: T.color.primaryLight, color: T.color.primary, fontSize: T.font.xs, fontWeight: 700, marginBottom: 8 }}>🎨 DESIGN SYSTEM</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: T.radius.full, background: T.color.primaryLight, color: T.color.primary, fontSize: T.font.xs, fontWeight: 700, marginBottom: 8 }}><Palette size={11} /> DESIGN SYSTEM</div>
         <h1 style={{ margin: 0, fontSize: T.font.xl, fontWeight: 800, color: T.color.textPrimary }}>UI Kit — TimeLine HR</h1>
         <p style={{ margin: '6px 0 0', fontSize: T.font.sm, color: T.color.textMuted }}>แก้ TOKENS ใน <code style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontSize: T.font.xs }}>/pages/ui-kit/index.tsx</code> บรรทัดบนสุด เพื่อเปลี่ยนสีทั้งระบบ</p>
       </div>
@@ -379,7 +379,7 @@ export default function UiKitPage() {
 
       {/* Footer note */}
       <div style={{ marginTop: 40, padding: '16px 20px', borderRadius: T.radius.lg, background: T.color.primaryLight, border: `1px solid ${T.color.primaryBorder}`, fontSize: T.font.xs, color: T.color.primaryDark }}>
-        💡 <strong>วิธีเปลี่ยนสีทั้งระบบ:</strong> แก้ค่าใน <code>TOKENS.color.primary</code> และ <code>TOKENS.color.primaryDark</code> ที่บรรทัดบนสุดของไฟล์นี้
+        <Lightbulb size={12} style={{ verticalAlign: -1 }} /> <strong>วิธีเปลี่ยนสีทั้งระบบ:</strong> แก้ค่าใน <code>TOKENS.color.primary</code> และ <code>TOKENS.color.primaryDark</code> ที่บรรทัดบนสุดของไฟล์นี้
         แล้ว copy ค่าไปใส่ใน <code>Topbar.tsx</code>, <code>Sidebar.tsx</code>, <code>Layout.tsx</code> ด้วย เนื่องจากยังไม่ได้ import TOKEN ข้ามไฟล์
       </div>
     </div>

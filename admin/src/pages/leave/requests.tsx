@@ -1,10 +1,11 @@
 // admin/src/pages/leave/requests.tsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Check, X } from 'lucide-react'
+import { Pencil, Trash2, Check, X, CalendarDays, Search, AlertTriangle } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ function MonthYearPicker({ value, onChange, requests }: {
         color: value ? '#ea580c' : 'var(--text-muted)',
         fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
       }}>
-        📅 {label}
+        <CalendarDays size={15} /> {label}
       </button>
 
       {open && (
@@ -166,6 +167,8 @@ export default function LeaveRequestsTab() {
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
   const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
+  const [page, setPage]                   = useState(1)
+  const PAGE_SIZE = 10
 
   const { data: requests = [], isLoading } = useQuery<ApiLeaveRequest[]>({
     queryKey: ['admin', 'leave-requests'],
@@ -259,6 +262,11 @@ export default function LeaveRequestsTab() {
       b.start_date.localeCompare(a.start_date)
     )
   }, [requests, monthFilter, statusFilter, branchFilter, search])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => { setPage(1) }, [monthFilter, statusFilter, branchFilter, search])
+  useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = useMemo(() => ({
     pending:  requests.filter(r => r.status === 'PENDING').length,
@@ -417,8 +425,11 @@ export default function LeaveRequestsTab() {
         <>
           {/* Filters */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 ค้นหาชื่อ / รหัส"
-              style={{ ...inp, flex: 1, minWidth: 160 }} />
+            <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"
+                style={{ ...inp, width: '100%', paddingLeft: 30, boxSizing: 'border-box' }} />
+            </div>
             <select value={branchFilter} onChange={e => setBranch(e.target.value)} style={{ ...inp, width: 'auto' }}>
               <option value="">ทุกสาขา</option>
               {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -438,7 +449,7 @@ export default function LeaveRequestsTab() {
               {isMobile ? (
                 <div>
                   {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</p>}
-                  {filtered.map(r => {
+                  {paginated.map(r => {
                     const tc = getTypeCfg(r.leave_type, r.reason)
                     const sc = STATUS_CFG[r.status]
                     return (
@@ -484,7 +495,7 @@ export default function LeaveRequestsTab() {
                     {filtered.length === 0 && (
                       <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</td></tr>
                     )}
-                    {filtered.map((r, i) => {
+                    {paginated.map((r, i) => {
                       const tc = getTypeCfg(r.leave_type, r.reason)
                       const sc = STATUS_CFG[r.status]
                       return (
@@ -532,6 +543,8 @@ export default function LeaveRequestsTab() {
               )}
             </div>
           )}
+
+          {!loading && <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="รายการ" />}
         </>
       )}
 
@@ -599,7 +612,10 @@ export default function LeaveRequestsTab() {
       {deleteTarget && (
         <ConfirmDialog
           title="ลบคำขอวันลา?"
-          message={`${deleteTarget.employee.first_name} ${deleteTarget.employee.last_name} — ${TYPE_CFG[deleteTarget.leave_type].label} ${deleteTarget.days} วัน${deleteTarget.status === 'APPROVED' ? '\n⚠️ วันลาที่หักไปจะถูกคืนกลับ' : ''}`}
+          message={<>
+            {deleteTarget.employee.first_name} {deleteTarget.employee.last_name} — {TYPE_CFG[deleteTarget.leave_type].label} {deleteTarget.days} วัน
+            {deleteTarget.status === 'APPROVED' && <><br /><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> วันลาที่หักไปจะถูกคืนกลับ</span></>}
+          </>}
           confirmLabel="ลบ"
           variant="danger"
           onConfirm={handleDelete}

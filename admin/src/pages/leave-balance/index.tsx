@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
+import Pagination from '../../components/ui/Pagination'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LeaveBalance {
@@ -258,6 +259,8 @@ export default function LeaveBalancePage() {
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkQuotas,   setBulkQuotas]  = useState<Quotas>(DEFAULT_QUOTAS)
+  const [page,         setPage]        = useState(1)
+  const PAGE_SIZE = 10
 
   const [seniorityRules, setSeniorityRules] = useState<SeniorityRule[]>([
     { id: 's1', min_years: 0,  max_years: 1,    vacation_days: 6  },
@@ -298,6 +301,11 @@ export default function LeaveBalancePage() {
                   !b.nickname.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => { setPage(1) }, [search, branchFilter, year])
+  useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stats
   const totalEmployees = balances.length
@@ -612,7 +620,7 @@ export default function LeaveBalancePage() {
         {/* Rows */}
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8', fontSize: '0.9rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</div>
-        ) : filtered.map((b, idx) => {
+        ) : paginated.map((b, idx) => {
           const isSelected = selectedIds.has(b.employee_id)
           const hasOverQuota = LEAVE_TYPES.some(lt => usedOf(b, lt.key) > quotaOf(b, lt.key))
           const hasNearLimit = !hasOverQuota && LEAVE_TYPES.some(lt => {
@@ -627,7 +635,7 @@ export default function LeaveBalancePage() {
                 display: 'grid',
                 gridTemplateColumns: '36px 1.8fr 1fr repeat(4,1fr) 60px',
                 gap: 0,
-                borderBottom: idx < filtered.length - 1 ? '1px solid #f8fafc' : 'none',
+                borderBottom: idx < paginated.length - 1 ? '1px solid #f8fafc' : 'none',
                 background: isSelected ? '#fafbff' : hasOverQuota ? '#fff5f5' : 'transparent',
                 transition: 'background 0.1s',
               }}
@@ -719,9 +727,7 @@ export default function LeaveBalancePage() {
         })}
       </div>
 
-      <div style={{ marginTop: 10, fontSize: '0.78rem', color: '#94a3b8', textAlign: 'center' }}>
-        แสดง {filtered.length} จาก {balances.length} คน
-      </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="คน" />
 
       {/* Edit single employee modal */}
       {editTarget && (

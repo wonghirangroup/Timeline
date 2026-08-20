@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
+import { deptName } from '../../lib/format'
 import ManageShiftTab from '../shift/manage'
 
 interface ApiBranch {
@@ -1550,7 +1551,7 @@ export default function BranchPage() {
                                   {e.nickname || `${e.first_name} ${e.last_name}`}
                                 </div>
                                 <div style={{ fontSize:'0.7rem',color:'#94a3b8',marginTop:1 }}>
-                                  {e.branch.name}{e.department ? ` · ${e.department}` : ''}
+                                  {e.branch.name}{e.department ? ` · ${deptName(e.department)}` : ''}
                                 </div>
                               </div>
                               <button

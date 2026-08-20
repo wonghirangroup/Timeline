@@ -8,6 +8,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+import { deptName } from '../../lib/format'
 
 interface ApiBranch {
   id: string
@@ -401,10 +402,10 @@ export default function EmployeePage() {
 
             <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {[['', 'ทั้งหมด'], ['linked', '✓ ผูกแล้ว'], ['unlinked', 'ยังไม่ผูก']].map(([v, lb]) => (
-                <button key={v} onClick={() => setLineFilter(v as any)}
-                  style={{ padding: '6px 16px', borderRadius: 99, border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: lineFilter === v ? '#f97316' : '#f1f5f9', color: lineFilter === v ? '#fff' : '#64748b' }}>
-                  {lb}
+              {[['', 'ทั้งหมด', false], ['linked', 'ผูกแล้ว', true], ['unlinked', 'ยังไม่ผูก', false]].map(([v, lb, icon]) => (
+                <button key={v as string} onClick={() => setLineFilter(v as any)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 16px', borderRadius: 99, border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer', background: lineFilter === v ? '#f97316' : '#f1f5f9', color: lineFilter === v ? '#fff' : '#64748b' }}>
+                  {icon && <CheckCircle2 size={13} />} {lb}
                 </button>
               ))}
             </div>
@@ -448,12 +449,12 @@ export default function EmployeePage() {
                     </button>
                     {e.nickname && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 5 }}>({e.nickname})</span>}
                   </td>
-                  <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.department ?? '—'}</td>
+                  <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{deptName(e.department)}</td>
                   <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.branch.name}</td>
                   <td style={{ padding: '11px 14px', color: '#374151', fontSize: '0.82rem' }}>{e.phone ?? '—'}</td>
                   <td style={{ padding: '11px 14px' }}>
                     {e.line_user_id
-                      ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>✓ ผูกแล้ว</span>
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}><CheckCircle2 size={11} /> ผูกแล้ว</span>
                       : <span style={{ background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem' }}>— ยังไม่ผูก</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
@@ -524,7 +525,7 @@ export default function EmployeePage() {
                     {e.first_name} {e.last_name}
                     {e.nickname && <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>({e.nickname})</span>}
                   </button>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${e.department}` : ''}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${deptName(e.department)}` : ''}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                   <div style={{ display: 'flex', gap: 4 }}>
@@ -534,7 +535,7 @@ export default function EmployeePage() {
                       ● {STATUS_CFG[e.status].label}
                     </button>
                     {e.line_user_id
-                      ? <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line ✓</span>
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line <CheckCircle2 size={11} /></span>
                       : <span style={{ background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
                   </div>
                   {activeOffsiteByEmployee.has(e.id) && (
@@ -861,7 +862,7 @@ export default function EmployeePage() {
                         onChange={e => { setAf({ department: e.target.value }); if (e.target.value) setAddErrors(er => ({ ...er, department: undefined })) }}
                         style={{ ...inp, ...(addErrors.department ? { border: '1.5px solid #ef4444', background: '#fff5f5' } : {}) }}>
                         <option value="">เลือกแผนก</option>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}
                       </select>
                       {addErrors.department && <p style={{ fontSize: '11px', color: '#ef4444', margin: '3px 0 0' }}>{addErrors.department}</p>}
                     </div>
@@ -919,8 +920,9 @@ export default function EmployeePage() {
                     </div>
                   </div>
 
-                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px', fontSize: '12px', color: '#15803d', lineHeight: 1.55 }}>
-                    📱 <strong>ขั้นตอนถัดไป</strong> — หลังบันทึก ระบบจะส่งลิงก์ยืนยัน Line ให้พนักงาน พนักงานต้องกดลิงก์ก่อนจึงจะเช็คอินได้
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px', fontSize: '12px', color: '#15803d', lineHeight: 1.55 }}>
+                    <Smartphone size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span><strong>ขั้นตอนถัดไป</strong> — หลังบันทึก ระบบจะส่งลิงก์ยืนยัน Line ให้พนักงาน พนักงานต้องกดลิงก์ก่อนจึงจะเช็คอินได้</span>
                   </div>
 
                   {af.branch_accesses.length === 0 ? (
@@ -1008,7 +1010,7 @@ export default function EmployeePage() {
                 <div><label style={label}>ชื่อเล่น</label><input value={form.nickname} onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))} placeholder="เช่น บาส, ฟ้า" style={input} /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={label}>แผนก</label><select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} style={input}><option value="">เลือกแผนก</option>{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                <div><label style={label}>แผนก</label><select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} style={input}><option value="">เลือกแผนก</option>{DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}</select></div>
                 <div><label style={label}>เบอร์โทร</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0XXXXXXXXX" style={input} inputMode="tel" /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

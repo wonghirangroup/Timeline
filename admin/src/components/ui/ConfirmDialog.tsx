@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
 
 interface ConfirmDialogProps {
   title: string
-  message: string
+  message: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning' | 'default'

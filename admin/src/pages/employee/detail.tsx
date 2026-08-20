@@ -7,9 +7,11 @@ import {
   Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft,
   BarChart2, CalendarDays, Umbrella, Info,
   CheckCircle2, Clock, XCircle, Scale, Folder, Phone,
-  Building2, Smartphone, AlertTriangle, Users,
+  Building2, Smartphone, AlertTriangle, Users, Wallet,
 } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
+import Pagination from '../../components/ui/Pagination'
+import { deptName } from '../../lib/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -19,7 +21,7 @@ function thDate(d: string | null | undefined) {
   if (!d) return '—'
   const s = d.slice(0, 10)
   const [y, m, day] = s.split('-').map(Number)
-  return `${day}/${m}/${y + 543}`
+  return `${day} ${MONTH_TH[m - 1]} ${y + 543}`
 }
 function yearsFrom(d: string | null | undefined) {
   if (!d) return 0
@@ -131,8 +133,8 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
           ))}
         </div>
         {stats.fine > 0 && (
-          <div style={{ marginTop: 10, padding: '8px 14px', borderRadius: 10, background: '#fdf2f8', border: '1px solid #fbcfe8', fontSize: '0.8rem', color: '#be185d', fontWeight: 600 }}>
-            💸 ค่าปรับสาย/ขาดรวมเดือนนี้: {stats.fine} ฿
+          <div style={{ marginTop: 10, padding: '8px 14px', borderRadius: 10, background: '#fdf2f8', border: '1px solid #fbcfe8', fontSize: '0.8rem', color: '#be185d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Wallet size={14} /> ค่าปรับสาย/ขาดรวมเดือนนี้: {stats.fine} ฿
           </div>
         )}
       </div>
@@ -350,6 +352,10 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
     queryFn: () => axios.get('/api/v1/admin/leave-requests', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
   })
   const requests: any[] = data ?? []
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 10
+  const totalPages = Math.max(1, Math.ceil(requests.length / PAGE_SIZE))
+  const paginated = requests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const STATUS_COLOR: Record<string, { color: string; bg: string }> = {
     PENDING:  { color: '#d97706', bg: '#fef3c7' },
@@ -378,13 +384,14 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
   }
 
   return (
+    <div>
     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
         {['ประเภท','ช่วงวันที่','จำนวน','เหตุผล','สถานะ'].map(h => (
           <div key={h} style={{ padding: '9px 12px', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</div>
         ))}
       </div>
-      {requests.map((r: any, idx: number) => {
+      {paginated.map((r: any, idx: number) => {
         // ถ้า reason มี prefix [ประเภทเดิม] จาก Firebase → แสดงชื่อเดิมแทน
         const originalType = r.reason?.match(/^\[(.+?)\]/)?.[1]
         const baseLabel = TYPE_COLOR[r.leave_type]?.label ?? r.leave_type
@@ -394,7 +401,7 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
         }
         const sc = STATUS_COLOR[r.status] ?? { color: '#64748b', bg: '#f1f5f9' }
         return (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', borderBottom: idx < requests.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', borderBottom: idx < paginated.length - 1 ? '1px solid #f8fafc' : 'none' }}>
             <div style={{ padding: '11px 12px', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: `${tc.color}20`, color: tc.color }}>{tc.label}</span>
             </div>
@@ -418,6 +425,8 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
         )
       })}
     </div>
+    <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={requests.length} itemLabel="รายการ" />
+    </div>
   )
 }
 
@@ -427,7 +436,7 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
     { label: 'รหัสพนักงาน',   value: emp.employee_code,  mono: true },
     { label: 'ชื่อ-สกุล',     value: `${emp.first_name} ${emp.last_name}` },
     { label: 'ชื่อเล่น',      value: emp.nickname ?? '—' },
-    { label: 'แผนก',          value: emp.department ?? '—' },
+    { label: 'แผนก',          value: deptName(emp.department) },
     { label: 'สาขา',          value: emp.branch?.name ?? '—' },
     { label: 'เบอร์โทร',      value: emp.phone ?? '—', mono: true },
     { label: 'วันที่เริ่มงาน', value: thDate(emp.hired_at) },
@@ -452,7 +461,7 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
           <div style={{ flex: 1, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {emp.line_user_id ? (
               <>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d' }}>✓ ผูกแล้ว</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d' }}><CheckCircle2 size={12} /> ผูกแล้ว</span>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#94a3b8' }}>
                   {emp.line_user_id.slice(0, 8)}••••{emp.line_user_id.slice(-4)}
                 </span>
@@ -465,7 +474,7 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
               </>
             ) : (
               <>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#fef3c7', color: '#92400e' }}>⚠ ยังไม่ผูก</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#fef3c7', color: '#92400e' }}><AlertTriangle size={12} /> ยังไม่ผูก</span>
                 <span style={{ fontSize: '0.78rem', color: '#b45309' }}>พนักงานต้องกดลิงก์ยืนยันตัวตนก่อนใช้ LIFF</span>
               </>
             )}
@@ -571,8 +580,8 @@ export default function EmployeeDetailPage() {
               }}>{emp.is_active ? '● ปฏิบัติงาน' : '○ ไม่ได้ปฏิบัติงาน'}</span>
               {emp.line_user_id ? (
                 <>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}>
-                    ✓ ผูก Line แล้ว
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}>
+                    <CheckCircle2 size={12} /> ผูก Line แล้ว
                   </span>
                   <button
                     onClick={handleResetLine}
@@ -583,15 +592,15 @@ export default function EmployeeDetailPage() {
                   </button>
                 </>
               ) : (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-                  ⚠ ยังไม่ผูก Line
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                  <AlertTriangle size={12} /> ยังไม่ผูก Line
                 </span>
               )}
             </div>
 
             <div style={{ display: 'flex', gap: 14, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', background: '#f1f5f9', padding: '3px 10px', borderRadius: 7, color: '#374151', fontWeight: 600 }}>{emp.employee_code}</span>
-              {emp.department && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Folder size={13}/>{emp.department}</span>}
+              {emp.department && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Folder size={13}/>{deptName(emp.department)}</span>}
               {emp.phone && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={13}/>{emp.phone}</span>}
               {emp.hired_at && <span style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={13}/>เริ่มงาน {thDate(emp.hired_at)} ({tenureFrom(emp.hired_at)})</span>}
             </div>
@@ -614,7 +623,7 @@ export default function EmployeeDetailPage() {
               <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: 2 }}>ไม่สามารถเช็คอินผ่าน Line LIFF ได้จนกว่าจะผูก account</div>
             </div>
             {inviteSent ? (
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#059669', background: '#d1fae5', padding: '6px 14px', borderRadius: 8 }}>✓ ส่งแล้ว!</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.82rem', fontWeight: 700, color: '#059669', background: '#d1fae5', padding: '6px 14px', borderRadius: 8 }}><CheckCircle2 size={13} /> ส่งแล้ว!</span>
             ) : (
               <button
                 onClick={handleSendInvite}

@@ -1,10 +1,12 @@
 // admin/src/pages/weekly-off/index.tsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2 } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import Pagination from '../../components/ui/Pagination'
+import { deptName } from '../../lib/format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiEmployee {
@@ -142,11 +144,11 @@ function BulkModePanel() {
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>⚙️ ตั้งค่าโหมดจองวันหยุดทั้งแผนก:</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}><Settings2 size={14} /> ตั้งค่าโหมดจองวันหยุดทั้งแผนก:</span>
       <select value={bulkDept} onChange={e => setBulkDept(e.target.value)} style={selectStyle}>
         <option value="">— เลือกแผนก —</option>
         <option value="ALL">— ทุกแผนก (ทั้งบริษัท) —</option>
-        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+        {DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}
       </select>
       <select value={bulkMode} onChange={e => setBulkMode(e.target.value as any)} style={{ ...selectStyle, minWidth: 200 }}>
         <option value="MONTHLY_BATCH">{WEEKLY_OFF_MODE_LABEL.MONTHLY_BATCH}</option>
@@ -212,29 +214,31 @@ function PeriodManager({ month }: { month: string }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p.branch.name}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  📅 {monthRangeLabel(p.month)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  <CalendarDays size={11} /> {monthRangeLabel(p.month)}
                 </div>
                 {p.deadline && (
-                  <div style={{ fontSize: '0.72rem', color: deadlinePast ? '#dc2626' : 'var(--text-muted)', marginTop: 2 }}>
-                    {deadlinePast ? '⛔ หมดเวลาแล้ว' : `⏰ deadline: ${fmtDate(p.deadline.slice(0, 10))}`}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: deadlinePast ? '#dc2626' : 'var(--text-muted)', marginTop: 2 }}>
+                    {deadlinePast ? <><Ban size={11} /> หมดเวลาแล้ว</> : <><Clock size={11} /> deadline: {fmtDate(p.deadline.slice(0, 10))}</>}
                   </div>
                 )}
               </div>
               {/* Status badge */}
               <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '4px 12px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700,
                 background: effectiveOpen ? '#dcfce7' : '#f3f4f6',
                 color: effectiveOpen ? '#16a34a' : 'var(--text-muted)',
               }}>
-                {effectiveOpen ? '🟢 เปิดจอง' : '🔴 ปิดจอง'}
+                <Circle size={8} fill={effectiveOpen ? '#16a34a' : '#9ca3af'} stroke="none" />
+                {effectiveOpen ? 'เปิดจอง' : 'ปิดจอง'}
               </span>
             </div>
 
             {/* Note */}
             {p.note && !isEditing && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 7, padding: '6px 10px' }}>
-                📝 {p.note}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 7, padding: '6px 10px' }}>
+                <FileText size={12} /> {p.note}
               </div>
             )}
 
@@ -342,6 +346,13 @@ export default function WeeklyOffPage() {
     return order[a.status] - order[b.status] || a.week_start.localeCompare(b.week_start)
   }), [requests, branchFilter, statusFilter])
 
+  const [reqPage, setReqPage] = useState(1)
+  const REQ_PAGE_SIZE = 15
+  const reqTotalPages = Math.max(1, Math.ceil(filtered.length / REQ_PAGE_SIZE))
+  const reqPaginated = filtered.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
+  useEffect(() => { setReqPage(1) }, [branchFilter, statusFilter, month])
+  useEffect(() => { if (reqPage > reqTotalPages) setReqPage(reqTotalPages) }, [reqTotalPages]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const summary = useMemo(() => ({
     pending:  requests.filter(r => r.status === 'PENDING').length,
     approved: requests.filter(r => r.status === 'APPROVED').length,
@@ -416,8 +427,13 @@ export default function WeeklyOffPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 10, padding: 3, flexWrap: 'wrap', gap: 2 }}>
-          {([['periods', isMobile ? '🔓 เปิด/ปิด' : '🔓 เปิด/ปิดการจอง'], ['requests', isMobile ? '📋 คำขอ' : '📋 รายการคำขอ'], ['overview', isMobile ? '📅 ภาพรวม' : '📅 ภาพรวม']] as const).map(([t, label]) => (
+          {([
+            ['periods', Unlock, isMobile ? 'เปิด/ปิด' : 'เปิด/ปิดการจอง'],
+            ['requests', ClipboardList, isMobile ? 'คำขอ' : 'รายการคำขอ'],
+            ['overview', CalendarDays, 'ภาพรวม'],
+          ] as const).map(([t, Icon, label]) => (
             <button key={t} onClick={() => setTab(t as any)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: isMobile ? '6px 10px' : '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
               background: tab === t ? '#fff' : 'transparent',
               color: tab === t ? '#f97316' : 'var(--text-muted)',
@@ -425,7 +441,7 @@ export default function WeeklyOffPage() {
               fontSize: isMobile ? '0.75rem' : '0.82rem',
               boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
               transition: 'all .15s',
-            }}>{label}</button>
+            }}><Icon size={13} /> {label}</button>
           ))}
         </div>
 
@@ -551,7 +567,7 @@ export default function WeeklyOffPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => {
+              {reqPaginated.map((r, i) => {
                 const sc   = STATUS_CFG[r.status]
                 const date = resolveDate(r.week_start, r.day_of_week)
                 return (
@@ -621,6 +637,8 @@ export default function WeeklyOffPage() {
           </table>
         )}
       </div>
+
+      <Pagination page={reqPage} totalPages={reqTotalPages} onChange={setReqPage} totalItems={filtered.length} itemLabel="รายการ" />
       </>}
 
       {/* ── ภาพรวม tab ─────────────────────────────────────────────────── */}
@@ -708,7 +726,7 @@ function OverviewTab({ requests, isLoading, month, branches }: {
 
         <button onClick={exportCsv} disabled={filtered.length === 0}
           style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.82rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: filtered.length === 0 ? 0.5 : 1 }}>
-          ⬇️ Export CSV
+          <Download size={14} /> Export CSV
         </button>
       </div>
 

@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle } from 'lucide-react'
+import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search } from 'lucide-react'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 
 interface ApiOt {
@@ -127,6 +128,7 @@ export default function OtPage() {
   const [bulkDailyRate, setBulkDailyRate]   = useState('')  // ค่า OT ต่อวัน (฿)
 
   const [statusFilter, setStatusFilter] = useState<OtStatus | ''>('')
+  const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const [rejectTarget, setRejectTarget] = useState<OtRequest | null>(null)
   const [rejectNote, setRejectNote]     = useState('')
@@ -209,8 +211,15 @@ export default function OtPage() {
   // filtered table
   const filtered = rows.filter(r =>
     (!statusFilter || r.status === statusFilter) &&
-    (!branchFilter || r.branch_name === branchFilter)
+    (!branchFilter || r.branch_name === branchFilter) &&
+    (!search.trim() || r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
   )
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 15
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => { setPage(1) }, [statusFilter, branchFilter, search])
+  useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const doApprove = () => {
     if (!approveTarget) return
@@ -365,6 +374,12 @@ export default function OtPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>กรอง</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
+              style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          </div>
           {/* Status Filter */}
           <select 
             value={statusFilter} 
@@ -394,7 +409,7 @@ export default function OtPage() {
       <div style={{ ...card, overflow: 'hidden' }}>
         {isMobile ? (
           <div>
-            {filtered.map((r, i) => {
+            {paginated.map((r, i) => {
               const s  = STATUS_CFG[r.status]
               const wk = getMondayOf(r.date)
               const wh = getWeeklyApprovedHours(rows, r.employee_id, wk)
@@ -454,7 +469,7 @@ export default function OtPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => {
+                {paginated.map((r, i) => {
                   const s  = STATUS_CFG[r.status]
                   const wk = getMondayOf(r.date)
                   const wh = getWeeklyApprovedHours(rows, r.employee_id, wk)
@@ -515,6 +530,8 @@ export default function OtPage() {
           </div>
         )}
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="รายการ" />
 
       {/* ── Approve Modal (with inline calculator) ── */}
       {approveTarget && (

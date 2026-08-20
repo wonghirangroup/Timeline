@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -190,8 +190,8 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
 
       {/* Holiday label */}
       {holiday && (
-        <div style={{ fontSize: '0.58rem', color: '#dc2626', fontWeight: 600, marginBottom: 3, lineHeight: 1.3 }}>
-          🎌 {holiday.name.length > 10 ? holiday.name.slice(0, 10) + '…' : holiday.name}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: '0.58rem', color: '#dc2626', fontWeight: 600, marginBottom: 3, lineHeight: 1.3 }}>
+          <Flag size={9} /> {holiday.name.length > 10 ? holiday.name.slice(0, 10) + '…' : holiday.name}
         </div>
       )}
 
@@ -293,8 +293,8 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
 
       {/* Holiday */}
       {holiday && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: '0.8rem', color: '#dc2626', fontWeight: 600 }}>
-          🎌 {holiday.name}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: '0.8rem', color: '#dc2626', fontWeight: 600 }}>
+          <Flag size={13} /> {holiday.name}
         </div>
       )}
 

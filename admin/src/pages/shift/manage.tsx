@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
+import { deptName } from '../../lib/format'
 
 interface ApiBranch { id: string; name: string }
 
@@ -977,7 +978,7 @@ export default function ShiftPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>{e.nickname ?? ''} · {e.department ?? ''}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>{e.nickname ?? ''} · {deptName(e.department)}</div>
                       </div>
                       {removeConfirm === e.id ? (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -1016,7 +1017,7 @@ export default function ShiftPage() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>
-                            {e.nickname ?? ''} · {e.department ?? ''}
+                            {e.nickname ?? ''} · {deptName(e.department)}
                             {curShift && empViewShift.shift_type === 'SPECIAL' && <span style={{ color: '#7c3aed' }}> · กะประจำ: {curShift.name}</span>}
                             {curShift && empViewShift.shift_type !== 'SPECIAL' && <span style={{ color: '#d97706' }}> · กำลังอยู่ใน {curShift.name}</span>}
                           </div>
@@ -1210,7 +1211,7 @@ export default function ShiftPage() {
                                 {e.first_name} {e.last_name}
                               </div>
                               <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>
-                                {e.nickname ?? ''}{e.department ? ` · ${e.department}` : ''}
+                                {e.nickname ?? ''}{e.department ? ` · ${deptName(e.department)}` : ''}
                               </div>
                             </div>
                             {isAssigned && (

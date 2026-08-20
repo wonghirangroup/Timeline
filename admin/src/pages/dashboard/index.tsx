@@ -3,7 +3,6 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin } from 'lucide-react'
-import { useAuthStore } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
@@ -70,7 +69,6 @@ function todayStr() {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate  = useNavigate()
-  const name      = useAuthStore(s => s.name)
   const isMobile  = useIsMobile()
   const today     = useMemo(todayStr, [])
   const [branchFilter, setBranch] = useState('all')
@@ -145,18 +143,6 @@ export default function DashboardPage() {
   const pending = filtered.filter(r => r.status === 'PENDING').length
   const total   = filtered.length
 
-  // ── Greeting ──────────────────────────────────────────────────────────────
-  const greeting = (() => {
-    const h = new Date().getHours()
-    return h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'
-  })()
-  const todayLabel = (() => {
-    const d = new Date()
-    const DAYS   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
-    const MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-    return `วัน${DAYS[d.getDay()]}ที่ ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`
-  })()
-
   const pendingLeaveCount = pendingLeaves.length
 
   return (
@@ -164,12 +150,6 @@ export default function DashboardPage() {
 
       {/* ── Left Column ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* ── Greeting ─────────────────────────────────────────────── */}
-        <div>
-          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)' }}>{greeting}, {name}</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{todayLabel}</div>
-        </div>
 
         {/* ── Action required ──────────────────────────────────────── */}
         {pendingLeaveCount > 0 && (
@@ -228,7 +208,8 @@ export default function DashboardPage() {
               { label: 'มาสาย',      value: late,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', bg: 'var(--warning-bg)', iconColor: '#f59e0b' },
               { label: 'ยังไม่เช็ค', value: pending, icon: <Clock size={18}/>,         color: 'var(--text-muted)', bg: '#f8fafc',       iconColor: '#94a3b8' },
             ].map(card => (
-              <div key={card.label} className="premium-card" style={{ padding: '20px' }}>
+              <button key={card.label} onClick={() => navigate('/report')} className="premium-card"
+                style={{ padding: '20px', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', background: 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.iconColor }}>
                     {card.icon}
@@ -236,7 +217,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>{card.label}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -270,13 +251,13 @@ export default function DashboardPage() {
         </div>
 
         {/* List card */}
-        <div className="premium-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="premium-card" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', flexShrink: 0 }}>
             <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)' }}>รายชื่อวันนี้</span>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, background: '#e2e8f0', padding: '2px 10px', borderRadius: 99 }}>{filtered.length} คน</span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ marginBottom: 12, opacity: 0.4, display: 'flex', justifyContent: 'center' }}><CalendarDays size={40}/></div>
@@ -287,8 +268,8 @@ export default function DashboardPage() {
                 {filtered.map((row, i) => {
                   const s = STATUS_CFG[row.status]
                   return (
-                    <div key={row.key}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none', background: 'var(--bg-card)', transition: 'background 0.2s' }}
+                    <div key={row.key} onClick={() => navigate(`/employee/${row.empId}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none', background: 'var(--bg-card)', transition: 'background 0.2s', cursor: 'pointer' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#f8fafc' }}
                       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-card)' }}
                     >

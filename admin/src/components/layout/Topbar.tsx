@@ -188,7 +188,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             กลับ
           </button>
 
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 16 }}>🔑 เปลี่ยนรหัสผ่าน</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 16 }}><Key size={14} /> เปลี่ยนรหัสผ่าน</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Current password */}
@@ -272,7 +272,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             กลับ
           </button>
 
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 16 }}>👤 แก้ไขชื่อที่แสดง</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 16 }}><User size={14} /> แก้ไขชื่อที่แสดง</div>
 
           <div>
             <label style={labelStyle}>ชื่อที่ต้องการแสดง</label>

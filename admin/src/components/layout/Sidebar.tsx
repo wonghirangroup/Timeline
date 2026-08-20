@@ -72,15 +72,11 @@ interface SidebarProps {
 export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
   const navigate = useNavigate()
   const clear    = useAuthStore(s => s.clear)
-  const name     = useAuthStore(s => s.name)
 
   function handleLogout() { clear(); navigate('/login', { replace: true }) }
-  const initials = name ? name.slice(0, 2) : 'HR'
 
   const body = (
     <SidebarContent
-      name={name}
-      initials={initials}
       onLogout={handleLogout}
       onNavClick={isMobile ? onClose : () => {}}
       collapsed={!isMobile && collapsed}
@@ -132,8 +128,8 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
 }
 
 // ── Sidebar body ──────────────────────────────────────────────────────────────
-function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onToggleCollapse }: {
-  name: string | null; initials: string; onLogout: () => void; onNavClick: () => void
+function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
+  onLogout: () => void; onNavClick: () => void
   collapsed: boolean; onToggleCollapse?: () => void
 }) {
   const location        = useLocation()
@@ -145,16 +141,10 @@ function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onTog
     return !feature || !enabledFeatures || enabledFeatures[feature] !== false
   }
 
-  const todayStr = (() => {
-    const d = new Date()
-    const DAYS   = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.']
-    const MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-    return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`
-  })()
-
   // ── helper: icon-centered nav link ───────────────────────────────────────
   function NavItem({ item }: { item: { path: string; label: string; icon: JSX.Element; badge?: number } }) {
-    const isActive = location.pathname === item.path
+    // highlight ค้างไว้ถ้ายังอยู่ในหน้าลูกของเมนูนี้ เช่น /employee/:id ก็ยัง highlight "พนักงาน"
+    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
     return (
       <NavLink
         to={item.path}
@@ -196,16 +186,21 @@ function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onTog
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
       {/* Logo + collapse toggle */}
-      <div style={{ padding: collapsed ? '20px 0' : '20px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', gap: 8 }}>
+      <div style={{
+        padding: collapsed ? '16px 0' : '20px 20px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
+        display: 'flex',
+        flexDirection: collapsed ? 'column' : 'row',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'space-between',
+        gap: collapsed ? 10 : 8,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(249,115,22,0.4)' }}>
             TL
           </div>
           {!collapsed && (
-            <div>
-              <p style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap' }}>TimeLine HR</p>
-              <p style={{ fontSize: 11, color: 'rgba(248,250,252,0.45)', margin: '4px 0 0', fontWeight: 500, whiteSpace: 'nowrap' }}>{todayStr}</p>
-            </div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap' }}>TimeLine HR</p>
           )}
         </div>
 
@@ -254,41 +249,25 @@ function SidebarContent({ name, initials, onLogout, onNavClick, collapsed, onTog
         </div>
       </nav>
 
-      {/* User footer */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '16px 12px', flexShrink: 0 }}>
-        {collapsed ? (
-          /* Collapsed: avatar only, click to logout */
-          <button
-            onClick={onLogout}
-            title="ออกจากระบบ"
-            style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
-              <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          </button>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.06)', marginBottom: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
-                <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</p>
-                <p style={{ fontSize: 11, color: 'rgba(248,250,252,0.45)', margin: '2px 0 0', fontWeight: 500 }}>HR Administrator</p>
-              </div>
-            </div>
-            <button
-              onClick={onLogout}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', width: '100%', fontSize: '14px', color: '#f87171', background: 'transparent', fontWeight: 600, transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-            >
-              <LogOut size={16} />
-              ออกจากระบบ
-            </button>
-          </>
-        )}
+      {/* Footer — logout เท่านั้น (user profile ย้ายไปอยู่ Topbar แล้ว) */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '12px' }}>
+        <button
+          onClick={onLogout}
+          title={collapsed ? 'ออกจากระบบ' : undefined}
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: collapsed ? 0 : 10,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            padding: collapsed ? '10px 0' : '10px 12px',
+            borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', width: '100%',
+            fontSize: '14px', color: '#f87171', background: 'transparent', fontWeight: 600, transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <LogOut size={16} />
+          {!collapsed && 'ออกจากระบบ'}
+        </button>
       </div>
     </div>
   )
