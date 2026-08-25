@@ -166,6 +166,7 @@ export async function approveLeaveRequest(tenantId: string, id: string, reviewer
   // หักวันลา
   await prisma.leaveBalance.updateMany({
     where: {
+      tenant_id: tenantId,
       employee_id: req.employee_id,
       leave_type: req.leave_type,
       year: new Date(req.start_date).getFullYear(),
@@ -229,7 +230,7 @@ export async function deleteLeaveRequest(tenantId: string, id: string) {
   // ถ้าเคย APPROVED → คืนวันลากลับ
   if (req.status === 'APPROVED') {
     await prisma.leaveBalance.updateMany({
-      where: { employee_id: req.employee_id, leave_type: req.leave_type, year: new Date(req.start_date).getFullYear() },
+      where: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, year: new Date(req.start_date).getFullYear() },
       data:  { used_days: { decrement: req.days } },
     })
   }
