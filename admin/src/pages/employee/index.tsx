@@ -40,10 +40,14 @@ interface ApiEmployee {
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
 }
 
+// ตำแหน่งข้ามชั้นได้ — แนบกับ section, division, หรือ department ตรงๆ ก็ได้ (หรือไม่แนบเลย)
+// เลยต้องไล่ resolve ชื่อแผนก/ฝ่าย/ส่วนจากทุกทางที่เป็นไปได้ ไม่ใช่จาก section เสมอไป
 interface ApiPosition {
   id: string
   name: string
-  section: { id: string; name: string; division: { id: string; name: string; department: { id: string; name: string } } }
+  section?: { id: string; name: string; division?: { id: string; name: string; department?: { id: string; name: string } | null } | null; department?: { id: string; name: string } | null } | null
+  division?: { id: string; name: string; department?: { id: string; name: string } | null } | null
+  department?: { id: string; name: string } | null
 }
 interface ApiStatusType { id: string; name: string; monthly_off_quota: number }
 
@@ -122,7 +126,24 @@ export default function EmployeePage() {
     queryKey: ['employee-status-types'],
     queryFn: () => api.get('/api/v1/admin/employee-status-types').then(r => r.data.data),
   })
-  const positionLabel = (p: ApiPosition) => `${p.section.division.department.name} ▸ ${p.section.division.name} ▸ ${p.section.name} ▸ ${p.name}`
+  // resolve ชื่อแผนก/ฝ่าย/ส่วนของตำแหน่ง ไล่จากทุกทางที่อาจแนบอยู่ (ข้ามชั้นได้)
+  const positionDeptName = (p: ApiPosition): string | null =>
+    p.department?.name ?? p.division?.department?.name ?? p.section?.department?.name ?? p.section?.division?.department?.name ?? null
+  const positionDivName = (p: ApiPosition): string | null => p.division?.name ?? p.section?.division?.name ?? null
+  const positionLabel = (p: ApiPosition) => {
+    const parts = [positionDeptName(p), positionDivName(p), p.section?.name, p.name].filter(Boolean)
+    return parts.join(' ▸ ')
+  }
+  // แปลงค่า department string เดิม ("01 ผู้บริหาร") เป็นชื่อล้วน แล้วหา entry ของ DEPARTMENTS
+  // ที่ชื่อตรงกับแผนกที่ตำแหน่งนี้ผูกอยู่ — ใช้ auto-fill ช่อง "แผนก" เดิมตอนเลือกตำแหน่งก่อน
+  const matchLegacyDept = (name: string | null): string | undefined => name ? DEPARTMENTS.find(d => deptName(d) === name) : undefined
+  // กรองตำแหน่งตามแผนกที่เลือกไว้ — ตำแหน่งที่ยังไม่ผูกแผนกเลย (สร้างลอยไว้ก่อน) โชว์ไว้เสมอ
+  // กันไม่ให้ผู้ใช้เลือกไม่ได้เพราะยังไม่ได้จัดเข้าแผนก
+  const filterPositionsByDept = (list: ApiPosition[], legacyDept: string) => {
+    if (!legacyDept) return list
+    const target = deptName(legacyDept)
+    return list.filter(p => { const pd = positionDeptName(p); return !pd || pd === target })
+  }
   const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
@@ -888,7 +909,13 @@ export default function EmployeePage() {
                     <div>
                       <label style={lbl}>แผนก <span style={required}>*</span></label>
                       <select value={af.department}
-                        onChange={e => { setAf({ department: e.target.value }); if (e.target.value) setAddErrors(er => ({ ...er, department: undefined })) }}
+                        onChange={e => {
+                          const val = e.target.value
+                          // เปลี่ยนแผนก → ถ้าตำแหน่งที่เลือกไว้ไม่อยู่ในแผนกใหม่แล้ว เคลียร์ทิ้ง กันข้อมูลขัดกัน
+                          const stillValid = af.position_id && filterPositionsByDept(positions, val).some(p => p.id === af.position_id)
+                          setAf({ department: val, ...(stillValid ? {} : { position_id: '' }) })
+                          if (val) setAddErrors(er => ({ ...er, department: undefined }))
+                        }}
                         style={{ ...inp, ...(addErrors.department ? { border: '1.5px solid #ef4444', background: '#fff5f5' } : {}) }}>
                         <option value="">เลือกแผนก</option>
                         {DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}
@@ -897,9 +924,16 @@ export default function EmployeePage() {
                     </div>
                     <div>
                       <label style={lbl}>ตำแหน่ง (ผังองค์กร)</label>
-                      <select value={af.position_id} onChange={e => setAf({ position_id: e.target.value })} style={inp}>
+                      <select value={af.position_id}
+                        onChange={e => {
+                          const pos = positions.find(p => p.id === e.target.value)
+                          // เลือกตำแหน่งก่อน → auto-fill ช่องแผนกด้านบนถ้าหาแผนกที่ตรงกันเจอ
+                          const matched = pos ? matchLegacyDept(positionDeptName(pos)) : undefined
+                          setAf({ position_id: e.target.value, ...(matched ? { department: matched } : {}) })
+                        }}
+                        style={inp}>
                         <option value="">— ไม่ระบุ —</option>
-                        {positions.map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
+                        {filterPositionsByDept(positions, af.department).map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1053,7 +1087,11 @@ export default function EmployeePage() {
                 <div><label style={label}>ชื่อเล่น</label><input value={form.nickname} onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))} placeholder="เช่น บาส, ฟ้า" style={input} /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={label}>แผนก</label><select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} style={input}><option value="">เลือกแผนก</option>{DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}</select></div>
+                <div><label style={label}>แผนก</label><select value={form.department} onChange={e => {
+                  const val = e.target.value
+                  const stillValid = form.position_id && filterPositionsByDept(positions, val).some(p => p.id === form.position_id)
+                  setForm(f => ({ ...f, department: val, ...(stillValid ? {} : { position_id: '' }) }))
+                }} style={input}><option value="">เลือกแผนก</option>{DEPARTMENTS.map(d => <option key={d} value={d}>{deptName(d)}</option>)}</select></div>
                 <div><label style={label}>เบอร์โทร</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0XXXXXXXXX" style={input} inputMode="tel" /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1063,9 +1101,13 @@ export default function EmployeePage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={label}>ตำแหน่ง (ผังองค์กร)</label>
-                  <select value={form.position_id} onChange={e => setForm(f => ({ ...f, position_id: e.target.value }))} style={input}>
+                  <select value={form.position_id} onChange={e => {
+                    const pos = positions.find(p => p.id === e.target.value)
+                    const matched = pos ? matchLegacyDept(positionDeptName(pos)) : undefined
+                    setForm(f => ({ ...f, position_id: e.target.value, ...(matched ? { department: matched } : {}) }))
+                  }} style={input}>
                     <option value="">— ไม่ระบุ —</option>
-                    {positions.map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
+                    {filterPositionsByDept(positions, form.department).map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
                   </select>
                 </div>
                 <div>

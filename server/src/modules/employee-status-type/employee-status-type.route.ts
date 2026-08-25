@@ -27,6 +27,9 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
         properties: {
           name: { type: 'string' },
           monthly_off_quota: { type: 'number', description: 'จำนวนวันหยุดที่จองได้ต่อเดือน (default 4)' },
+          off_on_saturday: { type: 'boolean', description: 'หยุดวันเสาร์อัตโนมัติ (ไม่ต้องจอง)' },
+          off_on_sunday: { type: 'boolean', description: 'หยุดวันอาทิตย์อัตโนมัติ' },
+          off_on_public_holiday: { type: 'boolean', description: 'หยุดวันนักขัตฤกษ์อัตโนมัติ (default true)' },
         },
       },
     },
@@ -40,7 +43,10 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: {
         type: 'object',
-        properties: { name: { type: 'string' }, monthly_off_quota: { type: 'number' }, is_active: { type: 'boolean' } },
+        properties: {
+          name: { type: 'string' }, monthly_off_quota: { type: 'number' }, is_active: { type: 'boolean' },
+          off_on_saturday: { type: 'boolean' }, off_on_sunday: { type: 'boolean' }, off_on_public_holiday: { type: 'boolean' },
+        },
       },
     },
   }, async (req: any, reply) => {

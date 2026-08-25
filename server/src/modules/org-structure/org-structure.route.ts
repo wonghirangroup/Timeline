@@ -1,5 +1,5 @@
 // server/src/modules/org-structure/org-structure.route.ts
-// ผังองค์กร 4 ชั้น: Department → Division → Section → Position (ADMIN จัดการ)
+// ผังองค์กร 4 ชั้น: Department → Division → Section → Position (ADMIN จัดการ) — ข้ามชั้นได้
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
@@ -10,12 +10,25 @@ const TAG = 'Admin'
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
 const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const
 
+function handleParentErrors(e: any, reply: any) {
+  if (e.message === 'DEPARTMENT_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบแผนกที่อ้างอิง'))
+  if (e.message === 'DIVISION_NOT_FOUND')   return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบฝ่ายที่อ้างอิง'))
+  if (e.message === 'SECTION_NOT_FOUND')    return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบส่วนที่อ้างอิง'))
+  return null
+}
+
 export async function orgStructureRoutes(app: FastifyInstance) {
   // ── ผังรวม (สำหรับหน้าจัดการ) ─────────────────────────────
   app.get('/org-structure/tree', {
     preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
-    schema: { tags: [TAG], summary: 'ดูผังองค์กรทั้งหมด (Department→Division→Section→Position)', security: [{ oauth2: [] }] },
+    schema: { tags: [TAG], summary: 'ดูผังองค์กรทั้งหมด (Department→Division→Section→Position, ข้ามชั้นได้)', security: [{ oauth2: [] }] },
   }, async (req, reply) => ok(await svc.getOrgTree(req.tenantId)))
+
+  // GET /admin/org-structure/unassigned — ฝ่าย/ส่วน/ตำแหน่งที่ยังลอย ไม่ผูกอะไรเลยสักชั้น
+  app.get('/org-structure/unassigned', {
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    schema: { tags: [TAG], summary: 'ดูฝ่าย/ส่วน/ตำแหน่งที่ยังไม่ได้จัดเข้าแผนก (สร้างลอยไว้ก่อน)', security: [{ oauth2: [] }] },
+  }, async (req, reply) => ok(await svc.getUnassigned(req.tenantId)))
 
   // ── Department ─────────────────────────────────────────────
   app.get('/departments', {
@@ -53,7 +66,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
       if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบแผนก'))
       return ok(null, 'ลบแผนกสำเร็จ')
     } catch (e: any) {
-      if (e.message === 'IN_USE') return reply.code(409).send(fail('IN_USE', 'มีฝ่ายผูกอยู่ในแผนกนี้ ย้าย/ลบฝ่ายออกก่อนจึงลบได้'))
+      if (e.message === 'IN_USE') return reply.code(409).send(fail('IN_USE', 'มีฝ่าย/ส่วน/ตำแหน่งผูกอยู่ในแผนกนี้ ย้าย/ลบออกก่อนจึงลบได้'))
       throw e
     }
   })
@@ -64,17 +77,18 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     schema: { tags: [TAG], summary: 'ดูรายการฝ่าย', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { department_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listDivisions(req.tenantId, req.query.department_id)))
 
+  // department_id ไม่บังคับ — สร้างฝ่ายลอยไม่ผูกแผนกก็ได้
   app.post('/divisions', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'สร้างฝ่ายใหม่', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' } } },
+      tags: [TAG], summary: 'สร้างฝ่ายใหม่ (ผูกแผนกได้ทันที หรือสร้างลอยไว้ก่อนก็ได้)', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['name'], properties: { department_id: { type: 'string' }, name: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
     try {
       return reply.code(201).send(ok(await svc.createDivision(req.tenantId, req.body), 'สร้างฝ่ายสำเร็จ'))
     } catch (e: any) {
-      if (e.message === 'DEPARTMENT_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบแผนกที่อ้างอิง'))
+      if (handleParentErrors(e, reply)) return
       throw e
     }
   })
@@ -82,9 +96,9 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.patch('/divisions/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขฝ่าย', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขฝ่าย (แก้ department_id เพื่อย้าย/ถอดออกจากแผนกได้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: 'string' }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: ['string', 'null'] }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     const d = await svc.updateDivision(req.tenantId, req.params.id, req.body)
@@ -101,7 +115,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
       if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบฝ่าย'))
       return ok(null, 'ลบฝ่ายสำเร็จ')
     } catch (e: any) {
-      if (e.message === 'IN_USE') return reply.code(409).send(fail('IN_USE', 'มีส่วนผูกอยู่ในฝ่ายนี้ ย้าย/ลบส่วนออกก่อนจึงลบได้'))
+      if (e.message === 'IN_USE') return reply.code(409).send(fail('IN_USE', 'มีส่วน/ตำแหน่งผูกอยู่ในฝ่ายนี้ ย้าย/ลบออกก่อนจึงลบได้'))
       throw e
     }
   })
@@ -112,17 +126,18 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     schema: { tags: [TAG], summary: 'ดูรายการส่วน', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { division_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listSections(req.tenantId, req.query.division_id)))
 
+  // division_id ไม่บังคับ — แนบตรงกับ department_id ได้เลยถ้าไม่มีฝ่าย หรือสร้างลอยไว้ก่อนก็ได้
   app.post('/sections', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'สร้างส่วนใหม่', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['division_id', 'name'], properties: { division_id: { type: 'string' }, name: { type: 'string' } } },
+      tags: [TAG], summary: 'สร้างส่วนใหม่ (ผูกฝ่าย หรือข้ามไปผูกแผนกตรงๆ หรือสร้างลอยไว้ก่อนก็ได้)', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['name'], properties: { division_id: { type: 'string' }, department_id: { type: 'string' }, name: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
     try {
       return reply.code(201).send(ok(await svc.createSection(req.tenantId, req.body), 'สร้างส่วนสำเร็จ'))
     } catch (e: any) {
-      if (e.message === 'DIVISION_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบฝ่ายที่อ้างอิง'))
+      if (handleParentErrors(e, reply)) return
       throw e
     }
   })
@@ -132,7 +147,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     schema: {
       tags: [TAG], summary: 'แก้ไขส่วน', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, division_id: { type: 'string' }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, division_id: { type: ['string', 'null'] }, department_id: { type: ['string', 'null'] }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     const s = await svc.updateSection(req.tenantId, req.params.id, req.body)
@@ -160,17 +175,22 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     schema: { tags: [TAG], summary: 'ดูรายการตำแหน่ง', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { section_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listPositions(req.tenantId, req.query.section_id)))
 
+  // section_id/division_id/department_id ทั้งหมดไม่บังคับ — เลือกแนบชั้นไหนก็ได้ชั้นเดียว
+  // (ลำดับความสำคัญ: section > division > department) หรือสร้างตำแหน่งลอยไว้ก่อนก็ได้เลย
   app.post('/positions', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'สร้างตำแหน่งใหม่', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['section_id', 'name'], properties: { section_id: { type: 'string' }, name: { type: 'string' } } },
+      tags: [TAG], summary: 'สร้างตำแหน่งใหม่ (แนบชั้นไหนก็ได้ตามที่มีจริง หรือสร้างลอยไว้ก่อนก็ได้)', security: [{ oauth2: [] }],
+      body: {
+        type: 'object', required: ['name'],
+        properties: { section_id: { type: 'string' }, division_id: { type: 'string' }, department_id: { type: 'string' }, name: { type: 'string' } },
+      },
     },
   }, async (req: any, reply) => {
     try {
       return reply.code(201).send(ok(await svc.createPosition(req.tenantId, req.body), 'สร้างตำแหน่งสำเร็จ'))
     } catch (e: any) {
-      if (e.message === 'SECTION_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบส่วนที่อ้างอิง'))
+      if (handleParentErrors(e, reply)) return
       throw e
     }
   })
@@ -178,9 +198,18 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.patch('/positions/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขตำแหน่ง', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขตำแหน่ง (ย้ายไปแนบชั้นอื่นได้ด้วย)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, section_id: { type: 'string' }, is_active: { type: 'boolean' } } },
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          section_id: { type: ['string', 'null'] },
+          division_id: { type: ['string', 'null'] },
+          department_id: { type: ['string', 'null'] },
+          is_active: { type: 'boolean' },
+        },
+      },
     },
   }, async (req: any, reply) => {
     const p = await svc.updatePosition(req.tenantId, req.params.id, req.body)

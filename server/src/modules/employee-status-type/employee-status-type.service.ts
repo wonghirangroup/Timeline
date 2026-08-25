@@ -10,15 +10,26 @@ export async function listEmployeeStatusTypes(tenantId: string) {
   })
 }
 
-export async function createEmployeeStatusType(tenantId: string, data: { name: string; monthly_off_quota?: number }) {
+export async function createEmployeeStatusType(tenantId: string, data: {
+  name: string; monthly_off_quota?: number
+  off_on_saturday?: boolean; off_on_sunday?: boolean; off_on_public_holiday?: boolean
+}) {
   return prisma.employeeStatusType.create({
-    data: { tenant_id: tenantId, name: data.name, monthly_off_quota: data.monthly_off_quota ?? 4 },
+    data: {
+      tenant_id: tenantId, name: data.name, monthly_off_quota: data.monthly_off_quota ?? 4,
+      off_on_saturday:       data.off_on_saturday ?? false,
+      off_on_sunday:         data.off_on_sunday ?? false,
+      off_on_public_holiday: data.off_on_public_holiday ?? true,
+    },
   })
 }
 
 export async function updateEmployeeStatusType(
   tenantId: string, id: string,
-  data: { name?: string; monthly_off_quota?: number; is_active?: boolean },
+  data: {
+    name?: string; monthly_off_quota?: number; is_active?: boolean
+    off_on_saturday?: boolean; off_on_sunday?: boolean; off_on_public_holiday?: boolean
+  },
 ) {
   const count = await prisma.employeeStatusType.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null

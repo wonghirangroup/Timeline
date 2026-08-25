@@ -1,6 +1,26 @@
 // server/src/modules/employee/employee.service.ts
 import { prisma } from '../../common/utils/prisma'
 
+// ตำแหน่งข้ามชั้นได้ (แนบกับ section/division/department ตรงๆ ก็ได้ หรือไม่แนบเลย) —
+// ต้อง include ครบทุกทางที่เป็นไปได้ ไม่ใช่แค่ section.division.department (ดู org-structure.service.ts)
+const POSITION_INCLUDE = {
+  select: {
+    id: true, name: true,
+    section: {
+      select: {
+        id: true, name: true,
+        division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } },
+        department: { select: { id: true, name: true } },
+      },
+    },
+    division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } },
+    department: { select: { id: true, name: true } },
+  },
+} as const
+const STATUS_TYPE_INCLUDE = {
+  select: { id: true, name: true, monthly_off_quota: true, off_on_saturday: true, off_on_sunday: true, off_on_public_holiday: true },
+} as const
+
 async function generateEmployeeCode(
   tenantId: string,
   hiredAt: string | undefined,
@@ -39,8 +59,8 @@ export async function listEmployees(tenantId: string, branchId?: string, include
     },
     include: {
       branch: { select: { id: true, name: true } },
-      position: { select: { id: true, name: true, section: { select: { id: true, name: true, division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } } } } } },
-      employee_status_type: { select: { id: true, name: true, monthly_off_quota: true } },
+      position: POSITION_INCLUDE,
+      employee_status_type: STATUS_TYPE_INCLUDE,
     },
     orderBy: { created_at: 'asc' },
   })
@@ -51,8 +71,8 @@ export async function getEmployee(tenantId: string, id: string) {
     where: { id, tenant_id: tenantId, deleted_at: null },
     include: {
       branch: { select: { id: true, name: true } },
-      position: { select: { id: true, name: true, section: { select: { id: true, name: true, division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } } } } } },
-      employee_status_type: { select: { id: true, name: true, monthly_off_quota: true } },
+      position: POSITION_INCLUDE,
+      employee_status_type: STATUS_TYPE_INCLUDE,
     },
   })
 }

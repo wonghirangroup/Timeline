@@ -189,6 +189,10 @@ model EmployeeStatusLog {
 // แต่ตอนนี้อยู่คู่กันก่อน — Employee.department เดิมยังใช้งานได้ปกติ ไม่กระทบของเก่า)
 // ─────────────────────────────────────────────
 
+// ผังองค์กร 4 ชั้นแบบ "ข้ามชั้นได้" — Division/Section/Position ผูกกับพ่อแม่ตรงชั้นบนสุด
+// เท่าที่มีจริงก็พอ ไม่บังคับสร้างให้ครบทุกชั้น (เช่น สร้างตำแหน่งแนบตรงกับแผนกได้เลยถ้า
+// ไม่มีฝ่าย/ส่วน หรือสร้างตำแหน่งลอยไว้ก่อนไม่ผูกอะไรเลยก็ได้) — Position จึงมี FK ได้ถึง
+// 3 ทาง (section_id/division_id/department_id) แต่จะตั้งค่าจริงแค่ทางเดียว (หรือไม่ตั้งเลย)
 model Department {
   id         String    @id @default(uuid())
   tenant_id  String
@@ -199,8 +203,10 @@ model Department {
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
-  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
-  divisions Division[]
+  tenant           Tenant     @relation(fields: [tenant_id], references: [id])
+  divisions        Division[]
+  sections_direct  Section[]  @relation("SectionDept") // ส่วนที่แนบตรงกับแผนก (ข้ามฝ่าย)
+  positions_direct Position[] @relation("PositionDept") // ตำแหน่งที่แนบตรงกับแผนก (ข้ามฝ่าย+ส่วน)
 
   @@index([tenant_id])
   @@map("departments")
@@ -209,16 +215,17 @@ model Department {
 model Division {
   id            String    @id @default(uuid())
   tenant_id     String
-  department_id String
+  department_id String? // nullable — ฝ่ายลอยไม่ผูกแผนกก็ได้
   name          String
   is_active     Boolean   @default(true)
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
 
-  tenant     Tenant     @relation(fields: [tenant_id], references: [id])
-  department Department @relation(fields: [department_id], references: [id])
-  sections   Section[]
+  tenant           Tenant      @relation(fields: [tenant_id], references: [id])
+  department       Department? @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  sections         Section[]
+  positions_direct Position[]  @relation("PositionDiv") // ตำแหน่งที่แนบตรงกับฝ่าย (ข้ามส่วน)
 
   @@index([tenant_id])
   @@index([department_id])
@@ -226,54 +233,67 @@ model Division {
 }
 
 model Section {
-  id          String    @id @default(uuid())
-  tenant_id   String
-  division_id String
-  name        String
-  is_active   Boolean   @default(true)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  deleted_at  DateTime?
+  id            String    @id @default(uuid())
+  tenant_id     String
+  division_id   String? // nullable — ข้ามฝ่ายได้ ถ้าไม่มีฝ่ายให้แนบ
+  department_id String? // nullable — แนบตรงกับแผนกได้เลยถ้าไม่มีฝ่าย
+  name          String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
 
-  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
-  division  Division   @relation(fields: [division_id], references: [id])
-  positions Position[]
+  tenant     Tenant      @relation(fields: [tenant_id], references: [id])
+  division   Division?   @relation(fields: [division_id], references: [id], onDelete: SetNull)
+  department Department? @relation("SectionDept", fields: [department_id], references: [id], onDelete: SetNull)
+  positions  Position[]
 
   @@index([tenant_id])
   @@index([division_id])
+  @@index([department_id])
   @@map("sections")
 }
 
 model Position {
-  id         String    @id @default(uuid())
-  tenant_id  String
-  section_id String
-  name       String
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+  id            String    @id @default(uuid())
+  tenant_id     String
+  section_id    String? // nullable — ข้ามส่วนได้
+  division_id   String? // nullable — แนบตรงกับฝ่ายได้เลยถ้าไม่มีส่วน
+  department_id String? // nullable — แนบตรงกับแผนกได้เลยถ้าไม่มีฝ่าย/ส่วน — หรือไม่ผูกอะไรเลย (สร้างลอยไว้ก่อน)
+  name          String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
 
-  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
-  section   Section    @relation(fields: [section_id], references: [id])
-  employees Employee[]
+  tenant     Tenant      @relation(fields: [tenant_id], references: [id])
+  section    Section?    @relation(fields: [section_id], references: [id], onDelete: SetNull)
+  division   Division?   @relation("PositionDiv", fields: [division_id], references: [id], onDelete: SetNull)
+  department Department? @relation("PositionDept", fields: [department_id], references: [id], onDelete: SetNull)
+  employees  Employee[]
 
   @@index([tenant_id])
   @@index([section_id])
+  @@index([division_id])
+  @@index([department_id])
   @@map("positions")
 }
 
-// สถานะพนักงาน (ประจำ/ชั่วคราว/...) — admin สร้างเองได้ กำหนดโควต้าวันหยุดต่อเดือนต่อสถานะ
-// ใช้เป็นฐานของโควต้าใน MONTHLY_BATCH booking (ดู weekly-off.service.ts)
+// สถานะพนักงาน (ประจำ/ชั่วคราว/...) — admin สร้างเองได้ กำหนดโควต้าวันหยุดต่อเดือน +
+// เงื่อนไขวันหยุดอัตโนมัติต่อสถานะ (เสาร์/อาทิตย์/วันนักขัตฤกษ์) — ใช้เป็นฐานของโควต้าใน
+// MONTHLY_BATCH booking (ดู weekly-off.service.ts) และวันหยุดอัตโนมัติในปฏิทินพนักงาน
 model EmployeeStatusType {
-  id                String    @id @default(uuid())
-  tenant_id         String
-  name              String // เช่น "ประจำ", "ชั่วคราว", "รายวัน"
-  monthly_off_quota Int       @default(4) // จำนวนวันหยุดที่จองได้ต่อเดือน (โหมด MONTHLY_BATCH เท่านั้น)
-  is_active         Boolean   @default(true)
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
-  deleted_at        DateTime?
+  id                    String    @id @default(uuid())
+  tenant_id             String
+  name                  String // เช่น "ประจำ", "ชั่วคราว", "รายวัน"
+  monthly_off_quota     Int       @default(4) // จำนวนวันหยุดที่จองได้ต่อเดือน (โหมด MONTHLY_BATCH เท่านั้น)
+  off_on_saturday       Boolean   @default(false) // หยุดวันเสาร์อัตโนมัติ (ไม่ต้องจองผ่านระบบวันหยุด)
+  off_on_sunday         Boolean   @default(false) // หยุดวันอาทิตย์อัตโนมัติ
+  off_on_public_holiday Boolean   @default(true) // หยุดวันนักขัตฤกษ์อัตโนมัติ (ตาม Holiday ของ tenant)
+  is_active             Boolean   @default(true)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  deleted_at            DateTime?
 
   tenant    Tenant     @relation(fields: [tenant_id], references: [id])
   employees Employee[]

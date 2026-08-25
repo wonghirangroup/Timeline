@@ -109,8 +109,9 @@ interface Holiday { date: string; name: string }
 // ═══════════════════════════════════════════════════════════════════════════════
 // Personal Calendar Tab
 // ═══════════════════════════════════════════════════════════════════════════════
-function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
+function PersonalCalendar({ requests, colleagues, holidays, statusType, onBooking }: {
   requests: LeaveRequest[]; colleagues: ColleagueOff[]; holidays: Holiday[]
+  statusType?: { off_on_saturday?: boolean; off_on_sunday?: boolean; off_on_public_holiday?: boolean } | null
   onBooking: () => void
 }) {
   const today     = new Date().toISOString().slice(0, 10)
@@ -185,9 +186,17 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
             const firstLeave = myLeaves[0]
             const lCfg       = firstLeave ? DISPLAY_LEAVE_TYPES.find(t => t.code === firstLeave.leave_type) : null
             const isPast     = dateStr < today
+            // หยุดอัตโนมัติตามเงื่อนไขสถานะพนักงาน — เสาร์/อาทิตย์/นักขัตฤกษ์ ไม่ต้องจอง
+            const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay()
+            const isAutoOff = !!statusType && (
+              (dow === 6 && statusType.off_on_saturday) ||
+              (dow === 0 && statusType.off_on_sunday) ||
+              (!!holiday && statusType.off_on_public_holiday)
+            )
 
             // Cell background rules — easy to read at a glance
             let cellBg = '#fff'
+            if (isAutoOff)   cellBg = '#F0F9FF'
             if (holiday)     cellBg = '#FFF1F2'
             if (isApprOff)   cellBg = '#FFF7ED'
             if (isPendOff)   cellBg = '#FFFBEB'
@@ -222,6 +231,9 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
                 {isPendOff && !firstLeave && (
                   <div style={{ fontSize: '0.62rem', color: '#D97706', fontWeight: 700, lineHeight: 1 }}>รออนุมัติ</div>
                 )}
+                {isAutoOff && !isApprOff && !isPendOff && !firstLeave && (
+                  <div style={{ fontSize: '0.62rem', color: '#0284C7', fontWeight: 700, lineHeight: 1 }}>หยุดประจำ</div>
+                )}
 
                 {/* Leave bar */}
                 {firstLeave && lCfg && (
@@ -249,6 +261,7 @@ function PersonalCalendar({ requests, colleagues, holidays, onBooking }: {
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
+            ...(statusType ? [{ bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดประจำ (ตามสถานะ)' }] : []),
           ].map((it, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 14, height: 14, borderRadius: 4, background: it.bg, border: it.border, flexShrink: 0 }} />
@@ -1313,7 +1326,7 @@ export default function LeavePage() {
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
-          <PersonalCalendar requests={requests} colleagues={[]} holidays={holidays} onBooking={() => setTab('booking')} />
+          <PersonalCalendar requests={requests} colleagues={[]} holidays={holidays} statusType={employee?.employee_status_type} onBooking={() => setTab('booking')} />
         )}
 
         {/* ── Request ─────────────────────────────────────────── */}

@@ -8,7 +8,10 @@ export interface EmployeeProfile {
   employee_code: string
   branch: { id: string; name: string }
   weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
-  employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
+  employee_status_type?: {
+    id: string; name: string; monthly_off_quota: number
+    off_on_saturday?: boolean; off_on_sunday?: boolean; off_on_public_holiday?: boolean
+  } | null
 }
 
 interface AuthStore {
