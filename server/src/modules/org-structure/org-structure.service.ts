@@ -99,7 +99,18 @@ export async function deleteSection(tenantId: string, id: string) {
 export async function listPositions(tenantId: string, sectionId?: string) {
   return prisma.position.findMany({
     where: { tenant_id: tenantId, deleted_at: null, ...(sectionId ? { section_id: sectionId } : {}) },
-    include: { section: { select: { id: true, name: true } }, _count: { select: { employees: true } } },
+    include: {
+      // nested เต็ม section→division→department — Admin employee form ใช้ประกอบ
+      // path เต็ม "แผนก▸ฝ่าย▸ส่วน▸ตำแหน่ง" ในตัวเลือก ถ้าตัดชั้นไหนออกจะพังตรง
+      // positionLabel() ที่ไล่ p.section.division.department.name
+      section: {
+        select: {
+          id: true, name: true,
+          division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } },
+        },
+      },
+      _count: { select: { employees: true } },
+    },
     orderBy: { created_at: 'asc' },
   })
 }
