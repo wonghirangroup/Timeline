@@ -532,17 +532,12 @@ function StatusTypesTab() {
   )
 }
 
+// ฝังในหน้า "จัดการพนักงาน" เป็นแท็บย่อย (admin/src/pages/employee/index.tsx) —
+// ไม่มี h1/description ของตัวเอง เพราะ header ของหน้าพนักงานทำหน้าที่นั้นแทนแล้ว
 export default function OrgStructurePage() {
   const [tab, setTab] = useState<'tree' | 'status'>('tree')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>ผังองค์กร & สถานะพนักงาน</h1>
-        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-          จัดการโครงสร้างแผนก → ฝ่าย → ส่วน → ตำแหน่ง (ข้ามชั้นได้) และสถานะพนักงานที่กำหนดโควต้า+เงื่อนไขวันหยุด
-        </p>
-      </div>
-
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 4, overflowX: 'auto' }}>
         {([
           { id: 'tree',   label: 'ผังองค์กร',    icon: <Building2 size={15}/>, color: '#f97316', activeBg: '#fff7ed' },

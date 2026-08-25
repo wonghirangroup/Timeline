@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -9,6 +9,7 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import OrgStructurePage from '../org-structure'
 
 interface ApiBranch {
   id: string
@@ -104,6 +105,11 @@ export default function EmployeePage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+  // เปิดตรงไปแท็บ "ผังองค์กร" ได้ผ่าน ?tab=org (ใช้กับ redirect จาก /org-structure เดิม)
+  const [activeTab, setActiveTab] = useState<'employee' | 'org'>(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return t === 'org' ? 'org' : 'employee'
+  })
   const swipeHandlers = useSwipePage(
     () => setPage(p => Math.min(totalPages, p + 1)),
     () => setPage(p => Math.max(1, p - 1)),
@@ -338,8 +344,44 @@ export default function EmployeePage() {
     boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
   }
 
+  const tabBar = (
+    <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 20, overflowX: 'auto' }}>
+      {([
+        { id: 'employee', label: 'พนักงาน',   icon: <Users size={15}/>,   color: '#f97316', activeBg: '#fff7ed' },
+        { id: 'org',       label: 'ผังองค์กร', icon: <Network size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
+      ] as const).map(t => {
+        const isActive = activeTab === t.id
+        return (
+          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 20px', border: 'none', cursor: 'pointer',
+            fontSize: '14px', fontWeight: isActive ? 700 : 600,
+            color: isActive ? t.color : 'var(--text-muted)',
+            background: isActive ? t.activeBg : 'transparent',
+            borderBottom: `3px solid ${isActive ? t.color : 'transparent'}`,
+            borderRadius: '8px 8px 0 0', marginBottom: -4, transition: 'all 0.2s', whiteSpace: 'nowrap',
+          }}>
+            <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
+            {t.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  // แท็บผังองค์กร — คนละหน้าจอเลย ไม่ต้องยุ่งกับ tree ของแท็บพนักงานด้านล่าง
+  if (activeTab === 'org') {
+    return (
+      <div>
+        {tabBar}
+        <OrgStructurePage />
+      </div>
+    )
+  }
+
   return (
     <div>
+      {tabBar}
       {/* Header - Title removed */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
         <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
