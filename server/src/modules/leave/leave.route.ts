@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
-import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from './leave.service'
+import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest, getMonthColleagueLeaves } from './leave.service'
 import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEmployeesWithBalances } from './leave-balance.service'
 
 export async function leaveRoutes(app: FastifyInstance) {
@@ -177,6 +177,22 @@ export async function leaveRoutes(app: FastifyInstance) {
       throw e
     }
   })
+
+  // ── Employee (LIFF): เพื่อนตำแหน่ง/สาขาเดียวกันที่ลาทับเดือนนี้ ────
+  // ใช้แสดงจุดสีบนปฏิทินหน้าจองวันหยุด (โหมดพักร้อน/ชดเชย) เหมือนวันหยุดประจำ
+  app.get('/employee/leave-requests/colleagues', {
+    preHandler: [tenantMiddleware, requireFeature('leave_management')],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูเพื่อนร่วมสาขา/ตำแหน่งที่ลาทับช่วงเดือนนี้ (LIFF) — สำหรับปฏิทินหน้าจองวันหยุด',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        required: ['employeeId', 'month'],
+        properties: { employeeId: { type: 'string' }, month: { type: 'string', description: 'YYYY-MM' } },
+      },
+    },
+  }, async (req: any) => ok(await getMonthColleagueLeaves(req.tenantId, req.query.employeeId, req.query.month)))
 
   // ── Employee (LIFF): ดูประวัติวันลาตัวเอง ─────────────────────────
   app.get('/employee/leave-requests', {

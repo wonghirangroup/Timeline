@@ -1,5 +1,47 @@
 // server/src/modules/attendance/attendance.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { holidayAppliesTo } from '../tenant/holiday.service'
+
+// ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์) ────────────────────────
+// เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
+// ต่างกัน: OFF → ยกเว้นสาย/ขาด/ค่าปรับ (ไม่ได้ถูกกำหนดให้มาอยู่แล้ว), OFFSITE →
+// คำนวณสาย/ค่าปรับตามปกติ แค่แนบหมายเหตุให้ admin เห็นว่าวันนี้กำหนดทำงานนอกสถานที่
+interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string }
+
+async function resolveDayRule(tenantId: string, employeeId: string, date: Date): Promise<DayRuleResult> {
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, tenant_id: tenantId },
+    select: {
+      branch_id: true, department: true,
+      employee_status_type: { select: { saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
+    },
+  })
+  const st = employee?.employee_status_type
+  if (!st) return { rule: 'WORK' }
+
+  const dow = date.getUTCDay()
+  if (dow === 6 && st.saturday_rule !== 'WORK') return { rule: st.saturday_rule as 'OFF' | 'OFFSITE' }
+  if (dow === 0 && st.sunday_rule   !== 'WORK') return { rule: st.sunday_rule as 'OFF' | 'OFFSITE' }
+
+  if (st.off_on_public_holiday && employee) {
+    const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
+    if (holiday && holidayAppliesTo(holiday, employee)) return { rule: 'OFF', holidayName: holiday.name }
+  }
+  return { rule: 'WORK' }
+}
+
+// ปรับผล late/absent ตาม day rule — OFF ยกเว้นทั้งหมด, OFFSITE ปล่อยตามคำนวณปกติ
+// แค่แนบหมายเหตุ, WORK ไม่ยุ่งอะไรเลย
+function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateStatus; dayRuleNote?: string } {
+  if (dayRule.rule === 'OFF') {
+    const reason = dayRule.holidayName ? `วันหยุดนักขัตฤกษ์ (${dayRule.holidayName})` : 'วันหยุดประจำตามสถานะพนักงาน'
+    return { late: { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }, dayRuleNote: `เช็คอินในวันหยุด — ${reason} ไม่นับสาย/ขาด` }
+  }
+  if (dayRule.rule === 'OFFSITE') {
+    return { late, dayRuleNote: 'วันนี้กำหนดให้ทำงานนอกสถานที่ตามสถานะพนักงาน' }
+  }
+  return { late }
+}
 
 export async function getAttendanceReport(tenantId: string, filters: {
   date?: string
@@ -410,10 +452,10 @@ export async function checkInAuto(tenantId: string, data: {
   }
 
   const now = new Date()
-  const late = computeLateStatus(shift, dateToBangkokMins(now))
-  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
-
   const today = getTodayBangkok()
+  const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
+  const { late, dayRuleNote } = applyDayRule(computeLateStatus(shift, dateToBangkokMins(now)), dayRule)
+  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -430,7 +472,7 @@ export async function checkInAuto(tenantId: string, data: {
         is_absent:        late.is_absent,
         fine:             levelFine,
         carried_fine:     carried,
-        note:             late.is_absent ? absentNote(now) : undefined,
+        note:             dayRuleNote ?? (late.is_absent ? absentNote(now) : undefined),
         gps_lat:          data.gps_lat,
         gps_lng:          data.gps_lng,
         is_outside_area,
@@ -498,7 +540,9 @@ export async function checkIn(tenantId: string, data: {
 
   const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
   const now = new Date()
-  const late = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
+  const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
   const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
 
   // ตรวจสอบ GPS vs geo_mode ของสาขา
@@ -538,7 +582,7 @@ export async function checkIn(tenantId: string, data: {
         gps_lat:         data.gps_lat,
         gps_lng:         data.gps_lng,
         is_outside_area,
-        note:            data.note ?? (late.is_absent ? absentNote(now) : null),
+        note:            data.note ?? dayRuleNote ?? (late.is_absent ? absentNote(now) : null),
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
@@ -581,7 +625,9 @@ export async function checkInQR(tenantId: string, data: {
 
   const shift = await prisma.shift.findUnique({ where: { id: data.shift_id } })
   const now = new Date()
-  const late = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
+  const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
+  const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
   const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
 
   return prisma.$transaction(async (tx) => {
@@ -602,7 +648,7 @@ export async function checkInQR(tenantId: string, data: {
         gps_lat:         data.gps_lat,
         gps_lng:         data.gps_lng,
         is_outside_area: false,
-        note:            late.is_absent ? absentNote(now) : undefined,
+        note:            dayRuleNote ?? (late.is_absent ? absentNote(now) : undefined),
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))

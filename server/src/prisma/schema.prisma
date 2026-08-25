@@ -517,6 +517,7 @@ model LeaveRequest {
   reviewed_by    String? // user_id
   reviewed_at    DateTime?
   reject_note    String?
+  has_conflict   Boolean     @default(false) // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ยังขอได้ปกติ แค่ flag ให้แอดมินเห็นตอนอนุมัติ
   created_at     DateTime    @default(now())
   updated_at     DateTime    @updatedAt
 

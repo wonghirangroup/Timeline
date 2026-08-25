@@ -1038,6 +1038,15 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
   const firstDow    = getFirstDow(month)
   const totalCells  = getAllWeeksOfMonth(month).length * 7
 
+  // เพื่อนร่วมสาขา/ตำแหน่งที่ลาทับเดือนนี้ — โชว์จุดสีบนปฏิทินเหมือนหน้าวันหยุดประจำ
+  const colleagueQ = useQuery<Array<{ start_date: string; end_date: string; same_position?: boolean }>>({
+    queryKey: ['employee', 'leave-colleagues', employeeId, month],
+    queryFn: () => api.get('/employee/leave-requests/colleagues', { params: { employeeId, month } }).then((r: any) => r.data.data),
+    enabled: !!employeeId,
+  })
+  const colleagueLeaves = colleagueQ.data ?? []
+  const colleaguesOnDate = (dateStr: string) => colleagueLeaves.filter(c => c.start_date.slice(0, 10) <= dateStr && c.end_date.slice(0, 10) >= dateStr)
+
   // วันที่มีคำขอลาอื่นอยู่แล้ว (PENDING/APPROVED ทุกประเภท) — เลือกซ้ำไม่ได้ กันชน LEAVE_OVERLAP
   const takenDates = new Set(
     ownRequests
@@ -1165,19 +1174,32 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
           const isSel   = picks.has(dateStr)
           const quotaFull = !isSel && pickedCount >= remaining
           const isPickable = inMonth && !isPast && !isTaken && !quotaFull
+          const dayColleagues  = colleaguesOnDate(dateStr)
+          const samePosition   = dayColleagues.some(c => c.same_position)
+          const otherColleague = !samePosition && dayColleagues.length > 0
           return (
             <button key={i} disabled={!isPickable && !isSel} onClick={() => toggleDay(dateStr)} style={{
               aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${activeType?.color}` : '1px solid #E5E7EB',
               background: isSel ? activeType?.color : (!isPickable && !isSel) ? '#F9FAFB' : '#fff',
               color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : isTaken ? '#FCA5A5' : (!isPickable && !isSel) ? '#D1D5DB' : '#1A2B3C',
               fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: (isPickable || isSel) ? 'pointer' : 'not-allowed',
-              fontFamily: 'inherit', padding: 0,
+              fontFamily: 'inherit', padding: 0, position: 'relative',
             }}>
               {day >= 1 && day <= daysInMonth ? day : ''}
+              {(samePosition || otherColleague) && (
+                <div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: isSel ? 'rgba(255,255,255,0.8)' : samePosition ? '#DC2626' : '#F59E0B' }} />
+              )}
             </button>
           )
         })}
       </div>
+
+      {colleagueLeaves.some(c => c.same_position) && (
+        <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
+          เพื่อนร่วมตำแหน่งเดียวกันลาวันนี้แล้ว — ยังขอได้ แอดมินจะเป็นคนพิจารณา
+        </div>
+      )}
 
       <button onClick={() => submitMutation.mutate()} disabled={pickedCount === 0 || submitMutation.isPending}
         style={{

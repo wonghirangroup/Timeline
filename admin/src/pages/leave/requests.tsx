@@ -28,6 +28,7 @@ interface ApiLeaveRequest {
   reviewed_at: string | null
   reject_note: string | null
   created_at: string
+  has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ให้แอดมินตัดสินใจ
   employee: { id: string; first_name: string; last_name: string; employee_code: string; branch: { id: string; name: string } }
 }
 
@@ -456,7 +457,14 @@ export default function LeaveRequestsTab() {
                       <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div>
-                            <div style={{ fontWeight: 700 }}>{r.employee.first_name} {r.employee.last_name}</div>
+                            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {r.employee.first_name} {r.employee.last_name}
+                              {r.has_conflict && (
+                                <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> ชนตำแหน่ง
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch.name}</div>
                           </div>
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
@@ -501,7 +509,14 @@ export default function LeaveRequestsTab() {
                       return (
                         <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                           <td style={{ padding: '11px 14px' }}>
-                            <div style={{ fontWeight: 600 }}>{r.employee.first_name} {r.employee.last_name}</div>
+                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {r.employee.first_name} {r.employee.last_name}
+                              {r.has_conflict && (
+                                <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> ชนตำแหน่ง
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code}</div>
                           </td>
                           <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>

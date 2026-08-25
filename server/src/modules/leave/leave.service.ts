@@ -33,6 +33,25 @@ export async function getLeaveRequest(tenantId: string, id: string) {
   })
 }
 
+// ตำแหน่งเดียวกัน + ช่วงวันที่ทับซ้อนกันไหม (PENDING/APPROVED) — ไม่บล็อคการขอ แค่คืนค่า
+// ไว้ set has_conflict ให้แอดมินเห็นตอนอนุมัติ (แบบเดียวกับ weekly-off.service.ts)
+async function hasPositionConflict(
+  tenantId: string, employeeId: string, positionId: string | null, startDate: Date, endDate: Date,
+): Promise<boolean> {
+  if (!positionId) return false
+  const conflict = await prisma.leaveRequest.findFirst({
+    where: {
+      tenant_id: tenantId,
+      employee_id: { not: employeeId },
+      status: { in: ['PENDING', 'APPROVED'] },
+      start_date: { lte: endDate },
+      end_date: { gte: startDate },
+      employee: { position_id: positionId },
+    },
+  })
+  return !!conflict
+}
+
 export async function createLeaveRequest(
   tenantId: string,
   data: {
@@ -70,17 +89,72 @@ export async function createLeaveRequest(
     throw new Error('INSUFFICIENT_BALANCE')
   }
 
-  return prisma.leaveRequest.create({
+  const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
+  const startDate = new Date(data.start_date), endDate = new Date(data.end_date)
+  const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, startDate, endDate)
+
+  const created = await prisma.leaveRequest.create({
     data: {
       tenant_id: tenantId,
       employee_id: data.employee_id,
       leave_type: data.leave_type,
-      start_date: new Date(data.start_date),
-      end_date: new Date(data.end_date),
+      start_date: startDate,
+      end_date: endDate,
       days: data.days,
       reason: data.reason,
+      has_conflict: conflict,
     },
   })
+
+  if (conflict && employee?.position_id) {
+    // แก้ record ของคนอื่นที่ชนกันให้ flag ด้วย เพื่อให้แอดมินเห็นทั้งสองฝั่ง
+    await prisma.leaveRequest.updateMany({
+      where: {
+        tenant_id: tenantId,
+        employee_id: { not: data.employee_id },
+        status: { in: ['PENDING', 'APPROVED'] },
+        start_date: { lte: endDate },
+        end_date: { gte: startDate },
+        employee: { position_id: employee.position_id },
+      },
+      data: { has_conflict: true },
+    })
+  }
+
+  return created
+}
+
+// พนักงานตำแหน่ง/สาขาเดียวกันที่ลาทับช่วงเดือนนี้ — ใช้แสดงจุดสีบนปฏิทินหน้าจองวันหยุด
+// (โหมดพักร้อน/ชดเชย) แบบเดียวกับ colleagues ของวันหยุดประจำ
+export async function getMonthColleagueLeaves(tenantId: string, employeeId: string, month: string) {
+  const [y, m] = month.split('-').map(Number)
+  const startOfMonth = new Date(Date.UTC(y, m - 1, 1))
+  const endOfMonth   = new Date(Date.UTC(y, m, 0, 23, 59, 59))
+
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, tenant_id: tenantId },
+    select: { branch_id: true, position_id: true },
+  })
+
+  const requests = await prisma.leaveRequest.findMany({
+    where: {
+      tenant_id: tenantId,
+      employee_id: { not: employeeId },
+      status: { in: ['PENDING', 'APPROVED'] },
+      start_date: { lte: endOfMonth },
+      end_date: { gte: startOfMonth },
+      employee: { branch_id: employee?.branch_id ?? undefined },
+    },
+    include: {
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true } },
+    },
+    orderBy: { start_date: 'asc' },
+  })
+
+  return requests.map(r => ({
+    ...r,
+    same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,
+  }))
 }
 
 export async function approveLeaveRequest(tenantId: string, id: string, reviewerId: string) {

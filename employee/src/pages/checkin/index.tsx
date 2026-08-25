@@ -685,6 +685,36 @@ export default function CheckinPage() {
           </div>
         </div>
 
+        {/* วันหยุด/ทำงานนอกสถานที่อัตโนมัติตามสถานะพนักงาน — informational เท่านั้น
+            ไม่บล็อคการเช็คอิน (เช็คอินยังทำได้ปกติ แค่แจ้งให้รู้ล่วงหน้า) */}
+        {(() => {
+          const st = employee.employee_status_type
+          if (!st) return null
+          const dow = new Date().getDay()
+          const rule = dow === 6 ? st.saturday_rule : dow === 0 ? st.sunday_rule : undefined
+          if (rule === 'OFF') {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: '#F0F9FF', border: '1px solid #BAE6FD', marginBottom: 20 }}>
+                <Sparkles size={18} color="#0284C7" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: '0.8rem', color: '#0369A1', fontWeight: 600, lineHeight: 1.5 }}>
+                  วันนี้เป็นวันหยุดของคุณ — ถ้ามาทำงานยังเช็คอินได้ปกติ แต่จะไม่นับสาย/ขาด
+                </div>
+              </div>
+            )
+          }
+          if (rule === 'OFFSITE') {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: '#FAF5FF', border: '1px solid #E9D5FF', marginBottom: 20 }}>
+                <MapPin size={18} color="#9333EA" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: '0.8rem', color: '#7E22CE', fontWeight: 600, lineHeight: 1.5 }}>
+                  วันนี้กำหนดให้ทำงานนอกสถานที่ — เช็คอินนอกสถานที่ด้านล่างได้เลย
+                </div>
+              </div>
+            )
+          }
+          return null
+        })()}
+
         {/* Clock */}
         <LiveClock />
 
