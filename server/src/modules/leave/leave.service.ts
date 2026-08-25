@@ -37,7 +37,7 @@ export async function createLeaveRequest(
   tenantId: string,
   data: {
     employee_id: string
-    leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'
+    leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
     start_date: string
     end_date: string
     days: number

@@ -156,7 +156,10 @@ export async function leaveRoutes(app: FastifyInstance) {
         required: ['employee_id', 'leave_type', 'start_date', 'end_date', 'days'],
         properties: {
           employee_id: { type: 'string' },
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          // COMPENSATE เปิดให้พนักงานยื่นเองได้ (ผ่านหน้าจองวันหยุด → ใช้โควต้าพักร้อน/ชดเชย)
+          // แต่ยังถูก gate ด้วย LeaveBalance เหมือนประเภทอื่น — ถ้าแอดมินไม่เคย grant โควต้า
+          // ให้ (total_days=0) จะขอไม่ผ่านอยู่ดี (INSUFFICIENT_BALANCE)
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'integer' },

@@ -982,6 +982,206 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
   )
 }
 
+// ── ใช้โควต้าพักร้อน/ชดเชยจากหน้าจองวันหยุด ─────────────────────────────────
+// ต่างจาก MonthlyBatchBooking/WeeklyBooking ตรงที่ผลลัพธ์คือ LeaveRequest
+// (ระบบวันลาเดิม, ผ่านการอนุมัติของแอดมินเหมือนขอลาปกติ) ไม่ใช่ WeeklyOffRequest —
+// แค่ให้ "หยิบวันจากหน้าจองวันหยุด" แทนที่จะต้องไปกรอกฟอร์มวันที่ในแท็บ "ขอลา"
+// โดยจำกัดจำนวนวันด้วยโควต้า LeaveBalance ที่แอดมินตั้งไว้ (ประเภทละก้อน)
+const LEAVE_QUOTA_TYPES: { code: 'VACATION' | 'COMPENSATE'; label: string; color: string; reason: string }[] = [
+  { code: 'VACATION',   label: 'พักร้อน', color: '#F59E0B', reason: 'ลาพักร้อน (จองผ่านหน้าจองวันหยุด)' },
+  { code: 'COMPENSATE', label: 'ชดเชย',   color: '#10B981', reason: 'ใช้วันหยุดชดเชย (จองผ่านหน้าจองวันหยุด)' },
+]
+
+function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
+  employeeId: string; balances: LeaveBalance[]; ownRequests: LeaveRequest[]
+}) {
+  const qc = useQueryClient()
+  const todayStr  = getTodayStr()
+  const [month, setMonth] = useState(todayStr.slice(0, 7))
+  const [picks, setPicks] = useState<Set<string>>(new Set())
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  // ชดเชยเปิดให้เลือกเองได้เฉพาะตอนมีโควต้าอยู่แล้วเท่านั้น (แอดมิน grant ไว้ก่อน)
+  const availableTypes = LEAVE_QUOTA_TYPES.filter(t => {
+    if (t.code === 'VACATION') return true
+    const bal = balances.find(b => b.leave_type === t.code)
+    return !!bal && bal.total_days > 0
+  })
+  const [leaveType, setLeaveType] = useState<'VACATION' | 'COMPENSATE'>('VACATION')
+  const activeType = availableTypes.find(t => t.code === leaveType) ?? availableTypes[0]
+
+  const bal = balances.find(b => b.leave_type === activeType?.code)
+  const remaining = bal ? bal.total_days - bal.used_days : 0
+  const pickedCount = picks.size
+
+  const daysInMonth = getDaysInMonth(month)
+  const firstDow    = getFirstDow(month)
+  const totalCells  = getAllWeeksOfMonth(month).length * 7
+
+  // วันที่มีคำขอลาอื่นอยู่แล้ว (PENDING/APPROVED ทุกประเภท) — เลือกซ้ำไม่ได้ กันชน LEAVE_OVERLAP
+  const takenDates = new Set(
+    ownRequests
+      .filter(r => r.status !== 'REJECTED')
+      .flatMap(r => {
+        const out: string[] = []
+        let d = r.start_date.slice(0, 10)
+        while (d <= r.end_date.slice(0, 10)) { out.push(d); d = addDaysStr(d, 1) }
+        return out
+      }),
+  )
+
+  function toggleDay(dateStr: string) {
+    setPicks(p => {
+      const next = new Set(p)
+      if (next.has(dateStr)) { next.delete(dateStr); return next }
+      if (next.size >= remaining) return p   // เกินโควต้า — ไม่เพิ่ม
+      next.add(dateStr)
+      return next
+    })
+  }
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      // ส่งทีละวัน (sequential) — แต่ละวันเป็น LeaveRequest แยกกัน อนุมัติ/ปฏิเสธเป็นวันๆ ได้
+      for (const d of picks) {
+        await api.post('/employee/leave-requests', {
+          employee_id: employeeId, leave_type: activeType?.code,
+          start_date: d, end_date: d, days: 1, reason: activeType?.reason,
+        })
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
+      setPicks(new Set()); setErrorMsg(null); setDone(true)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(
+        code === 'LEAVE_OVERLAP'        ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว — บางวันอาจส่งไปแล้วก่อนเจอ error นี้' :
+        code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่เพียงพอ' :
+        'เกิดข้อผิดพลาด กรุณาลองใหม่'
+      )
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
+    },
+  })
+
+  function changeMonth(delta: number) {
+    setMonth(m => addMonths(m, delta))
+    setPicks(new Set()); setErrorMsg(null)
+  }
+
+  const navBtnStyle: React.CSSProperties = {
+    width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
+    background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+  }
+
+  if (availableTypes.length === 0) {
+    return (
+      <div style={{ padding: '14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 14, textAlign: 'center', color: '#6B7D90', fontSize: '0.82rem' }}>
+        ยังไม่มีโควต้าพักร้อน/ชดเชย — ติดต่อแอดมินให้ตั้งโควต้าให้ก่อน
+      </div>
+    )
+  }
+
+  if (done) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
+        <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
+        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
+        <div style={{ fontSize: '0.82rem', color: '#9CA3AF', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
+        <button onClick={() => setDone(false)}
+          style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit' }}>
+          จองต่อ
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* เลือกประเภทโควต้า */}
+      {availableTypes.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {availableTypes.map(t => {
+            const active = leaveType === t.code
+            return (
+              <button key={t.code} onClick={() => { setLeaveType(t.code); setPicks(new Set()) }}
+                style={{ flex: 1, padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? t.color : 'transparent'}`, cursor: 'pointer', background: active ? `${t.color}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? t.color : '#9CA3AF' }}>{t.label}</div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div style={{ padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${activeType?.color}30`, background: `${activeType?.color}0C`, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#6B7D90' }}>คงเหลือ ({activeType?.label})</span>
+        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: activeType?.color }}>{remaining} วัน</span>
+      </div>
+
+      {/* Month navigator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button onClick={() => changeMonth(-1)} style={navBtnStyle}><ChevronLeft size={18} color="#6B7D90" /></button>
+        <div style={{ flex: 1, textAlign: 'center', fontWeight: 800, fontSize: '0.9rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
+        <button onClick={() => changeMonth(1)} style={navBtnStyle}><ChevronRight size={18} color="#6B7D90" /></button>
+      </div>
+
+      <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
+        เลือกวันที่ต้องการใช้โควต้า{activeType?.label} ({pickedCount}/{remaining})
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
+        {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#9CA3AF', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 16 }}>
+        {Array.from({ length: totalCells }, (_, i) => {
+          const day = i - firstDow + 1
+          const inMonth = day >= 1 && day <= daysInMonth
+          const dateStr = cellDateStr(month, day)
+          const isPast  = dateStr < todayStr
+          const isTaken = takenDates.has(dateStr)
+          const isSel   = picks.has(dateStr)
+          const quotaFull = !isSel && pickedCount >= remaining
+          const isPickable = inMonth && !isPast && !isTaken && !quotaFull
+          return (
+            <button key={i} disabled={!isPickable && !isSel} onClick={() => toggleDay(dateStr)} style={{
+              aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${activeType?.color}` : '1px solid #E5E7EB',
+              background: isSel ? activeType?.color : (!isPickable && !isSel) ? '#F9FAFB' : '#fff',
+              color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : isTaken ? '#FCA5A5' : (!isPickable && !isSel) ? '#D1D5DB' : '#1A2B3C',
+              fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: (isPickable || isSel) ? 'pointer' : 'not-allowed',
+              fontFamily: 'inherit', padding: 0,
+            }}>
+              {day >= 1 && day <= daysInMonth ? day : ''}
+            </button>
+          )
+        })}
+      </div>
+
+      <button onClick={() => submitMutation.mutate()} disabled={pickedCount === 0 || submitMutation.isPending}
+        style={{
+          width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
+          cursor: pickedCount > 0 ? 'pointer' : 'not-allowed',
+          background: pickedCount > 0 ? `linear-gradient(135deg, ${activeType?.color}, ${activeType?.color})` : 'rgba(0,0,0,0.08)',
+          color: pickedCount > 0 ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700,
+          marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+        {submitMutation.isPending
+          ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
+          : pickedCount > 0 ? <><CheckCircle2 size={17} /> ส่งคำขอใช้{activeType?.label} {pickedCount} วัน</> : 'เลือกวันที่ต้องการก่อน'}
+      </button>
+
+      {errorMsg && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> {errorMsg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main LeavePage
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -997,6 +1197,7 @@ export default function LeavePage() {
   const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)
+  const [bookingMode, setBookingMode] = useState<'off' | 'leave'>('off')
 
   const { data: balances = [] } = useQuery<LeaveBalance[]>({
     queryKey: ['employee', 'leave-balances', employee?.id],
@@ -1194,9 +1395,30 @@ export default function LeavePage() {
 
         {/* ── จองหยุด ─────────────────────────────────────────── */}
         {tab === 'booking' && (
-          employee?.weekly_off_mode === 'MONTHLY_BATCH'
-            ? <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
-            : <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {([
+                { id: 'off',   label: 'วันหยุดประจำ' },
+                { id: 'leave', label: 'พักร้อน/ชดเชย' },
+              ] as { id: 'off' | 'leave'; label: string }[]).map(m => {
+                const active = bookingMode === m.id
+                return (
+                  <button key={m.id} onClick={() => setBookingMode(m.id)}
+                    style={{ flex: 1, padding: '9px 6px', borderRadius: 12, border: `2px solid ${active ? COLOR.primary : 'transparent'}`, cursor: 'pointer', background: active ? `${COLOR.primary}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? COLOR.primary : '#9CA3AF' }}>{m.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {bookingMode === 'off' ? (
+              employee?.weekly_off_mode === 'MONTHLY_BATCH'
+                ? <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+                : <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+            ) : (
+              <LeaveQuotaBooking employeeId={employee?.id ?? ''} balances={balances} ownRequests={requests} />
+            )}
+          </>
         )}
       </div>
     </div>
