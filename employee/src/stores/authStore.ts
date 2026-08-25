@@ -10,7 +10,8 @@ export interface EmployeeProfile {
   weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
   employee_status_type?: {
     id: string; name: string; monthly_off_quota: number
-    off_on_saturday?: boolean; off_on_sunday?: boolean; off_on_public_holiday?: boolean
+    saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
+    off_on_public_holiday?: boolean
   } | null
 }
 

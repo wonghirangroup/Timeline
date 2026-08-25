@@ -34,9 +34,19 @@ interface Dept { id: string; name: string; code: string | null; is_active: boole
 interface Div  { id: string; name: string; department_id: string | null; department: Ref | null; is_active: boolean; _count: { sections: number; positions_direct: number } }
 interface Sec  { id: string; name: string; division_id: string | null; department_id: string | null; division: Ref | null; department: Ref | null; is_active: boolean; _count: { positions: number } }
 interface Pos  { id: string; name: string; section_id: string | null; division_id: string | null; department_id: string | null; is_active: boolean; _count: { employees: number } }
+
+// เงื่อนไขวันเสาร์/อาทิตย์ — 3 สถานะ ไม่ใช่แค่หยุด/ไม่หยุด เพราะบางตำแหน่ง (เช่น office)
+// หยุดวันอาทิตย์ แต่วันเสาร์ต้อง "ทำงานนอกสถานที่" ไม่ใช่ทำงานปกติในออฟฟิศ แต่ก็ไม่ใช่วันหยุด
+type DayRule = 'WORK' | 'OFF' | 'OFFSITE'
+const DAY_RULE_CFG: Record<DayRule, { label: string; color: string; bg: string }> = {
+  WORK:    { label: 'ทำงานปกติ',        color: '#6b7280', bg: '#f9fafb' },
+  OFF:     { label: 'หยุด',              color: '#0891b2', bg: '#ecfeff' },
+  OFFSITE: { label: 'ทำงานนอกสถานที่',  color: '#9333ea', bg: '#faf5ff' },
+}
+
 interface StatusType {
   id: string; name: string; monthly_off_quota: number
-  off_on_saturday: boolean; off_on_sunday: boolean; off_on_public_holiday: boolean
+  saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean
   is_active: boolean; _count: { employees: number }
 }
 
@@ -380,7 +390,7 @@ function StatusTypesTab() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [modal, setModal] = useState<{ edit?: StatusType } | null>(null)
-  const [form, setForm] = useState({ name: '', monthly_off_quota: '4', off_on_saturday: false, off_on_sunday: false, off_on_public_holiday: true })
+  const [form, setForm] = useState({ name: '', monthly_off_quota: '4', saturday_rule: 'WORK' as DayRule, sunday_rule: 'WORK' as DayRule, off_on_public_holiday: true })
   const [deleteTarget, setDeleteTarget] = useState<StatusType | null>(null)
 
   const { data: types = [], isLoading } = useQuery<StatusType[]>({
@@ -403,13 +413,13 @@ function StatusTypesTab() {
     onError: (err: any) => showToast('error', err.response?.data?.error?.code === 'IN_USE' ? 'มีพนักงานผูกสถานะนี้อยู่ ย้ายพนักงานออกก่อน' : 'ลบไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', monthly_off_quota: '4', off_on_saturday: false, off_on_sunday: false, off_on_public_holiday: true }); setModal({}) }
-  const openEdit = (t: StatusType) => { setForm({ name: t.name, monthly_off_quota: String(t.monthly_off_quota), off_on_saturday: t.off_on_saturday, off_on_sunday: t.off_on_sunday, off_on_public_holiday: t.off_on_public_holiday }); setModal({ edit: t }) }
+  const openAdd = () => { setForm({ name: '', monthly_off_quota: '4', saturday_rule: 'WORK', sunday_rule: 'WORK', off_on_public_holiday: true }); setModal({}) }
+  const openEdit = (t: StatusType) => { setForm({ name: t.name, monthly_off_quota: String(t.monthly_off_quota), saturday_rule: t.saturday_rule, sunday_rule: t.sunday_rule, off_on_public_holiday: t.off_on_public_holiday }); setModal({ edit: t }) }
   const handleSave = () => {
     if (!modal || !form.name.trim()) return
     const body = {
       name: form.name, monthly_off_quota: parseInt(form.monthly_off_quota) || 0,
-      off_on_saturday: form.off_on_saturday, off_on_sunday: form.off_on_sunday, off_on_public_holiday: form.off_on_public_holiday,
+      saturday_rule: form.saturday_rule, sunday_rule: form.sunday_rule, off_on_public_holiday: form.off_on_public_holiday,
     }
     if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body })
     else createMutation.mutate(body)
@@ -422,6 +432,23 @@ function StatusTypesTab() {
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
       <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 600 }}>{label}</span>
     </label>
+  )
+  const DayRuleRow = ({ label, value, onChange }: { label: string; value: DayRule; onChange: (v: DayRule) => void }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 600, width: 64, flexShrink: 0 }}>{label}</span>
+      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+        {(['WORK', 'OFF', 'OFFSITE'] as DayRule[]).map(rule => {
+          const cfg = DAY_RULE_CFG[rule]
+          const active = value === rule
+          return (
+            <button key={rule} type="button" onClick={() => onChange(rule)}
+              style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: `1.5px solid ${active ? cfg.color : '#e5e7eb'}`, background: active ? cfg.bg : '#fff', color: active ? cfg.color : '#9ca3af', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>
+              {cfg.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 
   return (
@@ -448,8 +475,12 @@ function StatusTypesTab() {
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#ea580c', background: '#fff7ed', padding: '3px 9px', borderRadius: 99 }}>{t.monthly_off_quota} วัน/เดือน</span>
-              {t.off_on_saturday && <span style={{ fontSize: '11px', fontWeight: 700, color: '#0891b2', background: '#ecfeff', padding: '3px 9px', borderRadius: 99 }}>หยุดเสาร์</span>}
-              {t.off_on_sunday && <span style={{ fontSize: '11px', fontWeight: 700, color: '#0891b2', background: '#ecfeff', padding: '3px 9px', borderRadius: 99 }}>หยุดอาทิตย์</span>}
+              {t.saturday_rule !== 'WORK' && (
+                <span style={{ fontSize: '11px', fontWeight: 700, color: DAY_RULE_CFG[t.saturday_rule].color, background: DAY_RULE_CFG[t.saturday_rule].bg, padding: '3px 9px', borderRadius: 99 }}>เสาร์: {DAY_RULE_CFG[t.saturday_rule].label}</span>
+              )}
+              {t.sunday_rule !== 'WORK' && (
+                <span style={{ fontSize: '11px', fontWeight: 700, color: DAY_RULE_CFG[t.sunday_rule].color, background: DAY_RULE_CFG[t.sunday_rule].bg, padding: '3px 9px', borderRadius: 99 }}>อาทิตย์: {DAY_RULE_CFG[t.sunday_rule].label}</span>
+              )}
               {t.off_on_public_holiday && <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', background: '#f0fdf4', padding: '3px 9px', borderRadius: 99 }}>หยุดนักขัตฤกษ์</span>}
             </div>
             <button onClick={() => openEdit(t)} style={{ padding: 6, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={13}/></button>
@@ -468,10 +499,15 @@ function StatusTypesTab() {
             <input type="number" min={0} style={inputStyle} value={form.monthly_off_quota} onChange={e => setForm(f => ({ ...f, monthly_off_quota: e.target.value }))} />
 
             <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>วันหยุดอัตโนมัติ (ไม่ต้องจอง)</label>
-              <CheckRow label="หยุดวันเสาร์" checked={form.off_on_saturday} onChange={v => setForm(f => ({ ...f, off_on_saturday: v }))} />
-              <CheckRow label="หยุดวันอาทิตย์" checked={form.off_on_sunday} onChange={v => setForm(f => ({ ...f, off_on_sunday: v }))} />
-              <CheckRow label="หยุดวันนักขัตฤกษ์" checked={form.off_on_public_holiday} onChange={v => setForm(f => ({ ...f, off_on_public_holiday: v }))} />
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 8, display: 'block' }}>
+                เงื่อนไขวันเสาร์-อาทิตย์
+                <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> — เช่น office หยุดอาทิตย์ แต่เสาร์ทำงานนอกสถานที่</span>
+              </label>
+              <DayRuleRow label="วันเสาร์" value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+              <DayRuleRow label="วันอาทิตย์" value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+              <div style={{ marginTop: 8 }}>
+                <CheckRow label="หยุดวันนักขัตฤกษ์อัตโนมัติ" checked={form.off_on_public_holiday} onChange={v => setForm(f => ({ ...f, off_on_public_holiday: v }))} />
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>

@@ -41,7 +41,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       where: { line_user_id, tenant_id: config.tenant.id, deleted_at: null, is_active: true },
       include: {
         branch: { select: { id: true, name: true } },
-        employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, off_on_saturday: true, off_on_sunday: true, off_on_public_holiday: true } },
+        employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
       },
     })
     if (!employee) {

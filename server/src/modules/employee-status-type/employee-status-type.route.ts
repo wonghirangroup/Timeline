@@ -27,8 +27,8 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
         properties: {
           name: { type: 'string' },
           monthly_off_quota: { type: 'number', description: 'จำนวนวันหยุดที่จองได้ต่อเดือน (default 4)' },
-          off_on_saturday: { type: 'boolean', description: 'หยุดวันเสาร์อัตโนมัติ (ไม่ต้องจอง)' },
-          off_on_sunday: { type: 'boolean', description: 'หยุดวันอาทิตย์อัตโนมัติ' },
+          saturday_rule: { type: 'string', enum: ['WORK', 'OFF', 'OFFSITE'], description: 'เงื่อนไขวันเสาร์ (default WORK) — OFFSITE = ทำงานนอกสถานที่ ไม่ใช่วันหยุด' },
+          sunday_rule: { type: 'string', enum: ['WORK', 'OFF', 'OFFSITE'], description: 'เงื่อนไขวันอาทิตย์ (default WORK)' },
           off_on_public_holiday: { type: 'boolean', description: 'หยุดวันนักขัตฤกษ์อัตโนมัติ (default true)' },
         },
       },
@@ -45,7 +45,9 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
         type: 'object',
         properties: {
           name: { type: 'string' }, monthly_off_quota: { type: 'number' }, is_active: { type: 'boolean' },
-          off_on_saturday: { type: 'boolean' }, off_on_sunday: { type: 'boolean' }, off_on_public_holiday: { type: 'boolean' },
+          saturday_rule: { type: 'string', enum: ['WORK', 'OFF', 'OFFSITE'] },
+          sunday_rule: { type: 'string', enum: ['WORK', 'OFF', 'OFFSITE'] },
+          off_on_public_holiday: { type: 'boolean' },
         },
       },
     },

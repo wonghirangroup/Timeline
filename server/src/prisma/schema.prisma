@@ -279,6 +279,15 @@ model Position {
   @@map("positions")
 }
 
+// เงื่อนไขวันเสาร์/อาทิตย์ต่อสถานะพนักงาน — 3 สถานะ ไม่ใช่แค่หยุด/ไม่หยุด เพราะบางตำแหน่ง
+// (เช่น office) หยุดวันอาทิตย์แต่วันเสาร์ต้อง "ทำงานนอกสถานที่" ไม่ใช่ทำงานปกติในออฟฟิศ
+// แต่ก็ไม่ใช่วันหยุดเหมือนกัน
+enum DayRule {
+  WORK // ทำงานปกติ (ค่าเริ่มต้น)
+  OFF // หยุดอัตโนมัติ — ไม่ต้องจองผ่านระบบวันหยุด
+  OFFSITE // ทำงาน แต่นอกสถานที่ — ไม่ใช่วันหยุด แค่ระบุรูปแบบงานต่างจากวันธรรมดา
+}
+
 // สถานะพนักงาน (ประจำ/ชั่วคราว/...) — admin สร้างเองได้ กำหนดโควต้าวันหยุดต่อเดือน +
 // เงื่อนไขวันหยุดอัตโนมัติต่อสถานะ (เสาร์/อาทิตย์/วันนักขัตฤกษ์) — ใช้เป็นฐานของโควต้าใน
 // MONTHLY_BATCH booking (ดู weekly-off.service.ts) และวันหยุดอัตโนมัติในปฏิทินพนักงาน
@@ -287,8 +296,8 @@ model EmployeeStatusType {
   tenant_id             String
   name                  String // เช่น "ประจำ", "ชั่วคราว", "รายวัน"
   monthly_off_quota     Int       @default(4) // จำนวนวันหยุดที่จองได้ต่อเดือน (โหมด MONTHLY_BATCH เท่านั้น)
-  off_on_saturday       Boolean   @default(false) // หยุดวันเสาร์อัตโนมัติ (ไม่ต้องจองผ่านระบบวันหยุด)
-  off_on_sunday         Boolean   @default(false) // หยุดวันอาทิตย์อัตโนมัติ
+  saturday_rule         DayRule   @default(WORK) // เช่น office = OFFSITE (หยุดแต่ทำงานนอกสถานที่)
+  sunday_rule           DayRule   @default(WORK) // เช่น office = OFF (หยุดจริง)
   off_on_public_holiday Boolean   @default(true) // หยุดวันนักขัตฤกษ์อัตโนมัติ (ตาม Holiday ของ tenant)
   is_active             Boolean   @default(true)
   created_at            DateTime  @default(now())

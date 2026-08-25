@@ -18,7 +18,7 @@ const POSITION_INCLUDE = {
   },
 } as const
 const STATUS_TYPE_INCLUDE = {
-  select: { id: true, name: true, monthly_off_quota: true, off_on_saturday: true, off_on_sunday: true, off_on_public_holiday: true },
+  select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true },
 } as const
 
 async function generateEmployeeCode(
