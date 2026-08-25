@@ -74,6 +74,10 @@ function buildLeaveByDate(leaveRecords: any[]): Map<string, string> {
     const start = new Date((l.start_date ?? '').slice(0, 10) + 'T00:00:00')
     const end   = new Date((l.end_date   ?? '').slice(0, 10) + 'T00:00:00')
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      // ข้ามเสาร์-อาทิตย์ — countDays() ตอนขอลา (employee/leave/index.tsx) ไม่นับ
+      // วันหยุดสุดสัปดาห์เข้าจำนวนวันลาอยู่แล้ว การ label ทับให้เป็น "ลากิจ" บนวันหยุด
+      // ที่ทับช่วงวันลาพอดี (เช่น ลาศุกร์-จันทร์) จะผิดจากที่ user เห็นจริง
+      if (d.getDay() === 0 || d.getDay() === 6) continue
       m.set(d.toISOString().slice(0, 10), label)
     }
   }
