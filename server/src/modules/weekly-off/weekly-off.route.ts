@@ -323,6 +323,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว'))
       if (e.message === 'INCOMPLETE_MONTH')  return reply.code(400).send(fail('INCOMPLETE_MONTH', 'ต้องเลือกวันหยุดให้ครบทุกสัปดาห์ของเดือนก่อนส่ง'))
       if (e.message === 'DUPLICATE_WEEK')    return reply.code(400).send(fail('DUPLICATE_WEEK', 'เลือกวันหยุดซ้ำสัปดาห์เดียวกัน'))
+      if (e.message === 'DUPLICATE_DATE')    return reply.code(400).send(fail('DUPLICATE_DATE', 'เลือกวันที่ซ้ำกัน'))
+      if (e.message === 'OVER_QUOTA')        return reply.code(400).send(fail('OVER_QUOTA', 'เลือกวันหยุดเกินโควต้าที่สถานะพนักงานกำหนดไว้'))
       throw e
     }
   })

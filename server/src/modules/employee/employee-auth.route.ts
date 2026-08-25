@@ -39,7 +39,10 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     // 3. หา employee จาก line_user_id + tenant_id
     const employee = await prisma.employee.findFirst({
       where: { line_user_id, tenant_id: config.tenant.id, deleted_at: null, is_active: true },
-      include: { branch: { select: { id: true, name: true } } },
+      include: {
+        branch: { select: { id: true, name: true } },
+        employee_status_type: { select: { id: true, name: true, monthly_off_quota: true } },
+      },
     })
     if (!employee) {
       return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบพนักงาน กรุณายืนยันตัวตนก่อน'))
@@ -53,7 +56,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       employee_id: employee.id,
     }, { expiresIn: '12h' })
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/branding?line_channel_id=xxx

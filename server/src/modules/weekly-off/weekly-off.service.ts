@@ -65,17 +65,33 @@ export async function createWeeklyOff(tenantId: string, data: {
   })
   if (existing) throw new Error('ALREADY_REQUESTED')
 
-  return prisma.weeklyOffRequest.create({
+  const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
+  const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, monday, data.day_of_week)
+
+  const created = await prisma.weeklyOffRequest.create({
     data: {
       tenant_id:   tenantId,
       employee_id: data.employee_id,
       week_start:  monday,
       day_of_week: data.day_of_week,
+      has_conflict: conflict,
     },
     include: {
       employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } },
     },
   })
+  if (conflict && employee?.position_id) {
+    await prisma.weeklyOffRequest.updateMany({
+      where: {
+        tenant_id: tenantId, week_start: monday, day_of_week: data.day_of_week,
+        employee_id: { not: data.employee_id },
+        status: { in: ['PENDING', 'APPROVED'] },
+        employee: { position_id: employee.position_id },
+      },
+      data: { has_conflict: true },
+    })
+  }
+  return created
 }
 
 export async function updateWeeklyOff(tenantId: string, id: string, data: {
@@ -153,35 +169,83 @@ function getWeeksOfMonth(month: string): string[] {
   }).sort()
 }
 
+// ตำแหน่งเดียวกัน + วันเดียวกัน (week_start+day_of_week) ถูกจองไว้แล้วโดยคนอื่นไหม (PENDING/APPROVED)
+// ไม่บล็อคการจอง — แค่คืนค่าไว้ set has_conflict ให้แอดมินเห็นตอนอนุมัติ ตาม spec
+// ("ยังจองได้ แต่ให้แอดมินเป็นคนตัดสินใจ")
+async function hasPositionConflict(tenantId: string, employeeId: string, positionId: string | null, weekStart: Date, dayOfWeek: number): Promise<boolean> {
+  if (!positionId) return false
+  const conflict = await prisma.weeklyOffRequest.findFirst({
+    where: {
+      tenant_id: tenantId,
+      week_start: weekStart,
+      day_of_week: dayOfWeek,
+      employee_id: { not: employeeId },
+      status: { in: ['PENDING', 'APPROVED'] },
+      employee: { position_id: positionId },
+    },
+  })
+  return !!conflict
+}
+
 export async function createMonthlyBatchOff(tenantId: string, data: {
   employee_id: string
   month: string       // YYYY-MM
-  dates: string[]      // YYYY-MM-DD — 1 วันต่อสัปดาห์ ต้องครบทุกสัปดาห์ของเดือน
+  dates: string[]      // YYYY-MM-DD
 }) {
-  const requiredWeeks = getWeeksOfMonth(data.month)
+  const employee = await prisma.employee.findFirst({
+    where: { id: data.employee_id, tenant_id: tenantId },
+    select: { position_id: true, employee_status_type_id: true, employee_status_type: { select: { monthly_off_quota: true } } },
+  })
 
   const picked = data.dates.map(dateStr => ({
     dateStr,
     weekStart: getMondayOf(dateStr).toISOString().slice(0, 10),
   }))
-  const pickedWeeks = new Set(picked.map(p => p.weekStart))
 
-  if (pickedWeeks.size !== picked.length) throw new Error('DUPLICATE_WEEK')
-  if (picked.length !== requiredWeeks.length || requiredWeeks.some(w => !pickedWeeks.has(w))) {
-    throw new Error('INCOMPLETE_MONTH')
+  // มีสถานะพนักงานผูกโควต้าแล้ว → โหมดโควต้า: เลือกกี่วันก็ได้ในเดือน ไม่เกินโควต้า
+  // ไม่บังคับครบทุกสัปดาห์/ไม่บังคับ 1 วันต่อสัปดาห์อีกต่อไป (ตาม spec สถานะพนักงานกำหนดจำนวนวัน)
+  if (employee?.employee_status_type_id && employee.employee_status_type) {
+    const quota = employee.employee_status_type.monthly_off_quota
+    const uniqueDates = new Set(picked.map(p => p.dateStr))
+    if (uniqueDates.size !== picked.length) throw new Error('DUPLICATE_DATE')
+    if (picked.length > quota) throw new Error('OVER_QUOTA')
+  } else {
+    // ยังไม่ได้ผูกสถานะพนักงาน → fallback พฤติกรรมเดิม: ต้องครบทุกสัปดาห์ของเดือน (1 วัน/สัปดาห์)
+    const requiredWeeks = getWeeksOfMonth(data.month)
+    const pickedWeeks = new Set(picked.map(p => p.weekStart))
+    if (pickedWeeks.size !== picked.length) throw new Error('DUPLICATE_WEEK')
+    if (picked.length !== requiredWeeks.length || requiredWeeks.some(w => !pickedWeeks.has(w))) {
+      throw new Error('INCOMPLETE_MONTH')
+    }
   }
 
   try {
-    return await prisma.$transaction(
-      picked.map(p => {
+    return await prisma.$transaction(async tx => {
+      const created = []
+      for (const p of picked) {
         const week_start = new Date(p.weekStart + 'T00:00:00Z')
         const day_of_week = new Date(p.dateStr + 'T00:00:00Z').getUTCDay()
-        return prisma.weeklyOffRequest.create({
-          data: { tenant_id: tenantId, employee_id: data.employee_id, week_start, day_of_week },
+        const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, week_start, day_of_week)
+        const row = await tx.weeklyOffRequest.create({
+          data: { tenant_id: tenantId, employee_id: data.employee_id, week_start, day_of_week, has_conflict: conflict },
           include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } } },
         })
-      }),
-    )
+        if (conflict && employee?.position_id) {
+          // แก้ record ของคนอื่นที่ชนกันให้ flag ด้วย เพื่อให้แอดมินเห็นทั้งสองฝั่ง
+          await tx.weeklyOffRequest.updateMany({
+            where: {
+              tenant_id: tenantId, week_start, day_of_week,
+              employee_id: { not: data.employee_id },
+              status: { in: ['PENDING', 'APPROVED'] },
+              employee: { position_id: employee.position_id },
+            },
+            data: { has_conflict: true },
+          })
+        }
+        created.push(row)
+      }
+      return created
+    })
   } catch (e: any) {
     if (e.code === 'P2002') throw new Error('ALREADY_REQUESTED')
     throw e
@@ -233,7 +297,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
 
   const employee = await prisma.employee.findFirst({
     where:  { id: employeeId, tenant_id: tenantId },
-    select: { branch_id: true },
+    select: { branch_id: true, position_id: true },
   })
 
   const all = await prisma.weeklyOffRequest.findMany({
@@ -243,14 +307,18 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       employee:   { branch_id: employee?.branch_id ?? undefined },
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true } },
     },
     orderBy: { week_start: 'asc' },
   })
 
+  // same_position: คนตำแหน่งเดียวกับตัวเอง — ใช้กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน (ยังจองซ้ำได้ แต่ให้เห็น flag)
   return {
-    own:       all.filter(r => r.employee_id === employeeId),
-    colleagues: all.filter(r => r.employee_id !== employeeId),
+    own: all.filter(r => r.employee_id === employeeId),
+    colleagues: all.filter(r => r.employee_id !== employeeId).map(r => ({
+      ...r,
+      same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,
+    })),
   }
 }
 

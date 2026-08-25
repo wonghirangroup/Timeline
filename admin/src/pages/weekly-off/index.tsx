@@ -1,7 +1,7 @@
 // admin/src/pages/weekly-off/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -17,6 +17,7 @@ interface WeeklyOffRequest {
   id: string; employee_id: string; week_start: string; day_of_week: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; reject_note: string | null
   employee: ApiEmployee
+  has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ให้แอดมินตัดสินใจ
 }
 interface ApiBranch { id: string; name: string }
 interface WeeklyOffPeriod {
@@ -650,7 +651,14 @@ export default function WeeklyOffPage() {
                 return (
                   <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '11px 14px' }}>
-                      <div style={{ fontWeight: 600 }}>{r.employee.first_name} {r.employee.last_name}</div>
+                      <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {r.employee.first_name} {r.employee.last_name}
+                        {r.has_conflict && (
+                          <span title="มีพนักงานตำแหน่งเดียวกันจองวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
+                            <AlertTriangle size={10} /> ชนตำแหน่ง
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {r.employee.employee_code}{r.employee.nickname ? ` · ${r.employee.nickname}` : ''}
                       </div>

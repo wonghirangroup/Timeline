@@ -15,28 +15,33 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model Tenant {
-  id            String      @id @default(uuid())
-  name          String
-  plan          TenantPlan  @default(FREE)
-  max_employees Int         @default(5)
-  max_branches  Int         @default(1)
-  is_active     Boolean     @default(true)
+  id                String     @id @default(uuid())
+  name              String
+  plan              TenantPlan @default(FREE)
+  max_employees     Int        @default(5)
+  max_branches      Int        @default(1)
+  is_active         Boolean    @default(true)
   loading_image_url String? // ภาพ Loading หน้าเข้าสู่ระบบ LIFF ของ tenant นี้ (Cloudinary) — null = ใช้ default mascot
-  enabled_features   Json?  // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
-  created_at    DateTime    @default(now())
-  updated_at    DateTime    @updatedAt
-  deleted_at    DateTime?
+  enabled_features  Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  deleted_at        DateTime?
 
-  line_config   TenantLineConfig?
-  users         User[]
-  employees     Employee[]
-  branches      Branch[]
-  shifts        Shift[]
-  holidays      Holiday[]
-  announcements Announcement[]
-  feedbacks     Feedback[]
-  invoices      Invoice[]
-  activity_logs ActivityLog[]
+  line_config           TenantLineConfig?
+  users                 User[]
+  employees             Employee[]
+  branches              Branch[]
+  shifts                Shift[]
+  holidays              Holiday[]
+  announcements         Announcement[]
+  feedbacks             Feedback[]
+  invoices              Invoice[]
+  activity_logs         ActivityLog[]
+  departments           Department[]
+  divisions             Division[]
+  sections              Section[]
+  positions             Position[]
+  employee_status_types EmployeeStatusType[]
 
   @@map("tenants")
 }
@@ -49,22 +54,22 @@ enum TenantPlan {
 }
 
 enum GeoMode {
-  WARN   // เช็คอินได้แต่ flag is_outside_area
-  BLOCK  // บล็อค — ต้องสแกน QR ในพื้นที่เท่านั้น
+  WARN // เช็คอินได้แต่ flag is_outside_area
+  BLOCK // บล็อค — ต้องสแกน QR ในพื้นที่เท่านั้น
 }
 
 model TenantLineConfig {
-  id                  String   @id @default(uuid())
-  tenant_id           String   @unique
+  id                        String   @id @default(uuid())
+  tenant_id                 String   @unique
   line_channel_id           String
   line_channel_secret       String
   line_channel_access_token String?
   line_liff_id              String
-  rich_menu_id        String?
-  logo_url            String?  // white-label
-  primary_color       String?  // white-label
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  rich_menu_id              String?
+  logo_url                  String? // white-label
+  primary_color             String? // white-label
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
@@ -76,18 +81,18 @@ model TenantLineConfig {
 // ─────────────────────────────────────────────
 
 model User {
-  id         String    @id @default(uuid())
-  tenant_id  String?   // null = SUPER_ADMIN
-  email      String    @unique
-  password   String    // bcrypt hashed
-  first_name String
-  last_name  String
-  role       UserRole
-  is_active  Boolean   @default(true)
-  must_change_password Boolean @default(false)  // ตั้ง true ตอน Talent (SUPER_ADMIN) สร้าง Admin ให้ — ยังไม่ enforce ตอน login (รอ phase ถัดไป)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+  id                   String    @id @default(uuid())
+  tenant_id            String? // null = SUPER_ADMIN
+  email                String    @unique
+  password             String // bcrypt hashed
+  first_name           String
+  last_name            String
+  role                 UserRole
+  is_active            Boolean   @default(true)
+  must_change_password Boolean   @default(false) // ตั้ง true ตอน Talent (SUPER_ADMIN) สร้าง Admin ให้ — ยังไม่ enforce ตอน login (รอ phase ถัดไป)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  deleted_at           DateTime?
 
   tenant           Tenant?         @relation(fields: [tenant_id], references: [id])
   managed_branches BranchManager[]
@@ -107,52 +112,58 @@ enum UserRole {
 // ─────────────────────────────────────────────
 
 model Employee {
-  id            String    @id @default(uuid())
-  tenant_id     String
-  branch_id     String
-  employee_code String
-  first_name    String
-  last_name     String
-  nickname      String?
-  department    String?
-  phone         String?
-  hired_at      DateTime? @db.Date
-  line_user_id  String?   // mapped after Line verify
-  is_active     Boolean   @default(true)  // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
-  status        EmployeeStatus @default(ACTIVE)
-  status_reason String?   // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
-  weekly_off_mode WeeklyOffMode @default(WEEKLY)  // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
-  default_shift_id String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
-  pending_fine  Decimal   @default(0) @db.Decimal(8, 2)  // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  deleted_at    DateTime?
+  id                      String         @id @default(uuid())
+  tenant_id               String
+  branch_id               String
+  employee_code           String
+  first_name              String
+  last_name               String
+  nickname                String?
+  department              String?
+  phone                   String?
+  hired_at                DateTime?      @db.Date
+  line_user_id            String? // mapped after Line verify
+  is_active               Boolean        @default(true) // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
+  status                  EmployeeStatus @default(ACTIVE)
+  status_reason           String? // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
+  weekly_off_mode         WeeklyOffMode  @default(WEEKLY) // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
+  default_shift_id        String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
+  pending_fine            Decimal        @default(0) @db.Decimal(8, 2) // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
+  position_id             String? // ตำแหน่งในผังองค์กร (Department→Division→Section→Position) — nullable ระหว่าง migrate, ไม่แทนที่ field `department` เดิม
+  employee_status_type_id String? // สถานะพนักงาน (ประจำ/ชั่วคราว/...) กำหนดโควต้าวันหยุดต่อเดือน — nullable = ยังไม่ผูก ใช้ fallback เดิม
+  created_at              DateTime       @default(now())
+  updated_at              DateTime       @updatedAt
+  deleted_at              DateTime?
 
-  tenant              Tenant              @relation(fields: [tenant_id], references: [id])
-  branch              Branch              @relation(fields: [branch_id], references: [id])
-  default_shift       Shift?              @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
-  attendance_records  AttendanceRecord[]
-  offsite_checkins    OffsiteCheckin[]
-  leave_requests      LeaveRequest[]
-  leave_balances      LeaveBalance[]
-  ot_requests         OtRequest[]
-  weekly_off_requests WeeklyOffRequest[]
-  status_logs         EmployeeStatusLog[]
-  shift_assignments   ShiftAssignment[]
+  tenant               Tenant              @relation(fields: [tenant_id], references: [id])
+  branch               Branch              @relation(fields: [branch_id], references: [id])
+  default_shift        Shift?              @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
+  position             Position?           @relation(fields: [position_id], references: [id], onDelete: SetNull)
+  employee_status_type EmployeeStatusType? @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)
+  attendance_records   AttendanceRecord[]
+  offsite_checkins     OffsiteCheckin[]
+  leave_requests       LeaveRequest[]
+  leave_balances       LeaveBalance[]
+  ot_requests          OtRequest[]
+  weekly_off_requests  WeeklyOffRequest[]
+  status_logs          EmployeeStatusLog[]
+  shift_assignments    ShiftAssignment[]
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
   @@index([tenant_id])
   @@index([branch_id])
   @@index([default_shift_id])
+  @@index([position_id])
+  @@index([employee_status_type_id])
   @@map("employees")
 }
 
 enum EmployeeStatus {
-  ACTIVE      // ใช้งาน
-  INACTIVE    // ไม่ใช้งาน
-  RESIGNED    // ลาออก
-  TERMINATED  // เลิกจ้าง
+  ACTIVE // ใช้งาน
+  INACTIVE // ไม่ใช้งาน
+  RESIGNED // ลาออก
+  TERMINATED // เลิกจ้าง
 }
 
 model EmployeeStatusLog {
@@ -162,7 +173,7 @@ model EmployeeStatusLog {
   from_status EmployeeStatus?
   to_status   EmployeeStatus
   reason      String
-  changed_by  String?         // user_id ของ admin ที่เปลี่ยน
+  changed_by  String? // user_id ของ admin ที่เปลี่ยน
   created_at  DateTime        @default(now())
 
   employee Employee @relation(fields: [employee_id], references: [id])
@@ -170,6 +181,105 @@ model EmployeeStatusLog {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("employee_status_logs")
+}
+
+// ─────────────────────────────────────────────
+// ORG STRUCTURE — Department → Division → Section → Position
+// ผังองค์กร 4 ชั้นแบบ entity จริง (แทนที่ field `department` string เดิมในระยะยาว
+// แต่ตอนนี้อยู่คู่กันก่อน — Employee.department เดิมยังใช้งานได้ปกติ ไม่กระทบของเก่า)
+// ─────────────────────────────────────────────
+
+model Department {
+  id         String    @id @default(uuid())
+  tenant_id  String
+  name       String
+  code       String? // รหัสแผนกเดิม (อ้างอิงกับ Employee.department แบบ string, optional)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  divisions Division[]
+
+  @@index([tenant_id])
+  @@map("departments")
+}
+
+model Division {
+  id            String    @id @default(uuid())
+  tenant_id     String
+  department_id String
+  name          String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  tenant     Tenant     @relation(fields: [tenant_id], references: [id])
+  department Department @relation(fields: [department_id], references: [id])
+  sections   Section[]
+
+  @@index([tenant_id])
+  @@index([department_id])
+  @@map("divisions")
+}
+
+model Section {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  division_id String
+  name        String
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  division  Division   @relation(fields: [division_id], references: [id])
+  positions Position[]
+
+  @@index([tenant_id])
+  @@index([division_id])
+  @@map("sections")
+}
+
+model Position {
+  id         String    @id @default(uuid())
+  tenant_id  String
+  section_id String
+  name       String
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  section   Section    @relation(fields: [section_id], references: [id])
+  employees Employee[]
+
+  @@index([tenant_id])
+  @@index([section_id])
+  @@map("positions")
+}
+
+// สถานะพนักงาน (ประจำ/ชั่วคราว/...) — admin สร้างเองได้ กำหนดโควต้าวันหยุดต่อเดือนต่อสถานะ
+// ใช้เป็นฐานของโควต้าใน MONTHLY_BATCH booking (ดู weekly-off.service.ts)
+model EmployeeStatusType {
+  id                String    @id @default(uuid())
+  tenant_id         String
+  name              String // เช่น "ประจำ", "ชั่วคราว", "รายวัน"
+  monthly_off_quota Int       @default(4) // จำนวนวันหยุดที่จองได้ต่อเดือน (โหมด MONTHLY_BATCH เท่านั้น)
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  deleted_at        DateTime?
+
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  employees Employee[]
+
+  @@index([tenant_id])
+  @@map("employee_status_types")
 }
 
 // ─────────────────────────────────────────────
@@ -183,17 +293,17 @@ model Branch {
   location   String?
   lat        Decimal?  @db.Decimal(10, 8)
   lng        Decimal?  @db.Decimal(11, 8)
-  gps_radius Int       @default(200)   // รัศมียอมรับ (เมตร)
-  geo_mode   GeoMode   @default(WARN)  // WARN=แจ้งเตือน, BLOCK=บล็อค
+  gps_radius Int       @default(200) // รัศมียอมรับ (เมตร)
+  geo_mode   GeoMode   @default(WARN) // WARN=แจ้งเตือน, BLOCK=บล็อค
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
-  tenant          Tenant             @relation(fields: [tenant_id], references: [id])
-  employees       Employee[]
-  shifts          Shift[]
-  managers        BranchManager[]
+  tenant             Tenant            @relation(fields: [tenant_id], references: [id])
+  employees          Employee[]
+  shifts             Shift[]
+  managers           BranchManager[]
   weekly_off_periods WeeklyOffPeriod[]
 
   @@index([tenant_id])
@@ -217,28 +327,28 @@ model BranchManager {
 // ─────────────────────────────────────────────
 
 model Shift {
-  id              String    @id @default(uuid())
-  tenant_id       String
-  branch_id       String
-  name            String
-  start_time       String    // "08:00"
-  end_time         String    // "17:00"
-  min_checkout     String?   // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
+  id               String    @id @default(uuid())
+  tenant_id        String
+  branch_id        String
+  name             String
+  start_time       String // "08:00"
+  end_time         String // "17:00"
+  min_checkout     String? // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
   late_threshold   Int       @default(15) // minutes — เก็บไว้ backward compat
-  late_threshold_1 String?   // "08:05" — สายระดับ 1
-  late_threshold_2 String?   // "08:30" — สายระดับ 2
-  late_fine_1      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 1 (บาท)
-  late_fine_2      Decimal?  @db.Decimal(8, 2)  // ค่าปรับสายระดับ 2 (บาท)
-  absent_threshold String?   // "08:31" — เช็คอินหลังเวลานี้ = นับว่าขาด (ยังเช็คอินได้ปกติ)
-  absent_fine      Decimal?  @db.Decimal(8, 2)  // ค่าปรับที่จะถูกหักในวันที่มาเช็คอินถัดไป
+  late_threshold_1 String? // "08:05" — สายระดับ 1
+  late_threshold_2 String? // "08:30" — สายระดับ 2
+  late_fine_1      Decimal?  @db.Decimal(8, 2) // ค่าปรับสายระดับ 1 (บาท)
+  late_fine_2      Decimal?  @db.Decimal(8, 2) // ค่าปรับสายระดับ 2 (บาท)
+  absent_threshold String? // "08:31" — เช็คอินหลังเวลานี้ = นับว่าขาด (ยังเช็คอินได้ปกติ)
+  absent_fine      Decimal?  @db.Decimal(8, 2) // ค่าปรับที่จะถูกหักในวันที่มาเช็คอินถัดไป
   shift_type       ShiftType @default(REGULAR)
-  gps_radius       Int?      // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
+  gps_radius       Int? // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
   allow_overlap    Boolean   @default(false)
-  day_off_quota   Int       @default(1)
-  is_active       Boolean   @default(true)
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-  deleted_at      DateTime?
+  day_off_quota    Int       @default(1)
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
 
   tenant             Tenant             @relation(fields: [tenant_id], references: [id])
   branch             Branch             @relation(fields: [branch_id], references: [id])
@@ -256,10 +366,10 @@ model Shift {
 // ─────────────────────────────────────────────
 
 enum ShiftAssignmentType {
-  WORK        // ทำงาน (ผูกกับ shift_id)
-  DAY_OFF     // หยุดพัก (manual correction — ไม่ใช่ WEEKLY_OFF/LEAVE ที่มาจากระบบจริง)
-  WEEKLY_OFF  // หยุดประจำสัปดาห์ (manual override — ปกติมาจาก WeeklyOffRequest)
-  HOLIDAY     // หยุดนักขัตฤกษ์ (manual override — ปกติมาจาก Holiday)
+  WORK // ทำงาน (ผูกกับ shift_id)
+  DAY_OFF // หยุดพัก (manual correction — ไม่ใช่ WEEKLY_OFF/LEAVE ที่มาจากระบบจริง)
+  WEEKLY_OFF // หยุดประจำสัปดาห์ (manual override — ปกติมาจาก WeeklyOffRequest)
+  HOLIDAY // หยุดนักขัตฤกษ์ (manual override — ปกติมาจาก Holiday)
 }
 
 model ShiftAssignment {
@@ -267,10 +377,10 @@ model ShiftAssignment {
   tenant_id   String
   employee_id String
   date        DateTime            @db.Date
-  shift_id    String?             // null เมื่อ type != WORK
+  shift_id    String? // null เมื่อ type != WORK
   type        ShiftAssignmentType @default(WORK)
   note        String?
-  created_by  String?             // user_id ของ admin ที่แก้
+  created_by  String? // user_id ของ admin ที่แก้
   created_at  DateTime            @default(now())
   updated_at  DateTime            @updatedAt
 
@@ -287,27 +397,27 @@ model ShiftAssignment {
 // ─────────────────────────────────────────────
 
 model AttendanceRecord {
-  id               String              @id @default(uuid())
+  id               String        @id @default(uuid())
   tenant_id        String
   employee_id      String
   shift_id         String
-  date             DateTime            @db.Date
+  date             DateTime      @db.Date
   check_in_at      DateTime?
   check_out_at     DateTime?
-  check_in_method  CheckInMethod       @default(LIFF)
-  is_late          Boolean             @default(false)
-  late_minutes     Int                 @default(0)
-  is_absent        Boolean             @default(false)   // สายเกิน absent_threshold ของกะ — ยังเช็คอินได้ แต่นับเป็นขาด
-  fine             Decimal             @default(0) @db.Decimal(8, 2)  // ค่าปรับของวันนี้เอง (สายระดับ 1/2 ตาม tier ปัจจุบัน) — ไม่รวม carried_fine
-  carried_fine     Decimal             @default(0) @db.Decimal(8, 2)  // ค่าปรับขาดที่ยกมาจากวันก่อนหน้า (ตั้งครั้งเดียวตอนสร้าง record ไม่เปลี่ยนตอนแก้ไขเวลาเช็คอินภายหลัง)
-  gps_lat          Decimal?            @db.Decimal(10, 8)
-  gps_lng          Decimal?            @db.Decimal(11, 8)
-  is_outside_area  Boolean             @default(false)   // true = เช็คอินนอกรัศมี (WARN mode)
-  is_outside_shift Boolean             @default(false)   // true = สแกน QR นอกช่วงเวลากะ
-  attachment_url   String?             // Phase 4: selfie fallback
+  check_in_method  CheckInMethod @default(LIFF)
+  is_late          Boolean       @default(false)
+  late_minutes     Int           @default(0)
+  is_absent        Boolean       @default(false) // สายเกิน absent_threshold ของกะ — ยังเช็คอินได้ แต่นับเป็นขาด
+  fine             Decimal       @default(0) @db.Decimal(8, 2) // ค่าปรับของวันนี้เอง (สายระดับ 1/2 ตาม tier ปัจจุบัน) — ไม่รวม carried_fine
+  carried_fine     Decimal       @default(0) @db.Decimal(8, 2) // ค่าปรับขาดที่ยกมาจากวันก่อนหน้า (ตั้งครั้งเดียวตอนสร้าง record ไม่เปลี่ยนตอนแก้ไขเวลาเช็คอินภายหลัง)
+  gps_lat          Decimal?      @db.Decimal(10, 8)
+  gps_lng          Decimal?      @db.Decimal(11, 8)
+  is_outside_area  Boolean       @default(false) // true = เช็คอินนอกรัศมี (WARN mode)
+  is_outside_shift Boolean       @default(false) // true = สแกน QR นอกช่วงเวลากะ
+  attachment_url   String? // Phase 4: selfie fallback
   note             String?
-  created_at       DateTime            @default(now())
-  updated_at       DateTime            @updatedAt
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
   shift    Shift    @relation(fields: [shift_id], references: [id])
@@ -319,18 +429,18 @@ model AttendanceRecord {
 }
 
 enum ShiftType {
-  REGULAR  // กะทั่วไป auto-detect จากเวลา
-  SPECIAL  // กะพิเศษ เงื่อนไขเฉพาะ
-  OFFSITE  // งานนอกสถานที่ / Sale / Event — ไม่ check GPS แต่บันทึกพิกัด
+  REGULAR // กะทั่วไป auto-detect จากเวลา
+  SPECIAL // กะพิเศษ เงื่อนไขเฉพาะ
+  OFFSITE // งานนอกสถานที่ / Sale / Event — ไม่ check GPS แต่บันทึกพิกัด
 }
 
 enum CheckInMethod {
-  LIFF          // ปกติผ่าน LIFF
-  QR            // สแกน QR ที่สาขา (BLOCK mode)
-  ADMIN         // Admin ลงให้ด้วยตนเอง
-  WEB_FALLBACK  // Phase 4: Line ล่ม fallback
-  SELFIE        // Phase 4: offline selfie
-  OFFSITE       // Phase 4: GPS off-site
+  LIFF // ปกติผ่าน LIFF
+  QR // สแกน QR ที่สาขา (BLOCK mode)
+  ADMIN // Admin ลงให้ด้วยตนเอง
+  WEB_FALLBACK // Phase 4: Line ล่ม fallback
+  SELFIE // Phase 4: offline selfie
+  OFFSITE // Phase 4: GPS off-site
 }
 
 // เช็คอินนอกสถานที่แบบ "ปักหมุด" — อิสระจากกะ/attendance ปกติ ไม่กระทบเวลา
@@ -373,9 +483,9 @@ model LeaveRequest {
   end_date       DateTime    @db.Date
   days           Int
   reason         String?
-  attachment_url String?     // ใบรับรองแพทย์
+  attachment_url String? // ใบรับรองแพทย์
   status         LeaveStatus @default(PENDING)
-  reviewed_by    String?     // user_id
+  reviewed_by    String? // user_id
   reviewed_at    DateTime?
   reject_note    String?
   created_at     DateTime    @default(now())
@@ -430,20 +540,20 @@ model LeaveBalance {
 // ─────────────────────────────────────────────
 
 model OtRequest {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   tenant_id   String
   employee_id String
-  date        DateTime  @db.Date
-  start_time  String    // "18:00"
-  end_time    String    // "21:00"
-  hours       Decimal   @db.Decimal(4, 2)
+  date        DateTime    @db.Date
+  start_time  String // "18:00"
+  end_time    String // "21:00"
+  hours       Decimal     @db.Decimal(4, 2)
   reason      String?
   status      LeaveStatus @default(PENDING)
   reviewed_by String?
   reviewed_at DateTime?
   reject_note String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
@@ -457,26 +567,27 @@ model OtRequest {
 // ─────────────────────────────────────────────
 
 enum WeeklyOffMode {
-  WEEKLY         // จองทีละสัปดาห์ (เดิม) — ใช้ POST /employee/weekly-off
-  MONTHLY_BATCH  // ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว — ใช้ POST /employee/weekly-off/monthly-batch
+  WEEKLY // จองทีละสัปดาห์ (เดิม) — ใช้ POST /employee/weekly-off
+  MONTHLY_BATCH // ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว — ใช้ POST /employee/weekly-off/monthly-batch
 }
 
 model WeeklyOffRequest {
-  id          String          @id @default(uuid())
-  tenant_id   String
-  employee_id String
-  week_start  DateTime        @db.Date           // วันจันทร์ของสัปดาห์นั้น
-  day_of_week Int                                // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
-  status      WeeklyOffStatus @default(PENDING)
-  reviewed_by String?                            // user_id ของ admin/manager
-  reviewed_at DateTime?
-  reject_note String?
-  created_at  DateTime        @default(now())
-  updated_at  DateTime        @updatedAt
+  id           String          @id @default(uuid())
+  tenant_id    String
+  employee_id  String
+  week_start   DateTime        @db.Date // วันจันทร์ของสัปดาห์นั้น
+  day_of_week  Int // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
+  status       WeeklyOffStatus @default(PENDING)
+  reviewed_by  String? // user_id ของ admin/manager
+  reviewed_at  DateTime?
+  reject_note  String?
+  has_conflict Boolean         @default(false) // true = มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ยังจองได้ปกติ แต่ flag ให้แอดมินเห็นตอนอนุมัติ
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
-  @@unique([employee_id, week_start])            // 1 คน = 1 วันหยุดต่อสัปดาห์
+  @@unique([employee_id, week_start]) // 1 คน = 1 วันหยุดต่อสัปดาห์
   @@index([tenant_id])
   @@index([employee_id])
   @@map("weekly_off_requests")
@@ -490,10 +601,10 @@ model WeeklyOffPeriod {
   id         String    @id @default(uuid())
   tenant_id  String
   branch_id  String
-  month      String                    // YYYY-MM
+  month      String // YYYY-MM
   is_open    Boolean   @default(true)
-  deadline   DateTime?                 // null = ไม่มี deadline
-  note       String?                   // หมายเหตุถึงพนักงาน
+  deadline   DateTime? // null = ไม่มี deadline
+  note       String? // หมายเหตุถึงพนักงาน
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
 
@@ -515,8 +626,8 @@ model Holiday {
   date               DateTime    @db.Date
   type               HolidayType @default(NATIONAL)
   recurring          Boolean     @default(false)
-  target_branches    Json?       // string[] ของ branch_id — null/[] = ทุกสาขา
-  target_departments Json?       // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
+  target_branches    Json? // string[] ของ branch_id — null/[] = ทุกสาขา
+  target_departments Json? // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
   created_at         DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
@@ -526,9 +637,9 @@ model Holiday {
 }
 
 enum HolidayType {
-  NATIONAL   // นักขัตฤกษ์
-  RELIGIOUS  // ศาสนา
-  COMPANY    // บริษัท
+  NATIONAL // นักขัตฤกษ์
+  RELIGIOUS // ศาสนา
+  COMPANY // บริษัท
 }
 
 // ─────────────────────────────────────────────
@@ -536,13 +647,13 @@ enum HolidayType {
 // ─────────────────────────────────────────────
 
 model Announcement {
-  id          String   @id @default(uuid())
-  tenant_id   String
-  title       String
-  content     String   @db.Text
-  send_line   Boolean  @default(false) // broadcast ผ่าน Line ด้วย
-  created_by  String   // user_id
-  created_at  DateTime @default(now())
+  id         String   @id @default(uuid())
+  tenant_id  String
+  title      String
+  content    String   @db.Text
+  send_line  Boolean  @default(false) // broadcast ผ่าน Line ด้วย
+  created_by String // user_id
+  created_at DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
@@ -556,11 +667,11 @@ model Announcement {
 // ─────────────────────────────────────────────
 
 enum FeedbackCategory {
-  WELFARE     // สวัสดิการ
-  WORK_ENV    // สภาพแวดล้อม
-  MANAGEMENT  // การบริหาร
-  SALARY      // เงินเดือน
-  OTHER       // อื่น ๆ
+  WELFARE // สวัสดิการ
+  WORK_ENV // สภาพแวดล้อม
+  MANAGEMENT // การบริหาร
+  SALARY // เงินเดือน
+  OTHER // อื่น ๆ
 }
 
 model Feedback {
@@ -618,10 +729,10 @@ model Invoice {
 
 model ActivityLog {
   id         String   @id @default(uuid())
-  tenant_id  String?           // null = ไม่ผูก tenant เฉพาะ (เช่น Super Admin login)
-  actor_name String            // email/ชื่อผู้ทำ action ตอนนั้น
-  action     String            // TENANT_CREATED, TENANT_UPDATED, ADMIN_CREATED, LINE_CONFIG_UPDATED,
-                                // FEATURE_TOGGLED, INVOICE_CREATED, INVOICE_PAID, SUPER_ADMIN_LOGIN
+  tenant_id  String? // null = ไม่ผูก tenant เฉพาะ (เช่น Super Admin login)
+  actor_name String // email/ชื่อผู้ทำ action ตอนนั้น
+  action     String // TENANT_CREATED, TENANT_UPDATED, ADMIN_CREATED, LINE_CONFIG_UPDATED,
+  // FEATURE_TOGGLED, INVOICE_CREATED, INVOICE_PAID, SUPER_ADMIN_LOGIN
   message    String   @db.Text // ข้อความพร้อมแสดงผลเลย ไม่ต้อง compose ฝั่ง frontend
   created_at DateTime @default(now())
 

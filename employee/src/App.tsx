@@ -46,6 +46,7 @@ interface DevEmployee {
   id: string; first_name: string; last_name: string; nickname: string | null
   employee_code: string; branch: { id: string; name: string }
   weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
+  employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
 }
 
 function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
@@ -152,7 +153,7 @@ export default function App() {
               headers: { Authorization: `Bearer ${token}`, 'ngrok-skip-browser-warning': 'true' },
             })
             const e = r.data.data
-            setAuth({ id: e.id, first_name: e.first_name, last_name: e.last_name, employee_code: e.employee_code, branch: e.branch, weekly_off_mode: e.weekly_off_mode }, token)
+            setAuth({ id: e.id, first_name: e.first_name, last_name: e.last_name, employee_code: e.employee_code, branch: e.branch, weekly_off_mode: e.weekly_off_mode, employee_status_type: e.employee_status_type }, token)
             setBootState('authed')
             return
           } catch {
@@ -198,7 +199,7 @@ export default function App() {
 
   function handleDevPick(emp: DevEmployee) {
     localStorage.setItem(DEV_EMP_KEY, emp.id)
-    setAuth({ id: emp.id, first_name: emp.first_name, last_name: emp.last_name, employee_code: emp.employee_code, branch: emp.branch, weekly_off_mode: emp.weekly_off_mode }, devToken)
+    setAuth({ id: emp.id, first_name: emp.first_name, last_name: emp.last_name, employee_code: emp.employee_code, branch: emp.branch, weekly_off_mode: emp.weekly_off_mode, employee_status_type: emp.employee_status_type }, devToken)
     setBootState('authed')
   }
 

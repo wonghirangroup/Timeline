@@ -4,6 +4,7 @@ import {
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin,
+  Network,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
@@ -36,6 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/employee', label: 'พนักงาน', icon: <Users     size={16}/> },
       { path: '/branch',   label: 'สาขา',    icon: <Building2 size={16}/> },
+      { path: '/org-structure', label: 'ผังองค์กร', icon: <Network size={16}/> },
     ],
   },
   {

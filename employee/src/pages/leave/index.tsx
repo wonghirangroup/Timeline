@@ -20,6 +20,7 @@ interface LeaveRequest {
 interface ColleagueOff {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
+  same_position?: boolean   // true = เพื่อนร่วมตำแหน่งเดียวกัน (กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน)
 }
 interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -428,15 +429,24 @@ function getWeeksOfMonth(month: string, todayStr: string): string[] {
 
 function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
   const qc = useQueryClient()
+  const employee = useAuthStore(s => s.employee)
   const todayStr  = getTodayStr()
   const thisMonth = todayStr.slice(0, 7)
   const [month, setMonth] = useState(thisMonth)
-  const [picks, setPicks] = useState<Record<string, string>>({})   // mondayISO → dateStr เลือกไว้
+  // โหมดโควต้า (มี employee_status_type): key = dateStr เอง, เลือกวันไหนก็ได้ไม่เกินโควต้า
+  // โหมดเดิม (ไม่มีสถานะพนักงานผูก): key = mondayISO, บังคับ 1 วัน/สัปดาห์ให้ครบทุกสัปดาห์
+  const [picks, setPicks] = useState<Record<string, string>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const quota    = employee?.employee_status_type?.monthly_off_quota ?? 0
+  const hasQuota = !!employee?.employee_status_type
 
   const requiredWeeks = getWeeksOfMonth(month, todayStr)
   const daysInMonth   = getDaysInMonth(month)
   const firstDow      = getFirstDow(month)
+  const monthEndStr   = `${month}-${String(daysInMonth).padStart(2, '0')}`
+  // เดือนนี้ผ่านไปหมดแล้วไหม (ไม่มีวันให้เลือกเหลือ) — เกณฑ์ต่างกันตามโหมด
+  const noDaysLeft = hasQuota ? monthEndStr < todayStr : requiredWeeks.length === 0
   // ต้องใช้จำนวน "สัปดาห์ที่แตะเดือนนี้จริง" (ไม่ใช่แค่ปัดเศษจากจำนวนวัน) เป็นตัวกำหนด
   // ขนาดตาราง เพราะ 2 อย่างนี้ไม่เท่ากันเสมอไป — เคสท้ายเดือนที่วันสุดท้ายตรงกับวันจันทร์พอดี
   // (เช่น พ.ย. 2569 มี 30 วัน วันแรกเป็นอาทิตย์ → ปัดเศษได้พอดี 5 แถว แต่จริงๆ มี 6 สัปดาห์ที่
@@ -465,7 +475,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)))
   const colleagues = colleagueQ.data?.colleagues ?? []
   const pickedCount = Object.keys(picks).length
-  const complete     = pickedCount === requiredWeeks.length
+  const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= quota) : (pickedCount === requiredWeeks.length)
 
   const submitMutation = useMutation({
     mutationFn: () => api.post('/employee/weekly-off/monthly-batch', { employee_id: employeeId, month, dates: Object.values(picks) }),
@@ -479,6 +489,8 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
       setErrorMsg(
         code === 'ALREADY_REQUESTED' ? 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว' :
         code === 'INCOMPLETE_MONTH'  ? 'กรุณาเลือกวันหยุดให้ครบทุกสัปดาห์ก่อนส่ง' :
+        code === 'OVER_QUOTA'        ? `เลือกวันหยุดเกินโควต้า (สูงสุด ${quota} วัน/เดือน)` :
+        code === 'DUPLICATE_DATE'    ? 'เลือกวันที่ซ้ำกัน' :
         'เกิดข้อผิดพลาด กรุณาลองใหม่'
       )
     },
@@ -501,10 +513,11 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   }
 
   function toggleDay(dateStr: string) {
-    const monday = getMondayOfDate(dateStr)
+    const key = hasQuota ? dateStr : getMondayOfDate(dateStr)
     setPicks(p => {
-      if (p[monday] === dateStr) { const next = { ...p }; delete next[monday]; return next }
-      return { ...p, [monday]: dateStr }
+      if (p[key] === dateStr) { const next = { ...p }; delete next[key]; return next }
+      if (hasQuota && Object.keys(p).length >= quota) return p   // เกินโควต้า — ไม่เพิ่มวันใหม่
+      return { ...p, [key]: dateStr }
     })
   }
 
@@ -579,18 +592,20 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
         </div>
       )}
 
-      {/* ── เดือนที่ผ่านไปแล้วทั้งเดือน — ไม่มีสัปดาห์ให้จอง ───────── */}
-      {isOpen && ownThisMonth.length === 0 && requiredWeeks.length === 0 && (
+      {/* ── เดือนที่ผ่านไปแล้วทั้งเดือน — ไม่มีวันให้จอง ───────── */}
+      {isOpen && ownThisMonth.length === 0 && noDaysLeft && (
         <div style={{ padding: '14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 14, textAlign: 'center', color: '#6B7D90', fontSize: '0.82rem' }}>
           เดือนนี้ผ่านไปแล้ว ไม่สามารถจองย้อนหลังได้
         </div>
       )}
 
       {/* ── Month grid picker ───────────────────────────────────── */}
-      {isOpen && ownThisMonth.length === 0 && requiredWeeks.length > 0 && (
+      {isOpen && ownThisMonth.length === 0 && !noDaysLeft && (
         <>
           <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
-            เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ ({pickedCount}/{requiredWeeks.length})
+            {hasQuota
+              ? `เลือกวันหยุดได้สูงสุด ${quota} วัน/เดือน (${pickedCount}/${quota})`
+              : `เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ (${pickedCount}/${requiredWeeks.length})`}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
             {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#9CA3AF', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
@@ -606,25 +621,35 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
               // เกี่ยวต้นเดือน/ท้ายเดือน) ไม่งั้นเป็นแค่ตัวเลขจางๆ ให้เห็นบริบทของสัปดาห์เฉยๆ
               const isRequiredWeek = requiredWeeks.includes(monday)
               const isPast     = dateStr < todayStr
-              const isPickable = isRequiredWeek && !isPast
-              const isSel      = picks[monday] === dateStr
-              const hasColleague = colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
+              const key        = hasQuota ? dateStr : monday
+              const isSel      = picks[key] === dateStr
+              const quotaFull  = hasQuota && !isSel && pickedCount >= quota
+              const isPickable = hasQuota ? (inMonth && !isPast && !quotaFull) : (isRequiredWeek && !isPast)
+              const samePosition  = colleagues.some(c => c.same_position && resolveDate(c.week_start, c.day_of_week) === dateStr)
+              const otherColleague = !samePosition && colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
               return (
-                <button key={i} disabled={!isPickable} onClick={() => toggleDay(dateStr)} style={{
+                <button key={i} disabled={!isPickable && !isSel} onClick={() => toggleDay(dateStr)} style={{
                   aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${COLOR.primary}` : '1px solid #E5E7EB',
-                  background: isSel ? COLOR.primary : !isPickable ? '#F9FAFB' : '#fff',
-                  color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : !isPickable ? '#D1D5DB' : '#1A2B3C',
-                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: isPickable ? 'pointer' : 'not-allowed',
+                  background: isSel ? COLOR.primary : (!isPickable && !isSel) ? '#F9FAFB' : '#fff',
+                  color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : (!isPickable && !isSel) ? '#D1D5DB' : '#1A2B3C',
+                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: (isPickable || isSel) ? 'pointer' : 'not-allowed',
                   fontFamily: 'inherit', position: 'relative', padding: 0,
                 }}>
                   {day >= 1 && day <= daysInMonth ? day : Number(dateStr.slice(8))}
-                  {hasColleague && (
-                    <div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: isSel ? 'rgba(255,255,255,0.8)' : '#F59E0B' }} />
+                  {(samePosition || otherColleague) && (
+                    <div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: isSel ? 'rgba(255,255,255,0.8)' : samePosition ? '#DC2626' : '#F59E0B' }} />
                   )}
                 </button>
               )
             })}
           </div>
+
+          {colleagues.some(c => c.same_position) && (
+            <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
+              เพื่อนร่วมตำแหน่งเดียวกันจองวันนี้แล้ว — ยังจองได้ แอดมินจะเป็นคนพิจารณา
+            </div>
+          )}
 
           <button onClick={() => submitMutation.mutate()} disabled={!complete || submitMutation.isPending}
             style={{
@@ -637,7 +662,9 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
             }}>
             {submitMutation.isPending
               ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
-              : complete ? <><CheckCircle2 size={17} /> ส่งคำขอหยุด {requiredWeeks.length} วัน</> : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
+              : complete ? <><CheckCircle2 size={17} /> ส่งคำขอหยุด {pickedCount} วัน</>
+              : hasQuota ? `เลือกอย่างน้อย 1 วัน (สูงสุด ${quota} วัน)`
+              : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
           </button>
         </>
       )}
@@ -813,7 +840,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
               const isSel = selDow === dow
               const isSat = displayIdx === 5
               const isSun = displayIdx === 6
-              const hasColleague = colleagues.some(c => c.day_of_week === dow)
+              const samePosition   = colleagues.some(c => c.same_position && c.day_of_week === dow)
+              const otherColleague = !samePosition && colleagues.some(c => c.day_of_week === dow)
 
               return (
                 <button key={displayIdx} onClick={() => setSelDow(p => p === dow ? null : dow)}
@@ -836,10 +864,10 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
                       {mon}
                     </div>
                   )}
-                  {hasColleague && (
+                  {(samePosition || otherColleague) && (
                     <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
                       width: 5, height: 5, borderRadius: '50%',
-                      background: isSel ? 'rgba(255,255,255,0.7)' : '#F59E0B' }} />
+                      background: isSel ? 'rgba(255,255,255,0.7)' : samePosition ? '#DC2626' : '#F59E0B' }} />
                   )}
                 </button>
               )
@@ -858,6 +886,10 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} />
               <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>เพื่อนจองแล้ว</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }} />
+              <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>เพื่อนร่วมตำแหน่งจองแล้ว</span>
             </div>
           </div>
         </div>

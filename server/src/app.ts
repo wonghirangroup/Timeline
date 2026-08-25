@@ -27,6 +27,8 @@ import { feedbackRoutes }     from './modules/feedback/feedback.route'
 import { billingRoutes }      from './modules/billing/billing.route'
 import { activityRoutes }     from './modules/activity/activity.route'
 import { offsiteRoutes }      from './modules/offsite/offsite.route'
+import { orgStructureRoutes } from './modules/org-structure/org-structure.route'
+import { employeeStatusTypeRoutes } from './modules/employee-status-type/employee-status-type.route'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -128,6 +130,8 @@ app.register(feedbackRoutes,    { prefix: '/api/v1' })               // ADMIN vi
 app.register(billingRoutes,     { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: Invoice tracking (manual, ไม่มี payment gateway)
 app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: กิจกรรมล่าสุด (Dashboard feed)
 app.register(offsiteRoutes,     { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE ปักหมุดเช็คอิน-เอาต์นอกสถานที่ (LIFF)
+app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: ผังองค์กร Department→Division→Section→Position
+app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 
 // ── Start ─────────────────────────────────────────────────────────

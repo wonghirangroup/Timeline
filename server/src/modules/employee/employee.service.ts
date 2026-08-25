@@ -37,7 +37,11 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       ...(branchId ? { branch_id: branchId } : {}),
       ...(includeInactive ? {} : { status: 'ACTIVE' }),
     },
-    include: { branch: { select: { id: true, name: true } } },
+    include: {
+      branch: { select: { id: true, name: true } },
+      position: { select: { id: true, name: true, section: { select: { id: true, name: true, division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } } } } } },
+      employee_status_type: { select: { id: true, name: true, monthly_off_quota: true } },
+    },
     orderBy: { created_at: 'asc' },
   })
 }
@@ -45,7 +49,11 @@ export async function listEmployees(tenantId: string, branchId?: string, include
 export async function getEmployee(tenantId: string, id: string) {
   return prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
-    include: { branch: { select: { id: true, name: true } } },
+    include: {
+      branch: { select: { id: true, name: true } },
+      position: { select: { id: true, name: true, section: { select: { id: true, name: true, division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } } } } } },
+      employee_status_type: { select: { id: true, name: true, monthly_off_quota: true } },
+    },
   })
 }
 
@@ -59,6 +67,8 @@ export async function createEmployee(
     department?: string
     phone?: string
     hired_at?: string
+    position_id?: string
+    employee_status_type_id?: string
   },
 ) {
   const employee_code = await generateEmployeeCode(tenantId, data.hired_at, data.department)
@@ -73,6 +83,8 @@ export async function createEmployee(
       department: data.department,
       phone: data.phone,
       hired_at: data.hired_at ? new Date(data.hired_at) : undefined,
+      position_id: data.position_id,
+      employee_status_type_id: data.employee_status_type_id,
     },
   })
 }
@@ -93,6 +105,8 @@ export async function updateEmployee(
     weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
     default_shift_id?: string | null
     pending_fine?: number   // แอดมินปรับมือได้ (เช่น ยกเลิก/แก้ค่าปรับขาดที่ยกมา)
+    position_id?: string | null
+    employee_status_type_id?: string | null
   },
 ) {
   const { hired_at, ...rest } = data

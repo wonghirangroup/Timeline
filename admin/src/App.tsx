@@ -18,6 +18,7 @@ import AnnouncementPage     from './pages/announcement'
 import ShiftSchedulePage    from './pages/shift-schedule'
 import EmployeeDetailPage   from './pages/employee/detail'
 import UiKitPage            from './pages/ui-kit'
+import OrgStructurePage     from './pages/org-structure'
 
 function AdminRoutes() {
   const token = useAuthStore(s => s.token)
@@ -33,6 +34,7 @@ function AdminRoutes() {
         <Route path="/dashboard"     element={<DashboardPage />} />
         <Route path="/employee"      element={<EmployeePage />} />
         <Route path="/branch"        element={<BranchPage />} />
+        <Route path="/org-structure" element={<OrgStructurePage />} />
         <Route path="/shift"         element={<ShiftPage />} />
         <Route path="/shift-schedule" element={<Navigate to="/shift" replace />} />
         <Route path="/attendance"    element={<Navigate to="/shift" replace />} />

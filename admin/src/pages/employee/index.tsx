@@ -34,7 +34,18 @@ interface ApiEmployee {
   branch_id: string
   branch: { id: string; name: string }
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
+  position_id: string | null
+  position?: { id: string; name: string } | null
+  employee_status_type_id: string | null
+  employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
 }
+
+interface ApiPosition {
+  id: string
+  name: string
+  section: { id: string; name: string; division: { id: string; name: string; department: { id: string; name: string } } }
+}
+interface ApiStatusType { id: string; name: string; monthly_off_quota: number }
 
 interface StatusLogEntry {
   id: string
@@ -68,6 +79,7 @@ const DEPARTMENTS = [
 const EMPTY_FORM = {
   branch_id: '', full_name: '', nickname: '', department: '',
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
+  position_id: '', employee_status_type_id: '',
 }
 
 const input: React.CSSProperties = {
@@ -102,6 +114,15 @@ export default function EmployeePage() {
     queryKey: ['branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const { data: statusTypes = [] } = useQuery<ApiStatusType[]>({
+    queryKey: ['employee-status-types'],
+    queryFn: () => api.get('/api/v1/admin/employee-status-types').then(r => r.data.data),
+  })
+  const positionLabel = (p: ApiPosition) => `${p.section.division.department.name} ▸ ${p.section.division.name} ▸ ${p.section.name} ▸ ${p.name}`
   const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
@@ -135,6 +156,7 @@ export default function EmployeePage() {
     emp_type: 'ประจำ', status: 'ทำงาน', hired_at: new Date().toISOString().slice(0, 10),
     salary: '', department: '', account_status: 'ปกติ', notes: '',
     branch_accesses: [] as { branch_id: string; branch_name: string }[],
+    position_id: '', employee_status_type_id: '',
   })
   const af = addForm
   const setAf = (patch: Partial<typeof addForm>) => setAddForm(f => ({ ...f, ...patch }))
@@ -170,6 +192,7 @@ export default function EmployeePage() {
       emp_type: 'ประจำ', status: 'ทำงาน', hired_at: new Date().toISOString().slice(0, 10),
       salary: '', department: '', account_status: 'ปกติ', notes: '',
       branch_accesses: [],
+      position_id: '', employee_status_type_id: '',
     })
     setEditTarget(null)
     setAddErrors({})
@@ -187,6 +210,8 @@ export default function EmployeePage() {
       phone: e.phone ?? '',
       hired_at: e.hired_at ? e.hired_at.slice(0, 10) : '',
       weekly_off_mode: e.weekly_off_mode ?? 'WEEKLY',
+      position_id: e.position_id ?? '',
+      employee_status_type_id: e.employee_status_type_id ?? '',
     })
     setEditTarget(e)
     setModal('edit')
@@ -237,6 +262,8 @@ export default function EmployeePage() {
       department: af.department || undefined,
       phone: af.phone || undefined,
       hired_at: af.hired_at || undefined,
+      position_id: af.position_id || undefined,
+      employee_status_type_id: af.employee_status_type_id || undefined,
     }
     addMutation.mutate(body)
   }
@@ -256,6 +283,8 @@ export default function EmployeePage() {
         phone: form.phone || undefined,
         hired_at: form.hired_at || undefined,
         weekly_off_mode: form.weekly_off_mode,
+        position_id: form.position_id || null,
+        employee_status_type_id: form.employee_status_type_id || null,
       }})
     }
   }
@@ -867,6 +896,20 @@ export default function EmployeePage() {
                       {addErrors.department && <p style={{ fontSize: '11px', color: '#ef4444', margin: '3px 0 0' }}>{addErrors.department}</p>}
                     </div>
                     <div>
+                      <label style={lbl}>ตำแหน่ง (ผังองค์กร)</label>
+                      <select value={af.position_id} onChange={e => setAf({ position_id: e.target.value })} style={inp}>
+                        <option value="">— ไม่ระบุ —</option>
+                        {positions.map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>สถานะพนักงาน (โควต้าวันหยุด)</label>
+                      <select value={af.employee_status_type_id} onChange={e => setAf({ employee_status_type_id: e.target.value })} style={inp}>
+                        <option value="">— ไม่ระบุ —</option>
+                        {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} วัน/เดือน)</option>)}
+                      </select>
+                    </div>
+                    <div>
                       <label style={lbl}>สถานะบัญชี</label>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input value={af.account_status} readOnly style={{ ...inp, flex: 1, background: '#f9fafb', color: '#374151' }} />
@@ -1016,6 +1059,22 @@ export default function EmployeePage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div><label style={label}>สาขา</label><select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value }))} style={input}><option value="">เลือกสาขา</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                 <div><label style={label}>วันที่เข้าทำงาน</label><input type="date" value={form.hired_at} onChange={e => setForm(f => ({ ...f, hired_at: e.target.value }))} style={input} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={label}>ตำแหน่ง (ผังองค์กร)</label>
+                  <select value={form.position_id} onChange={e => setForm(f => ({ ...f, position_id: e.target.value }))} style={input}>
+                    <option value="">— ไม่ระบุ —</option>
+                    {positions.map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={label}>สถานะพนักงาน (โควต้าวันหยุด)</label>
+                  <select value={form.employee_status_type_id} onChange={e => setForm(f => ({ ...f, employee_status_type_id: e.target.value }))} style={input}>
+                    <option value="">— ไม่ระบุ —</option>
+                    {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} วัน/เดือน)</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label style={label}>โหมดจองวันหยุด</label>
