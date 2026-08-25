@@ -9,6 +9,14 @@ function getMondayOf(dateStr: string): Date {
   return d
 }
 
+// week_start (จันทร์) + day_of_week → วันที่จริงที่พนักงานเลือกหยุด (YYYY-MM-DD)
+function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string {
+  const d = new Date(weekStart)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString().slice(0, 10)
+}
+
 export async function listWeeklyOff(tenantId: string, filters: {
   weekStart?: string   // YYYY-MM-DD → สัปดาห์เดียว
   month?: string       // YYYY-MM → ทั้งเดือน
@@ -20,10 +28,12 @@ export async function listWeeklyOff(tenantId: string, filters: {
 
   if (filters.month) {
     const [y, m] = filters.month.split('-').map(Number)
-    where.week_start = {
-      gte: new Date(Date.UTC(y, m - 1, 1)),
-      lte: new Date(Date.UTC(y, m, 0)),
-    }
+    // ขยายช่วง query ±6 วัน กันเคสสัปดาห์คาบเกี่ยวเดือน (week_start อยู่เดือนนี้ แต่
+    // day_of_week ที่เลือกจริงตกไปเดือนถัดไป หรือกลับกัน) — กรองแม่นด้วยวันที่จริง
+    // (resolveActualDateStr) หลัง query แทนที่จะเชื่อ week_start เฉยๆ
+    const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+    const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
+    where.week_start = { gte: rangeStart, lte: rangeEnd }
   } else if (filters.weekStart) {
     const monday = getMondayOf(filters.weekStart)
     const sunday = new Date(monday)
@@ -39,7 +49,7 @@ export async function listWeeklyOff(tenantId: string, filters: {
     where.employee = { branch_id: filters.branchId }
   }
 
-  return prisma.weeklyOffRequest.findMany({
+  const results = await prisma.weeklyOffRequest.findMany({
     where,
     include: {
       employee: {
@@ -51,6 +61,11 @@ export async function listWeeklyOff(tenantId: string, filters: {
     },
     orderBy: [{ week_start: 'asc' }, { day_of_week: 'asc' }],
   })
+
+  if (filters.month) {
+    return results.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === filters.month)
+  }
+  return results
 }
 
 export async function createWeeklyOff(tenantId: string, data: {
@@ -292,15 +307,17 @@ export async function createMonthlyOff(tenantId: string, data: {
 
 export async function getMonthView(tenantId: string, employeeId: string, month: string) {
   const [y, m] = month.split('-').map(Number)
-  const startOfMonth = new Date(Date.UTC(y, m - 1, 1))
-  const endOfMonth   = new Date(Date.UTC(y, m, 0, 23, 59, 59))
+  // ขยาย query ±6 วัน กันเคสสัปดาห์คาบเกี่ยวเดือน (เหมือน listWeeklyOff ด้านบน) —
+  // กรองแม่นด้วยวันที่จริงหลัง query แทนที่จะเชื่อ week_start เฉยๆ
+  const startOfMonth = new Date(Date.UTC(y, m - 1, 1)); startOfMonth.setUTCDate(startOfMonth.getUTCDate() - 6)
+  const endOfMonth   = new Date(Date.UTC(y, m, 0, 23, 59, 59)); endOfMonth.setUTCDate(endOfMonth.getUTCDate() + 6)
 
   const employee = await prisma.employee.findFirst({
     where:  { id: employeeId, tenant_id: tenantId },
     select: { branch_id: true, position_id: true },
   })
 
-  const all = await prisma.weeklyOffRequest.findMany({
+  const allRaw = await prisma.weeklyOffRequest.findMany({
     where: {
       tenant_id:  tenantId,
       week_start: { gte: startOfMonth, lte: endOfMonth },
@@ -311,6 +328,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     },
     orderBy: { week_start: 'asc' },
   })
+  const all = allRaw.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === month)
 
   // same_position: คนตำแหน่งเดียวกับตัวเอง — ใช้กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน (ยังจองซ้ำได้ แต่ให้เห็น flag)
   return {
