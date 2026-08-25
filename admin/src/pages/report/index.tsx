@@ -1,7 +1,7 @@
 // admin/src/pages/report/index.tsx — Attendance History Report
 import { useState, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download } from 'lucide-react'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -113,6 +113,17 @@ export default function ReportPage() {
     }).then((r: any) => r.data.data),
   })
 
+  // วันหยุด (WeeklyOffRequest) + นอกสถานที่ (OffsiteCheckin) จริง — cross-reference
+  // เข้า cellInfo() แบบเดียวกับ leaveMap แทนที่จะพึ่ง note-text เดาอย่างเดียว
+  const { data: dayoffRecords = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'dayoff-report', branch],
+    queryFn:  () => api.get('/api/v1/admin/weekly-off', { params: { ...(branch ? { branchId: branch } : {}) } }).then((r: any) => r.data.data),
+  })
+  const { data: offsiteRecords = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'offsite-report', branch],
+    queryFn:  () => api.get('/api/v1/admin/offsite-checkins', { params: { ...(branch ? { branchId: branch } : {}) } }).then((r: any) => r.data.data),
+  })
+
   const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
     queryKey: ['admin', 'employees', branch],
     queryFn:  () => api.get('/api/v1/admin/employees', {
@@ -139,6 +150,36 @@ export default function ReportPage() {
     }
     return m
   }, [leaveRecords])
+
+  // week_start + day_of_week → วันที่จริง (เหมือน resolveDate ใน employee/leave/index.tsx)
+  function resolveWeeklyOffDate(weekStart: string, dayOfWeek: number): string {
+    const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
+    if (d.getUTCDay() === dayOfWeek) return weekStart.slice(0, 10)
+    const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    d.setUTCDate(d.getUTCDate() + offset)
+    return d.toISOString().slice(0, 10)
+  }
+  const dayoffMap = useMemo(() => {
+    const m = new Map<string, Set<string>>()
+    for (const w of dayoffRecords) {
+      if (w.status !== 'APPROVED') continue
+      const empId = w.employee?.id ?? w.employee_id
+      if (!m.has(empId)) m.set(empId, new Set())
+      m.get(empId)!.add(resolveWeeklyOffDate(w.week_start, w.day_of_week))
+    }
+    return m
+  }, [dayoffRecords])
+  const offsiteMap = useMemo(() => {
+    const m = new Map<string, Set<string>>()
+    for (const o of offsiteRecords) {
+      const empId = o.employee?.id ?? o.employee_id
+      const key = (o.check_in_at ?? '').slice(0, 10)
+      if (!key) continue
+      if (!m.has(empId)) m.set(empId, new Set())
+      m.get(empId)!.add(key)
+    }
+    return m
+  }, [offsiteRecords])
 
   const empMap = useMemo(() => {
     const m = new Map<string, { info: AttendanceRecord['employee']; byDate: Map<string, AttendanceRecord[]> }>()
@@ -178,7 +219,7 @@ export default function ReportPage() {
         if (status === 'ok') ok++
         else if (status === 'late' || status === 'late2') late++
         else if (status === 'absent') absent++
-        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday') leave++
+        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday' || status === 'offsite') leave++
         for (const r of recs ?? []) fine += Number(r.fine) + Number(r.carried_fine)
       }
       return { info, byDate, ok, late, absent, leave, fine }
@@ -205,6 +246,13 @@ export default function ReportPage() {
       if (leaveType === 'MATERNITY')
         return { bg: '#fce7f3', label: <Baby size={13} />, color: '#be185d', tip: 'ลาคลอด', status: 'leave' }
       return { bg: '#e0f2fe', label: <ClipboardList size={13} />, color: '#0369a1', tip: leaveType, status: 'leave' }
+    }
+
+    if (!hasRealCheckin && dayoffMap.get(empId)?.has(dateKey)) {
+      return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
+    }
+    if (!hasRealCheckin && offsiteMap.get(empId)?.has(dateKey)) {
+      return { bg: '#f3e8ff', label: <MapPin size={13} />, color: '#9333ea', tip: 'นอกสถานที่', status: 'offsite' }
     }
 
     const isWeekendOff = (dow === 0 || dow === 6) && dept === '02'

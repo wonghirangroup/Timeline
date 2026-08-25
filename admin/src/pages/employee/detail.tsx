@@ -50,6 +50,91 @@ function fmtTime(dt: string | null | undefined) {
 }
 function daysInMonth(y: number, m: number) { return new Date(y, m, 0).getDate() }
 
+// week_start + day_of_week → วันที่จริง (เหมือน resolveDate ใน employee/leave/index.tsx)
+function resolveWeeklyOffDate(weekStart: string, dayOfWeek: number): string {
+  const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
+  if (d.getUTCDay() === dayOfWeek) return weekStart.slice(0, 10)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString().slice(0, 10)
+}
+
+const LEAVE_TYPE_LABEL: Record<string, string> = {
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'ชดเชย',
+}
+
+// ผูก LeaveRequest (APPROVED) ตัวจริงเข้าเป็น dateKey → label — ไม่ต้องพึ่ง note-text
+// เดา (note-text เป็นแค่ fallback ของข้อมูล migrate เก่าจาก Firebase เท่านั้น คำขอลาใหม่
+// ที่สร้างผ่านแอปไม่เคยเขียนกลับเข้า AttendanceRecord.note เลย ต้อง cross-reference ตรงๆ)
+function buildLeaveByDate(leaveRecords: any[]): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const l of leaveRecords) {
+    if (l.status !== 'APPROVED') continue
+    const label = LEAVE_TYPE_LABEL[l.leave_type] ?? l.leave_type
+    const start = new Date((l.start_date ?? '').slice(0, 10) + 'T00:00:00')
+    const end   = new Date((l.end_date   ?? '').slice(0, 10) + 'T00:00:00')
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      m.set(d.toISOString().slice(0, 10), label)
+    }
+  }
+  return m
+}
+
+function buildDayoffDates(dayoffRecords: any[]): Set<string> {
+  const s = new Set<string>()
+  for (const w of dayoffRecords) {
+    if (w.status !== 'APPROVED') continue
+    s.add(resolveWeeklyOffDate(w.week_start, w.day_of_week))
+  }
+  return s
+}
+
+function buildOffsiteDates(offsiteRecords: any[]): Set<string> {
+  const s = new Set<string>()
+  for (const o of offsiteRecords) {
+    const k = (o.check_in_at ?? '').slice(0, 10)
+    if (k) s.add(k)
+  }
+  return s
+}
+
+// ประเภทเดิมที่ migrate มาจาก Firebase เขียนเป็น plain text ไว้ใน note โดยตรง (ไม่มี
+// LeaveRequest/WeeklyOffRequest จริงผูกอยู่เลย) — ใช้เป็น fallback ชั้นสุดท้ายเท่านั้น
+const NOTE_STATUS_FALLBACK: [string, { label: string; color: string; bg: string }][] = [
+  ['วันหยุด', { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }],
+  ['พักร้อน', { label: 'พักร้อน', color: '#ca8a04', bg: '#fef9c3' }],
+  ['ลากิจ',   { label: 'ลากิจ',   color: '#0891b2', bg: '#e0f2fe' }],
+  ['ขาดงาน', { label: 'ขาดงาน', color: '#dc2626', bg: '#fee2e2' }],
+]
+
+// สถานะของ 1 วัน — คิดตามลำดับ: ขาดจริง (is_absent) > เช็คอินจริง (สาย/ปกติ) >
+// ลา/วันหยุดจริง (จาก LeaveRequest/WeeklyOffRequest ที่ APPROVED) > นอกสถานที่ (มี
+// OffsiteCheckin วันนั้นแต่ไม่มีเช็คอินสาขา) > note-text เก่าจาก Firebase (fallback) >
+// เสาร์-อาทิตย์ > ไม่มีข้อมูล
+function resolveDayStatus(params: {
+  recs?: any[]; dow: number; leaveLabel?: string; isDayOff?: boolean; isOffsite?: boolean
+}): { label: string; color: string; bg: string } {
+  const r = params.recs?.[0]
+  const note = r?.note ?? ''
+  const isAbsent = !!r?.is_absent
+  const hasRealCheckin = !!params.recs?.some(x => x.check_in_at)
+
+  if (isAbsent) return { label: 'ขาด', color: '#dc2626', bg: '#fee2e2' }
+  if (hasRealCheckin) {
+    const isLate2 = note.includes('ระดับ 2')
+    const isLate1 = r?.is_late && !isLate2
+    if (isLate2) return { label: 'สาย ระดับ 2', color: '#c2410c', bg: '#fde8d8' }
+    if (isLate1) return { label: 'สาย ระดับ 1', color: '#d97706', bg: '#fef3c7' }
+    return { label: 'มาปกติ', color: '#059669', bg: '#dcfce7' }
+  }
+  if (params.leaveLabel) return { label: params.leaveLabel, color: '#0891b2', bg: '#e0f2fe' }
+  if (params.isDayOff)   return { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }
+  if (params.isOffsite)  return { label: 'นอกสถานที่', color: '#9333ea', bg: '#faf5ff' }
+  for (const [key, status] of NOTE_STATUS_FALLBACK) if (note.includes(key)) return status
+  if (params.dow === 0 || params.dow === 6) return { label: 'เสาร์/อาทิตย์', color: '#94a3b8', bg: '#fafafa' }
+  return { label: '—', color: '#94a3b8', bg: '#fff' }
+}
+
 const AVATAR_PALETTES = [
   ['#fde68a','#78350f'], ['#bfdbfe','#1e3a8a'], ['#bbf7d0','#14532d'],
   ['#fecaca','#7f1d1d'], ['#ddd6fe','#4c1d95'], ['#fed7aa','#7c2d12'],
@@ -81,10 +166,21 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
     queryKey: ['leave-requests', employeeId],
     queryFn: () => axios.get('/api/v1/admin/leave-requests', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
   })
+  const { data: dayoffData } = useQuery({
+    queryKey: ['weekly-off', employeeId],
+    queryFn: () => axios.get('/api/v1/admin/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
+  })
+  const { data: offsiteData } = useQuery({
+    queryKey: ['offsite-checkins', employeeId],
+    queryFn: () => axios.get('/api/v1/admin/offsite-checkins', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
+  })
 
   const records = attData ?? []
   const balances = balData ?? []
   const leaves   = leaveData ?? []
+  const leaveByDate  = useMemo(() => buildLeaveByDate(leaveData ?? []), [leaveData])
+  const dayoffDates  = useMemo(() => buildDayoffDates(dayoffData ?? []), [dayoffData])
+  const offsiteDates = useMemo(() => buildOffsiteDates(offsiteData ?? []), [offsiteData])
 
   const stats = useMemo(() => {
     const present = records.filter((r: any) => r.check_in_at)
@@ -179,22 +275,11 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             <div style={{ padding: '32px 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>ยังไม่มีบันทึก</div>
           )}
           {recent.map((r: any, idx: number) => {
-            const note = r.note ?? ''
-            const isLate2 = note.includes('ระดับ 2')
-            const isLate1 = r.is_late && !isLate2
-            const isAbsent = !!r.is_absent
-            const isOff   = note.includes('วันหยุด')
-            const { label, color, bg } = isAbsent
-              ? { label: 'ขาด', color: '#dc2626', bg: '#fee2e2' }
-              : isOff
-              ? { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }
-              : isLate2
-              ? { label: 'สาย ระดับ 2', color: '#c2410c', bg: '#fde8d8' }
-              : isLate1
-              ? { label: 'สาย ระดับ 1', color: '#d97706', bg: '#fef3c7' }
-              : r.check_in_at
-              ? { label: 'มาปกติ', color: '#059669', bg: '#dcfce7' }
-              : { label: '—', color: '#94a3b8', bg: '#f1f5f9' }
+            const dateStr0 = (r.date ?? '').slice(0, 10)
+            const dow0 = new Date(dateStr0 + 'T00:00:00').getDay()
+            const { label, color, bg } = resolveDayStatus({
+              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0),
+            })
             const dateStr = (r.date ?? '').slice(0, 10)
             const d = new Date(dateStr + 'T00:00:00')
             const dayNames = ['อา','จ','อ','พ','พฤ','ศ','ส']
@@ -235,6 +320,24 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
   })
   const records: any[] = data ?? []
 
+  // ลา / วันหยุด / นอกสถานที่ ตัวจริง — cross-reference เข้าไปแทนการเดาจาก note-text
+  // อย่างเดียว (note-text ใช้ได้แค่กับข้อมูลเก่าที่ migrate มาจาก Firebase)
+  const { data: leaveData } = useQuery({
+    queryKey: ['leave-requests', employeeId],
+    queryFn: () => axios.get('/api/v1/admin/leave-requests', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
+  })
+  const { data: dayoffData } = useQuery({
+    queryKey: ['weekly-off', employeeId],
+    queryFn: () => axios.get('/api/v1/admin/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
+  })
+  const { data: offsiteData } = useQuery({
+    queryKey: ['offsite-checkins', employeeId],
+    queryFn: () => axios.get('/api/v1/admin/offsite-checkins', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
+  })
+  const leaveByDate   = useMemo(() => buildLeaveByDate(leaveData ?? []), [leaveData])
+  const dayoffDates   = useMemo(() => buildDayoffDates(dayoffData ?? []), [dayoffData])
+  const offsiteDates  = useMemo(() => buildOffsiteDates(offsiteData ?? []), [offsiteData])
+
   const byDate = useMemo(() => {
     const m = new Map<string, any[]>()
     for (const r of records) {
@@ -248,16 +351,21 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
 
   const summary = useMemo(() => {
     let work = 0, late = 0, absent = 0, leave = 0, fine = 0
-    for (const r of records) {
-      const note = r.note ?? ''
-      fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
-      if (r.is_absent) { absent++; continue }
-      if (note.includes('วันหยุด')) { leave++; continue }
-      if (r.check_in_at) work++
-      if (r.is_late) late++
+    for (let day = 1; day <= daysInMonth(year, month); day++) {
+      const dateKey = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+      const recs = byDate.get(dateKey)
+      for (const r of recs ?? []) fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
+      const status = resolveDayStatus({
+        recs, dow: new Date(dateKey).getDay(),
+        leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey),
+      })
+      if (status.label === 'ขาด' || status.label === 'ขาดงาน') absent++
+      else if (['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
+      else if (status.label === 'มาปกติ') work++
+      else if (status.label.startsWith('สาย')) { work++; late++ }
     }
     return { work, late, absent, leave, fine }
-  }, [records])
+  }, [byDate, year, month, leaveByDate, dayoffDates, offsiteDates])
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y-1) } else setMonth(m => m-1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y+1) } else setMonth(m => m+1) }
@@ -324,23 +432,9 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
             const r = recs?.[0]
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
-            const isAbsent = !!r?.is_absent
-            const isOff    = note.includes('วันหยุด')
-            const isLate2  = note.includes('ระดับ 2')
-            const isLate1  = r?.is_late && !isLate2
-            const { label, color, bg } = isAbsent
-              ? { label: 'ขาด',        color: '#dc2626', bg: '#fff5f5' }
-              : isOff
-              ? { label: 'วันหยุด',    color: '#0891b2', bg: '#f0f9ff' }
-              : isLate2
-              ? { label: 'สาย ระดับ 2', color: '#c2410c', bg: '#fff7ed' }
-              : isLate1
-              ? { label: 'สาย ระดับ 1', color: '#d97706', bg: '#fffbeb' }
-              : r?.check_in_at
-              ? { label: 'มาปกติ',     color: '#059669', bg: '#f0fdf4' }
-              : (dow === 0 || dow === 6)
-              ? { label: 'เสาร์/อาทิตย์', color: '#94a3b8', bg: '#fafafa' }
-              : { label: '—',           color: '#94a3b8', bg: '#fff' }
+            const { label, color, bg } = resolveDayStatus({
+              recs, dow, leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey),
+            })
             return (
               <div key={dateKey} style={{
                 display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr',
