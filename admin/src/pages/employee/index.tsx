@@ -167,7 +167,7 @@ export default function EmployeePage() {
 
   // ── Add stepper state ────────────────────────────────────────────────────────
   const [addStep, setAddStep] = useState(1)
-  const [addErrors, setAddErrors] = useState<{ first_name?: string; last_name?: string; department?: string }>({})
+  const [addErrors, setAddErrors] = useState<{ first_name?: string; last_name?: string; nickname?: string; department?: string }>({})
   const [showOptionalFields, setShowOptionalFields] = useState(false)
   const [addForm, setAddForm] = useState({
     prefix: '', first_name: '', last_name: '', nickname: '',
@@ -768,8 +768,9 @@ export default function EmployeePage() {
 
                   {/* ชื่อเล่น */}
                   <div>
-                    <label style={lbl}>ชื่อเล่น</label>
-                    <input value={af.nickname} onChange={e => setAf({ nickname: e.target.value })} placeholder="เช่น บาส, ฟ้า" style={inp} />
+                    <label style={lbl}>ชื่อเล่น <span style={required}>*</span></label>
+                    <input value={af.nickname} onChange={e => { setAf({ nickname: e.target.value }); if (e.target.value.trim()) setAddErrors(er => ({ ...er, nickname: undefined })) }} placeholder="เช่น บาส, ฟ้า" style={{ ...inp, ...(addErrors.nickname ? { border: '1.5px solid #ef4444', background: '#fff5f5' } : {}) }} />
+                    {addErrors.nickname && <p style={{ fontSize: '11px', color: '#ef4444', margin: '3px 0 0' }}>{addErrors.nickname}</p>}
                   </div>
 
                   {/* อีเมล + เบอร์ */}
@@ -1084,11 +1085,12 @@ export default function EmployeePage() {
                   {addStep < 5 ? (
                     <button onClick={() => {
                       if (addStep === 1) {
-                        const errs: { first_name?: string; last_name?: string } = {}
+                        const errs: { first_name?: string; last_name?: string; nickname?: string } = {}
                         if (!af.first_name.trim()) errs.first_name = 'กรุณากรอกชื่อจริง'
                         if (!af.last_name.trim()) errs.last_name = 'กรุณากรอกนามสกุล'
+                        if (!af.nickname.trim()) errs.nickname = 'กรุณากรอกชื่อเล่น'
                         if (Object.keys(errs).length) { setAddErrors(er => ({ ...er, ...errs })); return }
-                        setAddErrors(er => ({ ...er, first_name: undefined, last_name: undefined }))
+                        setAddErrors(er => ({ ...er, first_name: undefined, last_name: undefined, nickname: undefined }))
                       }
                       if (addStep === 4) {
                         if (!af.department) { setAddErrors(er => ({ ...er, department: 'กรุณาเลือกแผนก' })); return }
