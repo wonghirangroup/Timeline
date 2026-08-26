@@ -63,6 +63,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'เพิ่มวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว'))
+      if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของพนักงานนี้ปิดสิทธิ์จองวันหยุด'))
       throw e
     }
   })
@@ -252,6 +253,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์นี้แล้ว'))
+      if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของคุณปิดสิทธิ์จองวันหยุด'))
       throw e
     }
   })
@@ -327,6 +329,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (e.message === 'DUPLICATE_WEEK')    return reply.code(400).send(fail('DUPLICATE_WEEK', 'เลือกวันหยุดซ้ำสัปดาห์เดียวกัน'))
       if (e.message === 'DUPLICATE_DATE')    return reply.code(400).send(fail('DUPLICATE_DATE', 'เลือกวันที่ซ้ำกัน'))
       if (e.message === 'OVER_QUOTA')        return reply.code(400).send(fail('OVER_QUOTA', 'เลือกวันหยุดเกินโควต้าที่สถานะพนักงานกำหนดไว้'))
+      if (e.message === 'BOOKING_DISABLED')  return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของคุณปิดสิทธิ์จองวันหยุด'))
       throw e
     }
   })

@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { ok, fail }        from '../../common/utils/response'
 import { getTenantByChannelId, verifyLiffIdToken } from '../line/line.service'
 import { prisma } from '../../common/utils/prisma'
+import { resolveBookingEnabled } from '../group/group.service'
 
 export async function employeeAuthRoutes(app: FastifyInstance) {
 
@@ -56,7 +57,11 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       employee_id: employee.id,
     }, { expiresIn: '12h' })
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type } }, 'เข้าสู่ระบบสำเร็จ')
+    // สิทธิ์จองวันหยุด — cascade กลุ่ม/ฝ่าย/แผนก/ตัวเอง (ดู group.service.ts) ใช้ซ่อน
+    // UI จองวันหยุดฝั่ง LIFF เมื่อกลุ่มปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
+    const booking_enabled = await resolveBookingEnabled(config.tenant.id, employee.id)
+
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, booking_enabled } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/branding?line_channel_id=xxx

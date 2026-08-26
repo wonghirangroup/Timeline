@@ -3,17 +3,18 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
+import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listOffsiteCheckins, createOffsiteCheckin, checkOutOffsiteCheckin } from './offsite.service'
 
 export async function offsiteRoutes(app: FastifyInstance) {
 
-  // ── Admin/Manager: ดูรายการเช็คอินนอกสถานที่ ──────────────────────
+  // ── Admin/Manager/DEPT_HEAD: ดูรายการเช็คอินนอกสถานที่ ─────────────
   app.get('/admin/offsite-checkins', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('gps_checkin')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope, requireFeature('gps_checkin')],
     schema: {
       tags: ['Admin'],
-      summary: 'ดูรายการเช็คอินนอกสถานที่ (กรอง branchId / employeeId / status=active ได้)',
+      summary: 'ดูรายการเช็คอินนอกสถานที่ (กรอง branchId / employeeId / status=active ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
@@ -28,6 +29,7 @@ export async function offsiteRoutes(app: FastifyInstance) {
     const list = await listOffsiteCheckins(req.tenantId, {
       branchId: req.query.branchId, employeeId: req.query.employeeId,
       activeOnly: req.query.status === 'active',
+      scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(list)
   })

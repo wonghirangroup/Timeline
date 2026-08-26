@@ -1,5 +1,6 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { resolveBookingEnabled } from '../group/group.service'
 
 function getMondayOf(dateStr: string): Date {
   const d = new Date(dateStr + 'T00:00:00Z')
@@ -81,6 +82,8 @@ export async function createWeeklyOff(tenantId: string, data: {
   week_start: string    // YYYY-MM-DD (ระบบ normalize เป็น Monday อัตโนมัติ)
   day_of_week: number   // 0-6
 }) {
+  if (!(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
+
   const monday = getMondayOf(data.week_start)
 
   const existing = await prisma.weeklyOffRequest.findUnique({
@@ -219,6 +222,8 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
   month: string       // YYYY-MM
   dates: string[]      // YYYY-MM-DD
 }) {
+  if (!(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
+
   const employee = await prisma.employee.findFirst({
     where: { id: data.employee_id, tenant_id: tenantId },
     select: { position_id: true, employee_status_type_id: true, employee_status_type: { select: { monthly_off_quota: true } } },

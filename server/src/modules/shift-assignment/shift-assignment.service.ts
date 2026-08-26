@@ -3,9 +3,11 @@ import { prisma } from '../../common/utils/prisma'
 
 export type ShiftAssignmentTypeValue = 'WORK' | 'DAY_OFF' | 'WEEKLY_OFF' | 'HOLIDAY'
 
+// scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listShiftAssignments(tenantId: string, filters: {
   branchId?: string
   month?: string // YYYY-MM
+  scopedEmployeeIds?: string[]
 }) {
   const where: any = { tenant_id: tenantId }
 
@@ -18,6 +20,9 @@ export async function listShiftAssignments(tenantId: string, filters: {
   }
   if (filters.branchId) {
     where.employee = { branch_id: filters.branchId }
+  }
+  if (filters.scopedEmployeeIds) {
+    where.employee_id = { in: filters.scopedEmployeeIds }
   }
 
   return prisma.shiftAssignment.findMany({ where, orderBy: { date: 'asc' } })

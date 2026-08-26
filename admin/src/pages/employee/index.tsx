@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
+import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import OrgStructurePage from '../org-structure'
@@ -101,6 +102,7 @@ const required: React.CSSProperties = { color: '#ef4444', marginLeft: 2 }
 export default function EmployeePage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
   const navigate = useNavigate()
   // เปิดตรงไปแท็บ "ผังองค์กร" ได้ผ่าน ?tab=org (ใช้กับ redirect จาก /org-structure เดิม)
   const [activeTab, setActiveTab] = useState<'employee' | 'org'>(() => {
@@ -380,9 +382,11 @@ export default function EmployeePage() {
       {tabBar}
       {/* Header - Title removed */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
-          + เพิ่มพนักงาน
-        </button>
+        {!isReadOnly && (
+          <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
+            + เพิ่มพนักงาน
+          </button>
+        )}
       </div>
 
       {/* KPI mini row */}
@@ -563,8 +567,10 @@ export default function EmployeePage() {
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 5 }}>
+                      {!isReadOnly && <>
                       <button onClick={() => openEdit(e)} aria-label={`แก้ไข ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#374151' }}><Pencil size={13}/></button>
                       <button onClick={() => setDeleteTarget(e)} aria-label={`ลบ ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#dc2626' }}><Trash2 size={13}/></button>
+                      </>}
                     </div>
                   </td>
                 </tr>
@@ -634,10 +640,12 @@ export default function EmployeePage() {
                 </div>
               </div>
               {e.phone && <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => openEdit(e)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#ea580c', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Pencil size={13}/> แก้ไข</button>
-                <button onClick={() => setDeleteTarget(e)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
-              </div>
+              {!isReadOnly && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => openEdit(e)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#ea580c', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Pencil size={13}/> แก้ไข</button>
+                  <button onClick={() => setDeleteTarget(e)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
+                </div>
+              )}
             </div>
           ))}
           

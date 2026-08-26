@@ -2,15 +2,23 @@
 import { prisma } from '../../common/utils/prisma'
 import { reverseGeocode } from '../../common/utils/geocode'
 
+// scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listOffsiteCheckins(tenantId: string, filters: {
   employeeId?: string
   branchId?: string
   activeOnly?: boolean // true = เฉพาะรายการที่ยังไม่เช็คเอาต์ (กำลังนอกสถานที่ตอนนี้)
+  scopedEmployeeIds?: string[]
 }) {
+  const employeeFilter = filters.scopedEmployeeIds
+    ? (filters.employeeId
+        ? (filters.scopedEmployeeIds.includes(filters.employeeId) ? { employee_id: filters.employeeId } : { employee_id: '__none__' })
+        : { employee_id: { in: filters.scopedEmployeeIds } })
+    : (filters.employeeId ? { employee_id: filters.employeeId } : {})
+
   return prisma.offsiteCheckin.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      ...(filters.employeeId ? { employee_id: filters.employeeId } : {}),
+      ...employeeFilter,
       ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
       ...(filters.activeOnly ? { check_out_at: null } : {}),
     },

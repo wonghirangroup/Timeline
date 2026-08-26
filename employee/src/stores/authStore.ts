@@ -13,6 +13,9 @@ export interface EmployeeProfile {
     saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
     off_on_public_holiday?: boolean
   } | null
+  // สิทธิ์จองวันหยุด — cascade จากกลุ่ม/ฝ่าย/แผนก (ตั้งค่าที่ admin → ผังองค์กร → กลุ่ม)
+  // false = กลุ่มนี้จองวันหยุดไม่ได้ (หยุดได้แค่เสาร์-อาทิตย์ตายตัวตาม saturday_rule/sunday_rule)
+  booking_enabled?: boolean
 }
 
 interface AuthStore {

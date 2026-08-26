@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, Check, X, CalendarDays, Search, AlertTriangle } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
@@ -153,6 +154,7 @@ function fmtDate(iso: string) {
 export default function LeaveRequestsTab() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
   const qc = useQueryClient()
 
   const [tab, setTab]             = useState<'requests' | 'add'>('requests')
@@ -475,6 +477,7 @@ export default function LeaveRequestsTab() {
                           <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>{r.days} วัน</span>
                         </div>
                         {r.reason && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 10px' }}>{cleanReason(r.reason)}</p>}
+                        {!isReadOnly && (
                         <div style={{ display: 'flex', gap: 8 }}>
                           {r.status === 'PENDING' && <>
                             <button onClick={() => setApproveTarget(r)} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Check size={13}/> อนุมัติ</button>
@@ -483,6 +486,7 @@ export default function LeaveRequestsTab() {
                           <button onClick={() => openEdit(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', cursor: 'pointer' }}><Pencil size={13}/></button>
                           <button onClick={() => setDeleteTarget(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={13}/></button>
                         </div>
+                        )}
                         {r.status === 'REJECTED' && r.reject_note && (
                           <p style={{ fontSize: '0.75rem', color: '#dc2626', margin: '6px 0 0', background: '#fef2f2', padding: '6px 10px', borderRadius: 6 }}>หมายเหตุ: {r.reject_note}</p>
                         )}
@@ -537,6 +541,7 @@ export default function LeaveRequestsTab() {
                             )}
                           </td>
                           <td style={{ padding: '11px 14px' }}>
+                            {!isReadOnly && (
                             <div style={{ display: 'flex', gap: 5 }}>
                               {r.status === 'PENDING' && <>
                                 <button onClick={() => setApproveTarget(r)}
@@ -549,6 +554,7 @@ export default function LeaveRequestsTab() {
                               <button onClick={() => setDeleteTarget(r)}
                                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={13}/></button>
                             </div>
+                            )}
                           </td>
                         </tr>
                       )

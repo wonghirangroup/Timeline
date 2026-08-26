@@ -4,6 +4,7 @@ import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 
@@ -79,6 +80,7 @@ const card: React.CSSProperties = {
 export default function OtPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
   const qc = useQueryClient()
 
   const { data: rawRows = [] } = useQuery<ApiOt[]>({
@@ -434,13 +436,13 @@ export default function OtPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', color: '#374151' }}><Clock size={12} /> {r.start_time}–{r.end_time} ({r.hours} ชม.)</span>
                     <span style={{ fontSize: '0.78rem', color: '#374151' }}>× {r.multiplier}</span>
-                    {r.status === 'PENDING' && (
+                    {r.status === 'PENDING' && !isReadOnly && (
                       <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                         <button onClick={() => openApprove(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={12} /> อนุมัติ</button>
                         <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center' }}><X size={12} /></button>
                       </div>
                     )}
-                    {r.status === 'APPROVED' && (
+                    {r.status === 'APPROVED' && !isReadOnly && (
                       <button onClick={() => openPay(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '0.78rem', fontWeight: 600, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
                         <Wallet size={12} /> จ่าย OT
                       </button>
@@ -506,12 +508,12 @@ export default function OtPage() {
                         <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>{s.label}</span>
                       </td>
                       <td style={{ padding: '11px 14px' }}>
-                        {r.status === 'PENDING' ? (
+                        {r.status === 'PENDING' && !isReadOnly ? (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button onClick={() => openApprove(r)} style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> อนุมัติ</button>
                             <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>ไม่อนุมัติ</button>
                           </div>
-                        ) : r.status === 'APPROVED' ? (
+                        ) : r.status === 'APPROVED' && !isReadOnly ? (
                           <button onClick={() => openPay(r)} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Wallet size={11} /> จ่าย OT
                           </button>

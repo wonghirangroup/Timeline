@@ -5,6 +5,7 @@ import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, 
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
 import { deptName } from '../../lib/format'
 
@@ -173,6 +174,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
   onReject: (id: string) => void
 }) {
   const { showToast } = useToast()
+  const isReadOnly = useIsReadOnly()
   const qc = useQueryClient()
   const [editId, setEditId] = useState<string | null>(null)
   const [editDeadline, setEditDeadline] = useState('')
@@ -355,7 +357,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                           {fmtDate(resolveDate(b.week_start, b.day_of_week))}
                         </div>
                       </div>
-                      {b.status === 'PENDING' ? (
+                      {b.status === 'PENDING' && !isReadOnly ? (
                         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                           <button onClick={() => onApprove(b.id)}
                             style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -386,6 +388,7 @@ export default function WeeklyOffPage() {
   const { showToast } = useToast()
   const qc = useQueryClient()
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
   const [tab, setTab]     = useState<'requests' | 'periods' | 'overview'>('periods')
@@ -537,6 +540,7 @@ export default function WeeklyOffPage() {
       {tab === 'requests' && <>
 
       {/* Actions */}
+      {!isReadOnly && (
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {summary.pending > 0 && (
           <button onClick={() => approveAllMutation.mutate()} disabled={approveAllMutation.isPending}
@@ -549,6 +553,7 @@ export default function WeeklyOffPage() {
           <Plus size={14} /> {showAdd ? 'ยกเลิก' : 'เพิ่มวันหยุด'}
         </button>
       </div>
+      )}
 
       {/* KPI */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -679,6 +684,7 @@ export default function WeeklyOffPage() {
                       )}
                     </td>
                     <td style={{ padding: '11px 14px' }}>
+                      {!isReadOnly && (
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {r.status === 'PENDING' && <>
                           <button onClick={() => approveMutation.mutate(r.id)} disabled={approveMutation.isPending}
@@ -695,6 +701,7 @@ export default function WeeklyOffPage() {
                           <Trash2 size={12} />
                         </button>
                       </div>
+                      )}
 
                       {/* Reject inline dialog */}
                       {rejectId === r.id && (

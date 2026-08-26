@@ -1453,9 +1453,21 @@ export default function LeavePage() {
             </div>
 
             {bookingMode === 'off' ? (
-              employee?.weekly_off_mode === 'MONTHLY_BATCH'
-                ? <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
-                : <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+              employee?.booking_enabled === false ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '32px 20px', textAlign: 'center' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${COLOR.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Lock size={22} color={COLOR.primary} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณไม่ต้องจองวันหยุด</p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>
+                    ระบบตั้งวันหยุดประจำให้อัตโนมัติแล้วตามตารางของกลุ่ม ถ้ามีข้อสงสัยติดต่อแอดมิน
+                  </p>
+                </div>
+              ) : employee?.weekly_off_mode === 'MONTHLY_BATCH' ? (
+                <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+              ) : (
+                <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+              )
             ) : (
               <LeaveQuotaBooking employeeId={employee?.id ?? ''} balances={balances} ownRequests={requests} />
             )}

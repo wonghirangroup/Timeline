@@ -1,15 +1,23 @@
 // server/src/modules/ot/ot.service.ts
 import { prisma } from '../../common/utils/prisma'
 
+// scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listOtRequests(tenantId: string, filters: {
   employeeId?: string
   status?: string
   branchId?: string
+  scopedEmployeeIds?: string[]
 }) {
+  const employeeFilter = filters.scopedEmployeeIds
+    ? (filters.employeeId
+        ? (filters.scopedEmployeeIds.includes(filters.employeeId) ? { employee_id: filters.employeeId } : { employee_id: '__none__' })
+        : { employee_id: { in: filters.scopedEmployeeIds } })
+    : (filters.employeeId ? { employee_id: filters.employeeId } : {})
+
   return prisma.otRequest.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      ...(filters.employeeId ? { employee_id: filters.employeeId } : {}),
+      ...employeeFilter,
       ...(filters.status     ? { status: filters.status as any }   : {}),
       ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
     },
@@ -47,9 +55,9 @@ export async function createOtRequest(
   })
 }
 
-export async function approveOtRequest(tenantId: string, id: string, reviewerId: string) {
+export async function approveOtRequest(tenantId: string, id: string, reviewerId: string, scopedEmployeeIds?: string[]) {
   const count = await prisma.otRequest.updateMany({
-    where: { id, ...(tenantId ? { tenant_id: tenantId } : {}), status: 'PENDING' },
+    where: { id, ...(tenantId ? { tenant_id: tenantId } : {}), status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
     data: { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date() },
   })
   return count.count > 0
@@ -60,9 +68,10 @@ export async function rejectOtRequest(
   id: string,
   reviewerId: string,
   reject_note?: string,
+  scopedEmployeeIds?: string[],
 ) {
   const count = await prisma.otRequest.updateMany({
-    where: { id, ...(tenantId ? { tenant_id: tenantId } : {}), status: 'PENDING' },
+    where: { id, ...(tenantId ? { tenant_id: tenantId } : {}), status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
     data: { status: 'REJECTED', reviewed_by: reviewerId, reviewed_at: new Date(), reject_note },
   })
   return count.count > 0

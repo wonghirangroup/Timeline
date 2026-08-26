@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listShiftAssignments, upsertShiftAssignment, deleteShiftAssignment } from './shift-assignment.service'
 
@@ -10,10 +11,10 @@ const TAG = 'Admin'
 export async function shiftAssignmentRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/shift-assignments?month=&branchId=
   app.get('/shift-assignments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: [TAG],
-      summary: 'ดู override ตารางกะ (กรอง month / branchId)',
+      summary: 'ดู override ตารางกะ (กรอง month / branchId — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
@@ -21,7 +22,7 @@ export async function shiftAssignmentRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any) => {
-    return ok(await listShiftAssignments(req.tenantId, { month: req.query.month, branchId: req.query.branchId }))
+    return ok(await listShiftAssignments(req.tenantId, { month: req.query.month, branchId: req.query.branchId, scopedEmployeeIds: req.scopedEmployeeIds }))
   })
 
   // PUT /api/v1/admin/shift-assignments — ตั้ง/แก้ override เฉพาะวัน

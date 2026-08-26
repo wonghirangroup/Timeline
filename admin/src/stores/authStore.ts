@@ -51,3 +51,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token: null, role: null, tenantId: null, name: null, enabledFeatures: null })
   },
 }))
+
+// ผู้บริหาร (EXECUTIVE) เห็นข้อมูลทั้ง tenant ได้เหมือน ADMIN แต่ backend บล็อกทุก
+// write route (POST/PATCH/DELETE) ไว้แล้ว — ใช้ hook นี้ซ่อนปุ่มแก้ไข/ลบ/อนุมัติใน UI
+// ไม่ให้กดแล้วเจอ error 403 เฉยๆ (backend คือ source of truth ตัวจริง อันนี้แค่ UX)
+export function useIsReadOnly() {
+  return useAuthStore(s => s.role) === 'EXECUTIVE'
+}
