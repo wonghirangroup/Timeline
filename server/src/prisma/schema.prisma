@@ -20,6 +20,7 @@ model Tenant {
   plan              TenantPlan @default(FREE)
   max_employees     Int        @default(5)
   max_branches      Int        @default(1)
+  max_groups        Int        @default(1) // จำนวนกลุ่ม(บริษัท)สูงสุดที่สร้างได้ — จำกัดตาม package, Super Admin ปรับได้
   is_active         Boolean    @default(true)
   loading_image_url String? // ภาพ Loading หน้าเข้าสู่ระบบ LIFF ของ tenant นี้ (Cloudinary) — null = ใช้ default mascot
   enabled_features  Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
@@ -37,9 +38,9 @@ model Tenant {
   feedbacks             Feedback[]
   invoices              Invoice[]
   activity_logs         ActivityLog[]
-  departments           Department[]
+  groups                Group[]
   divisions             Division[]
-  sections              Section[]
+  departments           Department[]
   positions             Position[]
   employee_status_types EmployeeStatusType[]
 
@@ -131,6 +132,7 @@ model Employee {
   pending_fine            Decimal        @default(0) @db.Decimal(8, 2) // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
   position_id             String? // ตำแหน่งในผังองค์กร (Department→Division→Section→Position) — nullable ระหว่าง migrate, ไม่แทนที่ field `department` เดิม
   employee_status_type_id String? // สถานะพนักงาน (ประจำ/ชั่วคราว/...) กำหนดโควต้าวันหยุดต่อเดือน — nullable = ยังไม่ผูก ใช้ fallback เดิม
+  booking_enabled_override Boolean? // override สิทธิ์จองวันหยุดรายบุคคล — null = inherit จาก Department (ผ่าน Position) →Division→Group (ดู resolveBookingEnabled())
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt
   deleted_at              DateTime?
@@ -189,92 +191,89 @@ model EmployeeStatusLog {
 // แต่ตอนนี้อยู่คู่กันก่อน — Employee.department เดิมยังใช้งานได้ปกติ ไม่กระทบของเก่า)
 // ─────────────────────────────────────────────
 
-// ผังองค์กร 4 ชั้นแบบ "ข้ามชั้นได้" — Division/Section/Position ผูกกับพ่อแม่ตรงชั้นบนสุด
-// เท่าที่มีจริงก็พอ ไม่บังคับสร้างให้ครบทุกชั้น (เช่น สร้างตำแหน่งแนบตรงกับแผนกได้เลยถ้า
-// ไม่มีฝ่าย/ส่วน หรือสร้างตำแหน่งลอยไว้ก่อนไม่ผูกอะไรเลยก็ได้) — Position จึงมี FK ได้ถึง
-// 3 ทาง (section_id/division_id/department_id) แต่จะตั้งค่าจริงแค่ทางเดียว (หรือไม่ตั้งเลย)
-model Department {
-  id         String    @id @default(uuid())
-  tenant_id  String
-  name       String
-  code       String? // รหัสแผนกเดิม (อ้างอิงกับ Employee.department แบบ string, optional)
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+// กลุ่ม (บริษัท) — ชั้นนโยบายเหนือสาขา คั่นระหว่าง Tenant กับ Branch จำนวนกลุ่มต่อ tenant
+// จำกัดตาม package (Tenant.max_groups) — usecase จริง: tenant เดียวมี 2 กลุ่มที่นโยบาย
+// ต่างกันโดยสิ้นเชิง เช่น "วงษ์" (จองวันหยุดได้) กับ "สมาร์ทจิ๊กซอว์" (หยุดได้แค่เสาร์-
+// อาทิตย์ตายตัว จองไม่ได้) แต่ละกลุ่มมีได้หลายสาขา — booking_enabled เป็นค่าเริ่มต้นของ
+// กลุ่ม cascade ลงไปที่ Division/Department/Employee (nullable ที่ชั้นล่างกว่า = inherit
+// ค่านี้ ดู resolveBookingEnabled() ใน group.service.ts)
+model Group {
+  id              String    @id @default(uuid())
+  tenant_id       String
+  name            String
+  booking_enabled Boolean   @default(true)
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
 
-  tenant           Tenant     @relation(fields: [tenant_id], references: [id])
-  divisions        Division[]
-  sections_direct  Section[]  @relation("SectionDept") // ส่วนที่แนบตรงกับแผนก (ข้ามฝ่าย)
-  positions_direct Position[] @relation("PositionDept") // ตำแหน่งที่แนบตรงกับแผนก (ข้ามฝ่าย+ส่วน)
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  branches  Branch[]
+  divisions Division[]
 
   @@index([tenant_id])
-  @@map("departments")
+  @@map("groups")
 }
 
+// ผังองค์กร 3 ชั้นใต้กลุ่ม: Division (ฝ่าย, ใหญ่สุด) → Department (แผนก) → Position (ตำแหน่ง)
+// ต่างจาก v062 เดิม (Department ใหญ่สุด, ผูกข้ามชั้นได้อิสระ, มี Section) — ตอนนี้แต่ละชั้น
+// เป็น "ที่อยู่นโยบาย" (policy cascade) ด้วยไม่ใช่แค่ label เฉยๆ เลยบังคับให้มี parent
+// ชัดเจนเสมอ (ไม่ nullable ข้ามชั้นอีกต่อไป) ไม่งั้น resolve นโยบายตามลำดับชั้นไม่ได้
 model Division {
-  id            String    @id @default(uuid())
-  tenant_id     String
-  department_id String? // nullable — ฝ่ายลอยไม่ผูกแผนกก็ได้
-  name          String
-  is_active     Boolean   @default(true)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  deleted_at    DateTime?
+  id              String    @id @default(uuid())
+  tenant_id       String
+  group_id        String
+  name            String
+  booking_enabled Boolean? // null = inherit จาก Group.booking_enabled
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
 
-  tenant           Tenant      @relation(fields: [tenant_id], references: [id])
-  department       Department? @relation(fields: [department_id], references: [id], onDelete: SetNull)
-  sections         Section[]
-  positions_direct Position[]  @relation("PositionDiv") // ตำแหน่งที่แนบตรงกับฝ่าย (ข้ามส่วน)
+  tenant      Tenant       @relation(fields: [tenant_id], references: [id])
+  group       Group        @relation(fields: [group_id], references: [id])
+  departments Department[]
 
   @@index([tenant_id])
-  @@index([department_id])
+  @@index([group_id])
   @@map("divisions")
 }
 
-model Section {
-  id            String    @id @default(uuid())
-  tenant_id     String
-  division_id   String? // nullable — ข้ามฝ่ายได้ ถ้าไม่มีฝ่ายให้แนบ
-  department_id String? // nullable — แนบตรงกับแผนกได้เลยถ้าไม่มีฝ่าย
-  name          String
-  is_active     Boolean   @default(true)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  deleted_at    DateTime?
+model Department {
+  id              String    @id @default(uuid())
+  tenant_id       String
+  division_id     String
+  name            String
+  booking_enabled Boolean? // null = inherit จาก Division.booking_enabled (หรือต่อไปที่ Group ถ้า Division ก็ null)
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
 
-  tenant     Tenant      @relation(fields: [tenant_id], references: [id])
-  division   Division?   @relation(fields: [division_id], references: [id], onDelete: SetNull)
-  department Department? @relation("SectionDept", fields: [department_id], references: [id], onDelete: SetNull)
-  positions  Position[]
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  division  Division   @relation(fields: [division_id], references: [id])
+  positions Position[]
 
   @@index([tenant_id])
   @@index([division_id])
-  @@index([department_id])
-  @@map("sections")
+  @@map("departments")
 }
 
 model Position {
   id            String    @id @default(uuid())
   tenant_id     String
-  section_id    String? // nullable — ข้ามส่วนได้
-  division_id   String? // nullable — แนบตรงกับฝ่ายได้เลยถ้าไม่มีส่วน
-  department_id String? // nullable — แนบตรงกับแผนกได้เลยถ้าไม่มีฝ่าย/ส่วน — หรือไม่ผูกอะไรเลย (สร้างลอยไว้ก่อน)
+  department_id String
   name          String
   is_active     Boolean   @default(true)
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
 
-  tenant     Tenant      @relation(fields: [tenant_id], references: [id])
-  section    Section?    @relation(fields: [section_id], references: [id], onDelete: SetNull)
-  division   Division?   @relation("PositionDiv", fields: [division_id], references: [id], onDelete: SetNull)
-  department Department? @relation("PositionDept", fields: [department_id], references: [id], onDelete: SetNull)
+  tenant     Tenant     @relation(fields: [tenant_id], references: [id])
+  department Department @relation(fields: [department_id], references: [id])
   employees  Employee[]
 
   @@index([tenant_id])
-  @@index([section_id])
-  @@index([division_id])
   @@index([department_id])
   @@map("positions")
 }
@@ -318,6 +317,7 @@ model EmployeeStatusType {
 model Branch {
   id         String    @id @default(uuid())
   tenant_id  String
+  group_id   String? // กลุ่ม(บริษัท)ที่สาขานี้สังกัด — nullable ระหว่าง migrate, ต้อง backfill ให้ทุกสาขามีกลุ่มในที่สุด
   name       String
   location   String?
   lat        Decimal?  @db.Decimal(10, 8)
@@ -330,12 +330,14 @@ model Branch {
   deleted_at DateTime?
 
   tenant             Tenant            @relation(fields: [tenant_id], references: [id])
+  group              Group?            @relation(fields: [group_id], references: [id], onDelete: SetNull)
   employees          Employee[]
   shifts             Shift[]
   managers           BranchManager[]
   weekly_off_periods WeeklyOffPeriod[]
 
   @@index([tenant_id])
+  @@index([group_id])
   @@map("branches")
 }
 

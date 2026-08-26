@@ -10,6 +10,8 @@ src/scripts/debug-late.ts
 src/scripts/debug-late2.ts
 src/scripts/fix-late-status.ts
 src/scripts/fix-line-config.ts
+src/scripts/fix-duplicate-employees.ts
+src/scripts/merge-duplicate-attendance.ts
 src/scripts/migrate-firebase-leave.ts
 src/scripts/peek-firebase-leave.ts
 src/scripts/peek-firebase-leave2.ts

@@ -1,20 +1,16 @@
 // server/src/modules/employee/employee.service.ts
 import { prisma } from '../../common/utils/prisma'
 
-// ตำแหน่งข้ามชั้นได้ (แนบกับ section/division/department ตรงๆ ก็ได้ หรือไม่แนบเลย) —
-// ต้อง include ครบทุกทางที่เป็นไปได้ ไม่ใช่แค่ section.division.department (ดู org-structure.service.ts)
+// ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POSITION_INCLUDE = {
   select: {
     id: true, name: true,
-    section: {
+    department: {
       select: {
         id: true, name: true,
-        division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } },
-        department: { select: { id: true, name: true } },
+        division: { select: { id: true, name: true, group: { select: { id: true, name: true } } } },
       },
     },
-    division: { select: { id: true, name: true, department: { select: { id: true, name: true } } } },
-    department: { select: { id: true, name: true } },
   },
 } as const
 const STATUS_TYPE_INCLUDE = {

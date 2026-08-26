@@ -41,14 +41,11 @@ interface ApiEmployee {
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
 }
 
-// ตำแหน่งข้ามชั้นได้ — แนบกับ section, division, หรือ department ตรงๆ ก็ได้ (หรือไม่แนบเลย)
-// เลยต้องไล่ resolve ชื่อแผนก/ฝ่าย/ส่วนจากทุกทางที่เป็นไปได้ ไม่ใช่จาก section เสมอไป
+// ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department (แผนก) → Division (ฝ่าย)
 interface ApiPosition {
   id: string
   name: string
-  section?: { id: string; name: string; division?: { id: string; name: string; department?: { id: string; name: string } | null } | null; department?: { id: string; name: string } | null } | null
-  division?: { id: string; name: string; department?: { id: string; name: string } | null } | null
-  department?: { id: string; name: string } | null
+  department?: { id: string; name: string; division?: { id: string; name: string } | null } | null
 }
 interface ApiStatusType { id: string; name: string; monthly_off_quota: number }
 
@@ -132,23 +129,22 @@ export default function EmployeePage() {
     queryKey: ['employee-status-types'],
     queryFn: () => api.get('/api/v1/admin/employee-status-types').then(r => r.data.data),
   })
-  // resolve ชื่อแผนก/ฝ่าย/ส่วนของตำแหน่ง ไล่จากทุกทางที่อาจแนบอยู่ (ข้ามชั้นได้)
-  const positionDeptName = (p: ApiPosition): string | null =>
-    p.department?.name ?? p.division?.department?.name ?? p.section?.department?.name ?? p.section?.division?.department?.name ?? null
-  const positionDivName = (p: ApiPosition): string | null => p.division?.name ?? p.section?.division?.name ?? null
+  // resolve ชื่อฝ่าย/แผนกของตำแหน่ง — ตอนนี้ parent ชัดเจนเสมอ ไม่ต้องไล่หลายทางแบบเดิม
+  const positionDivisionName = (p: ApiPosition): string | null => p.department?.division?.name ?? null
+  const positionDeptName     = (p: ApiPosition): string | null => p.department?.name ?? null
   const positionLabel = (p: ApiPosition) => {
-    const parts = [positionDeptName(p), positionDivName(p), p.section?.name, p.name].filter(Boolean)
+    const parts = [positionDivisionName(p), positionDeptName(p), p.name].filter(Boolean)
     return parts.join(' ▸ ')
   }
   // แปลงค่า department string เดิม ("01 ผู้บริหาร") เป็นชื่อล้วน แล้วหา entry ของ DEPARTMENTS
-  // ที่ชื่อตรงกับแผนกที่ตำแหน่งนี้ผูกอยู่ — ใช้ auto-fill ช่อง "แผนก" เดิมตอนเลือกตำแหน่งก่อน
+  // ที่ชื่อตรงกับฝ่าย (Division) ที่ตำแหน่งนี้ผูกอยู่ — ใช้ auto-fill ช่อง "แผนก" เดิมตอนเลือกตำแหน่งก่อน
   const matchLegacyDept = (name: string | null): string | undefined => name ? DEPARTMENTS.find(d => deptName(d) === name) : undefined
-  // กรองตำแหน่งตามแผนกที่เลือกไว้ — ตำแหน่งที่ยังไม่ผูกแผนกเลย (สร้างลอยไว้ก่อน) โชว์ไว้เสมอ
-  // กันไม่ให้ผู้ใช้เลือกไม่ได้เพราะยังไม่ได้จัดเข้าแผนก
+  // กรองตำแหน่งตามแผนก(legacy string)ที่เลือกไว้ เทียบกับชื่อฝ่าย (Division) ของตำแหน่ง —
+  // ตำแหน่งที่ยังไม่ผูกฝ่ายเลย โชว์ไว้เสมอ กันไม่ให้ผู้ใช้เลือกไม่ได้เพราะยังไม่ได้จัดเข้าฝ่าย
   const filterPositionsByDept = (list: ApiPosition[], legacyDept: string) => {
     if (!legacyDept) return list
     const target = deptName(legacyDept)
-    return list.filter(p => { const pd = positionDeptName(p); return !pd || pd === target })
+    return list.filter(p => { const pd = positionDivisionName(p); return !pd || pd === target })
   }
   const { activeOffsiteByEmployee } = useActiveOffsite()
 
@@ -970,7 +966,7 @@ export default function EmployeePage() {
                         onChange={e => {
                           const pos = positions.find(p => p.id === e.target.value)
                           // เลือกตำแหน่งก่อน → auto-fill ช่องแผนกด้านบนถ้าหาแผนกที่ตรงกันเจอ
-                          const matched = pos ? matchLegacyDept(positionDeptName(pos)) : undefined
+                          const matched = pos ? matchLegacyDept(positionDivisionName(pos)) : undefined
                           setAf({ position_id: e.target.value, ...(matched ? { department: matched } : {}) })
                         }}
                         style={inp}>
@@ -1145,7 +1141,7 @@ export default function EmployeePage() {
                   <label style={label}>ตำแหน่ง (ผังองค์กร)</label>
                   <select value={form.position_id} onChange={e => {
                     const pos = positions.find(p => p.id === e.target.value)
-                    const matched = pos ? matchLegacyDept(positionDeptName(pos)) : undefined
+                    const matched = pos ? matchLegacyDept(positionDivisionName(pos)) : undefined
                     setForm(f => ({ ...f, position_id: e.target.value, ...(matched ? { department: matched } : {}) }))
                   }} style={input}>
                     <option value="">— ไม่ระบุ —</option>
