@@ -10,7 +10,7 @@ export async function offsiteRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: ดูรายการเช็คอินนอกสถานที่ ──────────────────────
   app.get('/admin/offsite-checkins', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('gps_checkin')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('gps_checkin')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการเช็คอินนอกสถานที่ (กรอง branchId / employeeId / status=active ได้)',

@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory } from './employee.service'
 
@@ -10,10 +11,10 @@ const TAG = 'Admin'
 export async function employeeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employees?branchId=
   app.get('/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: [TAG],
-      summary: 'ดูรายการพนักงานทั้งหมด (กรองตาม branchId ได้)',
+      summary: 'ดูรายการพนักงานทั้งหมด (กรองตาม branchId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
@@ -21,20 +22,23 @@ export async function employeeRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any) => {
-    const employees = await listEmployees(req.tenantId, req.query.branchId, req.query.includeInactive)
+    const employees = await listEmployees(req.tenantId, req.query.branchId, req.query.includeInactive, req.scopedEmployeeIds)
     return ok(employees)
   })
 
   // GET /api/v1/admin/employees/:id
   app.get('/employees/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: [TAG],
-      summary: 'ดูข้อมูลพนักงานตาม ID',
+      summary: 'ดูข้อมูลพนักงานตาม ID (DEPT_HEAD เข้าได้แค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
+    if (req.scopedEmployeeIds && !req.scopedEmployeeIds.includes(req.params.id)) {
+      return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    }
     const employee = await getEmployee(req.tenantId, req.params.id)
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
     return ok(employee)
@@ -150,7 +154,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/employees/:id/status-history — ประวัติการเปลี่ยนสถานะ
   app.get('/employees/:id/status-history', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูประวัติการเปลี่ยนสถานะบัญชีพนักงาน',

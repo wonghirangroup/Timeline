@@ -10,7 +10,7 @@ const TAG = 'Admin'
 export async function shiftAssignmentRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/shift-assignments?month=&branchId=
   app.get('/shift-assignments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดู override ตารางกะ (กรอง month / branchId)',

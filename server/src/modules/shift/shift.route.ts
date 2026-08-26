@@ -10,7 +10,7 @@ const TAG = 'Admin'
 export async function shiftRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/shifts?branchId=
   app.get('/shifts', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการกะทำงานทั้งหมด (กรองตาม branchId ได้)',
@@ -27,7 +27,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/shifts/:id
   app.get('/shifts/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูข้อมูลกะตาม ID',

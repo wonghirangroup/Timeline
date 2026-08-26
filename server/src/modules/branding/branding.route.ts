@@ -13,7 +13,7 @@ export async function brandingRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/settings/loading-image
   app.get('/settings/loading-image', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูภาพ Loading หน้าเข้าสู่ระบบปัจจุบันของ tenant',

@@ -17,12 +17,14 @@ function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+// scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listWeeklyOff(tenantId: string, filters: {
   weekStart?: string   // YYYY-MM-DD → สัปดาห์เดียว
   month?: string       // YYYY-MM → ทั้งเดือน
   branchId?: string
   employeeId?: string
   status?: string
+  scopedEmployeeIds?: string[]
 }) {
   const where: any = { tenant_id: tenantId }
 
@@ -43,7 +45,13 @@ export async function listWeeklyOff(tenantId: string, filters: {
 
   if (filters.status) where.status = filters.status
 
-  if (filters.employeeId) {
+  // ถ้าระบุ employeeId เจาะจงมาด้วย ต้องอยู่ใน scope ด้วย (กัน DEPT_HEAD เห็นคนนอกแผนก
+  // ผ่านการระบุ employeeId ตรงๆ)
+  if (filters.scopedEmployeeIds) {
+    where.employee_id = filters.employeeId
+      ? (filters.scopedEmployeeIds.includes(filters.employeeId) ? filters.employeeId : '__none__')
+      : { in: filters.scopedEmployeeIds }
+  } else if (filters.employeeId) {
     where.employee_id = filters.employeeId
   } else if (filters.branchId) {
     where.employee = { branch_id: filters.branchId }
@@ -109,14 +117,18 @@ export async function createWeeklyOff(tenantId: string, data: {
   return created
 }
 
+// scopedEmployeeIds: DEPT_HEAD เท่านั้น (ผ่านตอน approve/reject) — ถ้าเจ้าของ request
+// ไม่อยู่ในแผนกที่ดูแล findFirst จะหาไม่เจอ เป็น 404 ธรรมชาติ
 export async function updateWeeklyOff(tenantId: string, id: string, data: {
   day_of_week?: number
   week_start?: string   // YYYY-MM-DD — ย้ายไปสัปดาห์อื่น (ปฏิทินรวม: ลากวางย้ายวันหยุด) normalize เป็น Monday อัตโนมัติ
   status?: 'APPROVED' | 'REJECTED'
   reviewed_by?: string
   reject_note?: string
-}) {
-  const req = await prisma.weeklyOffRequest.findFirst({ where: { id, tenant_id: tenantId } })
+}, scopedEmployeeIds?: string[]) {
+  const req = await prisma.weeklyOffRequest.findFirst({
+    where: { id, tenant_id: tenantId, ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
+  })
   if (!req) return null
 
   let monday: Date | undefined

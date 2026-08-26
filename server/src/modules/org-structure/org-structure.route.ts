@@ -8,7 +8,7 @@ import * as svc from './org-structure.service'
 
 const TAG = 'Admin'
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
-const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const
+const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'] as const
 
 function handleParentErrors(e: any, reply: any) {
   if (e.message === 'GROUP_NOT_FOUND')      return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบกลุ่มที่อ้างอิง'))

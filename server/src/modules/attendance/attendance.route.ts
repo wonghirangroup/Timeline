@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import {
@@ -15,10 +16,10 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: รายงานเช็คชื่อ ─────────────────────────────────────────
   app.get('/admin/attendance', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
-      summary: 'รายงานการเช็คชื่อ (กรอง date / branchId / employeeId ได้)',
+      summary: 'รายงานการเช็คชื่อ (กรอง date / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
@@ -38,6 +39,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       endDate:    req.query.endDate,
       branchId:   req.query.branchId,
       employeeId: req.query.employeeId,
+      scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(records)
   })

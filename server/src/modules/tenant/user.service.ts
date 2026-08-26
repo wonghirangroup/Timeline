@@ -34,12 +34,13 @@ export async function createUser(
     password: string
     first_name: string
     last_name: string
-    role: 'ADMIN' | 'MANAGER'
+    role: 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
+    department_ids?: string[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
   },
   opts?: { mustChangePassword?: boolean },
 ) {
   const hashed = await bcrypt.hash(data.password, 10)
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       tenant_id:  tenantId || null,
       email:      data.email,
@@ -51,6 +52,36 @@ export async function createUser(
       must_change_password: opts?.mustChangePassword ?? false,
     },
     select: { id: true, email: true, first_name: true, last_name: true, role: true, tenant_id: true },
+  })
+
+  if (data.role === 'DEPT_HEAD' && data.department_ids?.length) {
+    await prisma.userDepartment.createMany({
+      data: data.department_ids.map(department_id => ({ user_id: user.id, department_id })),
+      skipDuplicates: true,
+    })
+  }
+
+  return user
+}
+
+// จัดการแผนกที่หัวหน้าแผนกดูแล (ตั้งใหม่ทั้งชุด — ลบของเดิมแล้วสร้างใหม่ตามที่ส่งมา)
+export async function setUserDepartments(tenantId: string, userId: string, departmentIds: string[]) {
+  const user = await prisma.user.findFirst({ where: { id: userId, tenant_id: tenantId, deleted_at: null } })
+  if (!user) throw new Error('NOT_FOUND')
+  await prisma.userDepartment.deleteMany({ where: { user_id: userId } })
+  if (departmentIds.length > 0) {
+    await prisma.userDepartment.createMany({
+      data: departmentIds.map(department_id => ({ user_id: userId, department_id })),
+      skipDuplicates: true,
+    })
+  }
+  return prisma.userDepartment.findMany({ where: { user_id: userId }, include: { department: { select: { id: true, name: true } } } })
+}
+
+export async function getUserDepartments(tenantId: string, userId: string) {
+  return prisma.userDepartment.findMany({
+    where: { user_id: userId, department: { tenant_id: tenantId } },
+    include: { department: { select: { id: true, name: true } } },
   })
 }
 

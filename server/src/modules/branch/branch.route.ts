@@ -11,7 +11,7 @@ const TAG = 'Admin'
 export async function branchRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/branches
   app.get('/branches', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการสาขาทั้งหมดของ tenant',
@@ -24,7 +24,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/branches/:id
   app.get('/branches/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูข้อมูลสาขาตาม ID',
@@ -91,7 +91,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/branches/:id/qr  — QR ถาวรต่อสาขา (ไม่มีวันหมดอายุ)
   app.get('/branches/:id/qr', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'สร้าง QR payload ถาวรสำหรับสาขา — พนักงานสแกนแล้วระบบ auto-detect กะจากเวลา',

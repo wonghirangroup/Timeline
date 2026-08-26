@@ -48,8 +48,15 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const clear = useAuthStore(s => s.clear)
   const setName = useAuthStore(s => s.setName)
 
-  const roleLabel = role === 'MANAGER' ? 'Manager' : 'Admin'
-  const roleColor = role === 'MANAGER' ? { bg: '#dcfce7', color: '#15803d' } : { bg: '#fff7ed', color: '#c2410c' }
+  const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
+    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#fff7ed', color: '#c2410c' },
+    MANAGER:   { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#dcfce7', color: '#15803d' },
+    EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
+    DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
+  }
+  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#fff7ed', color: '#c2410c' }
+  const roleLabel = roleCfg.label
+  const roleColor = roleCfg
 
   // Profile panel state
   const [panelOpen, setPanelOpen] = useState(false)

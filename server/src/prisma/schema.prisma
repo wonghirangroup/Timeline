@@ -78,7 +78,7 @@ model TenantLineConfig {
 }
 
 // ─────────────────────────────────────────────
-// USERS (Web App login: SUPER_ADMIN / ADMIN / MANAGER)
+// USERS (Web App login: SUPER_ADMIN / ADMIN / MANAGER / EXECUTIVE / DEPT_HEAD)
 // ─────────────────────────────────────────────
 
 model User {
@@ -95,8 +95,9 @@ model User {
   updated_at           DateTime  @updatedAt
   deleted_at           DateTime?
 
-  tenant           Tenant?         @relation(fields: [tenant_id], references: [id])
-  managed_branches BranchManager[]
+  tenant             Tenant?          @relation(fields: [tenant_id], references: [id])
+  managed_branches   BranchManager[]
+  managed_departments UserDepartment[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (many-to-many, ดูแลได้หลายแผนก)
 
   @@index([tenant_id])
   @@map("users")
@@ -106,6 +107,25 @@ enum UserRole {
   SUPER_ADMIN
   ADMIN
   MANAGER
+  EXECUTIVE  // ผู้บริหาร — เห็นข้อมูลทั้ง tenant เหมือน ADMIN แต่ทำได้แค่อ่าน (บล็อกที่ requireRole ไม่ให้ติด write route เลย)
+  DEPT_HEAD  // หัวหน้าแผนก — เห็น/จัดการเฉพาะพนักงานในแผนกที่ดูแล (บังคับจริงที่ backend ผ่าน UserDepartment)
+}
+
+// หัวหน้าแผนก ↔ แผนก ที่ดูแล (many-to-many) — resolve เป็น employee_id ที่เข้าถึงได้ผ่าน
+// Department → Position → Employee.position_id (ดู server/src/common/middleware/deptScope.ts)
+model UserDepartment {
+  id            String   @id @default(uuid())
+  user_id       String
+  department_id String
+  created_at    DateTime @default(now())
+
+  user       User       @relation(fields: [user_id], references: [id])
+  department Department @relation(fields: [department_id], references: [id])
+
+  @@unique([user_id, department_id])
+  @@index([user_id])
+  @@index([department_id])
+  @@map("user_departments")
 }
 
 // ─────────────────────────────────────────────
@@ -250,9 +270,10 @@ model Department {
   updated_at      DateTime  @updatedAt
   deleted_at      DateTime?
 
-  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
-  division  Division   @relation(fields: [division_id], references: [id])
+  tenant    Tenant           @relation(fields: [tenant_id], references: [id])
+  division  Division         @relation(fields: [division_id], references: [id])
   positions Position[]
+  heads     UserDepartment[]
 
   @@index([tenant_id])
   @@index([division_id])

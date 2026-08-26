@@ -43,12 +43,15 @@ function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateSta
   return { late }
 }
 
+// scopedEmployeeIds: undefined = ไม่ scope (role ปกติ), array = DEPT_HEAD จำกัดแค่คนในแผนก
+// ที่ดูแล (ดู resolveDeptScope middleware)
 export async function getAttendanceReport(tenantId: string, filters: {
   date?: string
   startDate?: string
   endDate?: string
   branchId?: string
   employeeId?: string
+  scopedEmployeeIds?: string[]
 }) {
   const dateFilter = filters.date
     ? { date: new Date(filters.date + 'T00:00:00.000Z') }
@@ -61,12 +64,20 @@ export async function getAttendanceReport(tenantId: string, filters: {
         }
       : {}
 
+  // ถ้าระบุ employeeId เจาะจงมาด้วย ต้องอยู่ใน scope ด้วย ไม่งั้นคืนว่างเปล่า (ไม่ใช่เผลอ
+  // ทับ filter scope จน DEPT_HEAD เห็นคนนอกแผนกได้ผ่านการระบุ employeeId ตรงๆ)
+  const employeeFilter = filters.scopedEmployeeIds
+    ? (filters.employeeId
+        ? (filters.scopedEmployeeIds.includes(filters.employeeId) ? { employee_id: filters.employeeId } : { employee_id: '__none__' })
+        : { employee_id: { in: filters.scopedEmployeeIds } })
+    : (filters.employeeId ? { employee_id: filters.employeeId } : {})
+
   return prisma.attendanceRecord.findMany({
     where: {
       tenant_id: tenantId,
       ...dateFilter,
-      ...(filters.employeeId ? { employee_id: filters.employeeId } : {}),
-      ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
+      ...employeeFilter,
+      ...(filters.branchId ? { employee: { branch_id: filters.branchId } } : {}),
     },
     include: {
       employee: {

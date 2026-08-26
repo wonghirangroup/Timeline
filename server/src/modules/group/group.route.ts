@@ -8,7 +8,7 @@ import * as svc from './group.service'
 
 const TAG = 'Admin'
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
-const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const
+const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'] as const
 
 export async function groupRoutes(app: FastifyInstance) {
   app.get('/groups', {

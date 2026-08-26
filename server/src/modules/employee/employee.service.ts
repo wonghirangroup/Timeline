@@ -45,13 +45,16 @@ async function generateEmployeeCode(
   return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`
 }
 
-export async function listEmployees(tenantId: string, branchId?: string, includeInactive?: boolean) {
+// scopedEmployeeIds: undefined = ไม่ scope (role ปกติ), array = จำกัดเฉพาะ id เหล่านี้
+// (DEPT_HEAD ผ่าน resolveDeptScope middleware — ดู employee.route.ts)
+export async function listEmployees(tenantId: string, branchId?: string, includeInactive?: boolean, scopedEmployeeIds?: string[]) {
   return prisma.employee.findMany({
     where: {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...(branchId ? { branch_id: branchId } : {}),
       ...(includeInactive ? {} : { status: 'ACTIVE' }),
+      ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
     include: {
       branch: { select: { id: true, name: true } },

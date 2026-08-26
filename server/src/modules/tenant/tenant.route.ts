@@ -5,7 +5,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
 import { listTenants, getTenant, createTenant, updateTenant, updateTenantFeatures, deleteTenant } from './tenant.service'
 import { FEATURE_KEYS } from '../../common/utils/features'
-import { listUsers, createUser, updateUser, deleteUser, generateTempPassword } from './user.service'
+import { listUsers, createUser, updateUser, deleteUser, generateTempPassword, setUserDepartments, getUserDepartments } from './user.service'
 import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
 import { logActivity }      from '../../common/utils/activityLog'
@@ -245,7 +245,7 @@ export async function tenantRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
     schema: {
       tags: [TAG],
-      summary: 'สร้าง User (Admin หรือ Manager)',
+      summary: 'สร้าง User (Admin/Manager/ผู้บริหาร/หัวหน้าแผนก)',
       security: [{ oauth2: [] }],
       body: {
         type: 'object',
@@ -255,7 +255,9 @@ export async function tenantRoutes(app: FastifyInstance) {
           password:   { type: 'string' },
           first_name: { type: 'string' },
           last_name:  { type: 'string' },
-          role:       { type: 'string', enum: ['ADMIN', 'MANAGER'] },
+          role:       { type: 'string', enum: ['ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] },
+          // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
+          department_ids: { type: 'array', items: { type: 'string' } },
         },
       },
     },
@@ -265,6 +267,33 @@ export async function tenantRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(user, 'สร้าง User สำเร็จ'))
     } catch (e: any) {
       if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีอยู่แล้ว'))
+      throw e
+    }
+  })
+
+  // GET /api/v1/super-admin/users/:id/departments — แผนกที่หัวหน้าแผนกคนนี้ดูแล
+  app.get('/users/:id/departments', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG], summary: 'ดูแผนกที่ user (DEPT_HEAD) คนนี้ดูแล', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any) => ok(await getUserDepartments(req.tenantId, req.params.id)))
+
+  // PUT /api/v1/super-admin/users/:id/departments — ตั้งใหม่ทั้งชุด
+  app.put('/users/:id/departments', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG], summary: 'ตั้งแผนกที่ user (DEPT_HEAD) ดูแล (แทนที่ทั้งชุด)', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', required: ['department_ids'], properties: { department_ids: { type: 'array', items: { type: 'string' } } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await setUserDepartments(req.tenantId, req.params.id, req.body.department_ids)
+      return ok(result, 'ตั้งค่าแผนกที่ดูแลสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
       throw e
     }
   })
@@ -312,7 +341,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // GET /api/v1/super-admin/holidays?year=
   app.get('/holidays', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: {
       tags: [TAG],
       summary: 'ดูวันหยุดประจำปี',

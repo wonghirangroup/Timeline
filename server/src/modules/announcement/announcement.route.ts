@@ -10,7 +10,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/announcements
   app.get('/announcements', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูประกาศทั้งหมด',

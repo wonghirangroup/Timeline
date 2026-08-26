@@ -34,7 +34,7 @@ export async function feedbackRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/feedback — Admin/Manager ดูความคิดเห็นที่ส่งเข้ามา (ไม่ระบุตัวตน)
   app.get('/admin/feedback', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('feedback')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('feedback')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูความคิดเห็นที่พนักงานส่งเข้ามา (ไม่ระบุตัวตน)',

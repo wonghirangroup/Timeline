@@ -13,7 +13,7 @@ const TAG = 'Admin'
 export async function employeeStatusTypeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employee-status-types
   app.get('/employee-status-types', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: { tags: [TAG], summary: 'ดูรายการสถานะพนักงาน (ประจำ/ชั่วคราว/...) พร้อมโควต้าวันหยุดต่อเดือน', security: [{ oauth2: [] }] },
   }, async (req, reply) => ok(await listEmployeeStatusTypes(req.tenantId)))
 

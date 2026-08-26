@@ -10,7 +10,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: ดู OT ─────────────────────────────────────────
   app.get('/admin/ot-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('ot_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการขอ OT (กรอง status / branchId / employeeId ได้)',

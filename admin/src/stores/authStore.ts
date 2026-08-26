@@ -1,7 +1,7 @@
 // admin/src/stores/authStore.ts
 import { create } from 'zustand'
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
 export type EnabledFeatures = Record<string, boolean> | null
 
 interface AuthState {

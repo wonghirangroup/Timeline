@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
@@ -11,10 +12,10 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
 
   // ── Admin: ดูรายการ weekly off ──────────────────────────────────────
   app.get('/admin/weekly-off', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
-      summary: 'ดูวันหยุดสัปดาห์ของพนักงาน (กรอง weekStart / branchId / status)',
+      summary: 'ดูวันหยุดสัปดาห์ของพนักงาน (กรอง weekStart / branchId / status — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
@@ -34,6 +35,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       branchId:   req.query.branchId,
       employeeId: req.query.employeeId,
       status:     req.query.status,
+      scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(list)
   })
@@ -65,33 +67,33 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     }
   })
 
-  // ── Admin: Approve ───────────────────────────────────────────────────
+  // ── Admin/DEPT_HEAD: Approve ─────────────────────────────────────────
   app.post('/admin/weekly-off/:id/approve', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
-      summary: 'อนุมัติวันหยุดสัปดาห์',
+      summary: 'อนุมัติวันหยุดสัปดาห์ (DEPT_HEAD อนุมัติได้แค่คนในแผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
-    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'APPROVED', reviewed_by: req.userId })
+    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'APPROVED', reviewed_by: req.userId }, req.scopedEmployeeIds)
     if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
     return ok(result, 'อนุมัติวันหยุดสำเร็จ')
   })
 
-  // ── Admin: Reject ────────────────────────────────────────────────────
+  // ── Admin/DEPT_HEAD: Reject ───────────────────────────────────────────
   app.post('/admin/weekly-off/:id/reject', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
-      summary: 'ปฏิเสธวันหยุดสัปดาห์',
+      summary: 'ปฏิเสธวันหยุดสัปดาห์ (DEPT_HEAD ปฏิเสธได้แค่คนในแผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: { type: 'object', properties: { reject_note: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
-    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'REJECTED', reviewed_by: req.userId, reject_note: req.body?.reject_note })
+    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'REJECTED', reviewed_by: req.userId, reject_note: req.body?.reject_note }, req.scopedEmployeeIds)
     if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
     return ok(null, 'ปฏิเสธวันหยุดแล้ว')
   })
@@ -173,7 +175,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
 
   // ── Admin: ดูสถานะการเปิดจองต่อสาขา ─────────────────────────────────────────
   app.get('/admin/weekly-off/periods', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
     schema: { tags: ['Admin'], summary: 'ดูสถานะเปิด/ปิดการจองวันหยุดต่อสาขา', security: [{ oauth2: [] }],
       querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string' } } } },
   }, async (req: any) => {

@@ -1,15 +1,25 @@
 // server/src/modules/leave/leave.service.ts
 import { prisma } from '../../common/utils/prisma'
 
+// scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listLeaveRequests(tenantId: string, filters: {
   employeeId?: string
   status?: string
   branchId?: string
+  scopedEmployeeIds?: string[]
 }) {
+  // ถ้าระบุ employeeId เจาะจงมาด้วย ต้องอยู่ใน scope ด้วย (กัน DEPT_HEAD เห็นคนนอกแผนก
+  // ผ่านการระบุ employeeId ตรงๆ)
+  const employeeFilter = filters.scopedEmployeeIds
+    ? (filters.employeeId
+        ? (filters.scopedEmployeeIds.includes(filters.employeeId) ? { employee_id: filters.employeeId } : { employee_id: '__none__' })
+        : { employee_id: { in: filters.scopedEmployeeIds } })
+    : (filters.employeeId ? { employee_id: filters.employeeId } : {})
+
   return prisma.leaveRequest.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      ...(filters.employeeId ? { employee_id: filters.employeeId } : {}),
+      ...employeeFilter,
       ...(filters.status ? { status: filters.status as any } : {}),
       ...(filters.branchId ? { employee: { branch_id: filters.branchId } } : {}),
     },
@@ -157,9 +167,11 @@ export async function getMonthColleagueLeaves(tenantId: string, employeeId: stri
   }))
 }
 
-export async function approveLeaveRequest(tenantId: string, id: string, reviewerId: string) {
+// scopedEmployeeIds: DEPT_HEAD เท่านั้น — ถ้าเจ้าของคำขอไม่อยู่ในแผนกที่ดูแล findFirst
+// จะหาไม่เจอ (คืน null) เป็น 404 ธรรมชาติ ไม่ต้อง check พิเศษเพิ่ม
+export async function approveLeaveRequest(tenantId: string, id: string, reviewerId: string, scopedEmployeeIds?: string[]) {
   const req = await prisma.leaveRequest.findFirst({
-    where: { id, tenant_id: tenantId, status: 'PENDING' },
+    where: { id, tenant_id: tenantId, status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
   })
   if (!req) return null
 
@@ -244,9 +256,10 @@ export async function rejectLeaveRequest(
   id: string,
   reviewerId: string,
   reject_note?: string,
+  scopedEmployeeIds?: string[],
 ) {
   const count = await prisma.leaveRequest.updateMany({
-    where: { id, tenant_id: tenantId, status: 'PENDING' },
+    where: { id, tenant_id: tenantId, status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
     data: { status: 'REJECTED', reviewed_by: reviewerId, reviewed_at: new Date(), reject_note },
   })
   return count.count > 0
