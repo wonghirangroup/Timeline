@@ -147,7 +147,14 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       return reply.code(409).send(fail('ALREADY_LINKED', 'พนักงานนี้ผูก Line อื่นไปแล้ว'))
     }
 
-    await prisma.employee.update({ where: { id: employee.id }, data: { line_user_id } })
+    try {
+      await prisma.employee.update({ where: { id: employee.id }, data: { line_user_id } })
+    } catch (e: any) {
+      // line_user_id นี้ผูกอยู่กับ employee คนอื่นแล้ว (unique constraint tenant_id+line_user_id)
+      // เช่น เคยผูกกับ record เก่าที่ถูกปิดใช้งานไปแล้วแต่ line_user_id ไม่ได้ถูกเคลียร์
+      if (e.code === 'P2002') return reply.code(409).send(fail('LINE_ID_IN_USE', 'บัญชี Line นี้ผูกกับพนักงานคนอื่นอยู่แล้ว ติดต่อแอดมิน'))
+      throw e
+    }
 
     const token = await (app as any).jwt.sign({
       id: employee.id, tenant_id: config.tenant.id, role: 'EMPLOYEE', employee_id: employee.id,
@@ -196,10 +203,15 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     }
 
     // ผูก line_user_id
-    await prisma.employee.update({
-      where: { id: employee.id },
-      data:  { line_user_id },
-    })
+    try {
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data:  { line_user_id },
+      })
+    } catch (e: any) {
+      if (e.code === 'P2002') return reply.code(409).send(fail('LINE_ID_IN_USE', 'บัญชี Line นี้ผูกกับพนักงานคนอื่นอยู่แล้ว ติดต่อแอดมิน'))
+      throw e
+    }
 
     // ออก JWT
     const token = await (app as any).jwt.sign({
