@@ -3,7 +3,11 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { listShifts, getShift, createShift, updateShift, deleteShift } from './shift.service'
+import { prisma } from '../../common/utils/prisma'
+import {
+  listShifts, getShift, createShift, updateShift, deleteShift,
+  listEmployeesInShift, assignEmployeeToShift, removeEmployeeFromShift,
+} from './shift.service'
 
 const TAG = 'Admin'
 
@@ -118,5 +122,64 @@ export async function shiftRoutes(app: FastifyInstance) {
     const deleted = await deleteShift(req.tenantId, req.params.id)
     if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบกะ'))
     return ok(null, 'ลบกะสำเร็จ')
+  })
+
+  // ── พนักงาน ↔ กะ (many-to-many) — 1 คนอยู่ได้หลายกะ ────────────────────
+
+  // GET /api/v1/admin/employee-shifts — ทุก link ของ tenant (สำหรับ build map ฝั่ง frontend)
+  app.get('/employee-shifts', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    schema: {
+      tags: [TAG],
+      summary: 'ดูรายการพนักงาน↔กะทั้งหมดของ tenant (ใช้ทำแผนที่ใครอยู่กะไหนบ้าง)',
+      security: [{ oauth2: [] }],
+    },
+  }, async (req: any) => {
+    const links = await prisma.employeeShift.findMany({
+      where: { tenant_id: req.tenantId },
+      select: { employee_id: true, shift_id: true },
+    })
+    return ok(links)
+  })
+
+  // GET /api/v1/admin/shifts/:id/employees
+  app.get('/shifts/:id/employees', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    schema: {
+      tags: [TAG], summary: 'ดูพนักงานที่อยู่ในกะนี้', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any) => ok(await listEmployeesInShift(req.tenantId, req.params.id)))
+
+  // POST /api/v1/admin/shifts/:id/employees — เพิ่มพนักงานเข้ากะ (ไม่เอาออกจากกะอื่น)
+  app.post('/shifts/:id/employees', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG], summary: 'เพิ่มพนักงานเข้ากะ (คนเดิมอยู่หลายกะพร้อมกันได้)', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await assignEmployeeToShift(req.tenantId, req.body.employee_id, req.params.id)
+      return reply.code(201).send(ok(result, 'เพิ่มพนักงานเข้ากะสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      if (e.message === 'SHIFT_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบกะ'))
+      throw e
+    }
+  })
+
+  // DELETE /api/v1/admin/shifts/:id/employees/:employeeId — เอาออกจากกะนี้ (กะอื่นไม่กระทบ)
+  app.delete('/shifts/:id/employees/:employeeId', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG], summary: 'เอาพนักงานออกจากกะนี้', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' }, employeeId: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const removed = await removeEmployeeFromShift(req.tenantId, req.params.employeeId, req.params.id)
+    if (!removed) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(null, 'เอาออกจากกะสำเร็จ')
   })
 }

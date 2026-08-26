@@ -170,6 +170,7 @@ model Employee {
   weekly_off_requests  WeeklyOffRequest[]
   status_logs          EmployeeStatusLog[]
   shift_assignments    ShiftAssignment[]
+  employee_shifts      EmployeeShift[] // กะที่ประจำอยู่ (many-to-many — 1 คนอยู่ได้หลายกะ) ต่างจาก default_shift_id ที่เป็นแค่ข้อมูล 1 กะหลักเดิม
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
@@ -407,6 +408,7 @@ model Shift {
   attendance_records AttendanceRecord[]
   default_employees  Employee[]         @relation("EmployeeDefaultShift")
   shift_assignments  ShiftAssignment[]
+  employee_shifts    EmployeeShift[]
 
   @@index([tenant_id])
   @@index([branch_id])
@@ -442,6 +444,27 @@ model ShiftAssignment {
   @@unique([employee_id, date])
   @@index([tenant_id])
   @@map("shift_assignments")
+}
+
+// พนักงาน ↔ กะ ที่ประจำอยู่ (many-to-many จริง) — คนละเรื่องกับ Employee.default_shift_id
+// (informational เดิม เก็บแค่กะเดียว) และคนละเรื่องกับ ShiftAssignment ด้านบน (นั่นคือ
+// override รายวันสำหรับแก้ปฏิทิน ไม่ใช่ตารางว่าใครประจำกะไหนบ้าง) — 1 คนอยู่ได้หลายกะ
+// เช่น ทำกะเช้าปกติ แต่ก็เข้ากะบ่ายบางวันด้วย
+model EmployeeShift {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  shift_id    String
+  created_at  DateTime @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+  shift    Shift    @relation(fields: [shift_id], references: [id])
+
+  @@unique([employee_id, shift_id])
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@index([shift_id])
+  @@map("employee_shifts")
 }
 
 // ─────────────────────────────────────────────

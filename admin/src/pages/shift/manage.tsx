@@ -406,6 +406,10 @@ export default function ShiftPage() {
     queryKey: ['employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
+  const { data: employeeShiftLinks = [] } = useQuery<{ employee_id: string; shift_id: string }[]>({
+    queryKey: ['employee-shifts'],
+    queryFn: () => api.get('/api/v1/admin/employee-shifts').then(r => r.data.data),
+  })
 
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/shifts', body).then(r => r.data.data),
@@ -450,36 +454,46 @@ export default function ShiftPage() {
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
 
-  // mutable emp→shift mapping — local UI state (ยังไม่มี default_shift_id ใน DB)
-  const [empShiftAssign, setEmpShiftAssign] = useState<Record<string, string | null>>({})
-
   const filtered = shifts.filter(s => !branchFilter || s.branch_id === branchFilter)
-  
+
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
 
   useEffect(() => { setPage(1) }, [branchFilter])
   useEffect(() => { setPage(1) }, [pageSize])
 
+  // พนักงาน 1 คนอยู่ได้หลายกะพร้อมกัน (many-to-many จริงจาก DB — employee_shifts)
   const shiftEmpMap = useMemo(() => {
+    const empById = new Map(allEmployees.map(e => [e.id, e]))
     const map: Record<string, typeof allEmployees> = {}
-    allEmployees.forEach(e => {
-      const sid = empShiftAssign[e.id]
-      if (!sid) return
-      if (!map[sid]) map[sid] = []
-      map[sid].push(e)
+    employeeShiftLinks.forEach(l => {
+      const emp = empById.get(l.employee_id)
+      if (!emp) return
+      if (!map[l.shift_id]) map[l.shift_id] = []
+      map[l.shift_id].push(emp)
     })
     return map
-  }, [empShiftAssign, allEmployees])
+  }, [employeeShiftLinks, allEmployees])
+
+  const assignMutation = useMutation({
+    mutationFn: ({ empId, shiftId }: { empId: string; shiftId: string }) =>
+      api.post(`/api/v1/admin/shifts/${shiftId}/employees`, { employee_id: empId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employee-shifts'] }); showToast('success', 'เพิ่มพนักงานเข้ากะแล้ว') },
+    onError: () => showToast('error', 'เพิ่มเข้ากะไม่สำเร็จ'),
+  })
+  const removeMutation = useMutation({
+    mutationFn: ({ empId, shiftId }: { empId: string; shiftId: string; empName: string }) =>
+      api.delete(`/api/v1/admin/shifts/${shiftId}/employees/${empId}`),
+    onSuccess: (_, vars) => { qc.invalidateQueries({ queryKey: ['employee-shifts'] }); showToast('success', `ย้าย ${vars.empName} ออกจากกะแล้ว`) },
+    onError: () => showToast('error', 'เอาออกจากกะไม่สำเร็จ'),
+  })
 
   function assignEmp(empId: string, shiftId: string) {
-    setEmpShiftAssign(prev => ({ ...prev, [empId]: shiftId }))
-    showToast('success', 'เพิ่มพนักงานเข้ากะแล้ว')
+    assignMutation.mutate({ empId, shiftId })
   }
 
-  function removeEmp(empId: string, empName: string) {
-    setEmpShiftAssign(prev => ({ ...prev, [empId]: null }))
-    showToast('success', `ย้าย ${empName} ออกจากกะแล้ว`)
+  function removeEmp(empId: string, empName: string, shiftId: string) {
+    removeMutation.mutate({ empId, shiftId, empName })
   }
 
   function openAdd() {
@@ -983,7 +997,7 @@ export default function ShiftPage() {
                       {removeConfirm === e.id ? (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
-                            onClick={() => { removeEmp(e.id, e.nickname ?? e.first_name ?? ''); setRemoveConfirm(null) }}
+                            onClick={() => { removeEmp(e.id, e.nickname ?? e.first_name ?? '', empViewShift.id); setRemoveConfirm(null) }}
                             style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}
                           >ยืนยัน</button>
                           <button
@@ -1008,7 +1022,10 @@ export default function ShiftPage() {
                       {q ? 'ไม่พบพนักงานที่ค้นหา' : 'พนักงานทุกคนอยู่ในกะนี้แล้ว'}
                     </div>
                   ) : notInShift.map((e, idx) => {
-                    const curShift = empShiftAssign[e.id] ? shifts.find(s => s.id === empShiftAssign[e.id]) : null
+                    // อยู่ได้หลายกะพร้อมกัน — โชว์ชื่อกะอื่นที่คนนี้อยู่แล้ว (ถ้ามี) เป็นข้อมูลอ้างอิง
+                    const otherShiftIds = employeeShiftLinks.filter(l => l.employee_id === e.id && l.shift_id !== empViewShift.id).map(l => l.shift_id)
+                    const otherShiftNames = otherShiftIds.map(id => shifts.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+                    const curShift = otherShiftNames ? { name: otherShiftNames } : null
                     return (
                       <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid #f8fafc' }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>

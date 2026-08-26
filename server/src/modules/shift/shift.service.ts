@@ -112,3 +112,50 @@ export async function deleteShift(tenantId: string, id: string) {
   })
   return count.count > 0
 }
+
+// ── พนักงาน ↔ กะ (many-to-many) — 1 คนอยู่ได้หลายกะ ──────────────────────────
+// คนละเรื่องกับ Employee.default_shift_id (เดิม, ข้อมูลอ้างอิงเฉยๆ ไม่บังคับตอนเช็คอิน)
+
+export async function listEmployeesInShift(tenantId: string, shiftId: string) {
+  const links = await prisma.employeeShift.findMany({
+    where: { tenant_id: tenantId, shift_id: shiftId },
+    include: {
+      employee: {
+        select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch_id: true, is_active: true },
+      },
+    },
+  })
+  return links.map(l => l.employee).filter(e => e.is_active)
+}
+
+export async function listShiftIdsForEmployees(tenantId: string, employeeIds: string[]) {
+  const links = await prisma.employeeShift.findMany({
+    where: { tenant_id: tenantId, employee_id: { in: employeeIds } },
+    select: { employee_id: true, shift_id: true },
+  })
+  const map: Record<string, string[]> = {}
+  for (const l of links) (map[l.employee_id] ??= []).push(l.shift_id)
+  return map
+}
+
+export async function assignEmployeeToShift(tenantId: string, employeeId: string, shiftId: string) {
+  const [employee, shift] = await Promise.all([
+    prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId, deleted_at: null } }),
+    prisma.shift.findFirst({ where: { id: shiftId, tenant_id: tenantId, deleted_at: null } }),
+  ])
+  if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
+  if (!shift) throw new Error('SHIFT_NOT_FOUND')
+
+  return prisma.employeeShift.upsert({
+    where: { employee_id_shift_id: { employee_id: employeeId, shift_id: shiftId } },
+    update: {},
+    create: { tenant_id: tenantId, employee_id: employeeId, shift_id: shiftId },
+  })
+}
+
+export async function removeEmployeeFromShift(tenantId: string, employeeId: string, shiftId: string) {
+  const count = await prisma.employeeShift.deleteMany({
+    where: { tenant_id: tenantId, employee_id: employeeId, shift_id: shiftId },
+  })
+  return count.count > 0
+}
