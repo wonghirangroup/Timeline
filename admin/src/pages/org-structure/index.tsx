@@ -4,7 +4,7 @@
 // ที่อยู่ของ policy cascade (booking_enabled) ด้วย ไม่ใช่แค่ label เฉยๆ แบบเวอร์ชันก่อน
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, ChevronRight, IdCard, Landmark, MapPinned } from 'lucide-react'
+import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -285,11 +285,66 @@ function AddEntityModal({ level, groupId, divs, depts, onClose }: {
   )
 }
 
+// ── ผังต้นไม้แบบ chart จริง (เส้นเชื่อมพ่อแม่-ลูก) ────────────────────────────
+// trick มาตรฐาน: nested <ul><li> + connector line ผ่าน ::before/::after ของ <li>
+// ต้อง inject <style> เพราะ inline style ของ React ทำ pseudo-element ไม่ได้
+const TREE_CSS = `
+.org-chart-tree { display: flex; justify-content: center; min-width: max-content; padding: 4px 24px 12px; }
+.org-chart-tree ul { display: flex; padding-top: 26px; position: relative; }
+.org-chart-tree li { display: flex; flex-direction: column; align-items: center; list-style: none; margin: 0; padding: 26px 10px 0 10px; position: relative; }
+.org-chart-tree li::before, .org-chart-tree li::after {
+  content: ''; position: absolute; top: 0; right: 50%;
+  border-top: 2px solid #e2e8f0; width: 50%; height: 26px;
+}
+.org-chart-tree li::after { right: auto; left: 50%; border-left: 2px solid #e2e8f0; }
+.org-chart-tree li:only-child::before, .org-chart-tree li:only-child::after { display: none; }
+.org-chart-tree li:only-child { padding-top: 0; }
+.org-chart-tree li:first-child::before, .org-chart-tree li:last-child::after { border: 0 none; }
+.org-chart-tree li:last-child::before { border-right: 2px solid #e2e8f0; border-radius: 0 8px 0 0; }
+.org-chart-tree li:first-child::after { border-radius: 8px 0 0 0; }
+.org-chart-tree ul ul::before {
+  content: ''; position: absolute; top: 0; left: 50%;
+  border-left: 2px solid #e2e8f0; width: 0; height: 26px;
+}
+`
+const NODE_CFG: Record<Level, { color: string }> = {
+  division: { color: '#6366f1' }, department: { color: '#0891b2' }, position: { color: '#16a34a' },
+}
+
+function TreeNode({ level, name, subtitle, badge, onEdit, onDelete, children }: {
+  level: Level; name: string; subtitle: string; badge?: React.ReactNode
+  onEdit: () => void; onDelete: () => void; children?: React.ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  const cfg = NODE_CFG[level]
+  return (
+    <li>
+      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ position: 'relative', background: '#fff', border: `1.5px solid ${cfg.color}40`, borderRadius: 12, padding: '9px 16px', minWidth: 108, boxShadow: hovered ? '0 6px 18px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)', transition: 'box-shadow 0.15s' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+          <span style={{ display: 'flex', color: cfg.color }}>{LEVEL_ICON[level]}</span>
+          <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#111827', whiteSpace: 'nowrap' }}>{name}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 3 }}>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{subtitle}</span>
+          {badge}
+        </div>
+        {hovered && (
+          <div style={{ position: 'absolute', top: -9, right: -7, display: 'flex', gap: 3 }}>
+            <button onClick={onEdit} style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Pencil size={10}/></button>
+            <button onClick={onDelete} style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Trash2 size={10}/></button>
+          </div>
+        )}
+      </div>
+      {children && <ul>{children}</ul>}
+    </li>
+  )
+}
+
 // ── Org Tree Tab (ผังของกลุ่มที่เลือก) ───────────────────────────────────────
-function OrgTreeTab({ groupId }: { groupId: string }) {
+function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [addModal, setAddModal] = useState<Level | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
   const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null }>({ name: '', booking_enabled: null })
@@ -318,7 +373,6 @@ function OrgTreeTab({ groupId }: { groupId: string }) {
     onError: (err: any) => showToast('error', err.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
   })
 
-  const toggle = (id: string) => setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null }); setEditModal({ level, row }) }
   const handleEditSave = () => {
     if (!editModal || !editForm.name.trim()) return
@@ -326,51 +380,9 @@ function OrgTreeTab({ groupId }: { groupId: string }) {
     if (editModal.level !== 'position') body.booking_enabled = editForm.booking_enabled
     updateMutation.mutate({ level: editModal.level, id: editModal.row.id, body })
   }
-
-  const rowStyle = (depth: number): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px',
-    paddingLeft: 10 + depth * 24, borderRadius: 8,
-  })
-  const editBtn = (level: Level, row: any) => (
-    <button onClick={() => openEdit(level, row)} style={{ padding: 5, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={12}/></button>
-  )
-  const delBtn = (level: Level, id: string, name: string) => (
-    <button onClick={() => setDeleteTarget({ level, id, name })} style={{ padding: 5, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={12}/></button>
-  )
   const bookingBadge = (v: boolean | null) => v === null ? null : (
-    <span style={{ fontSize: '10px', fontWeight: 700, color: v ? '#16a34a' : '#dc2626', background: v ? '#f0fdf4' : '#fef2f2', padding: '2px 7px', borderRadius: 99 }}>{v ? 'จองได้' : 'จองไม่ได้'}</span>
+    <span style={{ fontSize: '9.5px', fontWeight: 700, color: v ? '#16a34a' : '#dc2626', background: v ? '#f0fdf4' : '#fef2f2', padding: '1px 6px', borderRadius: 99 }}>{v ? 'จองได้' : 'จองไม่ได้'}</span>
   )
-
-  const positionRow = (p: TreePos, depth: number) => (
-    <div key={p.id} style={rowStyle(depth)}>
-      <span style={{ width: 14 }} />
-      <span style={{ display: 'flex', color: LEVEL_COLOR.position }}>{LEVEL_ICON.position}</span>
-      <span style={{ fontSize: '12px', color: '#374151', flex: 1 }}>{p.name}</span>
-      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p._count.employees} คน</span>
-      {editBtn('position', p)}
-      {delBtn('position', p.id, p.name)}
-    </div>
-  )
-  const departmentRow = (dt: TreeDept, depth: number) => {
-    const open = expanded.has(dt.id)
-    return (
-      <div key={dt.id}>
-        <div style={rowStyle(depth)}>
-          <button onClick={() => toggle(dt.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', padding: 2 }}>
-            <ChevronRight size={12} style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
-          </button>
-          <span style={{ display: 'flex', color: LEVEL_COLOR.department }}>{LEVEL_ICON.department}</span>
-          <span style={{ fontWeight: 600, fontSize: '12px', color: '#374151', flex: 1 }}>{dt.name}</span>
-          {bookingBadge(dt.booking_enabled)}
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{dt.positions.length} ตำแหน่ง</span>
-          {editBtn('department', dt)}
-          {delBtn('department', dt.id, dt.name)}
-        </div>
-        {open && dt.positions.map(p => positionRow(p, depth + 1))}
-        {open && dt.positions.length === 0 && <div style={{ ...rowStyle(depth + 1), color: '#d1d5db', fontSize: '12px', fontStyle: 'italic' }}>ยังไม่มีตำแหน่ง</div>}
-      </div>
-    )
-  }
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
 
@@ -382,34 +394,44 @@ function OrgTreeTab({ groupId }: { groupId: string }) {
         <button style={btnGhost(LEVEL_COLOR.position, '#f0fdf4')} onClick={() => setAddModal('position')} disabled={depts.length === 0}><Plus size={12}/> ตำแหน่ง</button>
       </div>
 
-      <div style={{ ...card, padding: 8 }}>
-        {tree.length === 0 && (
+      <div style={{ ...card, overflowX: 'auto' }}>
+        {tree.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
             กลุ่มนี้ยังไม่มีฝ่าย — กดปุ่ม "ฝ่าย" ด้านบนเพื่อเริ่มสร้างผังองค์กร
           </div>
-        )}
-        {tree.map(dv => {
-          const isOpen = expanded.has(dv.id)
-          return (
-            <div key={dv.id}>
-              <div style={rowStyle(0)}>
-                <button onClick={() => toggle(dv.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', padding: 2 }}>
-                  <ChevronRight size={14} style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
-                </button>
-                <span style={{ display: 'flex', color: LEVEL_COLOR.division }}>{LEVEL_ICON.division}</span>
-                <span style={{ fontWeight: 700, fontSize: '13px', color: '#111827', flex: 1 }}>{dv.name}</span>
-                {bookingBadge(dv.booking_enabled)}
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{dv.departments.length} แผนก</span>
-                {editBtn('division', dv)}
-                {delBtn('division', dv.id, dv.name)}
-              </div>
-              {isOpen && dv.departments.map(dt => departmentRow(dt, 1))}
-              {isOpen && dv.departments.length === 0 && (
-                <div style={{ ...rowStyle(1), color: '#d1d5db', fontSize: '12px', fontStyle: 'italic' }}>ยังไม่มีแผนก</div>
-              )}
+        ) : (
+          <>
+            <style>{TREE_CSS}</style>
+            <div className="org-chart-tree">
+              <ul>
+                <li>
+                  <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: 12, padding: '10px 18px', minWidth: 120 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                      <Landmark size={14} color="#f97316" />
+                      <span style={{ fontWeight: 800, fontSize: '13px', color: '#111827', whiteSpace: 'nowrap' }}>{groupName}</span>
+                    </div>
+                  </div>
+                  <ul>
+                    {tree.map(dv => (
+                      <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={bookingBadge(dv.booking_enabled)}
+                        onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
+                        {dv.departments.length > 0 ? dv.departments.map(dt => (
+                          <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={bookingBadge(dt.booking_enabled)}
+                            onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
+                            {dt.positions.map(p => (
+                              <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`}
+                                onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
+                            ))}
+                          </TreeNode>
+                        )) : null}
+                      </TreeNode>
+                    ))}
+                  </ul>
+                </li>
+              </ul>
             </div>
-          )
-        })}
+          </>
+        )}
       </div>
 
       {addModal && <AddEntityModal level={addModal} groupId={groupId} divs={divs} depts={depts} onClose={() => setAddModal(null)} />}
@@ -672,7 +694,7 @@ export default function OrgStructurePage() {
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </div>
-            <OrgTreeTab groupId={selectedGroupId} />
+            <OrgTreeTab groupId={selectedGroupId} groupName={groups.find(g => g.id === selectedGroupId)?.name ?? ''} />
           </>
         )
       )}
