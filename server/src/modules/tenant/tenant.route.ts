@@ -6,7 +6,7 @@ import { ok, fail }         from '../../common/utils/response'
 import { listTenants, getTenant, createTenant, updateTenant, updateTenantFeatures, deleteTenant } from './tenant.service'
 import { FEATURE_KEYS } from '../../common/utils/features'
 import { listUsers, createUser, updateUser, deleteUser, generateTempPassword, setUserDepartments, getUserDepartments } from './user.service'
-import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays } from './holiday.service'
+import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays, listHolidayWorkedAlerts } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
 import { logActivity }      from '../../common/utils/activityLog'
 import { prisma }           from '../../common/utils/prisma'
@@ -373,6 +373,9 @@ export async function tenantRoutes(app: FastifyInstance) {
           recurring:          { type: 'boolean' },
           target_branches:    { type: 'array', items: { type: 'string' }, description: 'branch_id ที่จะให้หยุด — ว่าง/ไม่ส่ง = ทุกสาขา' },
           target_departments: { type: 'array', items: { type: 'string' }, description: 'รหัสแผนก — ว่าง/ไม่ส่ง = ทุกแผนก' },
+          employee_includes:  { type: 'array', items: { type: 'string' }, description: 'employee_id ที่ได้หยุดเพิ่ม แม้ branch/dept จะไม่ครอบคลุม' },
+          employee_excludes:  { type: 'array', items: { type: 'string' }, description: 'employee_id ที่ไม่ได้หยุด แม้ branch/dept จะครอบคลุม' },
+          compensate_days:    { type: 'integer', description: 'วันชดเชยถ้ามาทำงานในวันนี้ (default 1)' },
         },
       },
     },
@@ -380,6 +383,14 @@ export async function tenantRoutes(app: FastifyInstance) {
     const holiday = await createHoliday(req.tenantId, req.body)
     return reply.code(201).send(ok(holiday, 'เพิ่มวันหยุดสำเร็จ'))
   })
+
+  // GET /api/v1/super-admin/holidays/worked-alerts — ใครทำงานในวันหยุดนักขัตฤกษ์บ้าง
+  app.get('/holidays/worked-alerts', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    schema: {
+      tags: [TAG], summary: 'ดูรายชื่อคนที่ทำงานในวันหยุดนักขัตฤกษ์ที่ควรหยุด (Alert)', security: [{ oauth2: [] }],
+    },
+  }, async (req: any) => ok(await listHolidayWorkedAlerts(req.tenantId)))
 
   // PATCH /api/v1/super-admin/holidays/:id
   app.patch('/holidays/:id', {
@@ -398,6 +409,9 @@ export async function tenantRoutes(app: FastifyInstance) {
           recurring:          { type: 'boolean' },
           target_branches:    { type: ['array', 'null'], items: { type: 'string' } },
           target_departments: { type: ['array', 'null'], items: { type: 'string' } },
+          employee_includes:  { type: ['array', 'null'], items: { type: 'string' } },
+          employee_excludes:  { type: ['array', 'null'], items: { type: 'string' } },
+          compensate_days:    { type: 'integer' },
         },
       },
     },

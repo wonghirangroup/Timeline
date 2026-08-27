@@ -1,12 +1,12 @@
 // server/src/modules/attendance/attendance.service.ts
 import { prisma } from '../../common/utils/prisma'
-import { holidayAppliesTo } from '../tenant/holiday.service'
+import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์) ────────────────────────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
 // ต่างกัน: OFF → ยกเว้นสาย/ขาด/ค่าปรับ (ไม่ได้ถูกกำหนดให้มาอยู่แล้ว), OFFSITE →
 // คำนวณสาย/ค่าปรับตามปกติ แค่แนบหมายเหตุให้ admin เห็นว่าวันนี้กำหนดทำงานนอกสถานที่
-interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string }
+interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string; compensateDays?: number }
 
 async function resolveDayRule(tenantId: string, employeeId: string, date: Date): Promise<DayRuleResult> {
   const employee = await prisma.employee.findFirst({
@@ -25,7 +25,9 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
 
   if (st.off_on_public_holiday && employee) {
     const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
-    if (holiday && holidayAppliesTo(holiday, employee)) return { rule: 'OFF', holidayName: holiday.name }
+    if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
+      return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days }
+    }
   }
   return { rule: 'WORK' }
 }
@@ -41,6 +43,18 @@ function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateSta
     return { late, dayRuleNote: 'วันนี้กำหนดให้ทำงานนอกสถานที่ตามสถานะพนักงาน' }
   }
   return { late }
+}
+
+// เช็คอินในวันหยุดนักขัตฤกษ์ที่ apply กับคนนี้ (OFF + holidayName มา) → ให้วันชดเชย
+// อัตโนมัติ + flag worked_on_holiday ไว้ทำ Alert — ไม่ให้พังการเช็คอินหลักถ้า
+// grant ล้มเหลว (compensation เป็นแค่ของแถม ไม่ใช่ critical path)
+async function grantCompensationIfWorkedHoliday(tenantId: string, employeeId: string, dayRule: DayRuleResult, date: Date) {
+  if (dayRule.rule !== 'OFF' || !dayRule.holidayName) return
+  try {
+    await grantHolidayCompensation(tenantId, employeeId, dayRule.compensateDays ?? 1, date.getUTCFullYear())
+  } catch (e) {
+    console.error('grantHolidayCompensation failed:', e)
+  }
 }
 
 // scopedEmployeeIds: undefined = ไม่ scope (role ปกติ), array = DEPT_HEAD จำกัดแค่คนในแผนก
@@ -488,11 +502,13 @@ export async function checkInAuto(tenantId: string, data: {
         gps_lng:          data.gps_lng,
         is_outside_area,
         is_outside_shift: isOutsideShift,
+        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
       },
     })
     if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
     return { record, carried }
   })
+  await grantCompensationIfWorkedHoliday(tenantId, data.employee_id, dayRule, today)
 
   return {
     record,
@@ -575,7 +591,7 @@ export async function checkIn(tenantId: string, data: {
     }
   }
 
-  return prisma.$transaction(async (tx) => {
+  const record = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
     const record = await tx.attendanceRecord.create({
       data: {
@@ -594,11 +610,14 @@ export async function checkIn(tenantId: string, data: {
         gps_lng:         data.gps_lng,
         is_outside_area,
         note:            data.note ?? dayRuleNote ?? (late.is_absent ? absentNote(now) : null),
+        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
     return record
   })
+  await grantCompensationIfWorkedHoliday(tenantId, data.employee_id, dayRule, today)
+  return record
 }
 
 export async function checkInQR(tenantId: string, data: {
@@ -641,7 +660,7 @@ export async function checkInQR(tenantId: string, data: {
   const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
   const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
 
-  return prisma.$transaction(async (tx) => {
+  const record = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
     const record = await tx.attendanceRecord.create({
       data: {
@@ -660,11 +679,14 @@ export async function checkInQR(tenantId: string, data: {
         gps_lng:         data.gps_lng,
         is_outside_area: false,
         note:            dayRuleNote ?? (late.is_absent ? absentNote(now) : undefined),
+        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
     return record
   })
+  await grantCompensationIfWorkedHoliday(tenantId, data.employee_id, dayRule, today)
+  return record
 }
 
 export async function checkInScan(tenantId: string, data: {

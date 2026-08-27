@@ -489,6 +489,7 @@ model AttendanceRecord {
   gps_lng          Decimal?      @db.Decimal(11, 8)
   is_outside_area  Boolean       @default(false) // true = เช็คอินนอกรัศมี (WARN mode)
   is_outside_shift Boolean       @default(false) // true = สแกน QR นอกช่วงเวลากะ
+  worked_on_holiday Boolean      @default(false) // true = เช็คอินวันที่ควรหยุด (holiday apply กับคนนี้) — ได้ compensate_days อัตโนมัติ ใช้ทำ Alert
   attachment_url   String? // Phase 4: selfie fallback
   note             String?
   created_at       DateTime      @default(now())
@@ -704,6 +705,9 @@ model Holiday {
   recurring          Boolean     @default(false)
   target_branches    Json? // string[] ของ branch_id — null/[] = ทุกสาขา
   target_departments Json? // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
+  employee_includes  Json? // string[] employee_id ที่ "ได้หยุด" เพิ่มจากที่ branch/dept ครอบคลุมอยู่แล้ว
+  employee_excludes  Json? // string[] employee_id ที่ "ไม่ได้หยุด" แม้ branch/dept จะครอบคลุมก็ตาม (สำคัญกว่า include)
+  compensate_days    Int         @default(1) // วันชดเชยที่ได้ถ้ามาทำงานในวันนี้ทั้งที่ควรหยุด (เฉพาะคนที่ holiday นี้ apply ด้วย)
   created_at         DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])

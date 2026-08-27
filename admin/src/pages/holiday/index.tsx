@@ -1,7 +1,7 @@
 // admin/src/pages/holiday/index.tsx
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Check, Repeat2, Plus, Landmark, Building2, Target, Flag, Download } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Repeat2, Plus, Landmark, Building2, Target, Flag, Download, Users, AlertTriangle, Search, Gift } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
@@ -17,6 +17,24 @@ interface Holiday {
   recurring: boolean
   target_branches?: string[] | null
   target_departments?: string[] | null
+  employee_includes?: string[] | null   // employee_id ที่ "ได้หยุด" เพิ่ม แม้ branch/dept จะไม่ครอบคลุม
+  employee_excludes?: string[] | null   // employee_id ที่ "ไม่ได้หยุด" แม้ branch/dept จะครอบคลุม (ชนะทุกอย่าง)
+  compensate_days?: number              // วันชดเชยถ้ามาทำงานในวันที่ควรหยุด
+}
+
+interface HolidayEmployee {
+  id: string
+  employee_code: string
+  first_name: string
+  last_name: string
+  nickname: string | null
+  branch: { id: string; name: string }
+}
+
+interface HolidayAlert {
+  id: string
+  date: string
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null }
 }
 
 // แผนก — สำเนาจาก employee/index.tsx (ตามธรรมเนียมของโปรเจกต์นี้ที่ define ค่าคงที่ต่อไฟล์)
@@ -139,21 +157,86 @@ function MiniMonth({
   )
 }
 
+// ── Employee multi-select (ค้นหา + เลือกได้หลายคน) ──────────────────────────────
+function empDisplayName(e: HolidayEmployee) {
+  const full = `${e.first_name} ${e.last_name}`.trim()
+  return e.nickname ? `${full} (${e.nickname})` : full
+}
+
+function EmployeeMultiSelect({
+  employees, selected, onToggle, accent, accentBg, placeholder,
+}: {
+  employees: HolidayEmployee[]
+  selected: Set<string>
+  onToggle: (id: string) => void
+  accent: string
+  accentBg: string
+  placeholder: string
+}) {
+  const [q, setQ] = useState('')
+  const query = q.trim().toLowerCase()
+  const filtered = query.length === 0 ? employees : employees.filter(e =>
+    empDisplayName(e).toLowerCase().includes(query) || e.employee_code.toLowerCase().includes(query))
+  const selectedEmps = employees.filter(e => selected.has(e.id))
+
+  return (
+    <div>
+      {selectedEmps.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+          {selectedEmps.map(e => (
+            <span key={e.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px 3px 10px', borderRadius: 99, background: accentBg, color: accent, fontSize: '0.74rem', fontWeight: 600 }}>
+              {empDisplayName(e)}
+              <button type="button" onClick={() => onToggle(e.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, padding: 2, display: 'flex' }}><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ position: 'relative', marginBottom: 6 }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder={placeholder}
+          style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      </div>
+      <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.76rem', color: '#94a3b8' }}>ไม่พบพนักงาน</div>
+        ) : filtered.slice(0, 60).map(e => {
+          const active = selected.has(e.id)
+          return (
+            <button key={e.id} type="button" onClick={() => onToggle(e.id)}
+              style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: 'none', borderBottom: '1px solid #f8fafc', background: active ? accentBg : '#fff', cursor: 'pointer' }}>
+              <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${active ? accent : '#cbd5e1'}`, background: active ? accent : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {active && <Check size={10} color="#fff" />}
+              </div>
+              <span style={{ fontSize: '0.78rem', color: active ? accent : '#374151', fontWeight: active ? 700 : 500, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{empDisplayName(e)}</span>
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8', flexShrink: 0 }}>{e.employee_code}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Add/Edit Modal ────────────────────────────────────────────────────────────
 interface ModalProps {
   initial?: Partial<Holiday>
   branches: { id: string; name: string }[]
+  employees: HolidayEmployee[]
   onSave: (h: Omit<Holiday, 'id'>) => void
   onClose: () => void
 }
 
-function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
+function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalProps) {
   const [date,      setDate]      = useState(initial?.date ?? '')
   const [name,      setName]      = useState(initial?.name ?? '')
   const [type,      setType]      = useState<HolidayType>(initial?.type ?? 'NATIONAL')
   const [recurring, setRecurring] = useState(initial?.recurring ?? false)
   const [targetBranches,    setTargetBranches]    = useState<Set<string>>(new Set(initial?.target_branches ?? []))
   const [targetDepartments, setTargetDepartments] = useState<Set<string>>(new Set(initial?.target_departments ?? []))
+  const [employeeIncludes,  setEmployeeIncludes]  = useState<Set<string>>(new Set(initial?.employee_includes ?? []))
+  const [employeeExcludes,  setEmployeeExcludes]  = useState<Set<string>>(new Set(initial?.employee_excludes ?? []))
+  const [compensateDays,    setCompensateDays]    = useState(initial?.compensate_days ?? 1)
+  const [showIndividual,    setShowIndividual]    = useState(() => (initial?.employee_includes?.length ?? 0) > 0 || (initial?.employee_excludes?.length ?? 0) > 0)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   function toggleBranch(id: string) {
@@ -161,6 +244,15 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
   }
   function toggleDept(d: string) {
     setTargetDepartments(prev => { const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n })
+  }
+  // ระบุไว้ฝั่งหนึ่งแล้วต้องเอาออกจากอีกฝั่งเสมอ — คนเดียวกันเป็นทั้ง "ได้หยุด" และ "ไม่ได้หยุด" พร้อมกันไม่ได้
+  function toggleInclude(id: string) {
+    setEmployeeIncludes(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setEmployeeExcludes(prev => { if (!prev.has(id)) return prev; const n = new Set(prev); n.delete(id); return n })
+  }
+  function toggleExclude(id: string) {
+    setEmployeeExcludes(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setEmployeeIncludes(prev => { if (!prev.has(id)) return prev; const n = new Set(prev); n.delete(id); return n })
   }
 
   useEffect(() => {
@@ -249,6 +341,46 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
               })}
             </div>
           </div>
+
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+            <button type="button" onClick={() => setShowIndividual(v => !v)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <Users size={14} color="#374151" />
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', flex: 1, textAlign: 'left' }}>ระบุเป็นรายบุคคล</span>
+              {(employeeIncludes.size > 0 || employeeExcludes.size > 0) && (
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}>
+                  {employeeIncludes.size + employeeExcludes.size}
+                </span>
+              )}
+              <span style={{ color: '#94a3b8', fontSize: '0.9rem', transform: showIndividual ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
+            </button>
+            {showIndividual && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#15803d', display: 'block', marginBottom: 4 }}>ได้หยุดเพิ่ม (แม้สาขา/แผนกจะไม่ครอบคลุม)</label>
+                  <EmployeeMultiSelect employees={employees} selected={employeeIncludes} onToggle={toggleInclude}
+                    accent="#15803d" accentBg="#dcfce7" placeholder="ค้นหาชื่อหรือรหัสพนักงาน..." />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 4 }}>ไม่ได้หยุด (แม้สาขา/แผนกจะครอบคลุม)</label>
+                  <EmployeeMultiSelect employees={employees} selected={employeeExcludes} onToggle={toggleExclude}
+                    accent="#dc2626" accentBg="#fee2e2" placeholder="ค้นหาชื่อหรือรหัสพนักงาน..." />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Gift size={14} color="#d97706" /> วันชดเชยถ้ามาทำงาน
+              </label>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ถ้าพนักงานเช็คอินในวันนี้ทั้งที่ควรหยุด ระบบจะให้วันหยุดชดเชยอัตโนมัติ</div>
+            </div>
+            <input type="number" min={0} max={5} value={compensateDays}
+              onChange={e => setCompensateDays(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
+              style={{ width: 60, padding: '8px 6px', borderRadius: 9, border: '1.5px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', textAlign: 'center', boxSizing: 'border-box' }} />
+          </div>
         </div>
         <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
@@ -256,6 +388,9 @@ function HolidayModal({ initial, branches, onSave, onClose }: ModalProps) {
               date, name: name.trim(), type, recurring,
               target_branches:    targetBranches.size    > 0 ? [...targetBranches]    : null,
               target_departments: targetDepartments.size > 0 ? [...targetDepartments] : null,
+              employee_includes:  employeeIncludes.size   > 0 ? [...employeeIncludes]  : null,
+              employee_excludes:  employeeExcludes.size   > 0 ? [...employeeExcludes]  : null,
+              compensate_days:    compensateDays,
             })} disabled={!canSave}
             style={{ padding: '9px 22px', borderRadius: 9, border: 'none', fontSize: '0.875rem', fontWeight: 700, cursor: canSave ? 'pointer' : 'not-allowed', background: canSave ? '#4f46e5' : '#e2e8f0', color: canSave ? '#fff' : '#94a3b8' }}>
             บันทึก
@@ -292,6 +427,16 @@ export default function HolidayPage() {
   const { data: apiBranches = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['admin', 'branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  })
+
+  const { data: employees = [] } = useQuery<HolidayEmployee[]>({
+    queryKey: ['admin', 'employees', 'for-holiday'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+
+  const { data: alerts = [] } = useQuery<HolidayAlert[]>({
+    queryKey: ['admin', 'holiday-worked-alerts'],
+    queryFn: () => api.get('/api/v1/super-admin/holidays/worked-alerts').then(r => r.data.data),
   })
 
   function invalidate() { qc.invalidateQueries({ queryKey: ['admin', 'holidays', year] }) }
@@ -368,6 +513,22 @@ export default function HolidayPage() {
     if (branchNames.length > 0) parts.push(branchNames.length === 1 ? branchNames[0] : `${branchNames.length} สาขา`)
     if (deptCount > 0) parts.push(`${deptCount} แผนก`)
     return parts.length > 0 ? parts.join(' · ') : null
+  }
+
+  // label แยกต่างหากบอกว่ามีการระบุเป็นรายบุคคลไหม (include/exclude)
+  function individualLabel(h: Holiday): string | null {
+    const inc = (h.employee_includes ?? []).length
+    const exc = (h.employee_excludes ?? []).length
+    if (inc === 0 && exc === 0) return null
+    const parts: string[] = []
+    if (inc > 0) parts.push(`+${inc} คน`)
+    if (exc > 0) parts.push(`-${exc} คน`)
+    return parts.join(' ')
+  }
+
+  function alertEmpName(a: HolidayAlert) {
+    const full = `${a.employee.first_name} ${a.employee.last_name}`.trim()
+    return a.employee.nickname ? `${full} (${a.employee.nickname})` : full
   }
 
   function thDate(d: string) {
@@ -475,6 +636,7 @@ export default function HolidayPage() {
                                 <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: tc.color, fontWeight: 600 }}>{tc.label}</span>
                                 {h.recurring && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: 'rgba(124,58,237,0.1)', padding: '1px 6px', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}><Repeat2 size={10} /> ทำซ้ำ</span>}
                                 {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: '#374151', fontWeight: 600 }}><Target size={10} /> {targetLabel(h)}</span>}
+                                {individualLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', background: 'rgba(255,255,255,0.6)', padding: '1px 6px', borderRadius: 99, color: '#374151', fontWeight: 600 }}><Users size={10} /> {individualLabel(h)}</span>}
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -486,6 +648,27 @@ export default function HolidayPage() {
                       })}
                     </div>
                   )}
+                </div>
+              )}
+
+              {alerts.length > 0 && (
+                <div style={{ background: '#fffbeb', borderRadius: 14, border: '1px solid #fde68a', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertTriangle size={15} color="#d97706" />
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', flex: 1 }}>มาทำงานในวันหยุด</span>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 8px', borderRadius: 99, background: '#fef3c7', color: '#d97706' }}>{alerts.length}</span>
+                  </div>
+                  <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                    {alerts.map((a, idx) => (
+                      <div key={a.id} style={{ padding: '9px 14px', borderBottom: idx < alerts.length - 1 ? '1px solid #fef3c7' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#78350f', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{alertEmpName(a)}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: 1 }}>{thDate(toKey(a.date))}{a.employee.branch ? ` · ${a.employee.branch.name}` : ''}</div>
+                        </div>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#92400e', flexShrink: 0 }}>{a.employee.employee_code}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -521,6 +704,7 @@ export default function HolidayPage() {
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: tc.bg, color: tc.color }}>{tc.label}</span>
                             {h.recurring && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}><Repeat2 size={10} /></span>}
                             {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}><Target size={10} /> {targetLabel(h)}</span>}
+                            {individualLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}><Users size={10} /> {individualLabel(h)}</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
@@ -546,8 +730,8 @@ export default function HolidayPage() {
           </div>
 
       {/* Add / Edit Modal */}
-      {modal?.mode === 'add' && <HolidayModal initial={modal.date ? { date: modal.date } : undefined} branches={apiBranches} onSave={handleAdd} onClose={() => setModal(null)} />}
-      {modal?.mode === 'edit' && <HolidayModal initial={modal.holiday} branches={apiBranches} onSave={handleEdit} onClose={() => setModal(null)} />}
+      {modal?.mode === 'add' && <HolidayModal initial={modal.date ? { date: modal.date } : undefined} branches={apiBranches} employees={employees} onSave={handleAdd} onClose={() => setModal(null)} />}
+      {modal?.mode === 'edit' && <HolidayModal initial={modal.holiday} branches={apiBranches} employees={employees} onSave={handleEdit} onClose={() => setModal(null)} />}
 
       {/* Delete confirm */}
       {deleteConfirm && (
