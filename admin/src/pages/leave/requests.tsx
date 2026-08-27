@@ -223,7 +223,7 @@ export default function LeaveRequestsTab() {
     mutationFn: (body: object) => api.post('/api/v1/admin/leave-requests', body).then(r => r.data),
     onSuccess: () => {
       invalidate()
-      showToast('success', 'สร้างคำขอวันลาสำเร็จ')
+      showToast('success', 'สร้างและอนุมัติวันลาสำเร็จ')
       setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '' })
       setTab('requests')
     },
@@ -361,7 +361,8 @@ export default function LeaveRequestsTab() {
       {/* ── Tab: Add Leave ── */}
       {tab === 'add' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '24px', maxWidth: 560 }}>
-          <h3 style={{ margin: '0 0 20px', fontWeight: 700, fontSize: '15px' }}>+ สร้างคำขอวันลา</h3>
+          <h3 style={{ margin: '0 0 6px', fontWeight: 700, fontSize: '15px' }}>+ สร้างคำขอวันลา</h3>
+          <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✓ ระบบจะอนุมัติให้ทันทีที่บันทึก (ไม่ต้องกดอนุมัติซ้ำ)</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>พนักงาน *</label>

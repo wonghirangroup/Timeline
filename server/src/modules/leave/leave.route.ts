@@ -70,12 +70,12 @@ export async function leaveRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธวันลาแล้ว')
   })
 
-  // ── Admin: สร้างวันลาแทนพนักงาน ──────────────────────────────────
+  // ── Admin: สร้างวันลาแทนพนักงาน (อนุมัติอัตโนมัติทันที) ────────────
   app.post('/admin/leave-requests', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
-      summary: 'Admin สร้างคำขอวันลาแทนพนักงาน',
+      summary: 'Admin สร้างคำขอวันลาแทนพนักงาน (อนุมัติอัตโนมัติ — คนลงคือคนอนุมัติอยู่แล้วในตัว)',
       security: [{ oauth2: [] }],
       body: {
         type: 'object',
@@ -92,8 +92,8 @@ export async function leaveRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     try {
-      const request = await createLeaveRequest(req.tenantId, req.body)
-      return reply.code(201).send(ok(request, 'สร้างคำขอวันลาสำเร็จ'))
+      const request = await createLeaveRequest(req.tenantId, { ...req.body, autoApprove: true, reviewedBy: req.userId })
+      return reply.code(201).send(ok(request, 'สร้างคำขอวันลาสำเร็จ (อนุมัติอัตโนมัติ)'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))

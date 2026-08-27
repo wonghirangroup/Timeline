@@ -62,6 +62,8 @@ async function hasPositionConflict(
   return !!conflict
 }
 
+// autoApprove: true เฉพาะตอนแอดมิน/หัวหน้าแผนกลงวันลาแทนพนักงานเอง (ไม่ต้องรออนุมัติซ้ำ
+// เพราะคนลงคือคนอนุมัติอยู่แล้วในตัว) — พนักงานยื่นเองผ่าน LIFF ต้องผ่าน PENDING ปกติเสมอ
 export async function createLeaveRequest(
   tenantId: string,
   data: {
@@ -71,6 +73,8 @@ export async function createLeaveRequest(
     end_date: string
     days: number
     reason?: string
+    autoApprove?: boolean
+    reviewedBy?: string
   },
 ) {
   // ตรวจสอบวันลาทับซ้อน (PENDING หรือ APPROVED)
@@ -113,8 +117,18 @@ export async function createLeaveRequest(
       days: data.days,
       reason: data.reason,
       has_conflict: conflict,
+      ...(data.autoApprove ? { status: 'APPROVED', reviewed_by: data.reviewedBy, reviewed_at: new Date() } : {}),
     },
   })
+
+  // autoApprove ข้ามขั้นตอน approveLeaveRequest() ไปเลย ต้องหักวันลาเองตรงนี้แทน
+  // (ปกติ used_days จะถูกหักตอนกด "อนุมัติ" เท่านั้น ไม่ใช่ตอนสร้างคำขอ)
+  if (data.autoApprove) {
+    await prisma.leaveBalance.updateMany({
+      where: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, year: startDate.getFullYear() },
+      data: { used_days: { increment: data.days } },
+    })
+  }
 
   if (conflict && employee?.position_id) {
     // แก้ record ของคนอื่นที่ชนกันให้ flag ด้วย เพื่อให้แอดมินเห็นทั้งสองฝั่ง
