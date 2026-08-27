@@ -785,6 +785,9 @@ export default function TeamCalendarTab() {
     win.document.write(`<html><head><title>ปฏิทินรวม — ${fmtMonthTH(month)}</title>
       <style>
         @page { size: landscape; margin: 14mm; }
+        /* เบราว์เซอร์ปิดพื้นหลังสีตอน print/Save as PDF โดย default (ประหยัดหมึก) —
+           บังคับให้พิมพ์สีจริงตามที่เห็นบนจอเสมอ ไม่งั้น highlight หายหมด */
+        *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
         body{font-family:'Sarabun',sans-serif;padding:16px;color:#1e293b}
         h1{font-size:20px;margin:0 0 2px}
         .sub{font-size:13px;color:#6b7280;margin:0 0 16px}
@@ -859,10 +862,15 @@ export default function TeamCalendarTab() {
     const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet(fmtMonthTH(month).slice(0, 31))
 
+    // กรอบบางๆ รอบทุกช่อง — ให้เห็นเป็นตารางชัดเจนเหมือนสเปรดชีตทั่วไป (ExcelJS
+    // ไม่ใส่กรอบให้เองเป็น default ต่างจาก gridlines ที่โปรแกรมแสดงเฉยๆ ไม่ติดไปกับไฟล์)
+    const THIN = { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
+    const CELL_BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
+
     const fixedCols = ['ชื่อ', ...(rosterCols.code ? ['รหัส'] : []), ...(rosterCols.branch ? ['สาขา'] : [])]
     const totalCols = fixedCols.length + daysInMonth
     const headerRow = ws.addRow([...fixedCols, ...Array.from({ length: daysInMonth }, (_, i) => i + 1)])
-    headerRow.eachCell(c => { c.font = { bold: true, color: { argb: 'FF6B7280' } }; c.alignment = { horizontal: 'center' } })
+    headerRow.eachCell({ includeEmpty: true }, c => { c.font = { bold: true, color: { argb: 'FF6B7280' } }; c.alignment = { horizontal: 'center' }; c.border = CELL_BORDER })
     ws.getColumn(1).width = 22
     for (let i = 0; i < fixedCols.length - 1; i++) ws.getColumn(2 + i).width = 12
     for (let i = 0; i < daysInMonth; i++) ws.getColumn(fixedCols.length + 1 + i).width = 6
@@ -872,6 +880,7 @@ export default function TeamCalendarTab() {
       ws.mergeCells(groupRow.number, 1, groupRow.number, totalCols)
       groupRow.getCell(1).font = { bold: true, size: 12 }
       groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+      groupRow.getCell(1).border = CELL_BORDER
 
       for (const e of grp.employees) {
         const color = colorForEmployee(e.id, orderedIds).replace('#', '').toUpperCase()
@@ -894,6 +903,7 @@ export default function TeamCalendarTab() {
             xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FFFFFFFF' } }
           }
         }
+        row.eachCell({ includeEmpty: true }, c => { c.border = CELL_BORDER })
       }
     }
 
@@ -938,6 +948,9 @@ export default function TeamCalendarTab() {
     win.document.write(`<html><head><title>ตารางแยกกลุ่ม — ${fmtMonthTH(month)}</title>
       <style>
         @page { size: landscape; margin: 10mm; }
+        /* เบราว์เซอร์ปิดพื้นหลังสีตอน print/Save as PDF โดย default (ประหยัดหมึก) —
+           บังคับให้พิมพ์สีจริงตามที่เห็นบนจอเสมอ ไม่งั้น highlight หายหมด */
+        *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
         body{font-family:'Sarabun',sans-serif;padding:16px;color:#1e293b}
         h1{font-size:20px;margin:0 0 2px}
         .sub{font-size:13px;color:#6b7280;margin:0 0 16px}
