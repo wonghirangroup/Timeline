@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
-import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff } from './weekly-off.service'
+import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
 
@@ -172,6 +172,77 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     })
 
     return ok({ count: pending.length }, `อนุมัติ ${pending.length} รายการสำเร็จ`)
+  })
+
+  // ── Admin/DEPT_HEAD: Alert "เช็คอินวันที่จองวันหยุดไว้เอง" ──────────────────
+  app.get('/admin/weekly-off/worked-alerts', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ดูรายชื่อคนที่เช็คอินในวันที่ตัวเองจองวันหยุดไว้เอง (รอ HR resolve — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
+      security: [{ oauth2: [] }],
+    },
+  }, async (req: any) => ok(await listWorkedOnOwnDayOffAlerts(req.tenantId, req.scopedEmployeeIds)))
+
+  // ── Admin/DEPT_HEAD: Resolve alert ───────────────────────────────────
+  app.post('/admin/weekly-off/worked-alerts/:id/resolve', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'Resolve alert เช็คอินวันหยุดที่จองเอง — เลือก RESCHEDULE (เลื่อนไปจองใหม่) หรือ COMPENSATE (ให้วันชดเชย)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['action'],
+        properties: {
+          action:          { type: 'string', enum: ['RESCHEDULE', 'COMPENSATE'] },
+          note:            { type: 'string' },
+          compensate_days: { type: 'integer', minimum: 0, maximum: 5 },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await resolveWorkedOnOwnDayOffAlert(req.tenantId, req.params.id, {
+        action: req.body.action, resolvedBy: req.userId, note: req.body.note, compensateDays: req.body.compensate_days,
+      }, req.scopedEmployeeIds)
+      if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+      return ok(result, req.body.action === 'RESCHEDULE' ? 'ยกเลิกวันหยุดเดิม พนักงานจองวันใหม่ได้แล้ว' : 'ให้วันหยุดชดเชยเรียบร้อย')
+    } catch (e: any) {
+      if (e.message === 'ALREADY_RESOLVED') return reply.code(409).send(fail('ALREADY_RESOLVED', 'รายการนี้ resolve ไปแล้ว'))
+      throw e
+    }
+  })
+
+  // ── Admin: สลับวันหยุดกันระหว่าง 2 คน ─────────────────────────────────
+  app.post('/admin/weekly-off/swap', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'สลับวันหยุดกันระหว่าง 2 คน (แอดมิน/HR ทำให้โดยตรง — mark APPROVED ทั้งคู่ทันที)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_a_off_id', 'employee_b_off_id'],
+        properties: {
+          employee_a_off_id: { type: 'string' },
+          employee_b_off_id: { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await swapWeeklyOff(req.tenantId, {
+        employeeAOffId: req.body.employee_a_off_id, employeeBOffId: req.body.employee_b_off_id, swappedBy: req.userId,
+      })
+      return ok(result, 'สลับวันหยุดสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND')     return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการวันหยุดที่ระบุ'))
+      if (e.message === 'SAME_EMPLOYEE') return reply.code(400).send(fail('SAME_EMPLOYEE', 'ต้องเป็นคนละคนกัน'))
+      if (e.message === 'CONFLICT_A' || e.message === 'CONFLICT_B') return reply.code(409).send(fail('CONFLICT', 'มีพนักงานฝั่งใดฝั่งหนึ่งจองวันหยุดสัปดาห์นั้นไว้แล้ว'))
+      throw e
+    }
   })
 
   // ── Admin: ดูสถานะการเปิดจองต่อสาขา ─────────────────────────────────────────

@@ -1,12 +1,16 @@
 // server/src/modules/attendance/attendance.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
+import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 
-// ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์) ────────────────────────
+// ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
 // ต่างกัน: OFF → ยกเว้นสาย/ขาด/ค่าปรับ (ไม่ได้ถูกกำหนดให้มาอยู่แล้ว), OFFSITE →
 // คำนวณสาย/ค่าปรับตามปกติ แค่แนบหมายเหตุให้ admin เห็นว่าวันนี้กำหนดทำงานนอกสถานที่
-interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string; compensateDays?: number }
+// source แยกที่มาของ OFF เพราะพฤติกรรมต่อจากนี้ไม่เหมือนกัน: HOLIDAY ให้วันชดเชย
+// อัตโนมัติทันที (บริษัทประกาศเอง), WEEKLY_OFF (พนักงานจองวันหยุดของตัวเอง) ไม่
+// auto grant — ต้องรอ HR resolve ว่าจะทำยังไง (feedback 2026-08-27)
+interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string; compensateDays?: number; source?: 'HOLIDAY' | 'WEEKLY_OFF' }
 
 async function resolveDayRule(tenantId: string, employeeId: string, date: Date): Promise<DayRuleResult> {
   const employee = await prisma.employee.findFirst({
@@ -17,18 +21,26 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
     },
   })
   const st = employee?.employee_status_type
-  if (!st) return { rule: 'WORK' }
 
-  const dow = date.getUTCDay()
-  if (dow === 6 && st.saturday_rule !== 'WORK') return { rule: st.saturday_rule as 'OFF' | 'OFFSITE' }
-  if (dow === 0 && st.sunday_rule   !== 'WORK') return { rule: st.sunday_rule as 'OFF' | 'OFFSITE' }
+  if (st) {
+    const dow = date.getUTCDay()
+    if (dow === 6 && st.saturday_rule !== 'WORK') return { rule: st.saturday_rule as 'OFF' | 'OFFSITE' }
+    if (dow === 0 && st.sunday_rule   !== 'WORK') return { rule: st.sunday_rule as 'OFF' | 'OFFSITE' }
 
-  if (st.off_on_public_holiday && employee) {
-    const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
-    if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
-      return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days }
+    if (st.off_on_public_holiday && employee) {
+      const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
+      if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
+        return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
+      }
     }
   }
+
+  // จองวันหยุดประจำสัปดาห์ของตัวเองไว้ (อนุมัติแล้ว) ตรงกับวันนี้ไหม
+  const weeklyOff = await getEmployeeWeeklyOff(tenantId, employeeId, date)
+  if (weeklyOff && weeklyOff.status === 'APPROVED' && weeklyOff.day_of_week === date.getUTCDay()) {
+    return { rule: 'OFF', source: 'WEEKLY_OFF' }
+  }
+
   return { rule: 'WORK' }
 }
 
@@ -36,7 +48,11 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
 // แค่แนบหมายเหตุ, WORK ไม่ยุ่งอะไรเลย
 function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateStatus; dayRuleNote?: string } {
   if (dayRule.rule === 'OFF') {
-    const reason = dayRule.holidayName ? `วันหยุดนักขัตฤกษ์ (${dayRule.holidayName})` : 'วันหยุดประจำตามสถานะพนักงาน'
+    const reason = dayRule.holidayName
+      ? `วันหยุดนักขัตฤกษ์ (${dayRule.holidayName})`
+      : dayRule.source === 'WEEKLY_OFF'
+        ? 'วันหยุดที่จองไว้เอง (รอ HR ตรวจสอบ)'
+        : 'วันหยุดประจำตามสถานะพนักงาน'
     return { late: { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }, dayRuleNote: `เช็คอินในวันหยุด — ${reason} ไม่นับสาย/ขาด` }
   }
   if (dayRule.rule === 'OFFSITE') {
@@ -45,11 +61,13 @@ function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateSta
   return { late }
 }
 
-// เช็คอินในวันหยุดนักขัตฤกษ์ที่ apply กับคนนี้ (OFF + holidayName มา) → ให้วันชดเชย
+// เช็คอินในวันหยุดนักขัตฤกษ์ที่ apply กับคนนี้ (source = HOLIDAY) → ให้วันชดเชย
 // อัตโนมัติ + flag worked_on_holiday ไว้ทำ Alert — ไม่ให้พังการเช็คอินหลักถ้า
 // grant ล้มเหลว (compensation เป็นแค่ของแถม ไม่ใช่ critical path)
+// (เช็คอินวันที่จองวันหยุดเองต่างหาก — ไม่ auto grant ตรงนี้ ดู worked_on_weekly_off
+// + resolveWorkedOnOwnDayOffAlert ใน weekly-off.service.ts แทน)
 async function grantCompensationIfWorkedHoliday(tenantId: string, employeeId: string, dayRule: DayRuleResult, date: Date) {
-  if (dayRule.rule !== 'OFF' || !dayRule.holidayName) return
+  if (dayRule.rule !== 'OFF' || dayRule.source !== 'HOLIDAY') return
   try {
     await grantHolidayCompensation(tenantId, employeeId, dayRule.compensateDays ?? 1, date.getUTCFullYear())
   } catch (e) {
@@ -502,7 +520,8 @@ export async function checkInAuto(tenantId: string, data: {
         gps_lng:          data.gps_lng,
         is_outside_area,
         is_outside_shift: isOutsideShift,
-        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
+        worked_on_holiday: dayRule.rule === 'OFF' && dayRule.source === 'HOLIDAY',
+        worked_on_weekly_off: dayRule.rule === 'OFF' && dayRule.source === 'WEEKLY_OFF',
       },
     })
     if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
@@ -610,7 +629,8 @@ export async function checkIn(tenantId: string, data: {
         gps_lng:         data.gps_lng,
         is_outside_area,
         note:            data.note ?? dayRuleNote ?? (late.is_absent ? absentNote(now) : null),
-        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
+        worked_on_holiday: dayRule.rule === 'OFF' && dayRule.source === 'HOLIDAY',
+        worked_on_weekly_off: dayRule.rule === 'OFF' && dayRule.source === 'WEEKLY_OFF',
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
@@ -679,7 +699,8 @@ export async function checkInQR(tenantId: string, data: {
         gps_lng:         data.gps_lng,
         is_outside_area: false,
         note:            dayRuleNote ?? (late.is_absent ? absentNote(now) : undefined),
-        worked_on_holiday: dayRule.rule === 'OFF' && !!dayRule.holidayName,
+        worked_on_holiday: dayRule.rule === 'OFF' && dayRule.source === 'HOLIDAY',
+        worked_on_weekly_off: dayRule.rule === 'OFF' && dayRule.source === 'WEEKLY_OFF',
       },
     })
     if (shift && late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))

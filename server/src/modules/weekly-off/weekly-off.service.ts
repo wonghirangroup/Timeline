@@ -1,6 +1,7 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled } from '../group/group.service'
+import { grantHolidayCompensation } from '../tenant/holiday.service' // ชื่อผูกกับ holiday แต่กลไกเป็น "ให้วันชดเชยเข้า LeaveBalance" ทั่วไป — reuse ตรงนี้ด้วย
 
 function getMondayOf(dateStr: string): Date {
   const d = new Date(dateStr + 'T00:00:00Z')
@@ -366,4 +367,115 @@ export async function deleteMonthlyOff(tenantId: string, id: string, employeeId:
 
   await prisma.weeklyOffRequest.delete({ where: { id } })
   return true
+}
+
+// ── "เช็คอินวันที่จองวันหยุดไว้เอง" Alert (feedback 2026-08-27) ──────────────
+// ต่างจาก holiday worked-alert: ไม่ auto grant อะไรตอนเช็คอิน — ต้องรอ HR
+// resolve เลือกทางว่าจะ "เลื่อนวันหยุด" (ลืม ยกเลิกให้ไปจองใหม่) หรือ "ให้วัน
+// ชดเชย" (ตั้งใจมาทำ) ดู resolveDayRule() ใน attendance.service.ts
+export async function listWorkedOnOwnDayOffAlerts(tenantId: string, scopedEmployeeIds?: string[], limit = 50) {
+  return prisma.attendanceRecord.findMany({
+    where: {
+      tenant_id: tenantId,
+      worked_on_weekly_off: true,
+      weekly_off_resolved: false,
+      ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}),
+    },
+    include: {
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } } },
+    },
+    orderBy: { date: 'desc' },
+    take: limit,
+  })
+}
+
+export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendanceId: string, data: {
+  action: 'RESCHEDULE' | 'COMPENSATE'
+  resolvedBy: string
+  note?: string
+  compensateDays?: number
+}, scopedEmployeeIds?: string[]) {
+  const record = await prisma.attendanceRecord.findFirst({
+    where: {
+      id: attendanceId, tenant_id: tenantId, worked_on_weekly_off: true,
+      ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}),
+    },
+  })
+  if (!record) return null
+  if (record.weekly_off_resolved) throw new Error('ALREADY_RESOLVED')
+
+  if (data.action === 'RESCHEDULE') {
+    // ลืมว่าวันนี้หยุด — ยกเลิกวันหยุดเดิมที่จองไว้วันนี้ คืนสิทธิ์ให้ไปจองวันใหม่แทน
+    const monday = getMondayOf(record.date.toISOString().slice(0, 10))
+    await prisma.weeklyOffRequest.deleteMany({
+      where: { tenant_id: tenantId, employee_id: record.employee_id, week_start: monday, day_of_week: record.date.getUTCDay() },
+    })
+  } else {
+    // ตั้งใจมาทำ — ให้วันชดเชยเพิ่ม เหมือนกลไกวันหยุดนักขัตฤกษ์
+    await grantHolidayCompensation(tenantId, record.employee_id, data.compensateDays ?? 1, record.date.getUTCFullYear())
+  }
+
+  return prisma.attendanceRecord.update({
+    where: { id: attendanceId },
+    data: {
+      weekly_off_resolved:     true,
+      weekly_off_resolution:   data.action,
+      weekly_off_resolved_by:  data.resolvedBy,
+      weekly_off_resolved_at:  new Date(),
+      weekly_off_resolve_note: data.note ?? null,
+    },
+  })
+}
+
+// ── สลับวันหยุดกันระหว่าง 2 คน (feedback 2026-08-27) ─────────────────────────
+// แอดมิน/HR เป็นคนทำให้โดยตรง — ไม่มี self-service ฝั่งพนักงาน ไม่ต้องรอทั้งคู่
+// ยินยอมแยก เพราะแอดมินคือ single-gate อยู่แล้ว (เหมาะกับเคส "สลับกันกระทันหัน"
+// ที่ HR มักเป็นคนจัดการให้ตรงๆ) สลับแค่ week_start/day_of_week ของสองแถวเดิม
+// (id คงเดิม) แล้ว mark APPROVED ทั้งคู่ + เก็บ audit log ไว้
+export async function swapWeeklyOff(tenantId: string, data: {
+  employeeAOffId: string
+  employeeBOffId: string
+  swappedBy: string
+}) {
+  const [offA, offB] = await Promise.all([
+    prisma.weeklyOffRequest.findFirst({ where: { id: data.employeeAOffId, tenant_id: tenantId } }),
+    prisma.weeklyOffRequest.findFirst({ where: { id: data.employeeBOffId, tenant_id: tenantId } }),
+  ])
+  if (!offA || !offB) throw new Error('NOT_FOUND')
+  if (offA.employee_id === offB.employee_id) throw new Error('SAME_EMPLOYEE')
+
+  // กันชนกับสัปดาห์อื่นที่แต่ละคนอาจมีจองแยกไว้อยู่แล้ว (unique employee_id+week_start)
+  if (offA.week_start.getTime() !== offB.week_start.getTime()) {
+    const [conflictA, conflictB] = await Promise.all([
+      prisma.weeklyOffRequest.findUnique({ where: { employee_id_week_start: { employee_id: offA.employee_id, week_start: offB.week_start } } }),
+      prisma.weeklyOffRequest.findUnique({ where: { employee_id_week_start: { employee_id: offB.employee_id, week_start: offA.week_start } } }),
+    ])
+    if (conflictA && conflictA.id !== offB.id) throw new Error('CONFLICT_A')
+    if (conflictB && conflictB.id !== offA.id) throw new Error('CONFLICT_B')
+  }
+
+  const now = new Date()
+  const [updatedA, updatedB] = await prisma.$transaction([
+    prisma.weeklyOffRequest.update({
+      where: { id: offA.id },
+      data: { week_start: offB.week_start, day_of_week: offB.day_of_week, status: 'APPROVED', reviewed_by: data.swappedBy, reviewed_at: now },
+      include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } } },
+    }),
+    prisma.weeklyOffRequest.update({
+      where: { id: offB.id },
+      data: { week_start: offA.week_start, day_of_week: offA.day_of_week, status: 'APPROVED', reviewed_by: data.swappedBy, reviewed_at: now },
+      include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } } },
+    }),
+    prisma.weeklyOffSwap.create({
+      data: {
+        tenant_id: tenantId,
+        employee_a_id: offA.employee_id,
+        employee_a_off_id: offA.id,
+        employee_b_id: offB.employee_id,
+        employee_b_off_id: offB.id,
+        swapped_by: data.swappedBy,
+      },
+    }),
+  ])
+  return { a: updatedA, b: updatedB }
 }

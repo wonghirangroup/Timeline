@@ -1,7 +1,7 @@
 // admin/src/pages/weekly-off/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -21,6 +21,10 @@ interface WeeklyOffRequest {
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ให้แอดมินตัดสินใจ
 }
 interface ApiBranch { id: string; name: string }
+interface WorkedOffAlert {
+  id: string; date: string
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null }
+}
 interface WeeklyOffPeriod {
   id: string | null; branch_id: string; month: string
   is_open: boolean; deadline: string | null; note: string | null
@@ -391,7 +395,7 @@ export default function WeeklyOffPage() {
   const isReadOnly = useIsReadOnly()
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview'>('periods')
+  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>('periods')
   const [branchFilter, setBranch] = useState('')
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
@@ -413,6 +417,10 @@ export default function WeeklyOffPage() {
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['admin', 'branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then((r: any) => r.data.data),
+  })
+  const { data: workedAlerts = [] } = useQuery<WorkedOffAlert[]>({
+    queryKey: ['admin', 'weekly-off-worked-alerts'],
+    queryFn: () => api.get('/api/v1/admin/weekly-off/worked-alerts').then((r: any) => r.data.data),
   })
 
   const filtered = useMemo(() => requests.filter(r => {
@@ -509,6 +517,7 @@ export default function WeeklyOffPage() {
             ['periods', Unlock, isMobile ? 'เปิด/ปิด' : 'เปิด/ปิดการจอง'],
             ['requests', ClipboardList, isMobile ? 'คำขอ' : 'รายการคำขอ'],
             ['overview', CalendarDays, 'ภาพรวม'],
+            ['exceptions', AlertTriangle, isMobile ? 'พิเศษ' : 'แจ้งเตือน & สลับ'],
           ] as const).map(([t, Icon, label]) => (
             <button key={t} onClick={() => setTab(t as any)} style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -519,7 +528,12 @@ export default function WeeklyOffPage() {
               fontSize: isMobile ? '0.75rem' : '0.82rem',
               boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
               transition: 'all .15s',
-            }}><Icon size={13} /> {label}</button>
+            }}>
+              <Icon size={13} /> {label}
+              {t === 'exceptions' && workedAlerts.length > 0 && (
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{workedAlerts.length}</span>
+              )}
+            </button>
           ))}
         </div>
 
@@ -735,6 +749,178 @@ export default function WeeklyOffPage() {
 
       {/* ── ภาพรวม tab ─────────────────────────────────────────────────── */}
       {tab === 'overview' && <OverviewTab requests={requests} isLoading={isLoading} month={month} branches={branches} />}
+
+      {/* ── แจ้งเตือน & สลับ tab ────────────────────────────────────────── */}
+      {tab === 'exceptions' && <ExceptionsTab requests={requests} workedAlerts={workedAlerts} month={month} />}
+    </div>
+  )
+}
+
+// ─── แจ้งเตือน "เช็คอินวันที่จองไว้เอง" + สลับวันหยุดกัน 2 คน ──────────────────
+function ExceptionsTab({ requests, workedAlerts, month }: {
+  requests: WeeklyOffRequest[]; workedAlerts: WorkedOffAlert[]; month: string
+}) {
+  const { showToast } = useToast()
+  const isReadOnly = useIsReadOnly()
+  const qc = useQueryClient()
+  const [resolveTarget, setResolveTarget] = useState<{ alert: WorkedOffAlert; action: 'RESCHEDULE' | 'COMPENSATE' } | null>(null)
+  const [resolveNote, setResolveNote] = useState('')
+  const [swapAId, setSwapAId] = useState('')
+  const [swapBId, setSwapBId] = useState('')
+
+  const invalidateAlerts = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off-worked-alerts'] })
+  const invalidateOff = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, action, note }: { id: string; action: 'RESCHEDULE' | 'COMPENSATE'; note: string }) =>
+      api.post(`/api/v1/admin/weekly-off/worked-alerts/${id}/resolve`, { action, note: note || undefined }),
+    onSuccess: (_, { action }) => {
+      invalidateAlerts()
+      showToast('success', action === 'RESCHEDULE' ? 'ยกเลิกวันหยุดเดิมแล้ว พนักงานจองวันใหม่ได้' : 'ให้วันหยุดชดเชยเรียบร้อย')
+      setResolveTarget(null); setResolveNote('')
+    },
+    onError: () => showToast('error', 'ไม่สำเร็จ'),
+  })
+
+  const swapMutation = useMutation({
+    mutationFn: () => api.post('/api/v1/admin/weekly-off/swap', { employee_a_off_id: swapAId, employee_b_off_id: swapBId }),
+    onSuccess: () => {
+      invalidateOff()
+      showToast('success', 'สลับวันหยุดสำเร็จ')
+      setSwapAId(''); setSwapBId('')
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      showToast('error', code === 'CONFLICT' ? 'มีฝั่งใดฝั่งหนึ่งจองวันหยุดสัปดาห์นั้นไว้แล้ว' : 'สลับไม่สำเร็จ')
+    },
+  })
+
+  // เฉพาะรายการที่ยังมีสิทธิ์เอาไปสลับได้ (ไม่เอาที่ถูกปฏิเสธไปแล้ว)
+  const swappable = useMemo(() =>
+    requests.filter(r => r.status !== 'REJECTED').sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week))),
+    [requests])
+  const offA = swappable.find(r => r.id === swapAId)
+  const offB = swappable.find(r => r.id === swapBId)
+  const empName = (e: { first_name: string; last_name: string; nickname: string | null }) => `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Alert: เช็คอินวันที่จองไว้เอง */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertTriangle size={16} color="#d97706" />
+          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>เช็คอินในวันที่จองวันหยุดไว้เอง</div>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>— รอ HR ตรวจสอบว่าเกิดจากอะไร</span>
+        </div>
+        {workedAlerts.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่มีรายการค้าง — ไม่มีใครเช็คอินในวันที่จองหยุดไว้เอง</div>
+        ) : (
+          <div>
+            {workedAlerts.map((a, idx) => (
+              <div key={a.id} style={{ padding: '12px 18px', borderBottom: idx < workedAlerts.length - 1 ? '1px solid #f8fafc' : 'none', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.86rem' }}>{empName(a.employee)}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {fmtDate(a.date.slice(0, 10))} · {a.employee.employee_code}{a.employee.branch ? ` · ${a.employee.branch.name}` : ''}
+                  </div>
+                </div>
+                {!isReadOnly && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setResolveTarget({ alert: a, action: 'RESCHEDULE' })}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#ea580c', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <CalendarClock size={13} /> เลื่อนวันหยุด
+                    </button>
+                    <button onClick={() => setResolveTarget({ alert: a, action: 'COMPENSATE' })}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Gift size={13} /> ให้วันชดเชย
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Swap panel */}
+      {!isReadOnly && (
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Repeat size={16} color="#374151" />
+            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>สลับวันหยุดกันระหว่าง 2 คน</div>
+          </div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+            เลือกวันหยุดที่จองไว้แล้วของทั้งสองฝ่าย (เดือน {fmtYM(month)}) ระบบจะสลับวันให้ทันทีและ mark อนุมัติทั้งคู่
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>คนที่ 1</label>
+              <select value={swapAId} onChange={e => setSwapAId(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                <option value="">— เลือกวันหยุดที่จองไว้ —</option>
+                {swappable.filter(r => r.id !== swapBId).map(r => (
+                  <option key={r.id} value={r.id}>{empName(r.employee)} · {fmtDate(resolveDate(r.week_start, r.day_of_week))} ({STATUS_CFG[r.status].label})</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', paddingBottom: 9 }}>⇄</div>
+            <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>คนที่ 2</label>
+              <select value={swapBId} onChange={e => setSwapBId(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                <option value="">— เลือกวันหยุดที่จองไว้ —</option>
+                {swappable.filter(r => r.id !== swapAId && r.employee_id !== offA?.employee_id).map(r => (
+                  <option key={r.id} value={r.id}>{empName(r.employee)} · {fmtDate(resolveDate(r.week_start, r.day_of_week))} ({STATUS_CFG[r.status].label})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {offA && offB && (
+            <div style={{ marginTop: 14, background: '#f8fafc', borderRadius: 10, padding: '12px 14px', fontSize: '0.82rem', color: '#374151' }}>
+              หลังสลับ: <strong>{empName(offA.employee)}</strong> จะหยุด <strong>{fmtDate(resolveDate(offB.week_start, offB.day_of_week))}</strong> แทน,{' '}
+              <strong>{empName(offB.employee)}</strong> จะหยุด <strong>{fmtDate(resolveDate(offA.week_start, offA.day_of_week))}</strong> แทน
+            </div>
+          )}
+
+          <button onClick={() => swapMutation.mutate()} disabled={!offA || !offB || swapMutation.isPending}
+            style={{ marginTop: 14, padding: '9px 20px', borderRadius: 8, border: 'none', background: (!offA || !offB) ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: (!offA || !offB) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Repeat size={14} /> {swapMutation.isPending ? 'กำลังสลับ...' : 'ยืนยันสลับวันหยุด'}
+          </button>
+        </div>
+      )}
+
+      {/* Resolve confirm modal */}
+      {resolveTarget && (
+        <div onClick={() => setResolveTarget(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 400, maxWidth: '100%', padding: 22, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              {resolveTarget.action === 'RESCHEDULE' ? <CalendarClock size={18} color="#ea580c" /> : <Gift size={18} color="#16a34a" />}
+              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>
+                {resolveTarget.action === 'RESCHEDULE' ? 'เลื่อนวันหยุด' : 'ให้วันหยุดชดเชย'}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.6 }}>
+              <strong>{empName(resolveTarget.alert.employee)}</strong> เช็คอินวันที่ {fmtDate(resolveTarget.alert.date.slice(0, 10))} ทั้งที่จองวันหยุดไว้เอง<br />
+              {resolveTarget.action === 'RESCHEDULE'
+                ? 'ระบบจะยกเลิกวันหยุดเดิมที่จองไว้วันนี้ — พนักงานไปจองวันหยุดใหม่แทนได้เลย'
+                : 'ระบบจะให้วันหยุดชดเชย 1 วันเข้าโควต้า "ชดเชย" เหมือนมาทำงานในวันหยุดนักขัตฤกษ์'}
+            </div>
+            <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>หมายเหตุ (ไม่บังคับ)</label>
+            <input value={resolveNote} onChange={e => setResolveNote(e.target.value)} placeholder="เช่น คุยกับพนักงานแล้ว ลืมว่าวันนี้หยุด"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 16 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setResolveTarget(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => resolveMutation.mutate({ id: resolveTarget.alert.id, action: resolveTarget.action, note: resolveNote })}
+                disabled={resolveMutation.isPending}
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: resolveTarget.action === 'RESCHEDULE' ? '#ea580c' : '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                {resolveMutation.isPending ? 'กำลังบันทึก...' : 'ยืนยัน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

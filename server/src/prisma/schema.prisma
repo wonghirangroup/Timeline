@@ -490,6 +490,12 @@ model AttendanceRecord {
   is_outside_area  Boolean       @default(false) // true = เช็คอินนอกรัศมี (WARN mode)
   is_outside_shift Boolean       @default(false) // true = สแกน QR นอกช่วงเวลากะ
   worked_on_holiday Boolean      @default(false) // true = เช็คอินวันที่ควรหยุด (holiday apply กับคนนี้) — ได้ compensate_days อัตโนมัติ ใช้ทำ Alert
+  worked_on_weekly_off    Boolean                  @default(false) // true = เช็คอินวันที่ตัวเองจองวันหยุดประจำสัปดาห์ไว้เอง (approved) — ต่างจาก worked_on_holiday: ไม่ auto grant วันชดเชย ต้องรอ HR resolve เลือกทาง
+  weekly_off_resolved     Boolean                  @default(false) // HR resolve alert นี้แล้วหรือยัง
+  weekly_off_resolution   WeeklyOffWorkResolution?
+  weekly_off_resolved_by  String?
+  weekly_off_resolved_at  DateTime?
+  weekly_off_resolve_note String?
   attachment_url   String? // Phase 4: selfie fallback
   note             String?
   created_at       DateTime      @default(now())
@@ -593,6 +599,31 @@ enum WeeklyOffStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// วิธีที่ HR resolve เคส "เช็คอินวันที่จองวันหยุดประจำสัปดาห์ไว้เอง" (ดู
+// AttendanceRecord.worked_on_weekly_off)
+enum WeeklyOffWorkResolution {
+  RESCHEDULE // ลืมว่าวันนี้หยุด — ยกเลิกวันหยุดเดิม ให้พนักงานไปจองวันหยุดใหม่แทน
+  COMPENSATE // ตั้งใจมาทำ — ให้วันหยุดชดเชยเพิ่ม (เหมือนกลไกวันหยุดนักขัตฤกษ์)
+}
+
+// Audit log การสลับวันหยุดกันระหว่าง 2 คน — แอดมิน/HR เป็นคนทำให้โดยตรง (ไม่มี
+// self-service ฝั่งพนักงาน, ไม่ต้องรอทั้งคู่ยินยอมแยก — แอดมินคือ single-gate)
+// ไม่ผูก FK กับ employees/weekly_off_requests ตามธรรมเนียมฟิลด์ audit อื่นในระบบ
+// นี้ (เช่น WeeklyOffRequest.reviewed_by) ที่เก็บ id แบบ loose reference
+model WeeklyOffSwap {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  employee_a_id     String
+  employee_a_off_id String // WeeklyOffRequest.id ฝั่ง A ก่อนสลับ
+  employee_b_id     String
+  employee_b_off_id String // WeeklyOffRequest.id ฝั่ง B ก่อนสลับ
+  swapped_by        String // user_id ของแอดมิน/HR ที่ทำสลับให้
+  created_at        DateTime @default(now())
+
+  @@index([tenant_id])
+  @@map("weekly_off_swaps")
 }
 
 model LeaveBalance {
