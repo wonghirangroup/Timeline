@@ -848,29 +848,59 @@ export default function TeamCalendarTab() {
     return null
   }
 
-  function exportRosterCsv() {
+  // ไฟล์ .xlsx จริง (ไม่ใช่ CSV) เพราะต้องการ highlight สีพื้นหลังต่อช่องจริงๆ —
+  // CSV ทำไม่ได้ (เป็นแค่ข้อความล้วน) ใช้ ExcelJS โหลดแบบ dynamic import กัน
+  // บวมขนาดหน้าเว็บตอนโหลดปกติ (โหลดเฉพาะตอนกด export ตารางแยกกลุ่มจริงๆ)
+  async function exportRosterExcel() {
+    const ExcelJS = (await import('exceljs')).default
     const rosterGroups = buildRosterGroups()
-    const header = ['กลุ่ม', ...(rosterCols.code ? ['รหัส'] : []), 'ชื่อ', ...(rosterCols.branch ? ['สาขา'] : []), ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))]
-    const rows: string[][] = []
+    const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
+
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet(fmtMonthTH(month).slice(0, 31))
+
+    const fixedCols = ['ชื่อ', ...(rosterCols.code ? ['รหัส'] : []), ...(rosterCols.branch ? ['สาขา'] : [])]
+    const totalCols = fixedCols.length + daysInMonth
+    const headerRow = ws.addRow([...fixedCols, ...Array.from({ length: daysInMonth }, (_, i) => i + 1)])
+    headerRow.eachCell(c => { c.font = { bold: true, color: { argb: 'FF6B7280' } }; c.alignment = { horizontal: 'center' } })
+    ws.getColumn(1).width = 22
+    for (let i = 0; i < fixedCols.length - 1; i++) ws.getColumn(2 + i).width = 12
+    for (let i = 0; i < daysInMonth; i++) ws.getColumn(fixedCols.length + 1 + i).width = 6
+
     for (const grp of rosterGroups) {
+      const groupRow = ws.addRow([`${grp.groupName} (${grp.employees.length} คน)`])
+      ws.mergeCells(groupRow.number, 1, groupRow.number, totalCols)
+      groupRow.getCell(1).font = { bold: true, size: 12 }
+      groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+
       for (const e of grp.employees) {
-        const dayCells = Array.from({ length: daysInMonth }, (_, i) => {
-          const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
-          return cell ? `${cell.label}${cell.pending ? '(รอ)' : ''}` : ''
-        })
-        rows.push([
-          grp.groupName,
+        const color = colorForEmployee(e.id, orderedIds).replace('#', '').toUpperCase()
+        const rowValues = [
+          `${e.nickname || e.first_name} ${e.last_name}`,
           ...(rosterCols.code ? [e.employee_code ?? ''] : []),
-          `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`,
           ...(rosterCols.branch ? [e.branch.name] : []),
-          ...dayCells,
-        ])
+        ]
+        const row = ws.addRow(rowValues)
+        row.getCell(1).font = { bold: true }
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `20${color}` } }
+
+        for (let i = 0; i < daysInMonth; i++) {
+          const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
+          const xlCell = row.getCell(fixedCols.length + 1 + i)
+          xlCell.alignment = { horizontal: 'center' }
+          if (cell) {
+            xlCell.value = cell.label
+            xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${color}` } }
+            xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FFFFFFFF' } }
+          }
+        }
       }
     }
-    const csv = '﻿' + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+
+    const buf = await wb.xlsx.writeBuffer()
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    a.download = `ตารางแยกกลุ่ม_${month}.csv`; a.click()
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    a.download = `ตารางแยกกลุ่ม_${month}.xlsx`; a.click()
   }
 
   function exportRosterPdf() {
@@ -891,7 +921,7 @@ export default function TeamCalendarTab() {
         const cells = Array.from({ length: daysInMonth }, (_, i) => {
           const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
           if (!cell) return '<td></td>'
-          return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${empColor}22;color:${empColor};border-color:${empColor}66">${cell.label}</td>`
+          return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${empColor};border-color:${empColor}">${cell.label}</td>`
         }).join('')
         const codeHtml   = rosterCols.code   && e.employee_code ? `<span class="code">${e.employee_code}</span>` : ''
         const branchHtml = rosterCols.branch ? `<div class="branch">${e.branch.name}</div>` : ''
@@ -922,8 +952,8 @@ export default function TeamCalendarTab() {
         td.name{font-weight:700;font-size:10px}
         td.name .code{font-weight:400;color:#9ca3af;font-size:8px;margin-left:4px}
         td.name .branch{font-weight:400;color:#9ca3af;font-size:8px}
-        td.mark{font-weight:700;border-width:1px}
-        td.mark.pending{border-style:dashed}
+        td.mark{font-weight:700;border-width:1px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,0.35)}
+        td.mark.pending{border-style:dashed;font-style:italic;opacity:0.75}
         .legend{margin-top:16px;font-size:10px;color:#6b7280}
         .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:middle}
       </style></head><body>
@@ -1200,7 +1230,7 @@ export default function TeamCalendarTab() {
               </div>
 
               <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, flexShrink: 0 }}>
-                <button onClick={exportRosterCsv} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <button onClick={exportRosterExcel} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <FileSpreadsheet size={14} /> Export Excel
                 </button>
                 <button onClick={exportRosterPdf} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
