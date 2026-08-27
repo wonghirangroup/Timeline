@@ -37,15 +37,17 @@ export async function listAnnouncements(tenantId: string) {
 export async function createAnnouncement(
   tenantId: string,
   userId: string,
-  data: { title: string; content: string; send_line?: boolean; branch_id?: string },
+  data: { title: string; content: string; send_line?: boolean; branch_id?: string; employee_ids?: string[] },
 ) {
   const announcement = await prisma.announcement.create({
     data: {
-      tenant_id:  tenantId,
-      created_by: userId,
-      title:      data.title,
-      content:    data.content,
-      send_line:  data.send_line ?? false,
+      tenant_id:    tenantId,
+      created_by:   userId,
+      title:        data.title,
+      content:      data.content,
+      send_line:    data.send_line ?? false,
+      branch_id:    data.branch_id ?? null,
+      employee_ids: data.employee_ids?.length ? data.employee_ids : undefined,
     },
   })
 
@@ -60,13 +62,15 @@ export async function createAnnouncement(
       return { ...announcement, line_result: { error: 'LINE access token ไม่ได้ตั้งค่าไว้' } }
     }
 
-    // ดึง line_user_id พนักงานที่ผูก Line แล้ว
+    // ลำดับเป้าหมาย: เลือกรายคน (employee_ids) ชนะทุกอย่าง > ตามสาขา > ทุกคน
     const employees = await prisma.employee.findMany({
       where: {
         tenant_id:    tenantId,
         line_user_id: { not: null },
         deleted_at:   null,
-        ...(data.branch_id ? { branch_id: data.branch_id } : {}),
+        ...(data.employee_ids?.length
+          ? { id: { in: data.employee_ids } }
+          : data.branch_id ? { branch_id: data.branch_id } : {}),
       },
       select: { line_user_id: true },
     })
@@ -84,6 +88,33 @@ export async function createAnnouncement(
   }
 
   return announcement
+}
+
+// ── เทมเพลตข้อความประกาศ ──────────────────────────────────────────────────────
+export async function listTemplates(tenantId: string) {
+  return prisma.announcementTemplate.findMany({
+    where: { tenant_id: tenantId },
+    orderBy: { updated_at: 'desc' },
+  })
+}
+
+export async function createTemplate(tenantId: string, data: { name: string; title: string; content: string }) {
+  return prisma.announcementTemplate.create({
+    data: { tenant_id: tenantId, name: data.name, title: data.title, content: data.content },
+  })
+}
+
+export async function updateTemplate(tenantId: string, id: string, data: { name?: string; title?: string; content?: string }) {
+  const count = await prisma.announcementTemplate.updateMany({
+    where: { id, tenant_id: tenantId },
+    data,
+  })
+  return count.count > 0
+}
+
+export async function deleteTemplate(tenantId: string, id: string) {
+  const count = await prisma.announcementTemplate.deleteMany({ where: { id, tenant_id: tenantId } })
+  return count.count > 0
 }
 
 export async function sendDirectMessage(tenantId: string, employeeId: string, message: string) {

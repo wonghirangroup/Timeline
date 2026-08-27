@@ -758,18 +758,34 @@ enum HolidayType {
 // ─────────────────────────────────────────────
 
 model Announcement {
-  id         String   @id @default(uuid())
-  tenant_id  String
-  title      String
-  content    String   @db.Text
-  send_line  Boolean  @default(false) // broadcast ผ่าน Line ด้วย
-  created_by String // user_id
-  created_at DateTime @default(now())
+  id           String   @id @default(uuid())
+  tenant_id    String
+  title        String
+  content      String   @db.Text
+  send_line    Boolean  @default(false) // broadcast ผ่าน Line ด้วย
+  branch_id    String? // ส่งเฉพาะสาขานี้ — null = ทุกสาขา (เว้นแต่ employee_ids ระบุไว้)
+  employee_ids Json? // string[] — เลือกส่งรายคนได้แม้อยู่โหมด broadcast (ชนะ branch_id ถ้าระบุ)
+  created_by   String // user_id
+  created_at   DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
   @@index([tenant_id])
   @@map("announcements")
+}
+
+// เทมเพลตข้อความประกาศ — ตั้งเองได้ แล้วเลือกใช้ตอนแต่งประกาศ (broadcast หรือส่วนตัว)
+model AnnouncementTemplate {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  name       String // ชื่อ template สำหรับเลือก เช่น "แจ้งวันหยุดพิเศษ"
+  title      String // หัวข้อ default
+  content    String   @db.Text // เนื้อหา default
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([tenant_id])
+  @@map("announcement_templates")
 }
 
 // ─────────────────────────────────────────────

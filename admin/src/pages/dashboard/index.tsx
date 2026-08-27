@@ -2,10 +2,181 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+
+// ─── Range KPI types ────────────────────────────────────────────────────────
+type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
+
+interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null; late_count?: number }
+interface DashboardSummary {
+  totalEmployees: number
+  late:     { count: number; employees: RangePerson[] }
+  resigned: { count: number; employees: RangePerson[] }
+  newHires: { count: number; employees: RangePerson[] }
+}
+
+const RANGE_PRESETS: { id: RangePreset; label: string }[] = [
+  { id: 'today', label: 'วันนี้' },
+  { id: '7d',    label: '7 วัน' },
+  { id: '1m',    label: '1 เดือน' },
+  { id: '3m',    label: '3 เดือน' },
+  { id: '6m',    label: '6 เดือน' },
+  { id: 'year',  label: 'ปีนี้' },
+  { id: 'custom', label: 'เลือกเดือน' },
+]
+
+function isoDate(d: Date) { return d.toISOString().slice(0, 10) }
+
+// คำนวณช่วงวันที่จาก preset — ทุกอันนับถอยหลังจากวันนี้ (rolling window) ยกเว้น
+// custom ที่ล็อกเป็นเดือนปฏิทินที่เลือก
+function resolveRange(preset: RangePreset, customMonth: string): { startDate: string; endDate: string } {
+  const today = new Date()
+  const endDate = isoDate(today)
+  if (preset === 'custom') {
+    const [y, m] = customMonth.split('-').map(Number)
+    return { startDate: `${customMonth}-01`, endDate: isoDate(new Date(y, m, 0)) }
+  }
+  const start = new Date(today)
+  if (preset === 'today') { /* ช่วงเดียวกับ endDate */ }
+  else if (preset === '7d')   start.setDate(start.getDate() - 6)
+  else if (preset === '1m')   start.setMonth(start.getMonth() - 1)
+  else if (preset === '3m')   start.setMonth(start.getMonth() - 3)
+  else if (preset === '6m')   start.setMonth(start.getMonth() - 6)
+  else if (preset === 'year') start.setFullYear(start.getFullYear() - 1)
+  return { startDate: isoDate(start), endDate }
+}
+
+function personLabel(p: RangePerson) {
+  const full = `${p.first_name} ${p.last_name}`.trim()
+  return p.nickname ? `${full} (${p.nickname})` : full
+}
+
+// ─── Range KPI card — คลิกขยายดูรายชื่อได้ ────────────────────────────────────
+function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel, extraLine }: {
+  label: string; count: number; unit: string; color: string; bg: string; icon: React.ReactNode
+  people: RangePerson[]; emptyLabel: string; extraLine?: (p: RangePerson) => string | null
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <button onClick={() => count > 0 && setOpen(o => !o)}
+        style={{ width: '100%', padding: '18px 20px', border: 'none', background: 'var(--bg-card)', cursor: count > 0 ? 'pointer' : 'default', textAlign: 'left', fontFamily: 'inherit' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: '30px', fontWeight: 800, color, lineHeight: 1 }}>{count}</span>
+            {count > 0 && <ChevronDown size={16} color="var(--text-muted)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />}
+          </div>
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600, marginTop: 8 }}>{label} <span style={{ fontWeight: 400 }}>({unit})</span></div>
+      </button>
+      {open && (
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', maxHeight: 240, overflowY: 'auto' }}>
+          {people.length === 0 ? (
+            <div style={{ padding: '16px 20px', fontSize: '12px', color: 'var(--text-muted)' }}>{emptyLabel}</div>
+          ) : people.map((p, i) => {
+            const extra = extraLine?.(p)
+            return (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: i < people.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{personLabel(p)}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}{p.branch ? ` · ${p.branch.name}` : ''}</div>
+                </div>
+                {extra && <span style={{ fontSize: '11px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>{extra}</span>}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Range KPI section ────────────────────────────────────────────────────────
+function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
+  const isMobile = useIsMobile()
+  const now = useMemo(() => new Date(), [])
+  const [preset, setPreset] = useState<RangePreset>('7d')
+  const [customMonth, setCustomMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+
+  const { startDate, endDate } = useMemo(() => resolveRange(preset, customMonth), [preset, customMonth])
+
+  const { data: summary, isLoading } = useQuery<DashboardSummary>({
+    queryKey: ['admin', 'dashboard-summary', startDate, endDate, branchFilter],
+    queryFn: () => api.get('/api/v1/admin/dashboard/summary', {
+      params: { startDate, endDate, branchId: branchFilter === 'all' ? undefined : branchFilter },
+    }).then(r => r.data.data),
+  })
+
+  const isYearView = preset === 'year'
+  const total = summary?.totalEmployees ?? 0
+  const resignPct  = isYearView && total > 0 ? (summary!.resigned.count / total * 100) : null
+  const newHirePct = isYearView && total > 0 ? (summary!.newHires.count / total * 100) : null
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          ภาพรวมตามช่วงเวลา
+        </div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {RANGE_PRESETS.map(p => (
+            <button key={p.id} onClick={() => setPreset(p.id)}
+              style={{ padding: '5px 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700,
+                background: preset === p.id ? '#1e293b' : '#f1f5f9', color: preset === p.id ? '#fff' : 'var(--text-muted)' }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {preset === 'custom' && (
+        <div style={{ marginBottom: 12 }}>
+          <input type="month" value={customMonth} onChange={e => setCustomMonth(e.target.value)}
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', fontFamily: 'inherit', background: '#fff' }} />
+        </div>
+      )}
+
+      {isLoading || !summary ? (
+        <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>กำลังโหลด...</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(1, 1fr)' : 'repeat(3, 1fr)', gap: 16 }}>
+            <RangeKpiCard label="มาสาย" unit="คน" count={summary.late.count} color="#d97706" bg="var(--warning-bg)"
+              icon={<AlertTriangle size={18} />} people={summary.late.employees} emptyLabel="ไม่มีใครมาสายในช่วงนี้"
+              extraLine={p => p.late_count ? `${p.late_count} ครั้ง` : null} />
+            <RangeKpiCard label="ลาออก / เลิกจ้าง" unit="คน" count={summary.resigned.count} color="#dc2626" bg="#fef2f2"
+              icon={<UserMinus size={18} />} people={summary.resigned.employees} emptyLabel="ไม่มีใครลาออกในช่วงนี้" />
+            <RangeKpiCard label="เข้าใหม่" unit="คน" count={summary.newHires.count} color="#16a34a" bg="var(--success-bg)"
+              icon={<UserPlus size={18} />} people={summary.newHires.employees} emptyLabel="ไม่มีคนเข้าใหม่ในช่วงนี้" />
+          </div>
+
+          {isYearView && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 16 }}>
+              <div className="premium-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}><TrendingDown size={18} /></div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>{resignPct?.toFixed(1)}%</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>อัตราลาออก/เลิกจ้าง (จากพนักงานทั้งหมด {total} คน)</div>
+                </div>
+              </div>
+              <div className="premium-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', flexShrink: 0 }}><TrendingUp size={18} /></div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a' }}>{newHirePct?.toFixed(1)}%</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>อัตราเข้าใหม่ (จากพนักงานทั้งหมด {total} คน)</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiRecord {
@@ -151,6 +322,9 @@ export default function DashboardPage() {
       {/* ── Left Column ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
+        {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
+        <RangeKpiSection branchFilter={branchFilter} />
+
         {/* ── Action required ──────────────────────────────────────── */}
         {pendingLeaveCount > 0 && (
           <div>
@@ -199,7 +373,7 @@ export default function DashboardPage() {
         {/* ── KPI cards ────────────────────────────────────────────── */}
         <div>
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
-            วันนี้ · สถานะพนักงาน
+            เรียลไทม์วันนี้ · สถานะพนักงาน
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             {[

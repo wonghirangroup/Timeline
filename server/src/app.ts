@@ -30,6 +30,7 @@ import { offsiteRoutes }      from './modules/offsite/offsite.route'
 import { orgStructureRoutes } from './modules/org-structure/org-structure.route'
 import { employeeStatusTypeRoutes } from './modules/employee-status-type/employee-status-type.route'
 import { groupRoutes } from './modules/group/group.route'
+import { dashboardRoutes } from './modules/dashboard/dashboard.route'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -134,6 +135,7 @@ app.register(offsiteRoutes,     { prefix: '/api/v1' })               // ADMIN vi
 app.register(groupRoutes, { prefix: '/api/v1/admin' })               // ADMIN: กลุ่ม(บริษัท) — ชั้นนโยบายเหนือสาขา
 app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: ผังองค์กร Division→Department→Position (ใต้กลุ่ม)
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
+app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: KPI สรุปตามช่วงวันที่ (Dashboard)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 
 // ── Start ─────────────────────────────────────────────────────────

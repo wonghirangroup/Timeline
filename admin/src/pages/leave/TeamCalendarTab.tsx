@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -9,6 +9,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; branch: { id: string; name: string } }
+interface ApiEmployeeFull extends ApiEmployee { position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
 interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; employee: ApiEmployee }
 interface ApiHoliday { id: string; date: string; name: string; target_branches: string[] | null; target_departments: string[] | null }
@@ -293,20 +295,83 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
   )
 }
 
+// ─── Quick-add: เพิ่มวันหยุดประจำ/วันลาให้พนักงานตรงจากปฏิทิน ──────────────────
+const QUICK_LEAVE_TYPES: { value: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; label: string }[] = [
+  { value: 'SICK', label: 'ลาป่วย' }, { value: 'PERSONAL', label: 'ลากิจ' },
+  { value: 'VACATION', label: 'ลาพักร้อน' }, { value: 'MATERNITY', label: 'ลาคลอด' },
+]
+
+function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
+  date: string; employees: ApiEmployee[]
+  onAddDayOff: (employeeId: string) => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY') => void
+  onDone: () => void
+}) {
+  const [kind, setKind] = useState<'dayoff' | 'leave'>('dayoff')
+  const [leaveType, setLeaveType] = useState<'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'>('SICK')
+  const [q, setQ] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const query = q.trim().toLowerCase()
+  const filtered = query.length === 0 ? employees : employees.filter(e => `${e.first_name} ${e.last_name} ${e.nickname ?? ''}`.toLowerCase().includes(query))
+
+  function submit() {
+    if (!employeeId) return
+    if (kind === 'dayoff') onAddDayOff(employeeId)
+    else onAddLeave(employeeId, leaveType)
+    onDone()
+  }
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={() => setKind('dayoff')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'dayoff' ? '#ea580c' : '#e5e7eb'}`, background: kind === 'dayoff' ? '#fff7ed' : '#fff', color: kind === 'dayoff' ? '#ea580c' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>หยุดประจำ</button>
+        <button onClick={() => setKind('leave')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'leave' ? '#3b82f6' : '#e5e7eb'}`, background: kind === 'leave' ? '#eff6ff' : '#fff', color: kind === 'leave' ? '#3b82f6' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>วันลา</button>
+      </div>
+      {kind === 'leave' && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {QUICK_LEAVE_TYPES.map(t => (
+            <button key={t.value} onClick={() => setLeaveType(t.value)}
+              style={{ padding: '3px 9px', borderRadius: 99, border: `1px solid ${leaveType === t.value ? LEAVE_CFG[t.value].color : '#e5e7eb'}`, background: leaveType === t.value ? LEAVE_CFG[t.value].light : '#fff', color: leaveType === t.value ? LEAVE_CFG[t.value].color : '#64748b', fontWeight: 700, fontSize: '0.66rem', cursor: 'pointer' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{ position: 'relative' }}>
+        <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหาพนักงาน..."
+          style={{ width: '100%', padding: '6px 8px 6px 26px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      </div>
+      <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} size={q ? 4 : undefined}
+        style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+        <option value="">— เลือกพนักงาน —</option>
+        {filtered.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''}</option>)}
+      </select>
+      <button onClick={submit} disabled={!employeeId}
+        style={{ padding: '7px', borderRadius: 7, border: 'none', background: !employeeId ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.76rem', cursor: !employeeId ? 'not-allowed' : 'pointer' }}>
+        + เพิ่มให้วันที่นี้
+      </button>
+    </div>
+  )
+}
+
 // ─── Day detail panel ─────────────────────────────────────────────────────────
-function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays, onMoveDayOff, onMoveLeave, onDeleteDayOff, onDeleteLeave }: {
+function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays, employees, onMoveDayOff, onMoveLeave, onDeleteDayOff, onDeleteLeave, onAddDayOff, onAddLeave }: {
   date: string; branchFilter: string; onClose: () => void
-  dayOffs: DayOff[]; leaves: LeaveReq[]; holidays: Holiday[]
+  dayOffs: DayOff[]; leaves: LeaveReq[]; holidays: Holiday[]; employees: ApiEmployee[]
   onMoveDayOff: (id: string, date: string) => void
   onMoveLeave: (id: string, date: string) => void
   onDeleteDayOff: (id: string, label: string) => void
   onDeleteLeave: (id: string, label: string) => void
+  onAddDayOff: (employeeId: string) => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY') => void
 }) {
   const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(date, branchFilter, dayOffs, leaves, holidays)
   const approved     = evDayOffs.filter(d => d.status === 'APPROVED')
   const pending      = evDayOffs.filter(d => d.status === 'PENDING')
   const activeLeaves = evLeaves.filter(l => l.status !== 'REJECTED')
   const [movingId, setMovingId] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
 
   function RowActions({ id, onDelete }: { id: string; onDelete: () => void }) {
     return (
@@ -353,10 +418,22 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
             {fmtDateFull(date)}
           </div>
         </div>
-        <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-          <X size={14} />
-        </button>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          <button onClick={() => setShowAdd(a => !a)} title="เพิ่มวันหยุด/วันลา"
+            style={{ background: showAdd ? '#fff7ed' : '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: showAdd ? '#ea580c' : 'var(--text-muted)', display: 'flex' }}>
+            <Plus size={14} />
+          </button>
+          <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+            <X size={14} />
+          </button>
+        </div>
       </div>
+
+      {showAdd && (
+        <QuickAddForm date={date} employees={employees}
+          onAddDayOff={onAddDayOff} onAddLeave={onAddLeave}
+          onDone={() => setShowAdd(false)} />
+      )}
 
       {/* Holiday */}
       {holiday && (
@@ -488,6 +565,7 @@ export default function TeamCalendarTab() {
 
   const [month,        setMonth]        = useState(todayYM)
   const [branchFilter, setBranchFilter] = useState('all')
+  const [groupFilter,  setGroupFilter]  = useState('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
 
@@ -532,6 +610,26 @@ export default function TeamCalendarTab() {
     onError: () => showToast('error', 'ลบไม่สำเร็จ'),
   })
 
+  // เพิ่มวันหยุดประจำ/วันลาให้พนักงานตรงจากปฏิทิน (feedback backlog 2026-08-27)
+  const addDayOffMutation = useMutation({
+    mutationFn: ({ employeeId, date }: { employeeId: string; date: string }) =>
+      api.post('/api/v1/admin/weekly-off', { employee_id: employeeId, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'เพิ่มวันหยุดสำเร็จ') },
+    onError: (e: any) => {
+      const code = e?.response?.data?.error?.code
+      showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : 'เพิ่มไม่สำเร็จ')
+    },
+  })
+  const addLeaveMutation = useMutation({
+    mutationFn: ({ employeeId, leaveType, date }: { employeeId: string; leaveType: string; date: string }) =>
+      api.post('/api/v1/admin/leave-requests', { employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1 }),
+    onSuccess: () => { invalidateCalendar(); showToast('success', 'เพิ่มวันลาสำเร็จ (อนุมัติอัตโนมัติ)') },
+    onError: (e: any) => {
+      const code = e?.response?.data?.error?.code
+      showToast('error', code === 'LEAVE_OVERLAP' ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว' : code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่พอ' : 'เพิ่มไม่สำเร็จ')
+    },
+  })
+
   function handleMoveDayOff(id: string, date: string) { moveDayOffMutation.mutate({ id, date }) }
   function handleMoveLeave(id: string, date: string)  { moveLeaveMutation.mutate({ id, date }) }
   function handleConfirmDelete() {
@@ -560,8 +658,27 @@ export default function TeamCalendarTab() {
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
 
-  const dayOffs: DayOff[]    = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
-  const leaves: LeaveReq[]   = rawLeaves.map(toDisplayLeave)
+  const { data: groups = [] } = useQuery<ApiGroup[]>({
+    queryKey: ['admin', 'groups'],
+    queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
+  })
+
+  const { data: employeesFull = [] } = useQuery<ApiEmployeeFull[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const employees: ApiEmployee[] = employeesFull
+
+  // employee_id → group_id (ผ่าน position→department→division→group) — ใช้กรอง
+  // ปฏิทินแยกตามกลุ่ม (dropdown แสดงเฉพาะตอนมีมากกว่า 1 กลุ่ม ไม่รบกวน tenant
+  // ทั่วไปที่มีกลุ่มเดียว)
+  const employeeGroupId: Record<string, string | null> = {}
+  for (const e of employeesFull) employeeGroupId[e.id] = e.position?.department?.division?.group?.id ?? null
+
+  const dayOffsRaw: DayOff[]  = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
+  const leavesRaw: LeaveReq[] = rawLeaves.map(toDisplayLeave)
+  const dayOffs: DayOff[]    = groupFilter === 'all' ? dayOffsRaw : dayOffsRaw.filter(d => employeeGroupId[d.employee_id] === groupFilter)
+  const leaves: LeaveReq[]   = groupFilter === 'all' ? leavesRaw  : leavesRaw.filter(l => employeeGroupId[l.employee_id] === groupFilter)
   const holidays: Holiday[]  = rawHolidays.map(h => ({ date: h.date.slice(0, 10), name: h.name, target_branches: h.target_branches }))
 
   const daysInMonth = getDaysInMonth(month)
@@ -695,16 +812,30 @@ export default function TeamCalendarTab() {
 
       {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <select
-          value={branchFilter}
-          onChange={e => setBranchFilter(e.target.value)}
-          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
-        >
-          <option value="all">ทุกสาขา</option>
-          {branches.map(b => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: 6, flex: isMobile ? '1 1 auto' : 'none' }}>
+          {groups.length > 1 && (
+            <select
+              value={groupFilter}
+              onChange={e => setGroupFilter(e.target.value)}
+              style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
+            >
+              <option value="all">ทุกกลุ่ม</option>
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          )}
+          <select
+            value={branchFilter}
+            onChange={e => setBranchFilter(e.target.value)}
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
+          >
+            <option value="all">ทุกสาขา</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -801,10 +932,13 @@ export default function TeamCalendarTab() {
                 dayOffs={dayOffs}
                 leaves={leaves}
                 holidays={holidays}
+                employees={employees}
                 onMoveDayOff={handleMoveDayOff}
                 onMoveLeave={handleMoveLeave}
                 onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                 onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
+                onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
+                onAddLeave={(employeeId, leaveType) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate })}
               />
             </div>
           </>
@@ -824,10 +958,13 @@ export default function TeamCalendarTab() {
                   dayOffs={dayOffs}
                   leaves={leaves}
                   holidays={holidays}
+                  employees={employees}
                   onMoveDayOff={handleMoveDayOff}
                   onMoveLeave={handleMoveLeave}
                   onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                   onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
+                  onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
+                  onAddLeave={(employeeId, leaveType) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate })}
                 />
               </div>
             </div>

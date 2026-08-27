@@ -2,14 +2,66 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle } from 'lucide-react'
+import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 
 interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
 interface ApiBranch { id: string; name: string }
-interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null }
+interface ApiTemplate { id: string; name: string; title: string; content: string }
+
+// ── ค้นหา + เลือกพนักงานหลายคน (ใช้ตอนเลือกส่งรายคนในโหมด broadcast) ───────────
+function empDisplayName(e: ApiEmployee) {
+  const full = `${e.first_name} ${e.last_name}`.trim()
+  return e.nickname ? `${full} (${e.nickname})` : full
+}
+
+function EmployeeSearchMultiSelect({ employees, selected, onToggle }: {
+  employees: ApiEmployee[]; selected: Set<string>; onToggle: (id: string) => void
+}) {
+  const [q, setQ] = useState('')
+  const query = q.trim().toLowerCase()
+  const filtered = query.length === 0 ? employees : employees.filter(e => empDisplayName(e).toLowerCase().includes(query))
+  const selectedEmps = employees.filter(e => selected.has(e.id))
+
+  return (
+    <div>
+      {selectedEmps.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+          {selectedEmps.map(e => (
+            <span key={e.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px 3px 10px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.74rem', fontWeight: 600 }}>
+              {empDisplayName(e)}
+              <button type="button" onClick={() => onToggle(e.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c2410c', padding: 2, display: 'flex' }}><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ position: 'relative', marginBottom: 6 }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
+          style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      </div>
+      <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 14, textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>ไม่พบพนักงาน</div>
+        ) : filtered.slice(0, 80).map(e => {
+          const active = selected.has(e.id)
+          return (
+            <button key={e.id} type="button" onClick={() => onToggle(e.id)}
+              style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderBottom: '1px solid #f8fafc', background: active ? '#fff7ed' : '#fff', cursor: 'pointer' }}>
+              <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${active ? '#ea580c' : '#cbd5e1'}`, background: active ? '#ea580c' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {active && <Check size={10} color="#fff" />}
+              </div>
+              <span style={{ fontSize: '0.8rem', color: active ? '#c2410c' : '#374151', fontWeight: active ? 700 : 500 }}>{empDisplayName(e)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 function thDateTime(s: string) {
@@ -43,11 +95,33 @@ export default function AnnouncementPage() {
   // Broadcast form
   const [bTitle, setBTitle] = useState('')
   const [bBody, setBBody] = useState('')
-  const [bTarget, setBTarget] = useState('all')
+  const [bTargetMode, setBTargetMode] = useState<'all' | 'branch' | 'individual'>('all')
+  const [bBranch, setBBranch] = useState('')
+  const [bEmployeeIds, setBEmployeeIds] = useState<Set<string>>(new Set())
+  const [bTemplateId, setBTemplateId] = useState('')
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
 
   // Direct form
   const [dEmployee, setDEmployee] = useState('')
+  const [dSearch, setDSearch] = useState('')
   const [dMsg, setDMsg] = useState('')
+  const [dTemplateId, setDTemplateId] = useState('')
+
+  const { data: templates = [] } = useQuery<ApiTemplate[]>({
+    queryKey: ['admin', 'announcement-templates'],
+    queryFn: () => api.get('/api/v1/admin/announcement-templates').then(r => r.data.data),
+  })
+
+  function toggleBEmployee(id: string) {
+    setBEmployeeIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  function applyTemplate(id: string, target: 'broadcast' | 'direct') {
+    const t = templates.find(x => x.id === id)
+    if (!t) return
+    if (target === 'broadcast') { setBTitle(t.title); setBBody(t.content) }
+    else setDMsg(t.content)
+  }
 
   const { data: announcements = [] } = useQuery<ApiAnnouncement[]>({
     queryKey: ['admin', 'announcements'],
@@ -65,11 +139,11 @@ export default function AnnouncementPage() {
   })
 
   const sendMutation = useMutation({
-    mutationFn: (data: { title: string; content: string; send_line: boolean; branch_id?: string }) =>
+    mutationFn: (data: { title: string; content: string; send_line: boolean; branch_id?: string; employee_ids?: string[] }) =>
       api.post('/api/v1/admin/announcements', data).then(r => r.data),
     onSuccess: (res, data) => {
       qc.invalidateQueries({ queryKey: ['admin', 'announcements'] })
-      setBTitle(''); setBBody(''); setBTarget('all')
+      setBTitle(''); setBBody(''); setBTargetMode('all'); setBBranch(''); setBEmployeeIds(new Set()); setBTemplateId('')
       const lineResult = res.data?.line_result
       if (lineResult?.error) {
         showToast('warning', `ส่งประกาศแล้ว แต่ Line ไม่สำเร็จ: ${lineResult.error}`)
@@ -87,13 +161,38 @@ export default function AnnouncementPage() {
       showToast('warning', 'กรุณากรอกหัวข้อและรายละเอียดประกาศ')
       return
     }
+    if (bTargetMode === 'individual' && bEmployeeIds.size === 0) {
+      showToast('warning', 'กรุณาเลือกพนักงานอย่างน้อย 1 คน')
+      return
+    }
     sendMutation.mutate({
       title:     bTitle,
       content:   bBody,
       send_line: true,
-      branch_id: bTarget !== 'all' ? bTarget : undefined,
+      branch_id:    bTargetMode === 'branch' ? bBranch || undefined : undefined,
+      employee_ids: bTargetMode === 'individual' ? [...bEmployeeIds] : undefined,
     })
   }
+
+  // ── Template CRUD ─────────────────────────────────────────────────────────
+  const [tplForm, setTplForm] = useState<{ id: string | null; name: string; title: string; content: string }>({ id: null, name: '', title: '', content: '' })
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: () => tplForm.id
+      ? api.patch(`/api/v1/admin/announcement-templates/${tplForm.id}`, { name: tplForm.name, title: tplForm.title, content: tplForm.content })
+      : api.post('/api/v1/admin/announcement-templates', { name: tplForm.name, title: tplForm.title, content: tplForm.content }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'announcement-templates'] })
+      showToast('success', tplForm.id ? 'แก้ไข Template แล้ว' : 'สร้าง Template แล้ว')
+      setTplForm({ id: null, name: '', title: '', content: '' })
+    },
+    onError: () => showToast('error', 'บันทึก Template ไม่สำเร็จ'),
+  })
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/announcement-templates/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'announcement-templates'] }); showToast('success', 'ลบ Template แล้ว') },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
 
   const directMutation = useMutation({
     mutationFn: (data: { employee_id: string; message: string }) =>
@@ -150,8 +249,22 @@ export default function AnnouncementPage() {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 380px', gap: 20, alignItems: 'start' }}>
           {/* Form */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 20px', fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><PenLine size={16} style={{ color: '#ea580c' }}/>แต่งประกาศใหม่</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><PenLine size={16} style={{ color: '#ea580c' }}/>แต่งประกาศใหม่</h3>
+              <button onClick={() => setShowTemplateManager(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid #e5e7eb', borderRadius: 7, padding: '5px 10px', fontSize: '0.75rem', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                <LayoutTemplate size={13} /> จัดการ Template
+              </button>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {templates.length > 0 && (
+                <div>
+                  <label style={labelStyle}>ใช้เทมเพลต (ไม่บังคับ)</label>
+                  <select value={bTemplateId} onChange={e => { setBTemplateId(e.target.value); if (e.target.value) applyTemplate(e.target.value, 'broadcast') }} style={inputStyle}>
+                    <option value="">— เลือกเทมเพลต —</option>
+                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label style={labelStyle}>หัวข้อประกาศ</label>
                 <input value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder="ระบุหัวข้อ..." style={inputStyle} />
@@ -163,10 +276,24 @@ export default function AnnouncementPage() {
               </div>
               <div>
                 <label style={labelStyle}>ส่งถึง</label>
-                <select value={bTarget} onChange={e => setBTarget(e.target.value)} style={inputStyle}>
-                  <option value="all">ทุกคน</option>
-                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {([['all', 'ทุกคน'], ['branch', 'ตามสาขา'], ['individual', 'เลือกรายคน']] as const).map(([mode, label]) => (
+                    <button key={mode} type="button" onClick={() => setBTargetMode(mode)}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
+                        border: `1.5px solid ${bTargetMode === mode ? '#ea580c' : '#e5e7eb'}`, background: bTargetMode === mode ? '#fff7ed' : '#fff', color: bTargetMode === mode ? '#ea580c' : '#64748b' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {bTargetMode === 'branch' && (
+                  <select value={bBranch} onChange={e => setBBranch(e.target.value)} style={inputStyle}>
+                    <option value="">— เลือกสาขา —</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                )}
+                {bTargetMode === 'individual' && (
+                  <EmployeeSearchMultiSelect employees={employees} selected={bEmployeeIds} onToggle={toggleBEmployee} />
+                )}
               </div>
               <div style={{ background: '#eff6ff', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <Smartphone size={14} style={{ marginTop: 1, flexShrink: 0 }}/>ประกาศจะถูกส่งผ่าน <strong>Line OA</strong> ไปยังพนักงานที่เลือก
@@ -212,13 +339,29 @@ export default function AnnouncementPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={labelStyle}>พนักงานที่ต้องการส่งถึง</label>
-                <select value={dEmployee} onChange={e => setDEmployee(e.target.value)} style={inputStyle}>
+                <div style={{ position: 'relative', marginBottom: 6 }}>
+                  <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input value={dSearch} onChange={e => setDSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
+                    style={{ ...inputStyle, padding: '9px 12px 9px 30px' }} />
+                </div>
+                <select value={dEmployee} onChange={e => setDEmployee(e.target.value)} style={inputStyle} size={dSearch ? 6 : undefined}>
                   <option value="">เลือกพนักงาน...</option>
-                  {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname})</option>
-                  ))}
+                  {employees
+                    .filter(e => !dSearch.trim() || empDisplayName(e).toLowerCase().includes(dSearch.trim().toLowerCase()))
+                    .map(e => (
+                      <option key={e.id} value={e.id}>{empDisplayName(e)}</option>
+                    ))}
                 </select>
               </div>
+              {templates.length > 0 && (
+                <div>
+                  <label style={labelStyle}>ใช้เทมเพลต (ไม่บังคับ)</label>
+                  <select value={dTemplateId} onChange={e => { setDTemplateId(e.target.value); if (e.target.value) applyTemplate(e.target.value, 'direct') }} style={inputStyle}>
+                    <option value="">— เลือกเทมเพลต —</option>
+                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label style={labelStyle}>ข้อความ</label>
                 <textarea value={dMsg} onChange={e => setDMsg(e.target.value)} rows={5} placeholder="พิมพ์ข้อความ..." style={{ ...inputStyle, resize: 'vertical' }} />
@@ -307,6 +450,54 @@ export default function AnnouncementPage() {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Template Manager modal ── */}
+      {showTemplateManager && (
+        <div onClick={() => { setShowTemplateManager(false); setTplForm({ id: null, name: '', title: '', content: '' }) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 560, maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 7 }}><LayoutTemplate size={16} color="#ea580c" />จัดการ Template ข้อความ</div>
+              <button onClick={() => { setShowTemplateManager(false); setTplForm({ id: null, name: '', title: '', content: '' }) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+            </div>
+            <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Existing templates */}
+              {templates.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {templates.map(t => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 9 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.84rem' }}>{t.name}</div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                      </div>
+                      <button onClick={() => setTplForm({ id: t.id, name: t.name, title: t.title, content: t.content })}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 5, display: 'flex' }}><PenLine size={13} /></button>
+                      <button onClick={() => deleteTemplateMutation.mutate(t.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 5, display: 'flex' }}><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Add/edit form */}
+              <div style={{ borderTop: templates.length > 0 ? '1px dashed #e5e7eb' : 'none', paddingTop: templates.length > 0 ? 14 : 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>{tplForm.id ? 'แก้ไขเทมเพลต' : '+ เทมเพลตใหม่'}</div>
+                <input value={tplForm.name} onChange={e => setTplForm(f => ({ ...f, name: e.target.value }))} placeholder="ชื่อเทมเพลต เช่น แจ้งวันหยุดพิเศษ" style={inputStyle} />
+                <input value={tplForm.title} onChange={e => setTplForm(f => ({ ...f, title: e.target.value }))} placeholder="หัวข้อประกาศ (default)" style={inputStyle} />
+                <textarea value={tplForm.content} onChange={e => setTplForm(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="เนื้อหา (default)" style={{ ...inputStyle, resize: 'vertical' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {tplForm.id && (
+                    <button onClick={() => setTplForm({ id: null, name: '', title: '', content: '' })} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}>ยกเลิกแก้ไข</button>
+                  )}
+                  <button onClick={() => saveTemplateMutation.mutate()} disabled={!tplForm.name.trim() || !tplForm.title.trim() || !tplForm.content.trim() || saveTemplateMutation.isPending}
+                    style={{ flex: 1, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Plus size={13} /> {tplForm.id ? 'บันทึกการแก้ไข' : 'สร้างเทมเพลต'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
