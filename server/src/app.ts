@@ -3,7 +3,6 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
-import multipart from '@fastify/multipart'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import formbody from '@fastify/formbody'
@@ -22,7 +21,6 @@ import { otRoutes }           from './modules/ot/ot.route'
 import { lineRoutes }         from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
 import { weeklyOffRoutes }    from './modules/weekly-off/weekly-off.route'
-import { brandingRoutes }     from './modules/branding/branding.route'
 import { feedbackRoutes }     from './modules/feedback/feedback.route'
 import { billingRoutes }      from './modules/billing/billing.route'
 import { activityRoutes }     from './modules/activity/activity.route'
@@ -108,7 +106,6 @@ app.register(cors, {
 
 app.register(formbody)   // รับ application/x-www-form-urlencoded (OAuth2 token endpoint)
 app.register(jwt, { secret: process.env.JWT_ACCESS_SECRET! })
-app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB
 
 // ── Health ────────────────────────────────────────────────────────
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -127,7 +124,6 @@ app.register(leaveRoutes,        { prefix: '/api/v1' })              // MANAGER 
 app.register(otRoutes,           { prefix: '/api/v1' })              // MANAGER approve + EMPLOYEE request (LIFF)
 app.register(announcementRoutes, { prefix: '/api/v1/admin' })        // ADMIN broadcast
 app.register(weeklyOffRoutes,   { prefix: '/api/v1' })               // ADMIN manage + EMPLOYEE request
-app.register(brandingRoutes,    { prefix: '/api/v1/admin' })         // ADMIN: ภาพ Loading ต่อ tenant (Cloudinary)
 app.register(feedbackRoutes,    { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE submit (ไม่ระบุตัวตน, LIFF)
 app.register(billingRoutes,     { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: Invoice tracking (manual, ไม่มี payment gateway)
 app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: กิจกรรมล่าสุด (Dashboard feed)

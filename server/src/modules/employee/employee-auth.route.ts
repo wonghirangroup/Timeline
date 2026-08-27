@@ -64,24 +64,6 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, booking_enabled } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
-  // GET /api/v1/employee/branding?line_channel_id=xxx
-  // ดึงภาพ Loading ของ tenant — เรียกได้ก่อน login เสร็จ (ไม่ต้อง auth เพราะยังไม่มี JWT ตอนนี้)
-  app.get('/employee/branding', {
-    schema: {
-      tags: ['Employee'],
-      summary: 'ดึงภาพ Loading ของ tenant (ใช้แสดงหน้าจอ boot ก่อน login)',
-      querystring: {
-        type: 'object',
-        required: ['line_channel_id'],
-        properties: { line_channel_id: { type: 'string' } },
-      },
-    },
-  }, async (req: any, reply) => {
-    const config = await getTenantByChannelId(req.query.line_channel_id)
-    if (!config) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ tenant'))
-    return ok({ loading_image_url: config.tenant.loading_image_url ?? null })
-  })
-
   // GET /api/v1/employee/list?line_channel_id=xxx
   // ดึงรายชื่อพนักงานที่ยังไม่ผูก Line (สำหรับหน้า verify)
   app.get('/employee/list', {

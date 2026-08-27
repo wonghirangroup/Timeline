@@ -22,7 +22,6 @@ model Tenant {
   max_branches      Int        @default(1)
   max_groups        Int        @default(1) // จำนวนกลุ่ม(บริษัท)สูงสุดที่สร้างได้ — จำกัดตาม package, Super Admin ปรับได้
   is_active         Boolean    @default(true)
-  loading_image_url String? // ภาพ Loading หน้าเข้าสู่ระบบ LIFF ของ tenant นี้ (Cloudinary) — null = ใช้ default mascot
   enabled_features  Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
