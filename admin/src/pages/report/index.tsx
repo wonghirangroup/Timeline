@@ -1,7 +1,7 @@
 // admin/src/pages/report/index.tsx — Attendance History Report
 import { useState, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin } from 'lucide-react'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -71,6 +71,8 @@ export default function ReportPage() {
 
   // ── มุมมอง: ปฏิทิน (1 เดือนเต็ม) หรือ ช่วงเวลาที่กำหนดเอง (ข้ามเดือนได้) ──
   const [viewMode, setViewMode] = useState<'month' | 'range'>('month')
+  // มุมมองการ์ด vs ตาราง — เฉพาะโหมด 'month' บนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว)
+  const [cardView, setCardView] = useState(false)
   const [rangeStart, setRangeStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10) })
   const [rangeEnd,   setRangeEnd]   = useState(() => new Date().toISOString().slice(0, 10))
   const [expandedRangeEmp, setExpandedRangeEmp] = useState<string | null>(null)
@@ -375,6 +377,18 @@ export default function ReportPage() {
           ))}
         </div>
 
+        {/* Card/Table toggle — เฉพาะโหมดปฏิทินบนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว, ช่วงเวลาเป็นการ์ดเสมออยู่แล้ว) */}
+        {viewMode === 'month' && !isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+            {([[false, 'ตาราง', Table2], [true, 'การ์ด', LayoutGrid]] as const).map(([v, label, Icon]) => (
+              <button key={label} onClick={() => setCardView(v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: cardView === v ? 700 : 500, background: cardView === v ? '#fff' : 'transparent', color: cardView === v ? '#f97316' : 'var(--text-muted)', boxShadow: cardView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {viewMode === 'range' ? (
           /* Custom date range */
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
@@ -534,8 +548,8 @@ export default function ReportPage() {
         </div>
       )}
 
-      {/* ── MOBILE VIEW: Employee cards ─────────────────────────────────────── */}
-      {!isLoading && employees.length > 0 && isMobile && viewMode === 'month' && (
+      {/* ── CARD VIEW: Employee cards (มือถือเสมอ, จอใหญ่ตอนเลือกมุมมองการ์ด) ── */}
+      {!isLoading && employees.length > 0 && (isMobile || cardView) && viewMode === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {employees.map(({ info, byDate }) => {
             const presentDays = [...byDate.entries()].filter(([dk]) => {
@@ -697,8 +711,8 @@ export default function ReportPage() {
         </div>
       )}
 
-      {/* ── DESKTOP VIEW: Matrix table ──────────────────────────────────────── */}
-      {!isLoading && employees.length > 0 && !isMobile && viewMode === 'month' && (
+      {/* ── TABLE VIEW: Matrix table (จอใหญ่ตอนเลือกมุมมองตาราง) ───────────────── */}
+      {!isLoading && employees.length > 0 && !isMobile && !cardView && viewMode === 'month' && (
         <>
           {/* Legend */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
