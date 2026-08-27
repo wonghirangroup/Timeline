@@ -959,17 +959,15 @@ export default function EmployeePage() {
                       <label style={lbl}>เงินเดือน (บาท)</label>
                       <input type="number" value={af.salary} onChange={e => setAf({ salary: e.target.value })} placeholder="18000" style={inp} min="0" />
                     </div>
-                    {groups.length > 1 && (
-                      <div>
-                        <label style={lbl}>กลุ่ม (บริษัท)</label>
-                        <select value={af.group_id}
-                          onChange={e => setAf({ group_id: e.target.value, position_id: '' })}
-                          style={inp}>
-                          <option value="">— เลือกกลุ่ม —</option>
-                          {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        </select>
-                      </div>
-                    )}
+                    <div>
+                      <label style={lbl}>กลุ่ม (บริษัท)</label>
+                      <select value={af.group_id}
+                        onChange={e => setAf({ group_id: e.target.value, position_id: '' })}
+                        style={inp}>
+                        <option value="">— เลือกกลุ่ม —</option>
+                        {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                    </div>
                     <div>
                       <label style={lbl}>แผนก <span style={required}>*</span></label>
                       <select value={af.department}
