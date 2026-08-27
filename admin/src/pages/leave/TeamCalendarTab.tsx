@@ -1,14 +1,14 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search, Table2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 // ─── API types ────────────────────────────────────────────────────────────────
-interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; branch: { id: string; name: string } }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code?: string; branch: { id: string; name: string } }
 interface ApiEmployeeFull extends ApiEmployee { position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
@@ -786,6 +786,116 @@ export default function TeamCalendarTab() {
     win.document.close(); win.print()
   }
 
+  // ── Export ตารางแยกกลุ่ม (Roster) — ก้อนตามกลุ่มสาขา x วันที่ 1-31 เหมือนชีท
+  // Excel เดิมที่ user ใช้อยู่ (feedback 2026-08-27, ส่งภาพตัวอย่างมาให้ดู) —
+  // ไม่ผูกกับ groupFilter/branchFilter บนจอตอนนี้ เพราะ export นี้ตั้งใจโชว์
+  // "ทุกกลุ่ม" แยกก้อนเสมอไม่ว่าจอจะกรองอะไรอยู่ก็ตาม
+  function buildRosterGroups(): { groupName: string; employees: ApiEmployeeFull[] }[] {
+    const byGroup = new Map<string, ApiEmployeeFull[]>()
+    const noGroup: ApiEmployeeFull[] = []
+    for (const e of employeesFull) {
+      const gid = employeeGroupId[e.id]
+      if (!gid) { noGroup.push(e); continue }
+      if (!byGroup.has(gid)) byGroup.set(gid, [])
+      byGroup.get(gid)!.push(e)
+    }
+    const result = groups
+      .filter(g => (byGroup.get(g.id)?.length ?? 0) > 0)
+      .map(g => ({ groupName: g.name, employees: byGroup.get(g.id)! }))
+    if (noGroup.length > 0) result.push({ groupName: 'ไม่มีกลุ่ม', employees: noGroup })
+    return result
+  }
+
+  // สถานะของพนักงานคนหนึ่งในวันที่หนึ่ง — ไม่ผ่าน groupFilter/branchFilter (ดูทุกคนเสมอ)
+  function rosterCellFor(employeeId: string, dateStr: string): { label: string; bg: string; color: string; pending: boolean } | null {
+    const off = dayOffsRaw.find(d => d.employee_id === employeeId && d.date === dateStr && d.status !== 'REJECTED')
+    if (off) return { label: 'หยุด', bg: '#FFF7ED', color: '#c2410c', pending: off.status === 'PENDING' }
+    const leave = leavesRaw.find(l => l.employee_id === employeeId && l.start_date <= dateStr && l.end_date >= dateStr && l.status !== 'REJECTED')
+    if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, bg: cfg.light, color: cfg.color, pending: leave.status === 'PENDING' } }
+    return null
+  }
+
+  function exportRosterCsv() {
+    const rosterGroups = buildRosterGroups()
+    const header = ['กลุ่ม', 'รหัส', 'ชื่อ', 'สาขา', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))]
+    const rows: string[][] = []
+    for (const grp of rosterGroups) {
+      for (const e of grp.employees) {
+        const dayCells = Array.from({ length: daysInMonth }, (_, i) => {
+          const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
+          return cell ? `${cell.label}${cell.pending ? '(รอ)' : ''}` : ''
+        })
+        rows.push([grp.groupName, e.employee_code ?? '', `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`, e.branch.name, ...dayCells])
+      }
+    }
+    const csv = '﻿' + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `ตารางแยกกลุ่ม_${month}.csv`; a.click()
+  }
+
+  function exportRosterPdf() {
+    const win = window.open('', '_blank'); if (!win) return
+    const rosterGroups = buildRosterGroups()
+
+    function dayHeaderCells(): string {
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const dow = (firstDow + i) % 7
+        return `<th class="${dow === 0 ? 'sun' : dow === 6 ? 'sat' : ''}"><div class="dow">${DAYS_SHORT[dow]}</div>${i + 1}</th>`
+      }).join('')
+    }
+
+    function groupSectionHtml(grp: { groupName: string; employees: ApiEmployeeFull[] }): string {
+      const rows = grp.employees.map(e => {
+        const cells = Array.from({ length: daysInMonth }, (_, i) => {
+          const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
+          if (!cell) return '<td></td>'
+          return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${cell.bg};color:${cell.color}">${cell.label}</td>`
+        }).join('')
+        const nameLabel = `${e.nickname || e.first_name} ${e.employee_code ? `<span class="code">${e.employee_code}</span>` : ''}`
+        return `<tr><td class="name">${nameLabel}<div class="branch">${e.branch.name}</div></td>${cells}</tr>`
+      }).join('')
+      return `<h2>${grp.groupName} <span class="count">(${grp.employees.length} คน)</span></h2>
+        <table>
+          <thead><tr><th class="namecol">พนักงาน</th>${dayHeaderCells()}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`
+    }
+
+    win.document.write(`<html><head><title>ตารางแยกกลุ่ม — ${fmtMonthTH(month)}</title>
+      <style>
+        @page { size: landscape; margin: 10mm; }
+        body{font-family:'Sarabun',sans-serif;padding:16px;color:#1e293b}
+        h1{font-size:20px;margin:0 0 2px}
+        .sub{font-size:13px;color:#6b7280;margin:0 0 16px}
+        h2{font-size:14px;margin:22px 0 8px;color:#111827}
+        h2 .count{font-size:11px;font-weight:400;color:#9ca3af}
+        table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6px}
+        th,td{border:1px solid #e5e7eb;font-size:9px;text-align:center;padding:3px 1px}
+        th{color:#6b7280;font-weight:700;background:#f9fafb}
+        th .dow{font-size:7.5px;color:#9ca3af;font-weight:400}
+        th.sun{color:#dc2626} th.sat{color:#2563eb}
+        .namecol,td.name{width:110px;text-align:left;padding-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        td.name{font-weight:700;font-size:10px}
+        td.name .code{font-weight:400;color:#9ca3af;font-size:8px;margin-left:4px}
+        td.name .branch{font-weight:400;color:#9ca3af;font-size:8px}
+        td.mark{font-weight:700;border-width:1px}
+        td.mark.pending{border-style:dashed}
+        .legend{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap}
+        .legend span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#374151}
+        .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+      </style></head><body>
+      <h1>ตารางแยกกลุ่ม — ${fmtMonthTH(month)}</h1>
+      <div class="sub">แยกตามกลุ่มสาขา — วันหยุดประจำ + วันลา ทุกคนไม่ว่าตัวกรองบนจอจะตั้งไว้ยังไง</div>
+      ${rosterGroups.map(groupSectionHtml).join('')}
+      <div class="legend">
+        <span><span class="dot" style="background:#ea580c"></span>หยุดประจำ (เส้นประ = รออนุมัติ)</span>
+        ${Object.values(LEAVE_CFG).map(c => `<span><span class="dot" style="background:${c.color}"></span>${c.label}</span>`).join('')}
+      </div>
+      </body></html>`)
+    win.document.close(); win.print()
+  }
+
   function handleDayClick(day: number) {
     const dateStr = toDateStr(month, day)
     setSelectedDate(prev => prev === dateStr ? null : dateStr)
@@ -859,6 +969,15 @@ export default function TeamCalendarTab() {
           <button onClick={exportPdf} title="Export PDF (Print)"
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Printer size={14} /> PDF
+          </button>
+          <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
+          <button onClick={exportRosterCsv} title="Export ตารางแยกกลุ่ม (Excel) — ก้อนตามกลุ่มสาขา x วันที่ ทุกกลุ่มเสมอ"
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Table2 size={14} /> ตารางแยกกลุ่ม (Excel)
+          </button>
+          <button onClick={exportRosterPdf} title="Export ตารางแยกกลุ่ม (PDF) — ก้อนตามกลุ่มสาขา x วันที่ ทุกกลุ่มเสมอ"
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Table2 size={14} /> ตารางแยกกลุ่ม (PDF)
           </button>
         </div>
       </div>
