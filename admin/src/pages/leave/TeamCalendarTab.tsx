@@ -56,6 +56,23 @@ function fmtDateFull(s: string) {
   return `${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 
+// ── สีต่อคนสำหรับตารางแยกกลุ่ม (roster) — ตั้งเองได้ (manual) แล้วจำไว้ในเครื่อง
+// นี้ (localStorage) ไม่ต้องเลือกใหม่ทุกครั้งที่ export — ถ้ายังไม่เคยตั้งเอง
+// จะสุ่มจาก palette ให้อัตโนมัติตามลำดับคนในตาราง
+const ROSTER_COLOR_PALETTE = [
+  '#F97316', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
+  '#F59E0B', '#06B6D4', '#EF4444', '#84CC16', '#6366F1',
+  '#14B8A6', '#D946EF',
+]
+const ROSTER_COLOR_KEY = 'tl_roster_colors'
+
+function loadRosterColors(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(ROSTER_COLOR_KEY) ?? '{}') } catch { return {} }
+}
+function saveRosterColors(colors: Record<string, string>) {
+  try { localStorage.setItem(ROSTER_COLOR_KEY, JSON.stringify(colors)) } catch { /* ignore เช่น private mode */ }
+}
+
 // week_start = Monday, day_of_week = 0 (Sun) – 6 (Sat) as JS getUTCDay()
 function weeklyOffToDate(weekStart: string, dayOfWeek: number): string {
   const monday = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
@@ -568,6 +585,18 @@ export default function TeamCalendarTab() {
   const [groupFilter,  setGroupFilter]  = useState('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
+  const [showRosterSettings, setShowRosterSettings] = useState(false)
+  const [rosterCols, setRosterCols] = useState({ code: true, branch: true })
+  const [rosterColors, setRosterColors] = useState<Record<string, string>>(() => loadRosterColors())
+
+  function colorForEmployee(id: string, orderedIds: string[]): string {
+    if (rosterColors[id]) return rosterColors[id]
+    const idx = orderedIds.indexOf(id)
+    return ROSTER_COLOR_PALETTE[idx % ROSTER_COLOR_PALETTE.length]
+  }
+  function setEmployeeColor(id: string, color: string) {
+    setRosterColors(prev => { const next = { ...prev, [id]: color }; saveRosterColors(next); return next })
+  }
 
   const year = Number(month.slice(0, 4))
 
@@ -807,17 +836,19 @@ export default function TeamCalendarTab() {
   }
 
   // สถานะของพนักงานคนหนึ่งในวันที่หนึ่ง — ไม่ผ่าน groupFilter/branchFilter (ดูทุกคนเสมอ)
-  function rosterCellFor(employeeId: string, dateStr: string): { label: string; bg: string; color: string; pending: boolean } | null {
+  // สีแยกตามคน (ตั้งเองได้ ดู rosterColors ด้านบน) ไม่ใช่ตามประเภทเหมือนปฏิทินหลัก
+  // — ใช้ label ข้อความแยกประเภท (หยุด/ป่วย/กิจ/...) แทน
+  function rosterCellFor(employeeId: string, dateStr: string): { label: string; pending: boolean } | null {
     const off = dayOffsRaw.find(d => d.employee_id === employeeId && d.date === dateStr && d.status !== 'REJECTED')
-    if (off) return { label: 'หยุด', bg: '#FFF7ED', color: '#c2410c', pending: off.status === 'PENDING' }
+    if (off) return { label: 'หยุด', pending: off.status === 'PENDING' }
     const leave = leavesRaw.find(l => l.employee_id === employeeId && l.start_date <= dateStr && l.end_date >= dateStr && l.status !== 'REJECTED')
-    if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, bg: cfg.light, color: cfg.color, pending: leave.status === 'PENDING' } }
+    if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, pending: leave.status === 'PENDING' } }
     return null
   }
 
   function exportRosterCsv() {
     const rosterGroups = buildRosterGroups()
-    const header = ['กลุ่ม', 'รหัส', 'ชื่อ', 'สาขา', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))]
+    const header = ['กลุ่ม', ...(rosterCols.code ? ['รหัส'] : []), 'ชื่อ', ...(rosterCols.branch ? ['สาขา'] : []), ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))]
     const rows: string[][] = []
     for (const grp of rosterGroups) {
       for (const e of grp.employees) {
@@ -825,7 +856,13 @@ export default function TeamCalendarTab() {
           const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
           return cell ? `${cell.label}${cell.pending ? '(รอ)' : ''}` : ''
         })
-        rows.push([grp.groupName, e.employee_code ?? '', `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`, e.branch.name, ...dayCells])
+        rows.push([
+          grp.groupName,
+          ...(rosterCols.code ? [e.employee_code ?? ''] : []),
+          `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`,
+          ...(rosterCols.branch ? [e.branch.name] : []),
+          ...dayCells,
+        ])
       }
     }
     const csv = '﻿' + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -837,6 +874,7 @@ export default function TeamCalendarTab() {
   function exportRosterPdf() {
     const win = window.open('', '_blank'); if (!win) return
     const rosterGroups = buildRosterGroups()
+    const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
 
     function dayHeaderCells(): string {
       return Array.from({ length: daysInMonth }, (_, i) => {
@@ -847,13 +885,16 @@ export default function TeamCalendarTab() {
 
     function groupSectionHtml(grp: { groupName: string; employees: ApiEmployeeFull[] }): string {
       const rows = grp.employees.map(e => {
+        const empColor = colorForEmployee(e.id, orderedIds)
         const cells = Array.from({ length: daysInMonth }, (_, i) => {
           const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
           if (!cell) return '<td></td>'
-          return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${cell.bg};color:${cell.color}">${cell.label}</td>`
+          return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${empColor}22;color:${empColor};border-color:${empColor}66">${cell.label}</td>`
         }).join('')
-        const nameLabel = `${e.nickname || e.first_name} ${e.employee_code ? `<span class="code">${e.employee_code}</span>` : ''}`
-        return `<tr><td class="name">${nameLabel}<div class="branch">${e.branch.name}</div></td>${cells}</tr>`
+        const codeHtml   = rosterCols.code   && e.employee_code ? `<span class="code">${e.employee_code}</span>` : ''
+        const branchHtml = rosterCols.branch ? `<div class="branch">${e.branch.name}</div>` : ''
+        const nameLabel = `<span class="dot" style="background:${empColor}"></span>${e.nickname || e.first_name} ${codeHtml}`
+        return `<tr><td class="name">${nameLabel}${branchHtml}</td>${cells}</tr>`
       }).join('')
       return `<h2>${grp.groupName} <span class="count">(${grp.employees.length} คน)</span></h2>
         <table>
@@ -881,17 +922,13 @@ export default function TeamCalendarTab() {
         td.name .branch{font-weight:400;color:#9ca3af;font-size:8px}
         td.mark{font-weight:700;border-width:1px}
         td.mark.pending{border-style:dashed}
-        .legend{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap}
-        .legend span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#374151}
-        .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+        .legend{margin-top:16px;font-size:10px;color:#6b7280}
+        .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:middle}
       </style></head><body>
       <h1>ตารางแยกกลุ่ม — ${fmtMonthTH(month)}</h1>
       <div class="sub">แยกตามกลุ่มสาขา — วันหยุดประจำ + วันลา ทุกคนไม่ว่าตัวกรองบนจอจะตั้งไว้ยังไง</div>
       ${rosterGroups.map(groupSectionHtml).join('')}
-      <div class="legend">
-        <span><span class="dot" style="background:#ea580c"></span>หยุดประจำ (เส้นประ = รออนุมัติ)</span>
-        ${Object.values(LEAVE_CFG).map(c => `<span><span class="dot" style="background:${c.color}"></span>${c.label}</span>`).join('')}
-      </div>
+      <div class="legend">สีของแต่ละแถว = สีประจำตัวพนักงาน (ตั้งเองได้ก่อน export) — ข้อความในช่อง: "หยุด" = วันหยุดประจำ, อื่นๆ = ประเภทวันลา (เส้นประ = รออนุมัติ)</div>
       </body></html>`)
     win.document.close(); win.print()
   }
@@ -971,13 +1008,9 @@ export default function TeamCalendarTab() {
             <Printer size={14} /> PDF
           </button>
           <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
-          <button onClick={exportRosterCsv} title="Export ตารางแยกกลุ่ม (Excel) — ก้อนตามกลุ่มสาขา x วันที่ ทุกกลุ่มเสมอ"
+          <button onClick={() => setShowRosterSettings(true)} title="ตั้งค่า + Export ตารางแยกกลุ่ม — เลือกคอลัมน์ / สีต่อคนเอง"
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Table2 size={14} /> ตารางแยกกลุ่ม (Excel)
-          </button>
-          <button onClick={exportRosterPdf} title="Export ตารางแยกกลุ่ม (PDF) — ก้อนตามกลุ่มสาขา x วันที่ ทุกกลุ่มเสมอ"
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Table2 size={14} /> ตารางแยกกลุ่ม (PDF)
+            <Table2 size={14} /> ตารางแยกกลุ่ม
           </button>
         </div>
       </div>
@@ -1102,6 +1135,80 @@ export default function TeamCalendarTab() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      {/* Roster export settings — เลือกคอลัมน์ + สีต่อคน (manual) ก่อน export */}
+      {showRosterSettings && (() => {
+        const rosterGroups = buildRosterGroups()
+        const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
+        return (
+          <div onClick={() => setShowRosterSettings(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: 14, width: 480, maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>ตั้งค่า Export ตารางแยกกลุ่ม</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtMonthTH(month)}</div>
+                </div>
+                <button onClick={() => setShowRosterSettings(false)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+              </div>
+
+              <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* คอลัมน์ที่จะ export */}
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>คอลัมน์ที่จะ export (นอกจากชื่อ)</div>
+                  <div style={{ display: 'flex', gap: 14 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={rosterCols.code} onChange={e => setRosterCols(c => ({ ...c, code: e.target.checked }))} />
+                      รหัสพนักงาน
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={rosterCols.branch} onChange={e => setRosterCols(c => ({ ...c, branch: e.target.checked }))} />
+                      ชื่อสาขา
+                    </label>
+                  </div>
+                </div>
+
+                {/* สีต่อคน — ตั้งเองได้ (manual) จำไว้ในเครื่องนี้ */}
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>สีประจำตัวแต่ละคน</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>คลิกวงกลมสีเพื่อเปลี่ยนเอง — ระบบจำไว้ในเครื่องนี้ ไม่ต้องเลือกใหม่ทุกครั้ง</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 280, overflowY: 'auto' }}>
+                    {rosterGroups.map(grp => (
+                      <div key={grp.groupName}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', marginBottom: 5 }}>{grp.groupName}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {grp.employees.map(e => {
+                            const color = colorForEmployee(e.id, orderedIds)
+                            return (
+                              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
+                                <input type="color" value={color} onChange={ev => setEmployeeColor(e.id, ev.target.value)}
+                                  style={{ width: 22, height: 22, padding: 0, border: 'none', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.8rem', color: '#374151' }}>{e.nickname || `${e.first_name} ${e.last_name}`}</span>
+                                {e.employee_code && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{e.employee_code}</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {rosterGroups.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีพนักงานที่อยู่ในกลุ่ม</div>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={exportRosterCsv} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <FileSpreadsheet size={14} /> Export Excel
+                </button>
+                <button onClick={exportRosterPdf} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Printer size={14} /> Export PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: isMobile ? 8 : 16, marginTop: 16, flexWrap: 'wrap', padding: '10px 12px', background: '#f8fafc', borderRadius: 10 }}>
