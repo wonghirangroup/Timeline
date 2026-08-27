@@ -8,7 +8,7 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 // ─── API types ────────────────────────────────────────────────────────────────
-interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code?: string; branch: { id: string; name: string } }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
 interface ApiEmployeeFull extends ApiEmployee { position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
@@ -701,8 +701,10 @@ export default function TeamCalendarTab() {
   // employee_id → group_id (ผ่าน position→department→division→group) — ใช้กรอง
   // ปฏิทินแยกตามกลุ่ม (dropdown แสดงเฉพาะตอนมีมากกว่า 1 กลุ่ม ไม่รบกวน tenant
   // ทั่วไปที่มีกลุ่มเดียว)
+  // เอาสาขาที่สังกัดเป็นหลัก (มีข้อมูลครบทุกคนอยู่แล้ว) — ผังองค์กร (ตำแหน่ง→แผนก→
+  // ฝ่าย→กลุ่ม) เป็นแค่ fallback เพราะพนักงานส่วนใหญ่ยังไม่ได้ผูกตำแหน่งในผังองค์กร
   const employeeGroupId: Record<string, string | null> = {}
-  for (const e of employeesFull) employeeGroupId[e.id] = e.position?.department?.division?.group?.id ?? null
+  for (const e of employeesFull) employeeGroupId[e.id] = e.branch.group_id ?? e.position?.department?.division?.group?.id ?? null
 
   const dayOffsRaw: DayOff[]  = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
   const leavesRaw: LeaveReq[] = rawLeaves.map(toDisplayLeave)

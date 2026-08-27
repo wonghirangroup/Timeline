@@ -57,7 +57,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
     include: {
-      branch: { select: { id: true, name: true } },
+      branch: { select: { id: true, name: true, group_id: true } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
     },
@@ -69,7 +69,7 @@ export async function getEmployee(tenantId: string, id: string) {
   return prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
     include: {
-      branch: { select: { id: true, name: true } },
+      branch: { select: { id: true, name: true, group_id: true } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
     },
