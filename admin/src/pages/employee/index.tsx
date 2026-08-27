@@ -46,8 +46,9 @@ interface ApiEmployee {
 interface ApiPosition {
   id: string
   name: string
-  department?: { id: string; name: string; division?: { id: string; name: string } | null } | null
+  department?: { id: string; name: string; division?: { id: string; name: string; group_id: string } | null } | null
 }
+interface ApiGroup { id: string; name: string }
 interface ApiStatusType { id: string; name: string; monthly_off_quota: number }
 
 interface StatusLogEntry {
@@ -127,6 +128,10 @@ export default function EmployeePage() {
     queryKey: ['positions'],
     queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
+  const { data: groups = [] } = useQuery<ApiGroup[]>({
+    queryKey: ['groups'],
+    queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
+  })
   const { data: statusTypes = [] } = useQuery<ApiStatusType[]>({
     queryKey: ['employee-status-types'],
     queryFn: () => api.get('/api/v1/admin/employee-status-types').then(r => r.data.data),
@@ -181,7 +186,7 @@ export default function EmployeePage() {
     emp_type: 'ประจำ', status: 'ทำงาน', hired_at: new Date().toISOString().slice(0, 10),
     salary: '', department: '', account_status: 'ปกติ', notes: '',
     branch_accesses: [] as { branch_id: string; branch_name: string }[],
-    position_id: '', employee_status_type_id: '',
+    position_id: '', employee_status_type_id: '', group_id: '',
   })
   const af = addForm
   const setAf = (patch: Partial<typeof addForm>) => setAddForm(f => ({ ...f, ...patch }))
@@ -218,6 +223,7 @@ export default function EmployeePage() {
       salary: '', department: '', account_status: 'ปกติ', notes: '',
       branch_accesses: [],
       position_id: '', employee_status_type_id: '',
+      group_id: groups.length === 1 ? groups[0].id : '', // มีกลุ่มเดียว → เลือกให้อัตโนมัติ ไม่ต้องเลือกเอง
     })
     setEditTarget(null)
     setAddErrors({})
@@ -953,6 +959,17 @@ export default function EmployeePage() {
                       <label style={lbl}>เงินเดือน (บาท)</label>
                       <input type="number" value={af.salary} onChange={e => setAf({ salary: e.target.value })} placeholder="18000" style={inp} min="0" />
                     </div>
+                    {groups.length > 1 && (
+                      <div>
+                        <label style={lbl}>กลุ่ม (บริษัท)</label>
+                        <select value={af.group_id}
+                          onChange={e => setAf({ group_id: e.target.value, position_id: '' })}
+                          style={inp}>
+                          <option value="">— เลือกกลุ่ม —</option>
+                          {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label style={lbl}>แผนก <span style={required}>*</span></label>
                       <select value={af.department}
@@ -980,7 +997,9 @@ export default function EmployeePage() {
                         }}
                         style={inp}>
                         <option value="">— ไม่ระบุ —</option>
-                        {filterPositionsByDept(positions, af.department).map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
+                        {filterPositionsByDept(positions, af.department)
+                          .filter(p => !af.group_id || p.department?.division?.group_id === af.group_id)
+                          .map(p => <option key={p.id} value={p.id}>{positionLabel(p)}</option>)}
                       </select>
                     </div>
                     <div>
