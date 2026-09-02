@@ -210,7 +210,7 @@ export async function updateLeaveRequest(
   tenantId: string,
   id: string,
   data: {
-    leave_type?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'
+    leave_type?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
     start_date?: string
     end_date?: string
     days?: number

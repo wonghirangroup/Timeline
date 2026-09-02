@@ -82,7 +82,7 @@ export async function leaveRoutes(app: FastifyInstance) {
         required: ['employee_id', 'leave_type', 'start_date', 'end_date', 'days'],
         properties: {
           employee_id: { type: 'string' },
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'integer' },
@@ -112,7 +112,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'integer' },
@@ -301,7 +301,7 @@ export async function leaveRoutes(app: FastifyInstance) {
         required: ['employee_id', 'leave_type', 'year', 'total_days'],
         properties: {
           employee_id: { type: 'string' },
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY'] },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           year:        { type: 'integer' },
           total_days:  { type: 'integer' },
         },

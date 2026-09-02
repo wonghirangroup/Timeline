@@ -12,7 +12,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'
+type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
 type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch_id: string; branch: { id: string; name: string } }
@@ -42,13 +42,14 @@ const TYPE_CFG: Record<LeaveType, { label: string; color: string; bg: string }> 
   PERSONAL:  { label: 'ลากิจ',     color: '#2563eb', bg: '#dbeafe' },
   VACATION:  { label: 'พักร้อน',   color: '#d97706', bg: '#fef3c7' },
   MATERNITY: { label: 'ลาคลอด',   color: '#7c3aed', bg: '#ede9fe' },
+  COMPENSATE: { label: 'ชดเชย',   color: '#0891b2', bg: '#ecfeff' },
 }
 const STATUS_CFG: Record<LeaveStatus, { label: string; color: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: '#fef3c7' },
   APPROVED: { label: 'อนุมัติ',   color: '#16a34a', bg: '#dcfce7' },
   REJECTED: { label: 'ไม่อนุมัติ', color: '#dc2626', bg: '#fee2e2' },
 }
-const LEAVE_TYPES: LeaveType[] = ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY']
+const LEAVE_TYPES: LeaveType[] = ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE']
 
 const HOLIDAY_LABELS = new Set(['หยุด', 'หยุดนักขัตฤกษ์', 'ชดเชย'])
 

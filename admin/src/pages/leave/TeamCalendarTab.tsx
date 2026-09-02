@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search, Table2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search, Table2, RefreshCw } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -35,6 +35,7 @@ const LEAVE_CFG: Record<string, { label: string; color: string; light: string; i
   PERSONAL:  { label: 'ลากิจ',     color: '#8B5CF6', light: '#F5F3FF', icon: <Briefcase   size={12}/> },
   VACATION:  { label: 'ลาพักร้อน', color: '#F59E0B', light: '#FFFBEB', icon: <Sun         size={12}/> },
   MATERNITY: { label: 'ลาคลอด',   color: '#EC4899', light: '#FDF2F8', icon: <Heart       size={12}/> },
+  COMPENSATE: { label: 'ชดเชย',   color: '#0891B2', light: '#ECFEFF', icon: <RefreshCw   size={12}/> },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -316,27 +317,35 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
 }
 
 // ─── Quick-add: เพิ่มวันหยุดประจำ/วันลาให้พนักงานตรงจากปฏิทิน ──────────────────
-const QUICK_LEAVE_TYPES: { value: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; label: string }[] = [
+type QuickLeaveType = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
+const QUICK_LEAVE_TYPES: { value: QuickLeaveType; label: string }[] = [
   { value: 'SICK', label: 'ลาป่วย' }, { value: 'PERSONAL', label: 'ลากิจ' },
   { value: 'VACATION', label: 'ลาพักร้อน' }, { value: 'MATERNITY', label: 'ลาคลอด' },
+  { value: 'COMPENSATE', label: 'ชดเชย' }, { value: 'OTHER', label: 'อื่นๆ' },
 ]
 
 function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
   date: string; employees: ApiEmployee[]
   onAddDayOff: (employeeId: string) => void
-  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY') => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string) => void
   onDone: () => void
 }) {
   const [kind, setKind] = useState<'dayoff' | 'leave'>('dayoff')
-  const [leaveType, setLeaveType] = useState<'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'>('SICK')
+  const [leaveType, setLeaveType] = useState<QuickLeaveType>('SICK')
+  const [otherReason, setOtherReason] = useState('')
   const [q, setQ] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const query = q.trim().toLowerCase()
   const filtered = query.length === 0 ? employees : employees.filter(e => `${e.first_name} ${e.last_name} ${e.nickname ?? ''}`.toLowerCase().includes(query))
+  // "อื่นๆ" ไม่มี enum ตรงตัว — เก็บเป็นลากิจ (PERSONAL) ไว้ แต่ใส่ reason ที่พิมพ์เอง
+  // ไปแทน label ให้แสดงผลถูกต้อง (ตาม convention reason="[label]" ที่ใช้ทั้งระบบอยู่แล้ว
+  // เช่น หน้ารายงาน/requests.tsx ดึง label ละเอียดจาก reason ก่อน enum เสมอ)
+  const canSubmitOther = leaveType !== 'OTHER' || otherReason.trim().length > 0
 
   function submit() {
     if (!employeeId) return
     if (kind === 'dayoff') onAddDayOff(employeeId)
+    else if (leaveType === 'OTHER') onAddLeave(employeeId, 'PERSONAL', otherReason.trim())
     else onAddLeave(employeeId, leaveType)
     onDone()
   }
@@ -348,14 +357,23 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
         <button onClick={() => setKind('leave')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'leave' ? '#3b82f6' : '#e5e7eb'}`, background: kind === 'leave' ? '#eff6ff' : '#fff', color: kind === 'leave' ? '#3b82f6' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>วันลา</button>
       </div>
       {kind === 'leave' && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {QUICK_LEAVE_TYPES.map(t => (
-            <button key={t.value} onClick={() => setLeaveType(t.value)}
-              style={{ padding: '3px 9px', borderRadius: 99, border: `1px solid ${leaveType === t.value ? LEAVE_CFG[t.value].color : '#e5e7eb'}`, background: leaveType === t.value ? LEAVE_CFG[t.value].light : '#fff', color: leaveType === t.value ? LEAVE_CFG[t.value].color : '#64748b', fontWeight: 700, fontSize: '0.66rem', cursor: 'pointer' }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {QUICK_LEAVE_TYPES.map(t => {
+              const cfg = t.value === 'OTHER' ? { color: '#64748b', light: '#f1f5f9' } : LEAVE_CFG[t.value]
+              return (
+                <button key={t.value} onClick={() => setLeaveType(t.value)}
+                  style={{ padding: '3px 9px', borderRadius: 99, border: `1px solid ${leaveType === t.value ? cfg.color : '#e5e7eb'}`, background: leaveType === t.value ? cfg.light : '#fff', color: leaveType === t.value ? cfg.color : '#64748b', fontWeight: 700, fontSize: '0.66rem', cursor: 'pointer' }}>
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+          {leaveType === 'OTHER' && (
+            <input value={otherReason} onChange={e => setOtherReason(e.target.value)} placeholder="ระบุเหตุผล เช่น ลาบวช, ลาไปเลือกตั้ง..."
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          )}
+        </>
       )}
       <div style={{ position: 'relative' }}>
         <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -367,8 +385,8 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
         <option value="">— เลือกพนักงาน —</option>
         {filtered.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''}</option>)}
       </select>
-      <button onClick={submit} disabled={!employeeId}
-        style={{ padding: '7px', borderRadius: 7, border: 'none', background: !employeeId ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.76rem', cursor: !employeeId ? 'not-allowed' : 'pointer' }}>
+      <button onClick={submit} disabled={!employeeId || !canSubmitOther}
+        style={{ padding: '7px', borderRadius: 7, border: 'none', background: (!employeeId || !canSubmitOther) ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.76rem', cursor: (!employeeId || !canSubmitOther) ? 'not-allowed' : 'pointer' }}>
         + เพิ่มให้วันที่นี้
       </button>
     </div>
@@ -384,7 +402,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
   onDeleteDayOff: (id: string, label: string) => void
   onDeleteLeave: (id: string, label: string) => void
   onAddDayOff: (employeeId: string) => void
-  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY') => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string) => void
 }) {
   const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(date, branchFilter, dayOffs, leaves, holidays)
   const approved     = evDayOffs.filter(d => d.status === 'APPROVED')
@@ -657,8 +675,13 @@ export default function TeamCalendarTab() {
     },
   })
   const addLeaveMutation = useMutation({
-    mutationFn: ({ employeeId, leaveType, date }: { employeeId: string; leaveType: string; date: string }) =>
-      api.post('/api/v1/admin/leave-requests', { employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1 }),
+    mutationFn: ({ employeeId, leaveType, date, reason }: { employeeId: string; leaveType: string; date: string; reason?: string }) =>
+      api.post('/api/v1/admin/leave-requests', {
+        employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1,
+        // ห่อ reason ด้วย [ ] ตาม convention เดิม (getLeaveLabel ดึง label ละเอียดจาก
+        // reason ก่อน enum เสมอ) ให้ "อื่นๆ" ที่พิมพ์เองแสดงผลถูกต้อง ไม่ fallback ไปโชว์ "ลากิจ"
+        ...(reason ? { reason: `[${reason}]` } : {}),
+      }),
     onSuccess: () => { invalidateCalendar(); showToast('success', 'เพิ่มวันลาสำเร็จ (อนุมัติอัตโนมัติ)') },
     onError: (e: any) => {
       const code = e?.response?.data?.error?.code
@@ -1134,7 +1157,7 @@ export default function TeamCalendarTab() {
                 onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                 onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
                 onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
-                onAddLeave={(employeeId, leaveType) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate })}
+                onAddLeave={(employeeId, leaveType, reason) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason })}
               />
             </div>
           </>
@@ -1160,7 +1183,7 @@ export default function TeamCalendarTab() {
                   onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                   onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
                   onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
-                  onAddLeave={(employeeId, leaveType) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate })}
+                  onAddLeave={(employeeId, leaveType, reason) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason })}
                 />
               </div>
             </div>
