@@ -7,13 +7,21 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 interface ApiOt {
   id: string; employee_id: string; date: string; start_time: string; end_time: string
   hours: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string; employee_code: string; branch: { id: string; name: string } }
 }
-interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code: string }
+interface ApiEmployee {
+  id: string; first_name: string; last_name: string; nickname: string; employee_code: string
+  branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
+}
+interface ApiPosition {
+  id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null
+}
 
 function toOtRequest(a: ApiOt): OtRequest {
   return {
@@ -94,6 +102,11 @@ export default function OtPage() {
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
   function invalidate() { qc.invalidateQueries({ queryKey: ['admin', 'ot-requests'] }) }
 
@@ -131,7 +144,7 @@ export default function OtPage() {
 
   const [statusFilter, setStatusFilter] = useState<OtStatus | ''>('')
   const [search, setSearch] = useState('')
-  const [branchFilter, setBranchFilter] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [rejectTarget, setRejectTarget] = useState<OtRequest | null>(null)
   const [rejectNote, setRejectNote]     = useState('')
   const [approveTarget, setApproveTarget] = useState<OtRequest | null>(null)
@@ -213,14 +226,14 @@ export default function OtPage() {
   // filtered table
   const filtered = rows.filter(r =>
     (!statusFilter || r.status === statusFilter) &&
-    (!branchFilter || r.branch_name === branchFilter) &&
+    matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter) &&
     (!search.trim() || r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
   )
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 15
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => { setPage(1) }, [statusFilter, branchFilter, search])
+  useEffect(() => { setPage(1) }, [statusFilter, orgFilter, search])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const doApprove = () => {
@@ -393,17 +406,8 @@ export default function OtPage() {
             <option value="APPROVED">อนุมัติแล้ว</option>
             <option value="REJECTED">ไม่อนุมัติ</option>
           </select>
-          {/* Branch Filter */}
-          <select 
-            value={branchFilter} 
-            onChange={e => setBranchFilter(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}
-          >
-            <option value="">ทุกสาขา</option>
-            {[...new Set(rows.map(r => r.branch_name))].map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+          {/* Org Filter */}
+          <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
         </div>
       </div>
 

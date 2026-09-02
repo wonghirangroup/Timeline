@@ -11,6 +11,8 @@ import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import OrgStructurePage from '../org-structure'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 interface ApiBranch {
   id: string
@@ -34,7 +36,7 @@ interface ApiEmployee {
   status_reason: string | null
   created_at: string
   branch_id: string
-  branch: { id: string; name: string }
+  branch: { id: string; name: string; group_id?: string | null }
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
   position_id: string | null
   position?: { id: string; name: string } | null
@@ -156,7 +158,8 @@ export default function EmployeePage() {
   const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
-  const [branchFilter, setBranchFilter] = useState('')
+  const [orgFilter, setOrgFilter]     = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
   const [lineFilter, setLineFilter]   = useState<'' | 'linked' | 'unlinked'>('')
   const [statusFilter, setStatusFilter] = useState<'' | EmployeeStatusValue>('')
 
@@ -192,7 +195,7 @@ export default function EmployeePage() {
   const setAf = (patch: Partial<typeof addForm>) => setAddForm(f => ({ ...f, ...patch }))
 
   const filtered = useMemo(() => employees.filter(e => {
-    if (branchFilter && e.branch_id !== branchFilter) return false
+    if (!matchesOrgFilter(employeeOrgMap[e.id], orgFilter)) return false
     if (statusFilter && e.status !== statusFilter) return false
     if (lineFilter === 'linked'   && !e.line_user_id) return false
     if (lineFilter === 'unlinked' &&  e.line_user_id) return false
@@ -201,10 +204,10 @@ export default function EmployeePage() {
       if (!hay.includes(search.toLowerCase())) return false
     }
     return true
-  }), [employees, branchFilter, statusFilter, lineFilter, search])
+  }), [employees, employeeOrgMap, orgFilter, statusFilter, lineFilter, search])
 
   // Reset page when filters change
-  React.useEffect(() => { setPage(1) }, [branchFilter, statusFilter, lineFilter, search])
+  React.useEffect(() => { setPage(1) }, [orgFilter, statusFilter, lineFilter, search])
 
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
@@ -414,14 +417,10 @@ export default function EmployeePage() {
 
       {/* Filters */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Branch filter — desktop only (mobile uses filter sheet) */}
+        {/* กลุ่ม/สาขา/แผนก/ตำแหน่ง filter — desktop only (mobile ใช้ filter sheet) */}
         {!isMobile && (
           <div>
-            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
-              style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
-              <option value="">ทุกสาขา</option>
-              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
           </div>
         )}
 
@@ -450,7 +449,7 @@ export default function EmployeePage() {
 
           {/* Mobile filter button */}
           {isMobile && (() => {
-            const activeCount = [branchFilter, statusFilter, lineFilter].filter(Boolean).length
+            const activeCount = [orgFilter.groupId, orgFilter.branchId, orgFilter.departmentId, orgFilter.positionId, statusFilter, lineFilter].filter(Boolean).length
             return (
               <button onClick={() => setFilterSheetOpen(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${activeCount > 0 ? '#f97316' : '#e5e7eb'}`, background: activeCount > 0 ? '#fff7ed' : '#fff', color: activeCount > 0 ? '#f97316' : '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
@@ -471,21 +470,17 @@ export default function EmployeePage() {
             <div style={{ width: 36, height: 4, borderRadius: 99, background: '#e5e7eb', margin: '0 auto 16px' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>กรองพนักงาน</p>
-              {[branchFilter, statusFilter, lineFilter].some(Boolean) && (
-                <button onClick={() => { setBranchFilter(''); setStatusFilter(''); setLineFilter('') }}
+              {(orgFilter.groupId || orgFilter.branchId || orgFilter.departmentId || orgFilter.positionId || statusFilter || lineFilter) && (
+                <button onClick={() => { setOrgFilter(EMPTY_ORG_FILTER); setStatusFilter(''); setLineFilter('') }}
                   style={{ fontSize: '12px', color: '#f97316', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
                   ล้างทั้งหมด
                 </button>
               )}
             </div>
 
-            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สาขา</p>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>กลุ่ม / สาขา / แผนก / ตำแหน่ง</p>
             <div style={{ marginBottom: 16 }}>
-              <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
-                style={{ width: '100%', padding: '9px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151', boxSizing: 'border-box' }}>
-                <option value="">ทุกสาขา</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
             </div>
 
             <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะ</p>

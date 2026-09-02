@@ -7,9 +7,12 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface ApiBranch  { id: string; name: string }
+interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiShift   {
   id: string; name: string; branch_id: string; start_time: string; end_time: string
   late_threshold_1: string | null; late_threshold_2: string | null; absent_threshold: string | null
@@ -44,7 +47,8 @@ interface ApiRecord {
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
-  branch_id: string; branch: { id: string; name: string }
+  branch_id: string; branch: { id: string; name: string; group_id?: string | null }
+  position_id?: string | null
 }
 
 
@@ -169,7 +173,10 @@ export default function AttendancePage() {
   )
 
   const [date, setDate]           = useState(todayStr())
-  const [branchFilter, setBranch] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  // สาขายังเป็นตัวขับ query ฝั่ง server เหมือนเดิม (endpoint employees/attendance/shifts
+  // รับ branchId param) — กลุ่ม/แผนก/ตำแหน่งกรองฝั่ง client เพิ่มเติมจาก employeeOrgMap
+  const branchFilter = orgFilter.branchId
   const [search, setSearch]       = useState('')
   const [page, setPage]           = useState(1)
   const pageSize                  = 7
@@ -223,6 +230,11 @@ export default function AttendancePage() {
       api.get('/api/v1/admin/shifts', { params: branchFilter ? { branchId: branchFilter } : {} })
          .then(r => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
   const loading = empLoading || recLoading
 
@@ -298,16 +310,17 @@ export default function AttendancePage() {
   }, [employees, records, date])
 
   const filtered = useMemo(() => rows.filter(r => {
+    if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false
     if (!search) return true
     const q = search.toLowerCase()
     const e = r.employee
     return `${e.first_name} ${e.last_name} ${e.nickname ?? ''} ${e.employee_code}`.toLowerCase().includes(q)
-  }), [rows, search])
+  }), [rows, search, orgFilter, employeeOrgMap])
 
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
 
-  useEffect(() => { setPage(1) }, [branchFilter, search, date])
+  useEffect(() => { setPage(1) }, [orgFilter, search, date])
 
   // ── Summaries ────────────────────────────────────────────────────────
   const summary = useMemo(() => ({
@@ -446,13 +459,9 @@ export default function AttendancePage() {
 
       {/* Filters */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Branch filter */}
+        {/* Org filter */}
         <div>
-          <select value={branchFilter} onChange={e => { setBranch(e.target.value); setPage(1) }}
-            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
-            <option value="">ทุกสาขา</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          <OrgFilterBar value={orgFilter} onChange={v => { setOrgFilter(v); setPage(1) }} />
         </div>
         {/* Compact controls */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

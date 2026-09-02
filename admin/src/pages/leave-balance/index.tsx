@@ -1,10 +1,19 @@
 // admin/src/pages/leave-balance/index.tsx
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+
+interface ApiEmployeeOrg {
+  id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
+}
+interface ApiPosition {
+  id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LeaveBalance {
@@ -254,7 +263,7 @@ export default function LeaveBalancePage() {
   const [defaults,     setDefaults]     = useState<Quotas>(DEFAULT_QUOTAS)
   const [editTarget,   setEditTarget]   = useState<LeaveBalance | null>(null)
   const [search,       setSearch]       = useState('')
-  const [branchFilter, setBranchFilter] = useState('ALL')
+  const [orgFilter,    setOrgFilter]    = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [showDefault,  setShowDefault]  = useState(true)
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
@@ -276,6 +285,15 @@ export default function LeaveBalancePage() {
       api.get('/api/v1/admin/leave-balances/employees', { params: { year } })
          .then(r => r.data.data),
   })
+  const { data: orgEmployees = [] } = useQuery<ApiEmployeeOrg[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(orgEmployees, positions), [orgEmployees, positions])
 
   const batchMutation = useMutation({
     mutationFn: (items: { employee_id: string; leave_type: string; total_days: number }[]) =>
@@ -292,11 +310,10 @@ export default function LeaveBalancePage() {
   }
 
   // Filters
-  const branches = ['ALL', ...Array.from(new Set(balances.map(b => b.branch_name)))]
   const currentYear = new Date().getFullYear()
 
   const filtered = balances.filter(b => {
-    if (branchFilter !== 'ALL' && b.branch_name !== branchFilter) return false
+    if (!matchesOrgFilter(employeeOrgMap[b.employee_id], orgFilter)) return false
     if (search && !b.full_name.toLowerCase().includes(search.toLowerCase()) &&
                   !b.nickname.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -304,7 +321,7 @@ export default function LeaveBalancePage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => { setPage(1) }, [search, branchFilter, year])
+  useEffect(() => { setPage(1) }, [search, orgFilter, year])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stats
@@ -563,14 +580,8 @@ export default function LeaveBalancePage() {
           />
         </div>
 
-        {/* Branch filter */}
-        <select
-          value={branchFilter}
-          onChange={e => setBranchFilter(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.84rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}
-        >
-          {branches.map(b => <option key={b} value={b}>{b === 'ALL' ? 'ทุกสาขา' : b}</option>)}
-        </select>
+        {/* Org filter */}
+        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
 
         <div style={{ flex: 1 }} />
 

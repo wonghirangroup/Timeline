@@ -8,7 +8,8 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 
-interface ApiBranch { id: string; name: string }
+interface ApiBranch { id: string; name: string; group_id?: string | null }
+interface ApiGroup { id: string; name: string }
 
 interface ApiShift {
   id: string
@@ -402,6 +403,10 @@ export default function ShiftPage() {
     queryKey: ['branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
+  const { data: groups = [] } = useQuery<ApiGroup[]>({
+    queryKey: ['groups'],
+    queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
+  })
   const { data: allEmployees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; department: string | null; branch_id: string; branch: { id: string; name: string } }[]>({
     queryKey: ['employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
@@ -427,7 +432,10 @@ export default function ShiftPage() {
     onError: () => showToast('error', 'ลบกะไม่สำเร็จ'),
   })
   const [branchFilter, setBranchFilter] = useState('')
-  
+  const [groupFilter, setGroupFilter] = useState('')
+  const branchIdToGroupId = useMemo(() => Object.fromEntries(branches.map(b => [b.id, b.group_id ?? null])), [branches])
+  const branchOptions = groupFilter ? branches.filter(b => b.group_id === groupFilter) : branches
+
   const [page, setPage]         = useState(1)
   const pageSize                = isMobile ? 3 : 6
   const [swipeStart, setSwipeStart] = useState<number | null>(null)
@@ -454,12 +462,16 @@ export default function ShiftPage() {
   const [addEmpTab, setAddEmpTab] = useState<'in' | 'add'>('in')
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
 
-  const filtered = shifts.filter(s => !branchFilter || s.branch_id === branchFilter)
+  const filtered = shifts.filter(s =>
+    (!branchFilter || s.branch_id === branchFilter) &&
+    (!groupFilter || branchIdToGroupId[s.branch_id] === groupFilter)
+  )
 
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
 
-  useEffect(() => { setPage(1) }, [branchFilter])
+  useEffect(() => { setPage(1) }, [branchFilter, groupFilter])
+  useEffect(() => { if (groupFilter && branchFilter && branchIdToGroupId[branchFilter] !== groupFilter) setBranchFilter('') }, [groupFilter]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPage(1) }, [pageSize])
 
   // พนักงาน 1 คนอยู่ได้หลายกะพร้อมกัน (many-to-many จริงจาก DB — employee_shifts)
@@ -594,15 +606,27 @@ export default function ShiftPage() {
         ))}
       </div>
 
-      {/* Branch filter */}
+      {/* Group + Branch filter */}
       {branches.length > 1 && (
-        <div data-tour="shift-branch-filter" style={{ flexShrink: 0, marginBottom: 12 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
-          <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
-            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
-            <option value="">ทุกสาขา</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+        <div data-tour="shift-branch-filter" style={{ flexShrink: 0, marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {groups.length > 1 && (
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามกลุ่ม</div>
+              <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)}
+                style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+                <option value="">ทุกกลุ่ม</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>กรองตามสาขา</div>
+            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+              style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
+              <option value="">ทุกสาขา</option>
+              {branchOptions.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
         </div>
       )}
 

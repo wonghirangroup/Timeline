@@ -6,6 +6,8 @@ import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Cloc
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -195,8 +197,9 @@ interface ApiRecord {
   shift: { id: string; name: string; late_threshold_2: string | null }
 }
 interface ApiBranch   { id: string; name: string }
-interface ApiEmployee { id: string; branch_id: string; branch: { id: string; name: string } }
+interface ApiEmployee { id: string; branch_id: string; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null }
 interface ApiLeave    { id: string; status: string }
+interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
 type DashStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT' | 'PENDING'
 
@@ -242,7 +245,9 @@ export default function DashboardPage() {
   const navigate  = useNavigate()
   const isMobile  = useIsMobile()
   const today     = useMemo(todayStr, [])
-  const [branchFilter, setBranch] = useState('all')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  // 'all' sentinel คงไว้เพื่อ RangeKpiSection (ยิง branchId param ไป server) — derive จาก orgFilter
+  const branchFilter = orgFilter.branchId || 'all'
 
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['admin', 'branches'],
@@ -253,6 +258,11 @@ export default function DashboardPage() {
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
   const { data: records = [] } = useQuery<ApiRecord[]>({
     queryKey: ['admin', 'attendance', today],
@@ -306,8 +316,8 @@ export default function DashboardPage() {
   }, [records, employees])
 
   const filtered = useMemo(() =>
-    branchFilter === 'all' ? allRows : allRows.filter(r => r.branch.id === branchFilter),
-  [allRows, branchFilter])
+    allRows.filter(r => matchesOrgFilter(employeeOrgMap[r.empId], orgFilter)),
+  [allRows, orgFilter, employeeOrgMap])
 
   const onTime  = filtered.filter(r => r.status === 'ON_TIME').length
   const late    = filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length
@@ -415,13 +425,9 @@ export default function DashboardPage() {
       {/* ── Right Column (รายชื่อวันนี้) ──────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
 
-        {/* Branch filter */}
+        {/* Org filter */}
         <div>
-          <select value={branchFilter} onChange={e => setBranch(e.target.value)}
-            style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#374151' }}>
-            <option value="all">ทุกสาขา</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
         </div>
 
         {/* List card */}

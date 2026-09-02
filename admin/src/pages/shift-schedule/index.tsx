@@ -1,6 +1,6 @@
 // admin/src/pages/shift-schedule/index.tsx
 // ตารางกะ — กะประจำ + override เฉพาะวัน (ต่อ API จริงแล้ว — ไม่ใช้ demoStore อีกต่อไป)
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
@@ -9,13 +9,16 @@ import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee {
   id: string; employee_code: string; first_name: string; last_name: string
-  nickname: string | null; branch_id: string; branch: { id: string; name: string }
-  default_shift_id: string | null; department: string | null
+  nickname: string | null; branch_id: string; branch: { id: string; name: string; group_id?: string | null }
+  default_shift_id: string | null; department: string | null; position_id?: string | null
 }
+interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiBranch { id: string; name: string }
 interface ApiShift {
   id: string; branch_id: string; name: string
@@ -136,7 +139,7 @@ export default function ShiftSchedulePage() {
   const [viewMode, setViewMode]   = useState<'week'|'month'>('week')
   const [weekStart, setWeekStart] = useState(() => getMondayOf(TODAY))
   const [selMonth, setSelMonth]   = useState(() => { const d = new Date(TODAY); return { y: d.getFullYear(), m: d.getMonth()+1 } })
-  const [filterBranch, setFilterBranch] = useState('ALL')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [search, setSearch]       = useState('')
   const [page, setPage]           = useState(1)
   const pageSize                  = 6
@@ -168,6 +171,10 @@ export default function ShiftSchedulePage() {
   const { data: shifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['shifts'],
     queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
+  })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
   const { data: overridesA = [] } = useQuery<ApiShiftAssignment[]>({
     queryKey: ['admin', 'shift-assignments', queryMonth],
@@ -223,8 +230,10 @@ export default function ShiftSchedulePage() {
     onError: () => showToast('error', 'ยกเลิก override ไม่สำเร็จ'),
   })
 
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
+
   const filteredEmps = employees
-    .filter(e => filterBranch === 'ALL' || e.branch_id === filterBranch)
+    .filter(e => matchesOrgFilter(employeeOrgMap[e.id], orgFilter))
     .filter(e => {
       if (!search.trim()) return true
       const q = search.trim().toLowerCase()
@@ -234,7 +243,7 @@ export default function ShiftSchedulePage() {
   const totalPages = Math.ceil(filteredEmps.length / pageSize)
   const paginatedEmps = filteredEmps.slice((page - 1) * pageSize, page * pageSize)
 
-  useEffect(() => { setPage(1) }, [filterBranch, search, viewMode, weekStart, selMonth])
+  useEffect(() => { setPage(1) }, [orgFilter, search, viewMode, weekStart, selMonth])
 
   function getShiftsForEmp(emp: ApiEmployee): ApiShift[] {
     return shifts.filter(s => s.branch_id === emp.branch_id)
@@ -523,11 +532,7 @@ export default function ShiftSchedulePage() {
               </button>
             ))}
           </div>
-          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)}
-            style={{ padding:'6px 10px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:13, background:'#fff', cursor:'pointer' }}>
-            <option value="ALL">ทุกสาขา</option>
-            {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
         </div>
       </div>
 

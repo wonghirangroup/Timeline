@@ -3,7 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { MapPin, Clock, ExternalLink, Navigation } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
+interface ApiEmployeeOrg {
+  id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
+}
+interface ApiPosition {
+  id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null
+}
 interface ApiOffsiteCheckin {
   id: string
   check_in_at: string
@@ -45,16 +53,24 @@ function duration(startIso: string, endIso: string | null): string {
 
 export default function OffsitePage() {
   const isMobile = useIsMobile()
-  const [branchFilter, setBranchFilter] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
 
   const { data: rows = [] } = useQuery<ApiOffsiteCheckin[]>({
     queryKey: ['admin', 'offsite-checkins'],
     queryFn: () => api.get('/api/v1/admin/offsite-checkins').then(r => r.data.data),
     refetchInterval: 60_000,
   })
+  const { data: employees = [] } = useQuery<ApiEmployeeOrg[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
-  const branches = useMemo(() => [...new Set(rows.map(r => r.employee.branch.name))], [rows])
-  const filtered = branchFilter ? rows.filter(r => r.employee.branch.name === branchFilter) : rows
+  const filtered = rows.filter(r => matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter))
 
   const activeCount = rows.filter(r => !r.check_out_at).length
   const monthCount  = rows.filter(r => {
@@ -83,14 +99,7 @@ export default function OffsitePage() {
 
       {/* ── Filter ── */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <select
-          value={branchFilter}
-          onChange={e => setBranchFilter(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}
-        >
-          <option value="">ทุกสาขา</option>
-          {branches.map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
+        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
       </div>
 
       {/* ── List ── */}

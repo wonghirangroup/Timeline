@@ -1,15 +1,18 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search, Table2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
-interface ApiEmployeeFull extends ApiEmployee { position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
 interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; employee: ApiEmployee }
@@ -581,8 +584,12 @@ export default function TeamCalendarTab() {
   const qc = useQueryClient()
 
   const [month,        setMonth]        = useState(todayYM)
-  const [branchFilter, setBranchFilter] = useState('all')
-  const [groupFilter,  setGroupFilter]  = useState('all')
+  const [orgFilter,    setOrgFilter]    = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  // branchFilter/groupFilter คงชื่อเดิมไว้ (derive จาก orgFilter) เพราะฟังก์ชันย่อย
+  // ด้านล่าง (getEventsForDate, DayCell, DayDetailPanel) ทั้งหมดใช้ sentinel 'all'
+  // ผ่าน branchFilter อยู่แล้ว — ไม่ต้องแก้ signature ของฟังก์ชันเหล่านั้น
+  const branchFilter = orgFilter.branchId || 'all'
+  const groupFilter   = orgFilter.groupId  || 'all'
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
   const [showRosterSettings, setShowRosterSettings] = useState(false)
@@ -696,7 +703,17 @@ export default function TeamCalendarTab() {
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
   const employees: ApiEmployee[] = employeesFull
+  // ไม่ส่ง e.position (nested shape ไม่ตรงกับ EmployeeForOrgMap) — ใช้ position_id
+  // join กับ positions list แยกต่างหากแทน (buildEmployeeOrgMap รองรับ fallback นี้อยู่แล้ว)
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(
+    employeesFull.map(e => ({ id: e.id, branch: e.branch, position_id: e.position_id ?? null })),
+    positions,
+  ), [employeesFull, positions])
 
   // employee_id → group_id (ผ่าน position→department→division→group) — ใช้กรอง
   // ปฏิทินแยกตามกลุ่ม (dropdown แสดงเฉพาะตอนมีมากกว่า 1 กลุ่ม ไม่รบกวน tenant
@@ -708,8 +725,11 @@ export default function TeamCalendarTab() {
 
   const dayOffsRaw: DayOff[]  = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
   const leavesRaw: LeaveReq[] = rawLeaves.map(toDisplayLeave)
-  const dayOffs: DayOff[]    = groupFilter === 'all' ? dayOffsRaw : dayOffsRaw.filter(d => employeeGroupId[d.employee_id] === groupFilter)
-  const leaves: LeaveReq[]   = groupFilter === 'all' ? leavesRaw  : leavesRaw.filter(l => employeeGroupId[l.employee_id] === groupFilter)
+  // กรองด้วยกลุ่ม/แผนก/ตำแหน่งตรงนี้ — ส่วนสาขากรองแยกด้านล่าง (branchFilter ผ่าน
+  // getEventsForDate/DayCell/DayDetailPanel อยู่แล้ว ไม่ปนกันเพื่อไม่ต้องแก้ signature)
+  const orgFilterNoBranch: OrgFilterValue = { ...orgFilter, branchId: '' }
+  const dayOffs: DayOff[]    = dayOffsRaw.filter(d => matchesOrgFilter(employeeOrgMap[d.employee_id], orgFilterNoBranch))
+  const leaves: LeaveReq[]   = leavesRaw.filter(l => matchesOrgFilter(employeeOrgMap[l.employee_id], orgFilterNoBranch))
   const holidays: Holiday[]  = rawHolidays.map(h => ({ date: h.date.slice(0, 10), name: h.name, target_branches: h.target_branches }))
 
   const daysInMonth = getDaysInMonth(month)
@@ -1004,29 +1024,8 @@ export default function TeamCalendarTab() {
 
       {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, flex: isMobile ? '1 1 auto' : 'none' }}>
-          {groups.length > 1 && (
-            <select
-              value={groupFilter}
-              onChange={e => setGroupFilter(e.target.value)}
-              style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
-            >
-              <option value="all">ทุกกลุ่ม</option>
-              {groups.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </select>
-          )}
-          <select
-            value={branchFilter}
-            onChange={e => setBranchFilter(e.target.value)}
-            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', flex: isMobile ? '1 1 auto' : 'none' }}
-          >
-            <option value="all">ทุกสาขา</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+        <div style={{ display: 'flex', gap: 6, flex: isMobile ? '1 1 auto' : 'none', flexWrap: 'wrap' }}>
+          <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
         </div>
 
         {/* Month nav */}

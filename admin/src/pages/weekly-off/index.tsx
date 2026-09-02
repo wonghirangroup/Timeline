@@ -8,11 +8,20 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
 import { deptName } from '../../lib/format'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiEmployee {
   id: string; first_name: string; last_name: string; nickname: string | null
   employee_code: string; branch: { id: string; name: string }
+}
+interface ApiEmployeeFull {
+  id: string; branch_id?: string | null; branch?: { id: string; group_id?: string | null } | null
+  position_id?: string | null
+}
+interface ApiPosition {
+  id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null
 }
 interface WeeklyOffRequest {
   id: string; employee_id: string; week_start: string; day_of_week: number
@@ -396,7 +405,7 @@ export default function WeeklyOffPage() {
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
   const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>('periods')
-  const [branchFilter, setBranch] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
   const [addForm, setAddForm]     = useState({ employee_id: '', date: '' })
@@ -414,29 +423,34 @@ export default function WeeklyOffPage() {
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
   })
-  const { data: branches = [] } = useQuery<ApiBranch[]>({
-    queryKey: ['admin', 'branches'],
-    queryFn: () => api.get('/api/v1/admin/branches').then((r: any) => r.data.data),
-  })
   const { data: workedAlerts = [] } = useQuery<WorkedOffAlert[]>({
     queryKey: ['admin', 'weekly-off-worked-alerts'],
     queryFn: () => api.get('/api/v1/admin/weekly-off/worked-alerts').then((r: any) => r.data.data),
   })
+  const { data: employeesFull = [] } = useQuery<ApiEmployeeFull[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
+  })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then((r: any) => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employeesFull, positions), [employeesFull, positions])
 
   const filtered = useMemo(() => requests.filter(r => {
-    if (branchFilter && r.employee.branch.id !== branchFilter) return false
+    if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
     if (statusFilter && r.status !== statusFilter) return false
     return true
   }).sort((a, b) => {
     const order = { PENDING: 0, APPROVED: 1, REJECTED: 2 }
     return order[a.status] - order[b.status] || a.week_start.localeCompare(b.week_start)
-  }), [requests, branchFilter, statusFilter])
+  }), [requests, orgFilter, employeeOrgMap, statusFilter])
 
   const [reqPage, setReqPage] = useState(1)
   const REQ_PAGE_SIZE = 15
   const reqTotalPages = Math.max(1, Math.ceil(filtered.length / REQ_PAGE_SIZE))
   const reqPaginated = filtered.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
-  useEffect(() => { setReqPage(1) }, [branchFilter, statusFilter, month])
+  useEffect(() => { setReqPage(1) }, [orgFilter, statusFilter, month])
   useEffect(() => { if (reqPage > reqTotalPages) setReqPage(reqTotalPages) }, [reqTotalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = useMemo(() => ({
@@ -639,13 +653,9 @@ export default function WeeklyOffPage() {
         </div>
       )}
 
-      {/* Branch filter */}
+      {/* Org filter */}
       <div style={{ marginBottom: 12 }}>
-        <select value={branchFilter} onChange={e => setBranch(e.target.value)}
-          style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff' }}>
-          <option value="">ทุกสาขา</option>
-          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
+        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
       </div>
 
       {/* Table */}
@@ -748,7 +758,7 @@ export default function WeeklyOffPage() {
       </>}
 
       {/* ── ภาพรวม tab ─────────────────────────────────────────────────── */}
-      {tab === 'overview' && <OverviewTab requests={requests} isLoading={isLoading} month={month} branches={branches} />}
+      {tab === 'overview' && <OverviewTab requests={requests} isLoading={isLoading} month={month} employeeOrgMap={employeeOrgMap} />}
 
       {/* ── แจ้งเตือน & สลับ tab ────────────────────────────────────────── */}
       {tab === 'exceptions' && <ExceptionsTab requests={requests} workedAlerts={workedAlerts} month={month} />}
@@ -926,17 +936,17 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
 }
 
 // ─── Overview Calendar + Export ───────────────────────────────────────────────
-function OverviewTab({ requests, isLoading, month, branches }: {
-  requests: WeeklyOffRequest[]; isLoading: boolean; month: string; branches: ApiBranch[]
+function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
+  requests: WeeklyOffRequest[]; isLoading: boolean; month: string; employeeOrgMap: Record<string, EmployeeOrgInfo>
 }) {
-  const [branchFilter, setBranch] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('APPROVED')
 
   const filtered = useMemo(() => requests.filter(r => {
-    if (branchFilter && r.employee.branch.id !== branchFilter) return false
+    if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
     if (statusFilter && r.status !== statusFilter) return false
     return true
-  }), [requests, branchFilter, statusFilter])
+  }), [requests, orgFilter, employeeOrgMap, statusFilter])
 
   // map date → requests
   const byDate = useMemo(() => {
@@ -982,11 +992,7 @@ function OverviewTab({ requests, isLoading, month, branches }: {
     <div>
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={branchFilter} onChange={e => setBranch(e.target.value)}
-          style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff' }}>
-          <option value="">ทุกสาขา</option>
-          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
+        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
 
         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 2 }}>
           {([['', 'ทั้งหมด'], ['PENDING', 'รอ'], ['APPROVED', 'อนุมัติ'], ['REJECTED', 'ปฏิเสธ']] as const).map(([v, label]) => (

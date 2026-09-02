@@ -20,8 +20,10 @@ interface ApiBranch {
   geo_mode: 'WARN' | 'BLOCK'
   is_active: boolean
   created_at: string
+  group_id?: string | null
   _count: { employees: number; shifts: number }
 }
+interface ApiGroup { id: string; name: string }
 
 interface ApiShift {
   id: string
@@ -235,6 +237,12 @@ export default function BranchPage() {
     queryKey: ['branches'],
     queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
   })
+  const { data: groups = [] } = useQuery<ApiGroup[]>({
+    queryKey: ['groups'],
+    queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
+  })
+  const [groupFilter, setGroupFilter] = useState('')
+  const branchesFiltered = groupFilter ? branches.filter(b => b.group_id === groupFilter) : branches
   const { data: allShifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['shifts'],
     queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
@@ -341,8 +349,9 @@ export default function BranchPage() {
   const [qrCopied, setQrCopied] = useState(false)
   const qrWrapRef = useRef<HTMLDivElement>(null)
 
-  const totalPages = Math.ceil(branches.length / pageSize)
-  const paginated = branches.slice((page - 1) * pageSize, page * pageSize)
+  const totalPages = Math.ceil(branchesFiltered.length / pageSize)
+  const paginated = branchesFiltered.slice((page - 1) * pageSize, page * pageSize)
+  useEffect(() => { setPage(1) }, [groupFilter])
 
   // ── Leaflet Map Picker ─────────────────────────────────────────────────────
   const openMapPicker = useCallback(() => {
@@ -595,7 +604,18 @@ export default function BranchPage() {
       {activeTab === 'branch' && <>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {groups.length > 1 && (
+          <select
+            value={groupFilter}
+            onChange={e => setGroupFilter(e.target.value)}
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}
+          >
+            <option value="">ทุกกลุ่ม</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
         <button
           onClick={() => setTourActive(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -606,14 +626,15 @@ export default function BranchPage() {
           <Plus size={14} />
           เพิ่มสาขา
         </button>
+        </div>
       </div>
 
       {/* KPI row */}
       <div data-tour="branch-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'ทั้งหมด',     value: branches.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-          { label: 'เปิดใช้งาน', value: branches.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'พนักงานรวม',  value: branches.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+          { label: 'ทั้งหมด',     value: branchesFiltered.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+          { label: 'เปิดใช้งาน', value: branchesFiltered.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+          { label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
         ].map(k => (
           <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -631,10 +652,12 @@ export default function BranchPage() {
       {/* Branch cards */}
       {!loading && (
         <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-          {branches.length === 0 && (
+          {branchesFiltered.length === 0 && (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <p style={{ fontSize: '14px', marginBottom: 12 }}>ยังไม่มีสาขา</p>
-              <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มสาขาแรก</button>
+              <p style={{ fontSize: '14px', marginBottom: 12 }}>{branches.length === 0 ? 'ยังไม่มีสาขา' : 'ไม่พบสาขาในกลุ่มที่เลือก'}</p>
+              {branches.length === 0 && (
+                <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มสาขาแรก</button>
+              )}
             </div>
           )}
           {paginated.map((b, idx) => (

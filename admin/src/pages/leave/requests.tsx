@@ -8,6 +8,8 @@ import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'
@@ -159,7 +161,7 @@ export default function LeaveRequestsTab() {
 
   const [tab, setTab]             = useState<'requests' | 'add'>('requests')
   const [statusFilter, setStatus] = useState<'' | LeaveStatus>('')
-  const [branchFilter, setBranch] = useState('')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [search, setSearch]       = useState('')
   const [monthFilter, setMonth]   = useState(() => new Date().toISOString().slice(0, 7))
 
@@ -183,10 +185,11 @@ export default function LeaveRequestsTab() {
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
 
-  const { data: branches = [] } = useQuery<ApiBranch[]>({
-    queryKey: ['admin', 'branches'],
-    queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data),
+  const { data: positions = [] } = useQuery<{ id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
 
@@ -252,7 +255,7 @@ export default function LeaveRequestsTab() {
     const list = requests.filter(r => {
       if (monthFilter && r.start_date.slice(0, 7) !== monthFilter) return false
       if (statusFilter && r.status !== statusFilter) return false
-      if (branchFilter && r.employee.branch.id !== branchFilter) return false
+      if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
       if (search) {
         const q = search.toLowerCase()
         if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code}`.toLowerCase().includes(q)) return false
@@ -264,11 +267,11 @@ export default function LeaveRequestsTab() {
       STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
       b.start_date.localeCompare(a.start_date)
     )
-  }, [requests, monthFilter, statusFilter, branchFilter, search])
+  }, [requests, monthFilter, statusFilter, orgFilter, employeeOrgMap, search])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => { setPage(1) }, [monthFilter, statusFilter, branchFilter, search])
+  useEffect(() => { setPage(1) }, [monthFilter, statusFilter, orgFilter, search])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = useMemo(() => ({
@@ -434,10 +437,7 @@ export default function LeaveRequestsTab() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"
                 style={{ ...inp, width: '100%', paddingLeft: 30, boxSizing: 'border-box' }} />
             </div>
-            <select value={branchFilter} onChange={e => setBranch(e.target.value)} style={{ ...inp, width: 'auto' }}>
-              <option value="">ทุกสาขา</option>
-              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
             <select value={statusFilter} onChange={e => setStatus(e.target.value as any)} style={{ ...inp, width: 'auto' }}>
               <option value="">ทุกสถานะ</option>
               <option value="PENDING">รอพิจารณา</option>
