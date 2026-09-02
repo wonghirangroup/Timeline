@@ -96,6 +96,7 @@ export async function tenantRoutes(app: FastifyInstance) {
           max_employees: { type: 'integer' },
           max_branches:  { type: 'integer' },
           is_active:     { type: 'boolean' },
+          firebase_sync_enabled: { type: 'boolean' },
         },
       },
     },

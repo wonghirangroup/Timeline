@@ -4,9 +4,12 @@
 #
 # วิธีใช้บน VPS:
 #   1. clone/pull repo นี้ขึ้น VPS
-#   2. สร้างไฟล์ .env ข้าง docker-compose.yml นี้ (ดู .env.vps.example) — ห้าม commit
-#   3. cd server && docker compose up -d --build
-#   4. เช็คว่า port ที่เลือกว่างจริงก่อน: `ss -tlnp | grep 4002`
+#   2. สร้างไฟล์ .env ข้าง docker-compose.yml นี้ (ดู .env.vps.example) — ห้ามcommit
+#   3. วาง firebase-service-account.json ข้าง docker-compose.yml นี้ด้วย (เฉพาะถ้า
+#      tenant ไหนเปิดซิงค์ Firebase รายวันไว้ — ดู server/src/modules/firebase-sync/)
+#      ห้าม commit เช่นกัน — mount เข้าคอนเทนเนอร์ผ่าน volumes ด้านล่าง ไม่ได้ bake เข้า image
+#   4. cd server && docker compose up -d --build
+#   5. เช็คว่า port ที่เลือกว่างจริงก่อน: `ss -tlnp | grep 4002`
 #      (ถ้าซ้อนกับแอปอื่นบน VPS นี้ แก้เลข 4002 ในไฟล์นี้ + .env ให้เป็นเลขที่ว่าง)
 
 services:
@@ -32,6 +35,11 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      # ซิงค์ระบบเก่า (Firebase) รายวัน — path ในคอนเทนเนอร์ตรงกับที่ volume mount
+      # ไว้ด้านล่าง (ไฟล์จริงอยู่นอก git บน VPS เหมือน .env — ห้าม commit)
+      FIREBASE_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     ports:
       # host:container — แก้ 4002 ถ้าซ้อนพอร์ตกับแอปอื่นบน VPS นี้ (เช่น TestGrow)
       - "4002:3000"

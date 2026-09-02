@@ -23,6 +23,9 @@ model Tenant {
   max_groups        Int        @default(1) // จำนวนกลุ่ม(บริษัท)สูงสุดที่สร้างได้ — จำกัดตาม package, Super Admin ปรับได้
   is_active         Boolean    @default(true)
   enabled_features  Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
+  firebase_sync_enabled Boolean @default(true) // ซิงค์ข้อมูลจากระบบเก่า (Firebase) รายวันอัตโนมัติ — ใช้จริงแค่
+  // tenant-demo-001 ตอนนี้ (bespoke tooling ช่วงย้ายระบบ ไม่ใช่ feature ทั่วไปของ SaaS) Super Admin ปิดได้เองตอน
+  // เลิกใช้ระบบเก่าแล้ว — ดู server/src/modules/firebase-sync/
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
   deleted_at        DateTime?

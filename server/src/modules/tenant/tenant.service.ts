@@ -74,6 +74,7 @@ export async function updateTenant(id: string, data: {
   max_employees?: number
   max_branches?: number
   is_active?: boolean
+  firebase_sync_enabled?: boolean
 }) {
   const count = await prisma.tenant.updateMany({
     where: { id, deleted_at: null },

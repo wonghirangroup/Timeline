@@ -158,6 +158,25 @@ export default function TenantDetailPage() {
     onError: () => showToast('error', 'เปลี่ยนฟีเจอร์ไม่สำเร็จ'),
   })
 
+  // ── เปิด/ปิดซิงค์ Firebase รายวัน (bespoke — เฉพาะ tenant ที่ยังใช้ระบบเก่าคู่ขนาน) ──
+  const toggleFirebaseSyncMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      api.patch(`/api/v1/super-admin/tenants/${id}`, { firebase_sync_enabled: enabled }).then((r: any) => r.data),
+    onSuccess: (_, enabled) => {
+      qc.invalidateQueries({ queryKey: ['sa', 'tenant', id] })
+      showToast('success', enabled ? 'เปิดซิงค์รายวันแล้ว (03:00 ทุกวัน)' : 'ปิดซิงค์รายวันแล้ว')
+    },
+    onError: () => showToast('error', 'เปลี่ยนค่าซิงค์ไม่สำเร็จ'),
+  })
+  const runFirebaseSyncNowMutation = useMutation({
+    mutationFn: () => api.post(`/api/v1/super-admin/firebase-sync/${id}/run`).then((r: any) => r.data.data),
+    onSuccess: (result: any) => {
+      const { leave, holiday, checkin } = result
+      showToast('success', `ซิงค์เสร็จ — วันลา: สร้างใหม่ ${leave.created} แก้ ${leave.repaired} · เช็คอิน: สร้างใหม่ ${checkin.created}`)
+    },
+    onError: () => showToast('error', 'ซิงค์ไม่สำเร็จ — เช็ค credential/log บน server'),
+  })
+
   if (isLoading) return (
     <div style={{ textAlign: 'center', padding: '80px 20px', color: '#9ca3af' }}>กำลังโหลด…</div>
   )
@@ -310,6 +329,46 @@ export default function TenantDetailPage() {
               </button>
             </div>
           </div>
+
+          {/* ซิงค์ระบบเก่า (Firebase) — bespoke tooling เฉพาะ tenant ที่กำลังย้ายระบบ */}
+          {tenant.id === 'tenant-demo-001' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', fontWeight: 700 }}>ซิงค์ข้อมูลจากระบบเก่า (Firebase)</h3>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#9ca3af' }}>
+                    ดึงวันลา/วันหยุด/เช็คอินจากระบบเก่าเข้า TimeLine อัตโนมัติทุกวัน 03:00 — ปิดได้เมื่อเลิกใช้ระบบเก่าแล้ว
+                  </p>
+                </div>
+                <button
+                  onClick={() => toggleFirebaseSyncMutation.mutate(!tenant.firebase_sync_enabled)}
+                  disabled={toggleFirebaseSyncMutation.isPending}
+                  style={{
+                    width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer', position: 'relative',
+                    background: tenant.firebase_sync_enabled ? 'var(--sa-accent)' : '#e5e7eb', transition: 'background 0.15s', flexShrink: 0,
+                    opacity: toggleFirebaseSyncMutation.isPending ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 3, left: tenant.firebase_sync_enabled ? 21 : 3, width: 18, height: 18, borderRadius: '50%',
+                    background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => runFirebaseSyncNowMutation.mutate()}
+                  disabled={runFirebaseSyncNowMutation.isPending}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: 'var(--text-body)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: runFirebaseSyncNowMutation.isPending ? 0.6 : 1 }}
+                >
+                  {runFirebaseSyncNowMutation.isPending ? 'กำลังซิงค์...' : 'ซิงค์ตอนนี้เลย'}
+                </button>
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                  {tenant.firebase_sync_enabled ? '● เปิดอยู่ — รอบถัดไป 03:00' : '○ ปิดอยู่'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Plan */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>

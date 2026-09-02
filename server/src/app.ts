@@ -29,6 +29,8 @@ import { orgStructureRoutes } from './modules/org-structure/org-structure.route'
 import { employeeStatusTypeRoutes } from './modules/employee-status-type/employee-status-type.route'
 import { groupRoutes } from './modules/group/group.route'
 import { dashboardRoutes } from './modules/dashboard/dashboard.route'
+import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
+import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -133,12 +135,14 @@ app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: �
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
 app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: KPI สรุปตามช่วงวันที่ (Dashboard)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
+app.register(firebaseSyncRoutes, { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: ซิงค์ระบบเก่า (Firebase) — bespoke, ดู modules/firebase-sync
 
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {
   try {
     await app.listen({ port: Number(process.env.PORT) || 3000, host: '0.0.0.0' })
     console.log(`🚀 TimeLine Server → http://localhost:${process.env.PORT || 3000}`)
+    startFirebaseSyncCron()
   } catch (err) {
     app.log.error(err)
     process.exit(1)
