@@ -35,8 +35,17 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
   // off_on_public_holiday=false ไว้ชัดเจน (feedback 2026-09-02)
   if (employee && (st ? st.off_on_public_holiday : true)) {
     const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
-    if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
-      return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
+    if (holiday) {
+      if (holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
+        return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
+      }
+      // ระบุไว้ชัดเจนว่า "คนนี้ต้องมาทำงาน" วันหยุดนี้ (employee_excludes) —
+      // ให้ชนะวันหยุดที่จองเองด้วย ไม่งั้นถ้าบังเอิญจองวันหยุดตัวเองไว้ตรงวัน
+      // เดียวกัน จะทับ exclude เงียบๆ ขัดกับ intent ตรงๆ (feedback 2026-09-02)
+      // — จำกัดแค่กรณี exclude ชัดเจนเท่านั้น ไม่แตะกรณีแค่ไม่เข้าเงื่อนไข
+      // สาขา/แผนกปกติ (นั่นไม่ใช่คำสั่งบังคับให้ทำงาน แค่ไม่เกี่ยวข้อง)
+      const excludes = (holiday.employee_excludes as string[] | null) ?? []
+      if (excludes.includes(employeeId)) return { rule: 'WORK' }
     }
   }
 
