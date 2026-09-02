@@ -59,7 +59,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     try {
-      const result = await createWeeklyOff(req.tenantId, req.body)
+      // แอดมินเพิ่มเอง ไม่ผ่านการเช็ค booking_enabled (นั่นไว้กันแค่พนักงานจองเอง)
+      const result = await createWeeklyOff(req.tenantId, req.body, true)
       return reply.code(201).send(ok(result, 'เพิ่มวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว'))

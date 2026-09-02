@@ -26,12 +26,17 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
     const dow = date.getUTCDay()
     if (dow === 6 && st.saturday_rule !== 'WORK') return { rule: st.saturday_rule as 'OFF' | 'OFFSITE' }
     if (dow === 0 && st.sunday_rule   !== 'WORK') return { rule: st.sunday_rule as 'OFF' | 'OFFSITE' }
+  }
 
-    if (st.off_on_public_holiday && employee) {
-      const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
-      if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
-        return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
-      }
+  // เช็ควันหยุดนักขัตฤกษ์เสมอ ไม่ผูกกับว่ามีสถานะพนักงานหรือไม่ (เดิมอยู่ใน
+  // if(st) ด้านบน ทำให้พนักงานที่ไม่ได้ผูกสถานะ — ส่วนใหญ่ของจริงในระบบตอนนี้
+  // — ไม่เคยได้ผลจากวันหยุดนักขัตฤกษ์เลยแม้แต่น้อย ทั้งที่ควร apply เป็นค่า
+  // เริ่มต้น) — default = apply กับทุกคน เว้นแต่มีสถานะพนักงานตั้ง
+  // off_on_public_holiday=false ไว้ชัดเจน (feedback 2026-09-02)
+  if (employee && (st ? st.off_on_public_holiday : true)) {
+    const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
+    if (holiday && holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
+      return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
     }
   }
 

@@ -78,12 +78,16 @@ export async function listWeeklyOff(tenantId: string, filters: {
   return results
 }
 
+// skipBookingCheck: true เฉพาะตอนแอดมินเพิ่มให้เอง (ผ่าน /admin/weekly-off หรือ
+// ปุ่ม "+" ในปฏิทินรวม) — booking_enabled ตั้งใจปิดแค่ "พนักงานจองเอง" ไม่ใช่
+// ปิดสิทธิ์แอดมินเพิ่มให้เองด้วย (เดิมใช้ฟังก์ชันร่วมกันเลยโดนบล็อกไปด้วย
+// โดยไม่ตั้งใจ — feedback 2026-09-02)
 export async function createWeeklyOff(tenantId: string, data: {
   employee_id: string
   week_start: string    // YYYY-MM-DD (ระบบ normalize เป็น Monday อัตโนมัติ)
   day_of_week: number   // 0-6
-}) {
-  if (!(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
+}, skipBookingCheck = false) {
+  if (!skipBookingCheck && !(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
 
   const monday = getMondayOf(data.week_start)
 
