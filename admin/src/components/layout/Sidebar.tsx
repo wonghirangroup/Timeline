@@ -3,7 +3,7 @@ import {
   LayoutGrid, Users, Building2, Clock, AlignLeft,
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
-  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin,
+  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
@@ -34,8 +34,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'บุคลากร',
     items: [
-      { path: '/employee', label: 'พนักงาน', icon: <Users     size={16}/> },
-      { path: '/branch',   label: 'สาขา',    icon: <Building2 size={16}/> },
+      { path: '/employee',     label: 'พนักงาน',      icon: <Users     size={16}/> },
+      { path: '/branch',       label: 'สาขา',         icon: <Building2 size={16}/> },
+      { path: '/master-data',  label: 'Master Data',  icon: <Table2    size={16}/> },
     ],
   },
   {

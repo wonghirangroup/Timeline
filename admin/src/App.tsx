@@ -17,6 +17,7 @@ import ShiftPage            from './pages/shift'
 import AnnouncementPage     from './pages/announcement'
 import ShiftSchedulePage    from './pages/shift-schedule'
 import EmployeeDetailPage   from './pages/employee/detail'
+import MasterDataPage       from './pages/master-data'
 import UiKitPage            from './pages/ui-kit'
 
 function AdminRoutes() {
@@ -46,6 +47,7 @@ function AdminRoutes() {
         <Route path="/report"        element={<ReportPage />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
+        <Route path="/master-data"   element={<MasterDataPage />} />
         <Route path="/settings"      element={<SettingsPage />} />
         <Route path="/ui-kit"        element={<UiKitPage />} />
         <Route path="*"              element={<Navigate to="/dashboard" replace />} />
