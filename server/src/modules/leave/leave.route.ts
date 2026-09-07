@@ -101,7 +101,7 @@ export async function leaveRoutes(app: FastifyInstance) {
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
-      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์การลา — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
+      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว (วันเริ่ม = วันสิ้นสุด)'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง (เวลาสิ้นสุดต้องหลังเวลาเริ่ม)'))
       throw e
@@ -193,7 +193,7 @@ export async function leaveRoutes(app: FastifyInstance) {
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
-      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขาของคุณปิดสิทธิ์การยื่นคำขอลา ติดต่อแอดมิน'))
+      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขาของคุณปิดการลาประเภทนี้ — ยื่นได้เฉพาะลาป่วย/ลาคลอด'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
       throw e

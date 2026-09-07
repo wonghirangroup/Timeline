@@ -1,5 +1,5 @@
 // employee/src/pages/leave/index.tsx
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
@@ -1292,7 +1292,7 @@ export default function LeavePage() {
       const code = err.response?.data?.error?.code
       if (code === 'LEAVE_OVERLAP')        setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
       else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
-      else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการยื่นคำขอลา ติดต่อแอดมิน')
+      else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการลาประเภทนี้ — ยื่นได้เฉพาะลาป่วย/ลาคลอด')
       else if (code === 'INVALID_TIME_RANGE') setErrorMsg('ช่วงเวลาที่ลาไม่ถูกต้อง')
       else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
@@ -1329,6 +1329,17 @@ export default function LeavePage() {
       ...(form.period === 'CUSTOM' ? { start_time: form.startTime, end_time: form.endTime } : {}),
     })
   }, [form, employee, submitMutation])
+
+  // leave_enabled=false → ยื่นได้เฉพาะลาป่วย/ลาคลอด (ลากิจ/พักร้อน/ชดเชย โดนบล็อก)
+  const leaveRestricted = employee?.leave_enabled === false
+  const availableLeaveTypes = leaveRestricted
+    ? LEAVE_TYPES.filter(lt => lt.code === 'SICK' || lt.code === 'MATERNITY')
+    : LEAVE_TYPES
+  useEffect(() => {
+    if (leaveRestricted && !availableLeaveTypes.some(lt => lt.code === form.leaveType)) {
+      setForm(f => ({ ...f, leaveType: 'SICK' }))
+    }
+  }, [leaveRestricted, form.leaveType])
 
   const days      = calcLeaveDays()
   const submitting = submitMutation.isPending
@@ -1387,17 +1398,7 @@ export default function LeavePage() {
 
         {/* ── Request ─────────────────────────────────────────── */}
         {tab === 'request' && (
-          employee?.leave_enabled === false ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '36px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${COLOR.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Lock size={22} color={COLOR.primary} />
-              </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณปิดการยื่นคำขอลา</p>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>
-                ถ้าจำเป็นต้องลา กรุณาติดต่อแอดมิน/หัวหน้างานให้บันทึกให้
-              </p>
-            </div>
-          ) : submitDone ? (
+          submitDone ? (
             <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
               <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
@@ -1409,11 +1410,17 @@ export default function LeavePage() {
             </div>
           ) : (
             <div style={{ background: '#F9FAFB', borderRadius: 18, padding: '20px 16px' }}>
+              {leaveRestricted && (
+                <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: '#FEF3C7', color: '#92400E', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 6, lineHeight: 1.5 }}>
+                  <Lock size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                  สาขาของคุณปิดการลากิจ/พักร้อน — ยื่นได้เฉพาะลาป่วยและลาคลอด
+                </div>
+              )}
               {/* Leave type */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>ประเภทการลา</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {LEAVE_TYPES.map(lt => {
+                  {availableLeaveTypes.map(lt => {
                     const active = form.leaveType === lt.code
                     return (
                       <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code }))}

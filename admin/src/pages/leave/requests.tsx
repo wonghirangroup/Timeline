@@ -733,8 +733,8 @@ export default function LeaveRequestsTab() {
 
       {forcePrompt && (
         <ConfirmDialog
-          title="สาขา/กลุ่มปิดสิทธิ์การลา"
-          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์การลา ยืนยันบันทึกวันลาให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          title="สาขา/กลุ่มปิดการลาประเภทนี้"
+          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
           confirmLabel="ยืนยันเพิ่มให้"
           variant="warning"
           onConfirm={() => { const b = forcePrompt; setForcePrompt(null); addMutation.mutate(b) }}

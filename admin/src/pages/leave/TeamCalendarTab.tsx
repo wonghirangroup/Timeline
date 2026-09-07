@@ -1212,7 +1212,7 @@ export default function TeamCalendarTab() {
 
       {forcePrompt && (
         <ConfirmDialog
-          title={forcePrompt.kind === 'dayoff' ? 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด' : 'สาขา/กลุ่มปิดสิทธิ์การลา'}
+          title={forcePrompt.kind === 'dayoff' ? 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด' : 'สาขา/กลุ่มปิดการลาประเภทนี้'}
           message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์นี้ ยืนยันเพิ่มให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
           confirmLabel="ยืนยันเพิ่มให้"
           variant="warning"

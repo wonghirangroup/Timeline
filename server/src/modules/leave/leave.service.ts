@@ -5,6 +5,10 @@ import { resolveLeaveEnabled } from '../group/group.service'
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
 const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
 
+// leave_enabled cascade ปิด = บล็อกได้เฉพาะการลาแบบ "ดุลพินิจ" — ลาป่วย/ลาคลอดยังยื่นได้เสมอ
+// (สิทธิ์ตามกฎหมาย/สวัสดิการ ไม่ควรถูกปิดโดยนโยบายจัดกำลังคน — decision จาก user 2026-09-07)
+const LEAVE_TYPES_ALWAYS_ALLOWED = new Set(['SICK', 'MATERNITY'])
+
 const toMin = (t?: string | null) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '')
   return m ? +m[1] * 60 + +m[2] : NaN
@@ -124,8 +128,9 @@ export async function createLeaveRequest(
   },
 ) {
   // gate ด้วย leave cascade (บุคคล→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag()
+  // ลาป่วย/ลาคลอด ยื่นได้เสมอแม้ cascade ปิด
   let leaveOverrideBy: string | null = null
-  if (!(await resolveLeaveEnabled(tenantId, data.employee_id))) {
+  if (!LEAVE_TYPES_ALWAYS_ALLOWED.has(data.leave_type) && !(await resolveLeaveEnabled(tenantId, data.employee_id))) {
     if (!data.force) throw new Error('LEAVE_DISABLED')
     leaveOverrideBy = data.reviewedBy ?? null
   }
