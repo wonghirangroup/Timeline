@@ -221,8 +221,18 @@ export interface CheckinSyncResult { created: number; skippedExisting: number; s
 // record ไหนโดนแอดมินแก้เวลาด้วยมือผ่านหน้า "รายงานเช็คชื่อ" ไปแล้วบ้าง (endpoint
 // แก้ไข PATCH /admin/attendance/:id ไม่ได้เปลี่ยน check_in_method ตอนแก้ เลยเช็คแยก
 // ไม่ได้จาก field นี้) — เขียนทับของเดิมเสี่ยงลบการแก้ไขจริงของแอดมินทิ้งโดยไม่ตั้งใจ
+// พนักงานที่ถูกลงทะเบียนซ้ำใน TimeLine ด้วยรหัสใหม่ (ย้ายสาขา/แผนก) แต่ Firebase (ระบบเก่า)
+// ยังใช้รหัสเดิมอยู่ — map รหัส Firebase เดิม → รหัสจริงปัจจุบันใน TimeLine
+// (จิรพงศ์ ศรีอำไพ / กิตตินันท์ ทิพย์รักษา — ย้ายจากวงษ์หิรัญ → สมาทจิ๊กซอว์ ดู _LOG_VIEW v092)
+const FIREBASE_CODE_ALIAS: Record<string, string> = {
+  '68-02-004': '68-02-005',
+  '69-02-002': '69-02-004',
+}
+
 async function syncCheckins(db: Firestore, tenantId: string): Promise<CheckinSyncResult> {
-  const employees = await prisma.employee.findMany({ where: { tenant_id: tenantId }, select: { id: true, employee_code: true } })
+  // เฉพาะพนักงานที่ยังไม่ถูกลบ — เดิมไม่กรอง ทำให้เช็คอินไปลงบน record ที่ soft-delete
+  // แล้ว dashboard/report มองไม่เห็น (ดู _LOG_VIEW v092)
+  const employees = await prisma.employee.findMany({ where: { tenant_id: tenantId, deleted_at: null }, select: { id: true, employee_code: true } })
   const employeeMap = new Map(employees.map(e => [e.employee_code, e.id]))
 
   const existingRows = await prisma.attendanceRecord.findMany({ where: { tenant_id: tenantId }, select: { employee_id: true, shift_id: true, date: true } })
@@ -233,7 +243,8 @@ async function syncCheckins(db: Firestore, tenantId: string): Promise<CheckinSyn
 
   for (const doc of snap.docs) {
     const d = doc.data()
-    const employeeId = employeeMap.get(d.employeeId)
+    const code = FIREBASE_CODE_ALIAS[d.employeeId] ?? d.employeeId
+    const employeeId = employeeMap.get(code)
     const branchShifts = BRANCH_SHIFT_MAP[d.branch]
     const shiftNum = d.shift !== undefined && d.shift !== null ? Number(d.shift) : 1
     const shiftId = branchShifts?.[shiftNum] ?? branchShifts?.[1]
