@@ -16,6 +16,14 @@ interface LeaveRequest {
   id: string; leave_type: string; start_date: string; end_date: string
   days: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   reviewed_at: string | null; reject_note: string | null
+  leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
+  start_time?: string | null; end_time?: string | null
+}
+function leavePeriodBadge(r: { leave_period?: string; start_time?: string | null; end_time?: string | null }): string {
+  if (r.leave_period === 'MORNING') return 'ครึ่งเช้า'
+  if (r.leave_period === 'AFTERNOON') return 'ครึ่งบ่าย'
+  if (r.leave_period === 'CUSTOM') return r.start_time && r.end_time ? `${r.start_time}–${r.end_time}` : 'ระบุเวลา'
+  return ''
 }
 interface ColleagueOff {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -361,7 +369,8 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C' }}>{cfg?.label ?? r.leave_type}</div>
                     <div style={{ fontSize: '0.73rem', color: '#9CA3AF', marginTop: 2 }}>
-                      {r.start_date === r.end_date ? fmtDate(r.start_date) : `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`} · {r.days} วัน
+                      {r.start_date === r.end_date ? fmtDate(r.start_date) : `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`}
+                      {leavePeriodBadge(r) ? ` · ${leavePeriodBadge(r)}` : ''} · {r.days} วัน
                     </div>
                   </div>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>{s.label}</span>
@@ -1235,7 +1244,7 @@ export default function LeavePage() {
     const t = new URLSearchParams(window.location.search).get('tab')
     return (t === 'booking' || t === 'request' || t === 'calendar') ? t : 'calendar'
   })
-  const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
+  const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '', period: 'FULL' as 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM', startTime: '', endTime: '' })
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)
   const [bookingMode, setBookingMode] = useState<'off' | 'leave'>('off')
@@ -1277,35 +1286,53 @@ export default function LeavePage() {
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
       qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
       setSubmitDone(true)
-      setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' })
+      setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '', period: 'FULL', startTime: '', endTime: '' })
     },
     onError: (err: any) => {
       const code = err.response?.data?.error?.code
       if (code === 'LEAVE_OVERLAP')        setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
       else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
       else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการยื่นคำขอลา ติดต่อแอดมิน')
+      else if (code === 'INVALID_TIME_RANGE') setErrorMsg('ช่วงเวลาที่ลาไม่ถูกต้อง')
       else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })
 
+  // FULL = นับช่วงวัน (ตัด ส-อา), MORNING/AFTERNOON = 0.5, CUSTOM = ชั่วโมง/8 ปัด 0.5
+  function calcLeaveDays(): number {
+    if (form.period === 'MORNING' || form.period === 'AFTERNOON') return 0.5
+    if (form.period === 'CUSTOM') {
+      const m = (t: string) => { const x = /^(\d{1,2}):(\d{2})$/.exec(t); return x ? +x[1] * 60 + +x[2] : NaN }
+      const mins = m(form.endTime) - m(form.startTime)
+      return Number.isFinite(mins) && mins > 0 ? Math.max(0.5, Math.round(mins / 60 / 8 * 2) / 2) : 0
+    }
+    return countDays(form.startDate, form.endDate)
+  }
+
   const handleSubmitLeave = useCallback(() => {
-    if (!form.startDate || !form.endDate || !form.reason.trim()) return
-    const days = countDays(form.startDate, form.endDate)
-    if (days === 0) { setErrorMsg('วันที่เลือกไม่มีวันทำงาน'); return }
+    if (!form.startDate || !form.reason.trim()) return
+    const partial = form.period !== 'FULL'
+    const endDate = partial ? form.startDate : form.endDate
+    if (!endDate) return
+    if (form.period === 'CUSTOM' && (!form.startTime || !form.endTime)) { setErrorMsg('กรุณาระบุช่วงเวลา'); return }
+    const days = calcLeaveDays()
+    if (days === 0) { setErrorMsg(partial ? 'ช่วงเวลาที่เลือกไม่ถูกต้อง' : 'วันที่เลือกไม่มีวันทำงาน'); return }
     setErrorMsg(null)
     submitMutation.mutate({
       employee_id: employee?.id,
       leave_type:  form.leaveType,
       start_date:  form.startDate,
-      end_date:    form.endDate,
+      end_date:    endDate,
       days,
       reason: form.reason,
+      leave_period: form.period,
+      ...(form.period === 'CUSTOM' ? { start_time: form.startTime, end_time: form.endTime } : {}),
     })
   }, [form, employee, submitMutation])
 
-  const days      = countDays(form.startDate, form.endDate)
+  const days      = calcLeaveDays()
   const submitting = submitMutation.isPending
-  const canSubmit  = !!form.startDate && !!form.endDate && !!form.reason.trim() && days > 0
+  const canSubmit  = !!form.startDate && (form.period !== 'FULL' || !!form.endDate) && !!form.reason.trim() && days > 0
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
@@ -1414,20 +1441,58 @@ export default function LeavePage() {
                   </div>
                 )
               })()}
+              {/* ช่วงการลา */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>ช่วงการลา</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {([
+                    { v: 'FULL', label: 'เต็มวัน' },
+                    { v: 'MORNING', label: 'ครึ่งเช้า' },
+                    { v: 'AFTERNOON', label: 'ครึ่งบ่าย' },
+                    { v: 'CUSTOM', label: 'ระบุเวลา' },
+                  ] as const).map(o => {
+                    const active = form.period === o.v
+                    return (
+                      <button key={o.v} onClick={() => setForm(f => ({ ...f, period: o.v }))}
+                        style={{ padding: '8px 12px', borderRadius: 10, border: `2px solid ${active ? COLOR.primary : 'transparent'}`, background: active ? `${COLOR.primary}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: active ? COLOR.primary : '#9CA3AF' }}>
+                        {o.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {form.period === 'CUSTOM' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>ลาตั้งแต่เวลา</div>
+                    <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
+                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1.5px solid rgba(255,107,53,0.2)', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>ถึงเวลา</div>
+                    <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
+                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1.5px solid rgba(255,107,53,0.2)', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  </div>
+                </div>
+              )}
+
               {/* Dates */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: form.period === 'FULL' ? '1fr 1fr' : '1fr', gap: 10, marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่เริ่มลา</div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>{form.period === 'FULL' ? 'วันที่เริ่มลา' : 'วันที่ลา'}</div>
                   <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} min={new Date().toISOString().slice(0, 10)} />
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่สิ้นสุด</div>
-                  <ThaiDatePicker value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} min={form.startDate || new Date().toISOString().slice(0, 10)} />
-                </div>
+                {form.period === 'FULL' && (
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่สิ้นสุด</div>
+                    <ThaiDatePicker value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} min={form.startDate || new Date().toISOString().slice(0, 10)} />
+                  </div>
+                )}
               </div>
               {days > 0 && (
                 <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: `${COLOR.primary}08`, fontSize: '0.82rem', color: COLOR.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Calendar size={14} /> รวม {days} วันทำงาน
+                  <Calendar size={14} /> {form.period === 'FULL' ? `รวม ${days} วันทำงาน` : `หักโควต้า ${days} วัน`}
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>

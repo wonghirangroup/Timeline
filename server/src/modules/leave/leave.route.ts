@@ -85,7 +85,10 @@ export async function leaveRoutes(app: FastifyInstance) {
           leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
-          days:        { type: 'integer' },
+          days:        { type: 'number', description: 'ใช้กับ leave_period=FULL — ครึ่งวัน/CUSTOM ระบบคำนวณเอง' },
+          leave_period:{ type: 'string', enum: ['FULL', 'MORNING', 'AFTERNOON', 'CUSTOM'], description: 'FULL=เต็มวัน, MORNING/AFTERNOON=ครึ่งวัน (0.5), CUSTOM=ระบุช่วงเวลา — ไม่เต็มวันต้องลา 1 วัน' },
+          start_time:  { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
+          end_time:    { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
           reason:      { type: 'string' },
           force:       { type: 'boolean', description: 'true = ยืนยันเพิ่มให้ ทั้งที่ cascade ปิดสิทธิ์การลา (เก็บ audit)' },
         },
@@ -99,6 +102,8 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
       if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์การลา — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
+      if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว (วันเริ่ม = วันสิ้นสุด)'))
+      if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง (เวลาสิ้นสุดต้องหลังเวลาเริ่ม)'))
       throw e
     }
   })
@@ -117,7 +122,10 @@ export async function leaveRoutes(app: FastifyInstance) {
           leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
-          days:        { type: 'integer' },
+          days:        { type: 'number' },
+          leave_period:{ type: 'string', enum: ['FULL', 'MORNING', 'AFTERNOON', 'CUSTOM'] },
+          start_time:  { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
+          end_time:    { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
           reason:      { type: 'string' },
         },
       },
@@ -129,6 +137,8 @@ export async function leaveRoutes(app: FastifyInstance) {
       return ok(result, 'แก้ไขสำเร็จ')
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP') return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
+      if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
+      if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
       throw e
     }
   })
@@ -166,7 +176,10 @@ export async function leaveRoutes(app: FastifyInstance) {
           leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
-          days:        { type: 'integer' },
+          days:        { type: 'number' },
+          leave_period:{ type: 'string', enum: ['FULL', 'MORNING', 'AFTERNOON', 'CUSTOM'] },
+          start_time:  { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
+          end_time:    { type: 'string', description: 'HH:mm — เฉพาะ leave_period=CUSTOM' },
           reason:      { type: 'string' },
         },
       },
@@ -174,13 +187,15 @@ export async function leaveRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       // พนักงานยื่นเอง — บังคับ force/autoApprove = false เสมอ (กันส่ง flag ตรงๆ ผ่าน body)
-      const { employee_id, leave_type, start_date, end_date, days, reason } = req.body
-      const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, start_date, end_date, days, reason })
+      const { employee_id, leave_type, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
+      const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, start_date, end_date, days, reason, leave_period, start_time, end_time })
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
       if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขาของคุณปิดสิทธิ์การยื่นคำขอลา ติดต่อแอดมิน'))
+      if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
+      if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
       throw e
     }
   })
@@ -255,7 +270,7 @@ export async function leaveRoutes(app: FastifyInstance) {
               properties: {
                 employee_id: { type: 'string' },
                 leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
-                total_days:  { type: 'integer' },
+                total_days:  { type: 'number' },
               },
             },
           },
@@ -308,7 +323,7 @@ export async function leaveRoutes(app: FastifyInstance) {
           employee_id: { type: 'string' },
           leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
           year:        { type: 'integer' },
-          total_days:  { type: 'integer' },
+          total_days:  { type: 'number' },
         },
       },
     },

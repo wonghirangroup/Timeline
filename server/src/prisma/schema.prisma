@@ -573,7 +573,10 @@ model LeaveRequest {
   leave_type         LeaveType
   start_date         DateTime    @db.Date
   end_date           DateTime    @db.Date
-  days               Int
+  days               Float // จำนวนวันที่หักโควต้า — รองรับครึ่งวัน (0.5) และเศษวันจากลาระบุช่วงเวลา
+  leave_period       LeavePeriod @default(FULL) // FULL=เต็มวัน, MORNING/AFTERNOON=ครึ่งวัน, CUSTOM=ระบุช่วงเวลา (ใช้กับลา 1 วันเท่านั้น)
+  start_time         String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
+  end_time           String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
   reason             String?
   attachment_url     String? // ใบรับรองแพทย์
   status             LeaveStatus @default(PENDING)
@@ -590,6 +593,13 @@ model LeaveRequest {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("leave_requests")
+}
+
+enum LeavePeriod {
+  FULL // เต็มวัน
+  MORNING // ครึ่งวันเช้า (0.5)
+  AFTERNOON // ครึ่งวันบ่าย (0.5)
+  CUSTOM // ระบุช่วงเวลา start_time–end_time (เศษวันคำนวณจากมาตรฐาน 8 ชม./วัน ปัดเป็น 0.5)
 }
 
 enum LeaveType {
@@ -643,8 +653,8 @@ model LeaveBalance {
   employee_id String
   leave_type  LeaveType
   year        Int
-  total_days  Int
-  used_days   Int       @default(0)
+  total_days  Float // โควต้ารวม — Float รองรับการหักครึ่งวัน (used_days อาจเป็น 2.5)
+  used_days   Float     @default(0)
   updated_at  DateTime  @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])

@@ -25,6 +25,9 @@ interface ApiLeaveRequest {
   start_date: string
   end_date: string
   days: number
+  leave_period?: LeavePeriod
+  start_time?: string | null
+  end_time?: string | null
   reason: string | null
   status: LeaveStatus
   reviewed_by: string | null
@@ -50,6 +53,23 @@ const STATUS_CFG: Record<LeaveStatus, { label: string; color: string; bg: string
   REJECTED: { label: 'ไม่อนุมัติ', color: '#dc2626', bg: '#fee2e2' },
 }
 const LEAVE_TYPES: LeaveType[] = ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE']
+
+type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
+const PERIOD_OPTS: { v: LeavePeriod; label: string }[] = [
+  { v: 'FULL', label: 'เต็มวัน' },
+  { v: 'MORNING', label: 'ครึ่งเช้า' },
+  { v: 'AFTERNOON', label: 'ครึ่งบ่าย' },
+  { v: 'CUSTOM', label: 'ระบุเวลา' },
+]
+// label สั้นสำหรับตาราง/การ์ด — FULL คืน '' (ไม่ต้องโชว์)
+function periodBadge(r: { leave_period?: LeavePeriod; start_time?: string | null; end_time?: string | null }): string {
+  switch (r.leave_period) {
+    case 'MORNING':   return 'ครึ่งเช้า'
+    case 'AFTERNOON': return 'ครึ่งบ่าย'
+    case 'CUSTOM':    return r.start_time && r.end_time ? `${r.start_time}–${r.end_time}` : 'ระบุเวลา'
+    default:          return ''
+  }
+}
 
 const HOLIDAY_LABELS = new Set(['หยุด', 'หยุดนักขัตฤกษ์', 'ชดเชย'])
 
@@ -171,8 +191,8 @@ export default function LeaveRequestsTab() {
   const [approveTarget, setApproveTarget] = useState<ApiLeaveRequest | null>(null)
   const [deleteTarget, setDeleteTarget]   = useState<ApiLeaveRequest | null>(null)
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
-  const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
-  const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
+  const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
+  const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
   const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา
   const [page, setPage]                   = useState(1)
   const PAGE_SIZE = 10
@@ -229,7 +249,7 @@ export default function LeaveRequestsTab() {
     onSuccess: () => {
       invalidate()
       showToast('success', 'สร้างและอนุมัติวันลาสำเร็จ')
-      setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '' })
+      setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL', start_time: '', end_time: '' })
       setTab('requests')
     },
     onError: (err: any, body: any) => {
@@ -290,6 +310,9 @@ export default function LeaveRequestsTab() {
       end_date:   r.end_date.slice(0, 10),
       days:       r.days,
       reason:     r.reason ?? '',
+      leave_period: r.leave_period ?? 'FULL',
+      start_time: r.start_time ?? '',
+      end_time:   r.end_time ?? '',
     })
     setEditTarget(r)
   }
@@ -298,20 +321,38 @@ export default function LeaveRequestsTab() {
   function handleReject()   { if (rejectTarget)  rejectMutation.mutate({ id: rejectTarget.id, note: rejectNote }) }
   function handleDelete()   { if (deleteTarget)  deleteMutation.mutate(deleteTarget.id) }
 
+  // ปิดครึ่งวัน/ระบุเวลา = ลาวันเดียว → end_date = start_date เสมอ
+  function periodBody(f: { leave_period: LeavePeriod; start_time: string; end_time: string }) {
+    return f.leave_period === 'CUSTOM'
+      ? { leave_period: f.leave_period, start_time: f.start_time, end_time: f.end_time }
+      : { leave_period: f.leave_period }
+  }
+
   function handleEdit() {
     if (!editTarget || !editForm.start_date || !editForm.end_date) { showToast('error', 'กรุณากรอกข้อมูลให้ครบ'); return }
-    if (editForm.end_date < editForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
-    editMutation.mutate({ id: editTarget.id, body: { leave_type: editForm.leave_type, start_date: editForm.start_date, end_date: editForm.end_date, days: Number(editForm.days), reason: editForm.reason || undefined } })
+    const end = editForm.leave_period === 'FULL' ? editForm.end_date : editForm.start_date
+    if (end < editForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
+    if (editForm.leave_period === 'CUSTOM' && (!editForm.start_time || !editForm.end_time)) { showToast('error', 'กรุณาระบุช่วงเวลา'); return }
+    editMutation.mutate({ id: editTarget.id, body: { leave_type: editForm.leave_type, start_date: editForm.start_date, end_date: end, days: Number(editForm.days), reason: editForm.reason || undefined, ...periodBody(editForm) } })
   }
 
   function handleAddLeave() {
     if (!addForm.employee_id || !addForm.start_date || !addForm.end_date) { showToast('error', 'กรุณากรอกข้อมูลให้ครบ'); return }
-    if (addForm.end_date < addForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
-    addMutation.mutate({ employee_id: addForm.employee_id, leave_type: addForm.leave_type, start_date: addForm.start_date, end_date: addForm.end_date, days: Number(addForm.days), reason: addForm.reason || undefined })
+    const end = addForm.leave_period === 'FULL' ? addForm.end_date : addForm.start_date
+    if (end < addForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
+    if (addForm.leave_period === 'CUSTOM' && (!addForm.start_time || !addForm.end_time)) { showToast('error', 'กรุณาระบุช่วงเวลา'); return }
+    addMutation.mutate({ employee_id: addForm.employee_id, leave_type: addForm.leave_type, start_date: addForm.start_date, end_date: end, days: Number(addForm.days), reason: addForm.reason || undefined, ...periodBody(addForm) })
   }
 
   // ── Auto-calc days ────────────────────────────────────────────────────────
-  function calcDays(start: string, end: string) {
+  // FULL = นับช่วงวัน, MORNING/AFTERNOON = 0.5, CUSTOM = ชั่วโมง/8 ปัด 0.5 (โชว์ให้ดูเฉยๆ — server คำนวณจริงอีกที)
+  function calcDays(start: string, end: string, period: LeavePeriod = 'FULL', st = '', et = '') {
+    if (period === 'MORNING' || period === 'AFTERNOON') return 0.5
+    if (period === 'CUSTOM') {
+      const m = (t: string) => { const x = /^(\d{1,2}):(\d{2})$/.exec(t); return x ? +x[1] * 60 + +x[2] : NaN }
+      const mins = m(et) - m(st)
+      return Number.isFinite(mins) && mins > 0 ? Math.max(0.5, Math.round(mins / 60 / 8 * 2) / 2) : 0.5
+    }
     if (!start || !end) return 1
     const diff = (new Date(end).getTime() - new Date(start).getTime()) / 86400000
     return Math.max(1, Math.round(diff) + 1)
@@ -390,26 +431,53 @@ export default function LeaveRequestsTab() {
                 ))}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ช่วงการลา</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {PERIOD_OPTS.map(o => (
+                  <button key={o.v} onClick={() => setAddForm(f => {
+                    const p = o.v; const end = p === 'FULL' ? f.end_date : f.start_date
+                    return { ...f, leave_period: p, end_date: end, days: calcDays(f.start_date, end, p, f.start_time, f.end_time) }
+                  })}
+                    style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${addForm.leave_period === o.v ? '#0369a1' : '#e5e7eb'}`, background: addForm.leave_period === o.v ? '#e0f2fe' : '#fff', color: addForm.leave_period === o.v ? '#0369a1' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {addForm.leave_period === 'CUSTOM' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ลาตั้งแต่เวลา *</label>
+                  <input type="time" value={addForm.start_time} onChange={e => setAddForm(f => ({ ...f, start_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', e.target.value, f.end_time) }))} style={inp} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ถึงเวลา *</label>
+                  <input type="time" value={addForm.end_time} onChange={e => setAddForm(f => ({ ...f, end_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', f.start_time, e.target.value) }))} style={inp} />
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: addForm.leave_period === 'FULL' ? '1fr 1fr auto' : '1fr auto', gap: 10, alignItems: 'end' }}>
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันเริ่มต้น *</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>{addForm.leave_period === 'FULL' ? 'วันเริ่มต้น *' : 'วันที่ลา *'}</label>
                 <input type="date" value={addForm.start_date}
                   onChange={e => {
                     const s = e.target.value
-                    // ถ้า end_date น้อยกว่า start_date ใหม่ → รีเซ็ต end_date เป็นวันเดียวกัน
-                    const end = addForm.end_date && addForm.end_date >= s ? addForm.end_date : s
-                    setAddForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end) }))
+                    const end = addForm.leave_period === 'FULL' ? (addForm.end_date && addForm.end_date >= s ? addForm.end_date : s) : s
+                    setAddForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end, f.leave_period, f.start_time, f.end_time) }))
                   }} style={inp} />
               </div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันสิ้นสุด *</label>
-                <input type="date" value={addForm.end_date}
-                  min={addForm.start_date || undefined}
-                  onChange={e => {
-                    const end = e.target.value
-                    setAddForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) }))
-                  }} style={inp} />
-              </div>
+              {addForm.leave_period === 'FULL' && (
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันสิ้นสุด *</label>
+                  <input type="date" value={addForm.end_date}
+                    min={addForm.start_date || undefined}
+                    onChange={e => {
+                      const end = e.target.value
+                      setAddForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) }))
+                    }} style={inp} />
+                </div>
+              )}
               <div style={{ textAlign: 'center', padding: '9px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: '13px', fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap' }}>
                 {addForm.days} วัน
               </div>
@@ -477,7 +545,8 @@ export default function LeaveRequestsTab() {
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: r.status === 'PENDING' ? 10 : 0 }}>
                           <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 600 }}>{tc.displayLabel}</span>
-                          <span style={{ fontSize: '0.78rem', color: '#374151' }}>{fmtDate(r.start_date)} – {fmtDate(r.end_date)}</span>
+                          <span style={{ fontSize: '0.78rem', color: '#374151' }}>{fmtDate(r.start_date)}{r.end_date !== r.start_date ? ` – ${fmtDate(r.end_date)}` : ''}</span>
+                          {periodBadge(r) && <span style={{ fontSize: '0.7rem', color: '#0369a1', background: '#e0f2fe', borderRadius: 99, padding: '2px 8px', fontWeight: 700 }}>{periodBadge(r)}</span>}
                           <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>{r.days} วัน</span>
                         </div>
                         {r.reason && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 10px' }}>{cleanReason(r.reason)}</p>}
@@ -532,7 +601,8 @@ export default function LeaveRequestsTab() {
                             <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600 }}>{tc.displayLabel}</span>
                           </td>
                           <td style={{ padding: '11px 14px', fontSize: '0.82rem', color: '#374151', whiteSpace: 'nowrap' }}>
-                            {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
+                            {fmtDate(r.start_date)}{r.end_date !== r.start_date ? ` – ${fmtDate(r.end_date)}` : ''}
+                            {periodBadge(r) && <span style={{ marginLeft: 6, fontSize: '0.68rem', color: '#0369a1', background: '#e0f2fe', borderRadius: 99, padding: '1px 7px', fontWeight: 700 }}>{periodBadge(r)}</span>}
                           </td>
                           <td style={{ padding: '11px 14px', fontWeight: 700, color: '#6366f1', textAlign: 'center' }}>{r.days}</td>
                           <td style={{ padding: '11px 14px', fontSize: '0.78rem', color: 'var(--text-muted)', maxWidth: 160 }}>
@@ -595,22 +665,50 @@ export default function LeaveRequestsTab() {
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ช่วงการลา</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {PERIOD_OPTS.map(o => (
+                    <button key={o.v} onClick={() => setEditForm(f => {
+                      const p = o.v; const end = p === 'FULL' ? f.end_date : f.start_date
+                      return { ...f, leave_period: p, end_date: end, days: calcDays(f.start_date, end, p, f.start_time, f.end_time) }
+                    })}
+                      style={{ padding: '5px 12px', borderRadius: 20, border: `2px solid ${editForm.leave_period === o.v ? '#0369a1' : '#e5e7eb'}`, background: editForm.leave_period === o.v ? '#e0f2fe' : '#fff', color: editForm.leave_period === o.v ? '#0369a1' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {editForm.leave_period === 'CUSTOM' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ลาตั้งแต่เวลา *</label>
+                    <input type="time" value={editForm.start_time} onChange={e => setEditForm(f => ({ ...f, start_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', e.target.value, f.end_time) }))} style={inp} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ถึงเวลา *</label>
+                    <input type="time" value={editForm.end_time} onChange={e => setEditForm(f => ({ ...f, end_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', f.start_time, e.target.value) }))} style={inp} />
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: editForm.leave_period === 'FULL' ? '1fr 1fr auto' : '1fr auto', gap: 10, alignItems: 'end' }}>
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันเริ่มต้น</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>{editForm.leave_period === 'FULL' ? 'วันเริ่มต้น' : 'วันที่ลา'}</label>
                   <input type="date" value={editForm.start_date}
                     onChange={e => {
                       const s = e.target.value
-                      const end = editForm.end_date >= s ? editForm.end_date : s
-                      setEditForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end) }))
+                      const end = editForm.leave_period === 'FULL' ? (editForm.end_date >= s ? editForm.end_date : s) : s
+                      setEditForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end, f.leave_period, f.start_time, f.end_time) }))
                     }} style={inp} />
                 </div>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันสิ้นสุด</label>
-                  <input type="date" value={editForm.end_date} min={editForm.start_date || undefined}
-                    onChange={e => { const end = e.target.value; setEditForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) })) }}
-                    style={inp} />
-                </div>
+                {editForm.leave_period === 'FULL' && (
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันสิ้นสุด</label>
+                    <input type="date" value={editForm.end_date} min={editForm.start_date || undefined}
+                      onChange={e => { const end = e.target.value; setEditForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) })) }}
+                      style={inp} />
+                  </div>
+                )}
                 <div style={{ textAlign: 'center', padding: '9px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: '13px', fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap' }}>
                   {editForm.days} วัน
                 </div>

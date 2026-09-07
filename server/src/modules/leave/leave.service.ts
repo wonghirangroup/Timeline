@@ -2,6 +2,27 @@
 import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
 
+type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
+const WORKDAY_HOURS = 8 // มาตรฐานสำหรับแปลง "ลาระบุช่วงเวลา" เป็นเศษวัน
+
+// คำนวณจำนวนวันที่ต้องหักโควต้าจาก leave_period
+//  FULL      → ใช้ค่า fallbackDays ที่ client ส่งมา (นับจากช่วงวันที่)
+//  MORNING/AFTERNOON → 0.5 (บังคับลา 1 วัน)
+//  CUSTOM    → (end_time - start_time) / 8 ชม. ปัดเป็นทวีคูณ 0.5 ขั้นต่ำ 0.5 (บังคับลา 1 วัน)
+function resolveLeaveDays(period: LeavePeriod, fallbackDays: number, startTime?: string | null, endTime?: string | null): number {
+  if (period === 'MORNING' || period === 'AFTERNOON') return 0.5
+  if (period === 'CUSTOM') {
+    const toMin = (t?: string | null) => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '')
+      return m ? +m[1] * 60 + +m[2] : NaN
+    }
+    const mins = toMin(endTime) - toMin(startTime)
+    if (!Number.isFinite(mins) || mins <= 0) throw new Error('INVALID_TIME_RANGE')
+    return Math.max(0.5, Math.round((mins / 60 / WORKDAY_HOURS) * 2) / 2)
+  }
+  return fallbackDays
+}
+
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listLeaveRequests(tenantId: string, filters: {
   employeeId?: string
@@ -78,6 +99,9 @@ export async function createLeaveRequest(
     autoApprove?: boolean
     reviewedBy?: string
     force?: boolean
+    leave_period?: LeavePeriod
+    start_time?: string | null
+    end_time?: string | null
   },
 ) {
   // gate ด้วย leave cascade (บุคคล→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag()
@@ -86,6 +110,11 @@ export async function createLeaveRequest(
     if (!data.force) throw new Error('LEAVE_DISABLED')
     leaveOverrideBy = data.reviewedBy ?? null
   }
+
+  const period: LeavePeriod = data.leave_period ?? 'FULL'
+  // ลาไม่เต็มวันต้องเป็นวันเดียว (start = end)
+  if (period !== 'FULL' && data.start_date !== data.end_date) throw new Error('PARTIAL_LEAVE_SINGLE_DAY')
+  const days = resolveLeaveDays(period, data.days, data.start_time, data.end_time)
 
   // ตรวจสอบวันลาทับซ้อน (PENDING หรือ APPROVED)
   const overlap = await prisma.leaveRequest.findFirst({
@@ -109,7 +138,7 @@ export async function createLeaveRequest(
     },
   })
 
-  if (balance && (balance.used_days + data.days) > balance.total_days) {
+  if (balance && (balance.used_days + days) > balance.total_days) {
     throw new Error('INSUFFICIENT_BALANCE')
   }
 
@@ -124,7 +153,10 @@ export async function createLeaveRequest(
       leave_type: data.leave_type,
       start_date: startDate,
       end_date: endDate,
-      days: data.days,
+      days,
+      leave_period: period,
+      start_time: period === 'CUSTOM' ? (data.start_time ?? null) : null,
+      end_time:   period === 'CUSTOM' ? (data.end_time ?? null)   : null,
       reason: data.reason,
       has_conflict: conflict,
       policy_override_by: leaveOverrideBy,
@@ -137,7 +169,7 @@ export async function createLeaveRequest(
   if (data.autoApprove) {
     await prisma.leaveBalance.updateMany({
       where: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, year: startDate.getFullYear() },
-      data: { used_days: { increment: data.days } },
+      data: { used_days: { increment: days } },
     })
   }
 
@@ -226,10 +258,25 @@ export async function updateLeaveRequest(
     end_date?: string
     days?: number
     reason?: string
+    leave_period?: LeavePeriod
+    start_time?: string | null
+    end_time?: string | null
   },
 ) {
   const req = await prisma.leaveRequest.findFirst({ where: { id, tenant_id: tenantId } })
   if (!req) return null
+
+  const period = (data.leave_period ?? req.leave_period) as LeavePeriod
+  const sd = data.start_date ?? req.start_date.toISOString().slice(0, 10)
+  const ed = data.end_date ?? req.end_date.toISOString().slice(0, 10)
+  if (period !== 'FULL' && sd !== ed) throw new Error('PARTIAL_LEAVE_SINGLE_DAY')
+  // recompute days ถ้าแตะ period/เวลา/วัน — ไม่งั้นคง days เดิม (เว้น client ส่ง days มาตรงๆ สำหรับ FULL)
+  const touchesPeriod = data.leave_period !== undefined || data.start_time !== undefined || data.end_time !== undefined
+  const st = data.start_time ?? req.start_time
+  const et = data.end_time ?? req.end_time
+  const recalcDays = touchesPeriod
+    ? resolveLeaveDays(period, data.days ?? req.days, st, et)
+    : data.days
 
   // ตรวจสอบวันลาทับซ้อน (ยกเว้นตัวเอง)
   if (data.start_date || data.end_date) {
@@ -254,7 +301,12 @@ export async function updateLeaveRequest(
       ...(data.leave_type  ? { leave_type:  data.leave_type }            : {}),
       ...(data.start_date  ? { start_date:  new Date(data.start_date) }  : {}),
       ...(data.end_date    ? { end_date:    new Date(data.end_date) }     : {}),
-      ...(data.days        ? { days:        data.days }                   : {}),
+      ...(recalcDays !== undefined ? { days: recalcDays }                : {}),
+      ...(data.leave_period !== undefined ? {
+        leave_period: period,
+        start_time: period === 'CUSTOM' ? (st ?? null) : null,
+        end_time:   period === 'CUSTOM' ? (et ?? null) : null,
+      } : {}),
       ...(data.reason !== undefined ? { reason: data.reason || null }     : {}),
     },
   })
