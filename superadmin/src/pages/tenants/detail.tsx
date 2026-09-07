@@ -94,6 +94,8 @@ export default function TenantDetailPage() {
   const [adminForm, setAdminForm]         = useState({ email: '', first_name: '', last_name: '' })
   const [tempPasswordResult, setTempPasswordResult] = useState<{ email: string; password: string } | null>(null)
   const [copiedPw, setCopiedPw]           = useState(false)
+  const [editLimits, setEditLimits]      = useState(false)
+  const [limitForm, setLimitForm]        = useState({ max_employees: 0, max_branches: 0, max_groups: 0 })
 
   // ── fetch tenant ────────────────────────────────────────────────────
   const { data: tenant, isLoading } = useQuery({
@@ -168,6 +170,19 @@ export default function TenantDetailPage() {
     },
     onError: () => showToast('error', 'เปลี่ยนค่าซิงค์ไม่สำเร็จ'),
   })
+  // ── ขยายขีดจำกัดแพ็กเกจ (พนักงาน/สาขา/กลุ่ม) ──
+  const saveLimitsMutation = useMutation({
+    mutationFn: (body: { max_employees: number; max_branches: number; max_groups: number }) =>
+      api.patch(`/api/v1/super-admin/tenants/${id}`, body).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sa', 'tenant', id] })
+      qc.invalidateQueries({ queryKey: ['sa', 'tenants'] })
+      showToast('success', 'อัปเดตขีดจำกัดแพ็กเกจแล้ว')
+      setEditLimits(false)
+    },
+    onError: () => showToast('error', 'อัปเดตขีดจำกัดไม่สำเร็จ'),
+  })
+
   const runFirebaseSyncNowMutation = useMutation({
     mutationFn: () => api.post(`/api/v1/super-admin/firebase-sync/${id}/run`).then((r: any) => r.data.data),
     onSuccess: (result: any) => {
@@ -195,6 +210,16 @@ export default function TenantDetailPage() {
   const adminUser = tenant.users?.find((u: any) => u.role === 'ADMIN')
   const branchCount   = tenant.branches?.length  ?? 0
   const employeeCount = tenant._count?.employees ?? 0
+  const groupCount    = tenant._count?.groups    ?? 0
+
+  function openEditLimits() {
+    setLimitForm({
+      max_employees: tenant.max_employees ?? 5,
+      max_branches:  tenant.max_branches ?? 1,
+      max_groups:    tenant.max_groups ?? 1,
+    })
+    setEditLimits(true)
+  }
   const lineConfigured = !!tenant.line_config?.line_channel_id
 
   const webhookUrl = `https://api.timeline.app/api/v1/line/webhook/${id}`
@@ -297,9 +322,59 @@ export default function TenantDetailPage() {
               <InfoRow label="อีเมล Admin" value={adminUser?.email ?? '-'} />
               <InfoRow label="Plan"        value={`${pc.label} — ${pc.price}`} />
               <InfoRow label="สถานะ"       value={sc.label} />
-              <InfoRow label="พนักงานสูงสุด" value={`${employeeCount} / ${tenant.max_employees ?? '∞'} คน`} />
-              <InfoRow label="สาขาสูงสุด"   value={`${branchCount} / ${tenant.max_branches ?? '∞'} สาขา`} />
             </div>
+          </div>
+
+          {/* ── ขีดจำกัดแพ็กเกจ (ขยายได้) ── */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>ขีดจำกัดแพ็กเกจ</h3>
+              {!editLimits && (
+                <button onClick={openEditLimits}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: 'var(--text-body)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <Pencil size={13} /> ขยายขีดจำกัด
+                </button>
+              )}
+            </div>
+            {([
+              { key: 'max_employees' as const, label: 'พนักงาน', used: employeeCount, unit: 'คน' },
+              { key: 'max_branches' as const,  label: 'สาขา',    used: branchCount,   unit: 'สาขา' },
+              { key: 'max_groups' as const,    label: 'กลุ่ม',    used: groupCount,    unit: 'กลุ่ม' },
+            ]).map(row => {
+              const limit = editLimits ? limitForm[row.key] : (tenant[row.key] ?? 0)
+              const pct = limit > 0 ? Math.min(100, Math.round((row.used / limit) * 100)) : 0
+              const full = row.used >= limit
+              const near = !full && limit > 0 && row.used / limit >= 0.8
+              const barColor = full ? '#dc2626' : near ? '#f59e0b' : '#16a34a'
+              return (
+                <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0', borderTop: '1px solid #f3f4f6' }}>
+                  <span style={{ width: 64, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-body)' }}>{row.label}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
+                      <div style={{ width: pct + '%', height: '100%', background: barColor, borderRadius: 99 }} />
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: barColor, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {row.used} /{' '}
+                    {editLimits ? (
+                      <input type="number" min={row.used} value={limitForm[row.key]}
+                        onChange={e => setLimitForm(f => ({ ...f, [row.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        style={{ width: 64, padding: '4px 6px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem', fontFamily: 'inherit' }} />
+                    ) : (tenant[row.key] ?? '∞')} {row.unit}
+                  </span>
+                </div>
+              )
+            })}
+            {editLimits && (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+                <button onClick={() => setEditLimits(false)}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>ยกเลิก</button>
+                <button onClick={() => saveLimitsMutation.mutate(limitForm)} disabled={saveLimitsMutation.isPending}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', opacity: saveLimitsMutation.isPending ? 0.6 : 1 }}>
+                  {saveLimitsMutation.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

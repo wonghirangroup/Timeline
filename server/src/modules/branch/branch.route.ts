@@ -60,8 +60,13 @@ export async function branchRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const branch = await createBranch(req.tenantId, req.body)
-    return reply.code(201).send(ok(branch, 'สร้างสาขาสำเร็จ'))
+    try {
+      const branch = await createBranch(req.tenantId, req.body)
+      return reply.code(201).send(ok(branch, 'สร้างสาขาสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'LIMIT_REACHED') return reply.code(409).send(fail('LIMIT_REACHED', 'จำนวนสาขาเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'))
+      throw e
+    }
   })
 
   // PATCH /api/v1/admin/branches/:id

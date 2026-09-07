@@ -9,6 +9,7 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import ManageShiftTab from '../shift/manage'
+import { PlanMeter } from '../../components/shared/PlanUsage'
 
 interface ApiBranch {
   id: string
@@ -285,10 +286,16 @@ export default function BranchPage() {
       }
       qc.invalidateQueries({ queryKey: ['branches'] })
       qc.invalidateQueries({ queryKey: ['shifts'] })
+      qc.invalidateQueries({ queryKey: ['plan-usage'] })
       showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว${pendingShifts.length > 0 ? ` พร้อม ${pendingShifts.length} กะ` : ''}`)
       setModal(null); setSaving(false); setPendingShifts([])
     },
-    onError: () => { showToast('error', 'เพิ่มสาขาไม่สำเร็จ'); setSaving(false) },
+    onError: (err: any) => {
+      setSaving(false)
+      showToast('error', err?.response?.data?.error?.code === 'LIMIT_REACHED'
+        ? 'จำนวนสาขาเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'
+        : 'เพิ่มสาขาไม่สำเร็จ')
+    },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/branches/${id}`, body).then(r => r.data.data),
@@ -632,6 +639,7 @@ export default function BranchPage() {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <PlanMeter kind="branches" compact />
         {groups.length > 1 && (
           <select
             value={groupFilter}

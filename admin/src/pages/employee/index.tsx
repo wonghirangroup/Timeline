@@ -13,6 +13,7 @@ import { deptName } from '../../lib/format'
 import OrgStructurePage from '../org-structure'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import { PlanMeter } from '../../components/shared/PlanUsage'
 
 interface ApiBranch {
   id: string
@@ -270,10 +271,16 @@ export default function EmployeePage() {
     mutationFn: (body: object) => api.post('/api/v1/admin/employees', body).then(r => r.data.data),
     onSuccess: (_, vars: any) => {
       qc.invalidateQueries({ queryKey: ['employees'] })
+      qc.invalidateQueries({ queryKey: ['plan-usage'] })
       showToast('success', `เพิ่ม "${vars.first_name} ${vars.last_name}" สำเร็จ — ส่งลิงก์ยืนยัน Line ให้พนักงานด้วย`)
       setSaving(false); setModal(null)
     },
-    onError: () => { showToast('error', 'เพิ่มพนักงานไม่สำเร็จ'); setSaving(false) },
+    onError: (err: any) => {
+      setSaving(false)
+      showToast('error', err?.response?.data?.error?.code === 'LIMIT_REACHED'
+        ? 'จำนวนพนักงานเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'
+        : 'เพิ่มพนักงานไม่สำเร็จ')
+    },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/employees/${id}`, body).then(r => r.data.data),
@@ -402,9 +409,10 @@ export default function EmployeePage() {
     <div>
       {tabBar}
       {/* Header - Title removed */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <PlanMeter kind="employees" compact />
         {!isReadOnly && (
-          <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
+          <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
             + เพิ่มพนักงาน
           </button>
         )}

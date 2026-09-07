@@ -1,5 +1,6 @@
 // server/src/modules/branch/branch.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { assertPlanCapacity } from '../tenant/tenant.service'
 
 export async function listBranches(tenantId: string) {
   return prisma.branch.findMany({
@@ -30,6 +31,7 @@ export async function createBranch(tenantId: string, data: {
   booking_enabled?: boolean | null
   leave_enabled?: boolean | null
 }) {
+  await assertPlanCapacity(tenantId, 'branches')
   return prisma.branch.create({
     data: {
       tenant_id: tenantId,

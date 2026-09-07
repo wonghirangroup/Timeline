@@ -68,8 +68,13 @@ export async function employeeRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const employee = await createEmployee(req.tenantId, req.body)
-    return reply.code(201).send(ok(employee, 'เพิ่มพนักงานสำเร็จ'))
+    try {
+      const employee = await createEmployee(req.tenantId, req.body)
+      return reply.code(201).send(ok(employee, 'เพิ่มพนักงานสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'LIMIT_REACHED') return reply.code(409).send(fail('LIMIT_REACHED', 'จำนวนพนักงานเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'))
+      throw e
+    }
   })
 
   // PATCH /api/v1/admin/employees/:id

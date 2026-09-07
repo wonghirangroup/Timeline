@@ -1,5 +1,6 @@
 // server/src/modules/employee/employee.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { assertPlanCapacity } from '../tenant/tenant.service'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POSITION_INCLUDE = {
@@ -90,6 +91,7 @@ export async function createEmployee(
     employee_status_type_id?: string
   },
 ) {
+  await assertPlanCapacity(tenantId, 'employees')
   const employee_code = await generateEmployeeCode(tenantId, data.hired_at, data.department)
   return prisma.employee.create({
     data: {

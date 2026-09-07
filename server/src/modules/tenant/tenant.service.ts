@@ -24,7 +24,7 @@ export async function getTenant(id: string) {
     include: {
       users:       { where: { deleted_at: null }, select: { id: true, email: true, first_name: true, last_name: true, role: true } },
       branches:    { where: { deleted_at: null } },
-      _count:      { select: { employees: true } },
+      _count:      { select: { employees: { where: { deleted_at: null } }, groups: { where: { deleted_at: null } } } },
       line_config: { select: { line_channel_id: true, line_channel_access_token: true, line_liff_id: true } },
     },
   })
@@ -35,6 +35,7 @@ export async function createTenant(data: {
   plan?: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
   max_employees?: number
   max_branches?: number
+  max_groups?: number
   admin_email: string
   admin_password: string
   admin_first_name: string
@@ -49,6 +50,7 @@ export async function createTenant(data: {
         plan:          data.plan ?? 'FREE',
         max_employees: data.max_employees ?? 5,
         max_branches:  data.max_branches ?? 1,
+        max_groups:    data.max_groups ?? 1,
       },
     })
 
@@ -73,6 +75,7 @@ export async function updateTenant(id: string, data: {
   plan?: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
   max_employees?: number
   max_branches?: number
+  max_groups?: number
   is_active?: boolean
   firebase_sync_enabled?: boolean
 }) {
@@ -82,6 +85,35 @@ export async function updateTenant(id: string, data: {
   })
   if (count.count === 0) return null
   return prisma.tenant.findFirst({ where: { id } })
+}
+
+// การใช้งานเทียบขีดจำกัดแพ็กเกจของ tenant (พนักงาน/สาขา/กลุ่ม) — ใช้ทั้งฝั่ง admin
+// (แสดง meter + เตือนใกล้เต็ม) และ super admin (หน้า tenant detail)
+export async function getPlanUsage(tenantId: string) {
+  const [tenant, employees, branches, groups] = await Promise.all([
+    prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null }, select: { plan: true, max_employees: true, max_branches: true, max_groups: true } }),
+    prisma.employee.count({ where: { tenant_id: tenantId, deleted_at: null } }),
+    prisma.branch.count({ where: { tenant_id: tenantId, deleted_at: null } }),
+    prisma.group.count({ where: { tenant_id: tenantId, deleted_at: null } }),
+  ])
+  if (!tenant) return null
+  return {
+    plan: tenant.plan,
+    employees: { used: employees, limit: tenant.max_employees },
+    branches:  { used: branches,  limit: tenant.max_branches },
+    groups:    { used: groups,    limit: tenant.max_groups },
+  }
+}
+
+// throw 'LIMIT_REACHED' ถ้าสร้างเพิ่มจะเกินขีดจำกัดแพ็กเกจ — เรียกก่อน create พนักงาน/สาขา
+export async function assertPlanCapacity(tenantId: string, kind: 'employees' | 'branches') {
+  const tenant = await prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null }, select: { max_employees: true, max_branches: true } })
+  if (!tenant) throw new Error('TENANT_NOT_FOUND')
+  const used = kind === 'employees'
+    ? await prisma.employee.count({ where: { tenant_id: tenantId, deleted_at: null } })
+    : await prisma.branch.count({ where: { tenant_id: tenantId, deleted_at: null } })
+  const limit = kind === 'employees' ? tenant.max_employees : tenant.max_branches
+  if (used >= limit) throw new Error('LIMIT_REACHED')
 }
 
 export async function updateTenantFeatures(id: string, features: Partial<Record<string, boolean>>) {

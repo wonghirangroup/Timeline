@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
+import { PlanMeter } from '../../components/shared/PlanUsage'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 const card: React.CSSProperties = {
@@ -102,7 +103,7 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
   const { data: groups = [], isLoading } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
   const { data: branches = [] } = useQuery<BranchT[]>({ queryKey: ['branches'], queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data) })
 
-  const invalidate = () => { qc.invalidateQueries({ queryKey: ['groups'] }); qc.invalidateQueries({ queryKey: ['branches'] }) }
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['groups'] }); qc.invalidateQueries({ queryKey: ['branches'] }); qc.invalidateQueries({ queryKey: ['plan-usage'] }) }
 
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/groups', body),
@@ -143,6 +144,8 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
         </p>
         <button style={btnPrimary} onClick={openAdd}><Plus size={14}/> เพิ่มกลุ่ม</button>
       </div>
+
+      <PlanMeter kind="groups" />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {groups.length === 0 && <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีกลุ่ม</div>}

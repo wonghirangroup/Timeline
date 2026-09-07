@@ -8,6 +8,7 @@ import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -331,6 +332,9 @@ export default function DashboardPage() {
 
       {/* ── Left Column ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* ── การใช้งานเทียบแพ็กเกจ ─────────────────────────────────── */}
+        <PlanUsageRow />
 
         {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
         <RangeKpiSection branchFilter={branchFilter} />
