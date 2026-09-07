@@ -15,13 +15,13 @@ interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; pos
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
-interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; employee: ApiEmployee }
+interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'; start_time?: string | null; end_time?: string | null; employee: ApiEmployee }
 interface ApiHoliday { id: string; date: string; name: string; target_branches: string[] | null; target_departments: string[] | null }
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
 interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
-interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; period_label: string }
 interface Holiday { date: string; name: string; target_branches: string[] | null }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -126,6 +126,10 @@ function toDisplayLeave(l: ApiLeave): LeaveReq {
     start_date:    l.start_date.slice(0, 10),
     end_date:      l.end_date.slice(0, 10),
     status:        l.status,
+    period_label:  l.leave_period === 'MORNING' ? 'ครึ่งเช้า'
+                 : l.leave_period === 'AFTERNOON' ? 'ครึ่งบ่าย'
+                 : l.leave_period === 'CUSTOM' ? (l.start_time && l.end_time ? `${l.start_time}–${l.end_time}` : 'ระบุเวลา')
+                 : '',
   }
 }
 
@@ -283,7 +287,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
               const short = l.nickname || l.name.split(' ')[0]
               const isSingleDay = l.start_date === l.end_date
               return (
-                <div key={l.id} title={isSingleDay ? `${l.display_label} — ${l.name} · ลากเพื่อย้ายวันลา` : `${l.display_label} — ${l.name}`}
+                <div key={l.id} title={`${l.display_label}${l.period_label ? ` (${l.period_label})` : ''} — ${l.name}${isSingleDay ? ' · ลากเพื่อย้ายวันลา' : ''}`}
                   draggable={isSingleDay}
                   onDragStart={isSingleDay ? e => { e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'leave', id: l.id, label: l.name } as DragPayload)); e.dataTransfer.effectAllowed = 'move' } : undefined}
                   style={{
@@ -324,14 +328,17 @@ const QUICK_LEAVE_TYPES: { value: QuickLeaveType; label: string }[] = [
   { value: 'COMPENSATE', label: 'ชดเชย' }, { value: 'OTHER', label: 'อื่นๆ' },
 ]
 
+type QuickPeriod = 'FULL' | 'MORNING' | 'AFTERNOON'
+
 function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
   date: string; employees: ApiEmployee[]
   onAddDayOff: (employeeId: string) => void
-  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string) => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string, period?: QuickPeriod) => void
   onDone: () => void
 }) {
   const [kind, setKind] = useState<'dayoff' | 'leave'>('dayoff')
   const [leaveType, setLeaveType] = useState<QuickLeaveType>('SICK')
+  const [period, setPeriod] = useState<QuickPeriod>('FULL')
   const [otherReason, setOtherReason] = useState('')
   const [q, setQ] = useState('')
   const [employeeId, setEmployeeId] = useState('')
@@ -345,8 +352,8 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
   function submit() {
     if (!employeeId) return
     if (kind === 'dayoff') onAddDayOff(employeeId)
-    else if (leaveType === 'OTHER') onAddLeave(employeeId, 'PERSONAL', otherReason.trim())
-    else onAddLeave(employeeId, leaveType)
+    else if (leaveType === 'OTHER') onAddLeave(employeeId, 'PERSONAL', otherReason.trim(), period)
+    else onAddLeave(employeeId, leaveType, undefined, period)
     onDone()
   }
 
@@ -373,6 +380,14 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
             <input value={otherReason} onChange={e => setOtherReason(e.target.value)} placeholder="ระบุเหตุผล เช่น ลาบวช, ลาไปเลือกตั้ง..."
               style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           )}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([{ v: 'FULL', l: 'เต็มวัน' }, { v: 'MORNING', l: 'ครึ่งเช้า' }, { v: 'AFTERNOON', l: 'ครึ่งบ่าย' }] as const).map(o => (
+              <button key={o.v} onClick={() => setPeriod(o.v)}
+                style={{ flex: 1, padding: '4px', borderRadius: 7, border: `1.5px solid ${period === o.v ? '#3b82f6' : '#e5e7eb'}`, background: period === o.v ? '#eff6ff' : '#fff', color: period === o.v ? '#3b82f6' : '#64748b', fontWeight: 700, fontSize: '0.66rem', cursor: 'pointer' }}>
+                {o.l}
+              </button>
+            ))}
+          </div>
         </>
       )}
       <div style={{ position: 'relative' }}>
@@ -402,7 +417,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
   onDeleteDayOff: (id: string, label: string) => void
   onDeleteLeave: (id: string, label: string) => void
   onAddDayOff: (employeeId: string) => void
-  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string) => void
+  onAddLeave: (employeeId: string, leaveType: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE', reason?: string, period?: QuickPeriod) => void
 }) {
   const { dayOffs: evDayOffs, leaves: evLeaves, holiday } = getEventsForDate(date, branchFilter, dayOffs, leaves, holidays)
   const approved     = evDayOffs.filter(d => d.status === 'APPROVED')
@@ -566,7 +581,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{l.nickname || l.name}</div>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{l.display_label} · {l.branch_name}</div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{l.display_label}{l.period_label ? ` · ${l.period_label}` : ''} · {l.branch_name}</div>
                   </div>
                   {l.status === 'PENDING' && (
                     <span style={{ fontSize: '0.6rem', background: '#fffbeb', color: '#d97706', border: '1px solid #fcd34d', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>
@@ -677,9 +692,10 @@ export default function TeamCalendarTab() {
     },
   })
   const addLeaveMutation = useMutation({
-    mutationFn: ({ employeeId, leaveType, date, reason, force }: { employeeId: string; leaveType: string; date: string; reason?: string; force?: boolean }) =>
+    mutationFn: ({ employeeId, leaveType, date, reason, force, period }: { employeeId: string; leaveType: string; date: string; reason?: string; force?: boolean; period?: QuickPeriod }) =>
       api.post('/api/v1/admin/leave-requests', {
         employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1, force,
+        ...(period && period !== 'FULL' ? { leave_period: period } : {}),
         // ห่อ reason ด้วย [ ] ตาม convention เดิม (getLeaveLabel ดึง label ละเอียดจาก
         // reason ก่อน enum เสมอ) ให้ "อื่นๆ" ที่พิมพ์เองแสดงผลถูกต้อง ไม่ fallback ไปโชว์ "ลากิจ"
         ...(reason ? { reason: `[${reason}]` } : {}),
@@ -784,7 +800,7 @@ export default function TeamCalendarTab() {
     }
     for (const l of [...allLeavesThisMonth].sort((a, b) => a.start_date.localeCompare(b.start_date))) {
       const range = l.start_date === l.end_date ? l.start_date : `${l.start_date} – ${l.end_date}`
-      rows.push([range, 'วันลา', l.name, l.branch_name, l.display_label, STATUS_LABEL_TH[l.status]])
+      rows.push([range, 'วันลา', l.name, l.branch_name, l.period_label ? `${l.display_label} (${l.period_label})` : l.display_label, STATUS_LABEL_TH[l.status]])
     }
     const csv = '﻿' + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const a = document.createElement('a')
@@ -1160,7 +1176,7 @@ export default function TeamCalendarTab() {
                 onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                 onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
                 onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
-                onAddLeave={(employeeId, leaveType, reason) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason })}
+                onAddLeave={(employeeId, leaveType, reason, period) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason, period })}
               />
             </div>
           </>
@@ -1186,7 +1202,7 @@ export default function TeamCalendarTab() {
                   onDeleteDayOff={(id, label) => setDeleteTarget({ kind: 'dayoff', id, label })}
                   onDeleteLeave={(id, label) => setDeleteTarget({ kind: 'leave', id, label })}
                   onAddDayOff={employeeId => addDayOffMutation.mutate({ employeeId, date: selectedDate })}
-                  onAddLeave={(employeeId, leaveType, reason) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason })}
+                  onAddLeave={(employeeId, leaveType, reason, period) => addLeaveMutation.mutate({ employeeId, leaveType, date: selectedDate, reason, period })}
                 />
               </div>
             </div>

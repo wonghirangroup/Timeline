@@ -42,6 +42,8 @@ interface ApiEmployee {
   position?: { id: string; name: string } | null
   employee_status_type_id: string | null
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
+  booking_enabled_override?: boolean | null
+  leave_enabled_override?: boolean | null
 }
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department (แผนก) → Division (ฝ่าย)
@@ -82,10 +84,16 @@ const DEPARTMENTS = [
   '04 พนักงานขนส่ง',
 ]
 
+// override สิทธิ์รายคน: '' = ใช้ค่าจากผังองค์กร, 'on'/'off' = บังคับ
+type OverrideVal = '' | 'on' | 'off'
+const toOverrideVal = (v?: boolean | null): OverrideVal => v === true ? 'on' : v === false ? 'off' : ''
+const fromOverrideVal = (v: OverrideVal): boolean | null => v === 'on' ? true : v === 'off' ? false : null
+
 const EMPTY_FORM = {
   branch_id: '', full_name: '', nickname: '', department: '',
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
   position_id: '', employee_status_type_id: '',
+  booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
 }
 
 const input: React.CSSProperties = {
@@ -246,6 +254,8 @@ export default function EmployeePage() {
       weekly_off_mode: e.weekly_off_mode ?? 'WEEKLY',
       position_id: e.position_id ?? '',
       employee_status_type_id: e.employee_status_type_id ?? '',
+      booking_override: toOverrideVal(e.booking_enabled_override),
+      leave_override: toOverrideVal(e.leave_enabled_override),
     })
     setEditTarget(e)
     setModal('edit')
@@ -319,6 +329,8 @@ export default function EmployeePage() {
         weekly_off_mode: form.weekly_off_mode,
         position_id: form.position_id || null,
         employee_status_type_id: form.employee_status_type_id || null,
+        booking_enabled_override: fromOverrideVal(form.booking_override),
+        leave_enabled_override: fromOverrideVal(form.leave_override),
       }})
     }
   }
@@ -1185,6 +1197,26 @@ export default function EmployeePage() {
                   <option value="MONTHLY_BATCH">{WEEKLY_OFF_MODE_LABEL.MONTHLY_BATCH}</option>
                 </select>
               </div>
+              {editTarget && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={label}>สิทธิ์จองวันหยุด (รายคน)</label>
+                    <select value={form.booking_override} onChange={e => setForm(f => ({ ...f, booking_override: e.target.value as OverrideVal }))} style={input}>
+                      <option value="">ใช้ค่าจากผังองค์กร</option>
+                      <option value="on">เปิด — จองได้</option>
+                      <option value="off">ปิด — จองไม่ได้</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={label}>สิทธิ์การลา (รายคน)</label>
+                    <select value={form.leave_override} onChange={e => setForm(f => ({ ...f, leave_override: e.target.value as OverrideVal }))} style={input}>
+                      <option value="">ใช้ค่าจากผังองค์กร</option>
+                      <option value="on">เปิด — ลาได้</option>
+                      <option value="off">ปิด — ลาไม่ได้</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               {editTarget && (
                 <div style={{ background: editTarget.line_user_id ? '#f0fdf4' : '#fef9f0', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: editTarget.line_user_id ? '#15803d' : '#92400e' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Smartphone size={14}/>Line: {editTarget.line_user_id ? `ผูกแล้ว (${editTarget.line_user_id.slice(0, 12)}...)` : 'ยังไม่ผูก — พนักงานต้องยืนยันตัวตนผ่าน LIFF'}</span>
