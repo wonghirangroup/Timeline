@@ -37,6 +37,10 @@ interface LeaveRequest {
   end_date: string
   status: string
   reason: string | null
+  days?: number
+  leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
+  start_time?: string | null
+  end_time?: string | null
 }
 
 function fmtTime(iso: string | null): string {
@@ -137,20 +141,23 @@ export default function ReportPage() {
 
   const isLoading = loadingRecords || loadingEmployees
 
+  // employee_id → date → { label, fraction } (fraction = 0.5 ถ้าลาครึ่งวัน/ระบุเวลาน้อยกว่าเต็มวัน)
   const leaveMap = useMemo(() => {
-    const m = new Map<string, Map<string, string>>()
+    const m = new Map<string, Map<string, { label: string; fraction: number; period?: string }>>()
     for (const l of leaveRecords) {
       if (l.status !== 'APPROVED') continue
       const start = new Date(l.start_date)
       const end   = new Date(l.end_date)
       const orig  = l.reason?.match(/^\[(.+?)\]/)?.[1] ?? l.leave_type
+      const partial = l.leave_period && l.leave_period !== 'FULL'
+      const fraction = partial ? Math.min(1, l.days ?? 0.5) : 1
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         // ข้ามเสาร์-อาทิตย์ — countDays() ตอนขอลาไม่นับวันหยุดสุดสัปดาห์เข้าจำนวนวันลา
         // อยู่แล้ว (เช่น ลาศุกร์-จันทร์ = 2 วันลา ไม่ใช่ 4) ไม่ควร label ทับเสาร์/อาทิตย์
         if (d.getDay() === 0 || d.getDay() === 6) continue
         const key = d.toISOString().slice(0, 10)
         if (!m.has(l.employee_id)) m.set(l.employee_id, new Map())
-        m.get(l.employee_id)!.set(key, orig)
+        m.get(l.employee_id)!.set(key, { label: orig, fraction, period: l.leave_period })
       }
     }
     return m
@@ -220,11 +227,12 @@ export default function ReportPage() {
       let ok = 0, late = 0, absent = 0, leave = 0, fine = 0
       for (const dateKey of rangeDateKeys) {
         const recs = byDate.get(dateKey)
-        const { status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+        const ci = cellInfo(recs, info.employee_code, info.id, dateKey)
+        const status = ci.status
         if (status === 'ok') ok++
         else if (status === 'late' || status === 'late2') late++
         else if (status === 'absent') absent++
-        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday' || status === 'offsite') leave++
+        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday' || status === 'offsite') leave += (ci as any).leaveFraction ?? 1
         for (const r of recs ?? []) fine += Number(r.fine) + Number(r.carried_fine)
       }
       return { info, byDate, ok, late, absent, leave, fine }
@@ -234,23 +242,27 @@ export default function ReportPage() {
   function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string) {
     const dow     = new Date(dateKey + 'T00:00:00').getDay()
     const dept    = empCode.split('-')[1] ?? ''
-    const leaveType = leaveMap.get(empId)?.get(dateKey)
+    const leaveEntry = leaveMap.get(empId)?.get(dateKey)
+    const leaveType = leaveEntry?.label
+    const half = !!leaveEntry && leaveEntry.fraction < 1
+    const halfSuffix = half ? ' (ครึ่งวัน)' : ''
     // มีเช็คอินจริงในวันนั้น → ยึดตามการเช็คอินจริงเสมอ กัน case ที่มี
     // record หยุด/ลา ที่จองไว้ล่วงหน้า (จาก schedule เดิม) แต่พนักงานมาทำงานจริง
     const hasRealCheckin = !!recs?.some(r => r.check_in_at)
 
     if (leaveType && !hasRealCheckin) {
+      const lf = leaveEntry!.fraction
       if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์' || leaveType === 'COMPENSATE')
-        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType, status: 'leave' }
+        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: (leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType) + halfSuffix, status: 'leave', leaveFraction: lf }
       if (leaveType === 'SICK' || leaveType === 'ลาป่วย')
-        return { bg: '#fee2e2', label: <Thermometer size={13} />, color: '#dc2626', tip: 'ลาป่วย', status: 'sick' }
+        return { bg: '#fee2e2', label: <Thermometer size={13} />, color: '#dc2626', tip: 'ลาป่วย' + halfSuffix, status: 'sick', leaveFraction: lf }
       if (leaveType === 'VACATION' || leaveType === 'พักร้อน' || leaveType === 'ลาพักร้อน')
-        return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+        return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน' + halfSuffix, status: 'vacation', leaveFraction: lf }
       if (leaveType === 'PERSONAL' || leaveType === 'ลากิจ')
-        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุด/ลากิจ', status: 'leave' }
+        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุด/ลากิจ' + halfSuffix, status: 'leave', leaveFraction: lf }
       if (leaveType === 'MATERNITY')
-        return { bg: '#fce7f3', label: <Baby size={13} />, color: '#be185d', tip: 'ลาคลอด', status: 'leave' }
-      return { bg: '#e0f2fe', label: <ClipboardList size={13} />, color: '#0369a1', tip: leaveType, status: 'leave' }
+        return { bg: '#fce7f3', label: <Baby size={13} />, color: '#be185d', tip: 'ลาคลอด' + halfSuffix, status: 'leave', leaveFraction: lf }
+      return { bg: '#e0f2fe', label: <ClipboardList size={13} />, color: '#0369a1', tip: leaveType + halfSuffix, status: 'leave', leaveFraction: lf }
     }
 
     if (!hasRealCheckin && dayoffMap.get(empId)?.has(dateKey)) {
@@ -292,11 +304,12 @@ export default function ReportPage() {
       for (const dateKey of dateKeys) {
         const dow     = new Date(dateKey + 'T00:00:00').getDay()
         const recs    = byDate.get(dateKey)
-        const leaveType = leaveMap.get(info.id)?.get(dateKey)
+        const leaveEntry = leaveMap.get(info.id)?.get(dateKey)
         const hasRealCheckin = !!recs?.some(r => r.check_in_at)
-        if (leaveType && !hasRealCheckin) {
+        if (leaveEntry && !hasRealCheckin) {
+          const half = leaveEntry.fraction < 1
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
-            dateKey, DAYS_TH[dow], '', '', '', 'ลา', '', '', leaveType])
+            dateKey, DAYS_TH[dow], '', '', '', half ? 'ลา (ครึ่งวัน)' : 'ลา', '', '', leaveEntry.label + (half ? ' (ครึ่งวัน)' : '')])
           continue
         }
         if (!recs || recs.length === 0) {
@@ -503,7 +516,7 @@ export default function ReportPage() {
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', borderRadius: 6, padding: '2px 7px' }}><Check size={10} /> {ok}</span>
                       {late > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '2px 7px' }}><AlertTriangle size={10} /> {late}</span>}
                       {absent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '2px 7px' }}><X size={10} /> {absent}</span>}
-                      {leave > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '2px 7px' }}><CalendarOff size={10} /> {leave}</span>}
+                      {leave > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '2px 7px' }}><CalendarOff size={10} /> {+leave.toFixed(1)}</span>}
                       {fine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#be185d', background: '#fdf2f8', borderRadius: 6, padding: '2px 7px' }}><Wallet size={10} /> {fine} ฿</span>}
                     </div>
                   </div>

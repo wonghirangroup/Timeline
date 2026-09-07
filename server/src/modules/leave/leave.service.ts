@@ -3,22 +3,41 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
-const WORKDAY_HOURS = 8 // มาตรฐานสำหรับแปลง "ลาระบุช่วงเวลา" เป็นเศษวัน
+const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
+
+const toMin = (t?: string | null) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '')
+  return m ? +m[1] * 60 + +m[2] : NaN
+}
+
+// ชั่วโมงทำงานต่อวันของพนักงาน — อ่านจากกะจริง (default_shift ก่อน แล้ว employee_shifts)
+// span กะ ≥ 7 ชม. ถือว่ามีพักเที่ยง 1 ชม. → หักออก; ไม่มีกะ → 8
+async function getEmployeeWorkdayHours(tenantId: string, employeeId: string): Promise<number> {
+  const emp = await prisma.employee.findFirst({
+    where: { id: employeeId, tenant_id: tenantId },
+    select: {
+      default_shift: { select: { start_time: true, end_time: true } },
+      employee_shifts: { select: { shift: { select: { start_time: true, end_time: true } } }, take: 1 },
+    },
+  })
+  const shift = emp?.default_shift ?? emp?.employee_shifts[0]?.shift
+  if (!shift) return DEFAULT_WORKDAY_HOURS
+  let span = (toMin(shift.end_time) - toMin(shift.start_time)) / 60
+  if (!Number.isFinite(span) || span <= 0) return DEFAULT_WORKDAY_HOURS
+  if (span >= 7) span -= 1 // พักเที่ยง
+  return Math.max(1, span)
+}
 
 // คำนวณจำนวนวันที่ต้องหักโควต้าจาก leave_period
 //  FULL      → ใช้ค่า fallbackDays ที่ client ส่งมา (นับจากช่วงวันที่)
 //  MORNING/AFTERNOON → 0.5 (บังคับลา 1 วัน)
-//  CUSTOM    → (end_time - start_time) / 8 ชม. ปัดเป็นทวีคูณ 0.5 ขั้นต่ำ 0.5 (บังคับลา 1 วัน)
-function resolveLeaveDays(period: LeavePeriod, fallbackDays: number, startTime?: string | null, endTime?: string | null): number {
+//  CUSTOM    → (end_time - start_time) / ชม.ทำงานต่อวัน ปัดเป็นทวีคูณ 0.5 ขั้นต่ำ 0.5
+function resolveLeaveDays(period: LeavePeriod, fallbackDays: number, startTime?: string | null, endTime?: string | null, workdayHours = DEFAULT_WORKDAY_HOURS): number {
   if (period === 'MORNING' || period === 'AFTERNOON') return 0.5
   if (period === 'CUSTOM') {
-    const toMin = (t?: string | null) => {
-      const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '')
-      return m ? +m[1] * 60 + +m[2] : NaN
-    }
     const mins = toMin(endTime) - toMin(startTime)
     if (!Number.isFinite(mins) || mins <= 0) throw new Error('INVALID_TIME_RANGE')
-    return Math.max(0.5, Math.round((mins / 60 / WORKDAY_HOURS) * 2) / 2)
+    return Math.max(0.5, Math.round((mins / 60 / workdayHours) * 2) / 2)
   }
   return fallbackDays
 }
@@ -114,7 +133,8 @@ export async function createLeaveRequest(
   const period: LeavePeriod = data.leave_period ?? 'FULL'
   // ลาไม่เต็มวันต้องเป็นวันเดียว (start = end)
   if (period !== 'FULL' && data.start_date !== data.end_date) throw new Error('PARTIAL_LEAVE_SINGLE_DAY')
-  const days = resolveLeaveDays(period, data.days, data.start_time, data.end_time)
+  const workdayHours = period === 'CUSTOM' ? await getEmployeeWorkdayHours(tenantId, data.employee_id) : DEFAULT_WORKDAY_HOURS
+  const days = resolveLeaveDays(period, data.days, data.start_time, data.end_time, workdayHours)
 
   // ตรวจสอบวันลาทับซ้อน (PENDING หรือ APPROVED)
   const overlap = await prisma.leaveRequest.findFirst({
@@ -274,8 +294,9 @@ export async function updateLeaveRequest(
   const touchesPeriod = data.leave_period !== undefined || data.start_time !== undefined || data.end_time !== undefined
   const st = data.start_time ?? req.start_time
   const et = data.end_time ?? req.end_time
+  const workdayHours = touchesPeriod && period === 'CUSTOM' ? await getEmployeeWorkdayHours(tenantId, req.employee_id) : DEFAULT_WORKDAY_HOURS
   const recalcDays = touchesPeriod
-    ? resolveLeaveDays(period, data.days ?? req.days, st, et)
+    ? resolveLeaveDays(period, data.days ?? req.days, st, et, workdayHours)
     : data.days
 
   // ตรวจสอบวันลาทับซ้อน (ยกเว้นตัวเอง)
