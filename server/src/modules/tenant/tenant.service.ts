@@ -116,6 +116,29 @@ export async function assertPlanCapacity(tenantId: string, kind: 'employees' | '
   if (used >= limit) throw new Error('LIMIT_REACHED')
 }
 
+// ── การตั้งค่าที่ Admin ของ tenant แก้ได้เอง (แยกจาก max_* / plan ที่เป็นของ Super Admin) ──
+const TENANT_SETTINGS_SELECT = {
+  name: true, address: true, tax_id: true, logo_url: true, primary_color: true,
+  leave_backdate_days: true, plan: true,
+} as const
+
+export async function getTenantSettings(tenantId: string) {
+  return prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null }, select: TENANT_SETTINGS_SELECT })
+}
+
+export async function updateTenantSettings(tenantId: string, data: {
+  name?: string
+  address?: string | null
+  tax_id?: string | null
+  logo_url?: string | null
+  primary_color?: string | null
+  leave_backdate_days?: number | null
+}) {
+  const count = await prisma.tenant.updateMany({ where: { id: tenantId, deleted_at: null }, data })
+  if (count.count === 0) return null
+  return prisma.tenant.findFirst({ where: { id: tenantId }, select: TENANT_SETTINGS_SELECT })
+}
+
 export async function updateTenantFeatures(id: string, features: Partial<Record<string, boolean>>) {
   const existing = await prisma.tenant.findFirst({ where: { id, deleted_at: null }, select: { enabled_features: true } })
   if (!existing) return null

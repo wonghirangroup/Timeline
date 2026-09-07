@@ -12,12 +12,14 @@
 // แมววิ่งตัวเดียวกันทุก tenant แทน ไม่ต้องอัปโหลดเองอีกต่อไป (ดู
 // employee/src/components/ui/index.tsx PageLoader)
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
-import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { useIsReadOnly } from '../../stores/authStore'
+import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -226,48 +228,214 @@ function UserManagementSettings() {
   )
 }
 
+// ── รหัสผ่านของฉัน ──────────────────────────────────────────────────────────
+function SelfPasswordCard() {
+  const { showToast } = useToast()
+  const [cur, setCur] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const mut = useMutation({
+    mutationFn: () => api.post('/api/v1/auth/change-password', { current_password: cur, new_password: next }),
+    onSuccess: () => { showToast('success', 'เปลี่ยนรหัสผ่านสำเร็จ'); setCur(''); setNext(''); setConfirm('') },
+    onError: (err: any) => showToast('error', err.response?.data?.error?.code === 'WRONG_PASSWORD' ? 'รหัสผ่านปัจจุบันไม่ถูกต้อง' : 'เปลี่ยนไม่สำเร็จ'),
+  })
+  const valid = cur && next.length >= 6 && next === confirm
+  return (
+    <div style={{ ...card, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4338ca', flexShrink: 0 }}><Lock size={18} /></div>
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>รหัสผ่านของฉัน</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>เปลี่ยนรหัสผ่านของบัญชีที่คุณล็อกอินอยู่</p>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gap: 10, maxWidth: 360 }}>
+        <div><label style={fieldLabel}>รหัสผ่านปัจจุบัน</label><input type="password" style={inputStyle} value={cur} onChange={e => setCur(e.target.value)} /></div>
+        <div><label style={fieldLabel}>รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label><input type="password" style={inputStyle} value={next} onChange={e => setNext(e.target.value)} /></div>
+        <div><label style={fieldLabel}>ยืนยันรหัสผ่านใหม่</label><input type="password" style={inputStyle} value={confirm} onChange={e => setConfirm(e.target.value)} /></div>
+        {confirm && next !== confirm && <p style={{ fontSize: '11.5px', color: '#dc2626', margin: 0 }}>รหัสผ่านใหม่ไม่ตรงกัน</p>}
+        <button onClick={() => mut.mutate()} disabled={!valid || mut.isPending}
+          style={{ justifySelf: 'start', marginTop: 2, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed', opacity: valid ? 1 : 0.5 }}>
+          {mut.isPending ? 'กำลังบันทึก…' : 'เปลี่ยนรหัสผ่าน'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; plan: string }
+
+function CompanyProfileTab() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
+  const [form, setForm] = useState({ name: '', address: '', tax_id: '', logo_url: '', primary_color: '' })
+  useEffect(() => { if (data) setForm({ name: data.name ?? '', address: data.address ?? '', tax_id: data.tax_id ?? '', logo_url: data.logo_url ?? '', primary_color: data.primary_color ?? '' }) }, [data])
+
+  const mut = useMutation({
+    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
+      name: form.name.trim(),
+      address: form.address.trim() || null,
+      tax_id: form.tax_id.trim() || null,
+      logo_url: form.logo_url.trim() || null,
+      primary_color: form.primary_color.trim() || null,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกข้อมูลบริษัทแล้ว') },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  return (
+    <div style={{ ...card, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}><Building2 size={18} /></div>
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>ข้อมูลบริษัท & แบรนด์</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>ชื่อ/ที่อยู่บริษัทใช้บนเอกสารและรายงาน · โลโก้และสีใช้ปรับหน้าตาให้ตรงแบรนด์ · แพ็กเกจ {data?.plan}</p>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <div><label style={fieldLabel}>ชื่อบริษัท</label><input style={inputStyle} value={form.name} disabled={readOnly} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+        <div><label style={fieldLabel}>เลขประจำตัวผู้เสียภาษี</label><input style={inputStyle} value={form.tax_id} disabled={readOnly} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} placeholder="0000000000000" /></div>
+        <div style={{ gridColumn: '1 / -1' }}><label style={fieldLabel}>ที่อยู่</label><input style={inputStyle} value={form.address} disabled={readOnly} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด" /></div>
+        <div><label style={fieldLabel}>โลโก้ (URL รูปภาพ)</label><input style={inputStyle} value={form.logo_url} disabled={readOnly} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://..." /></div>
+        <div>
+          <label style={fieldLabel}>สีหลักของแบรนด์</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="color" disabled={readOnly} value={form.primary_color || '#f97316'} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: readOnly ? 'default' : 'pointer' }} />
+            <input style={{ ...inputStyle, flex: 1 }} value={form.primary_color} disabled={readOnly} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} placeholder="#f97316" />
+          </div>
+        </div>
+      </div>
+      {form.logo_url && (
+        <div style={{ marginTop: 12 }}>
+          <label style={fieldLabel}>ตัวอย่างโลโก้</label>
+          <img src={form.logo_url} alt="logo" style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain', borderRadius: 6, border: '1px solid #f1f5f9', padding: 4, background: '#fff' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        </div>
+      )}
+      {!readOnly && (
+        <button onClick={() => mut.mutate()} disabled={!form.name.trim() || mut.isPending}
+          style={{ marginTop: 16, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: form.name.trim() ? 1 : 0.5 }}>
+          {mut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── นโยบายการลา ────────────────────────────────────────────────────────────
+function LeavePolicyTab() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
+  const [unlimited, setUnlimited] = useState(true)
+  const [days, setDays] = useState(3)
+  useEffect(() => {
+    if (!data) return
+    setUnlimited(data.leave_backdate_days == null)
+    setDays(data.leave_backdate_days ?? 3)
+  }, [data])
+
+  const mut = useMutation({
+    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', { leave_backdate_days: unlimited ? null : Math.max(0, days) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  return (
+    <div style={{ ...card, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#ecfeff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0e7490', flexShrink: 0 }}><CalendarClock size={18} /></div>
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>การยื่นลาย้อนหลัง</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
+            จำกัดว่าพนักงานยื่นลาผ่าน LINE ย้อนหลังได้ไม่เกินกี่วัน — <strong>แอดมินลงวันลาแทนพนักงานได้ไม่จำกัด</strong> (ลาป่วย/ลาคลอดก็ไม่ติดข้อจำกัดนี้ทางฝั่งพนักงานถ้าตั้งไว้)
+          </p>
+        </div>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer', marginBottom: 10 }}>
+        <input type="checkbox" checked={unlimited} disabled={readOnly} onChange={e => setUnlimited(e.target.checked)} /> ไม่จำกัด (ยื่นย้อนหลังได้เท่าไหร่ก็ได้)
+      </label>
+      {!unlimited && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151' }}>
+          ย้อนหลังได้ไม่เกิน
+          <input type="number" min={0} max={90} value={days} disabled={readOnly} onChange={e => setDays(Math.max(0, parseInt(e.target.value) || 0))}
+            style={{ ...inputStyle, width: 72, textAlign: 'center' }} />
+          วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
+        </div>
+      )}
+      {!readOnly && (
+        <button onClick={() => mut.mutate()} disabled={mut.isPending}
+          style={{ marginTop: 16, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+          {mut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── ทางลัดไปตั้งค่าที่อยู่ที่อื่น ──────────────────────────────────────────────
+function ShortcutCard() {
+  return (
+    <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>ตั้งค่าที่อยู่ที่อื่น</p>
+      {[
+        { icon: <Clock size={16} />, label: 'เกณฑ์การสาย & ค่าปรับ · รัศมีเช็คอิน GPS', desc: 'ตั้งแยกทีละกะ', to: '/shift' },
+        { icon: <Users size={16} />, label: 'สถานะพนักงาน (ประจำ/ชั่วคราว) + โควต้าวันหยุด', desc: 'พนักงาน → ผังองค์กร → สถานะพนักงาน', to: '/org-structure' },
+      ].map((s, i) => (
+        <Link key={i} to={s.to} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: '#f9fafb', textDecoration: 'none', color: 'inherit' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>{s.icon}</div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', margin: 0 }}>{s.label}</p>
+            <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: '2px 0 0' }}>{s.desc}</p>
+          </div>
+          <span style={{ color: '#9ca3af' }}>→</span>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+type SettingsTab = 'general' | 'users' | 'leave' | 'plan'
+const TABS: { key: SettingsTab; label: string }[] = [
+  { key: 'general', label: 'ทั่วไป' },
+  { key: 'users',   label: 'ผู้ใช้งาน' },
+  { key: 'leave',   label: 'นโยบายการลา' },
+  { key: 'plan',    label: 'แพ็กเกจ' },
+]
+
 export default function SettingsPage() {
+  const [tab, setTab] = useState<SettingsTab>('general')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>การตั้งค่า</h1>
-        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-          การตั้งค่าที่เกี่ยวกับเวลาเข้างาน (ค่าปรับสาย, รัศมี GPS) กำหนดแยกทีละกะเพื่อรองรับแต่ละสาขา/กะที่กฎไม่เหมือนกัน
-        </p>
+        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>ข้อมูลบริษัท ผู้ใช้งานเว็บ และนโยบายที่ใช้ทั้งบริษัท</p>
       </div>
 
-      <UserManagementSettings />
-
-      <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
-            <Clock size={18} />
-          </div>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>เกณฑ์การสาย & ค่าปรับ</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
-              ตั้งค่าแยกทีละกะ — ไปที่ <strong>กะ & เวลา → จัดการกะ</strong> เลือกกะที่ต้องการ แล้วดูส่วน "เกณฑ์การสาย & ค่าปรับ"
-            </p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
-            <MapPin size={18} />
-          </div>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>รัศมีเช็คอิน GPS</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
-              ตั้งค่าแยกทีละกะเช่นกัน — ไปที่ <strong>กะ & เวลา → จัดการกะ</strong>
-            </p>
-          </div>
-        </div>
-        <Link to="/shift" style={{
-          alignSelf: 'flex-start', marginTop: 4, padding: '8px 16px', borderRadius: 8, textDecoration: 'none',
-          background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600,
-        }}>
-          ไปที่จัดการกะ →
-        </Link>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            style={{ padding: '9px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
+              color: tab === t.key ? '#c2410c' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === t.key ? '#f97316' : 'transparent'}`, marginBottom: -1 }}>
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {tab === 'general' && <><CompanyProfileTab /><ShortcutCard /></>}
+      {tab === 'users' && <><SelfPasswordCard /><UserManagementSettings /></>}
+      {tab === 'leave' && <LeavePolicyTab />}
+      {tab === 'plan' && (
+        <div style={{ ...card, padding: 20 }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>ต้องการขยายขีดจำกัด ติดต่อผู้ดูแลระบบ (Super Admin)</p>
+          <PlanUsageRow />
+        </div>
+      )}
     </div>
   )
 }

@@ -135,6 +135,17 @@ export async function createLeaveRequest(
     leaveOverrideBy = data.reviewedBy ?? null
   }
 
+  // นโยบายลาย้อนหลัง — บังคับเฉพาะพนักงานยื่นเอง (แอดมินลงให้ = autoApprove ข้ามได้ เพราะบันทึกย้อนหลังตามจริง)
+  if (!data.autoApprove) {
+    const tenant = await prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null }, select: { leave_backdate_days: true } })
+    const maxBack = tenant?.leave_backdate_days
+    if (maxBack != null) {
+      const today = new Date(); today.setUTCHours(0, 0, 0, 0)
+      const earliest = new Date(today); earliest.setUTCDate(earliest.getUTCDate() - maxBack)
+      if (new Date(data.start_date) < earliest) throw new Error('LEAVE_BACKDATE_EXCEEDED')
+    }
+  }
+
   const period: LeavePeriod = data.leave_period ?? 'FULL'
   // ลาไม่เต็มวันต้องเป็นวันเดียว (start = end)
   if (period !== 'FULL' && data.start_date !== data.end_date) throw new Error('PARTIAL_LEAVE_SINGLE_DAY')

@@ -1290,7 +1290,8 @@ export default function LeavePage() {
     },
     onError: (err: any) => {
       const code = err.response?.data?.error?.code
-      if (code === 'LEAVE_OVERLAP')        setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
+      if (code === 'LEAVE_BACKDATE_EXCEEDED') setErrorMsg('ยื่นลาย้อนหลังเกินกำหนดของบริษัท — ติดต่อแอดมินให้บันทึกให้')
+      else if (code === 'LEAVE_OVERLAP')   setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
       else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
       else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการลาประเภทนี้ — ยื่นได้เฉพาะลาป่วย/ลาคลอด')
       else if (code === 'INVALID_TIME_RANGE') setErrorMsg('ช่วงเวลาที่ลาไม่ถูกต้อง')
@@ -1340,6 +1341,14 @@ export default function LeavePage() {
       setForm(f => ({ ...f, leaveType: 'SICK' }))
     }
   }, [leaveRestricted, form.leaveType])
+
+  // ยื่นลาย้อนหลังได้ถึงวันไหน — ตามนโยบายบริษัท (null = ไม่จำกัด → ให้ย้อนได้ถึงต้นปี)
+  const minLeaveDate = (() => {
+    const back = employee?.leave_backdate_days
+    const d = new Date()
+    d.setDate(d.getDate() - (back == null ? 366 : back))
+    return d.toISOString().slice(0, 10)
+  })()
 
   const days      = calcLeaveDays()
   const submitting = submitMutation.isPending
@@ -1488,12 +1497,12 @@ export default function LeavePage() {
               <div style={{ display: 'grid', gridTemplateColumns: form.period === 'FULL' ? '1fr 1fr' : '1fr', gap: 10, marginBottom: 16 }}>
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>{form.period === 'FULL' ? 'วันที่เริ่มลา' : 'วันที่ลา'}</div>
-                  <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} min={new Date().toISOString().slice(0, 10)} />
+                  <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} min={minLeaveDate} />
                 </div>
                 {form.period === 'FULL' && (
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>วันที่สิ้นสุด</div>
-                    <ThaiDatePicker value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} min={form.startDate || new Date().toISOString().slice(0, 10)} />
+                    <ThaiDatePicker value={form.endDate} onChange={v => setForm(f => ({ ...f, endDate: v }))} min={form.startDate || minLeaveDate} />
                   </div>
                 )}
               </div>

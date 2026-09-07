@@ -9,6 +9,7 @@ import {
   createRefreshToken,
   verifyRefreshToken,
   findUserById,
+  changeOwnPassword,
 } from './auth.service'
 import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
@@ -182,6 +183,33 @@ export async function authRoutes(app: FastifyInstance) {
     } catch (err) {
       reply.code(401)
       return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
+    }
+  })
+
+  // ── เปลี่ยนรหัสผ่านของตัวเอง ──────────────────────────────────────
+  app.post('/change-password', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'เปลี่ยนรหัสผ่านของผู้ใช้ที่ล็อกอินอยู่ (ยืนยันรหัสเดิม)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['current_password', 'new_password'],
+        properties: {
+          current_password: { type: 'string', minLength: 1 },
+          new_password:     { type: 'string', minLength: 6 },
+        },
+      },
+    },
+  }, async (request: any, reply) => {
+    try {
+      await request.jwtVerify()
+      await changeOwnPassword(request.user.id, request.body.current_password, request.body.new_password)
+      return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ' }
+    } catch (err: any) {
+      if (err?.message === 'WRONG_PASSWORD') { reply.code(400); return { success: false, error: { code: 'WRONG_PASSWORD', message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' } } }
+      if (err?.message === 'NOT_FOUND')      { reply.code(404); return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบผู้ใช้' } } }
+      reply.code(401); return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
     }
   })
 }

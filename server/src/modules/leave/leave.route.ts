@@ -194,6 +194,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
       if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขาของคุณปิดการลาประเภทนี้ — ยื่นได้เฉพาะลาป่วย/ลาคลอด'))
+      if (e.message === 'LEAVE_BACKDATE_EXCEEDED') return reply.code(400).send(fail('LEAVE_BACKDATE_EXCEEDED', 'ยื่นลาย้อนหลังเกินกำหนดของบริษัท — ติดต่อแอดมินให้บันทึกให้'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
       throw e

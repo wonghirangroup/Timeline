@@ -36,12 +36,13 @@ export async function employeeMeRoutes(app: FastifyInstance) {
 
     // สิทธิ์จอง/ลา — cascade 6 ชั้น กลุ่ม→สาขา→ฝ่าย→แผนก→ตำแหน่ง→บุคคล (ดู group.service.ts)
     // ใช้ซ่อน UI ฝั่ง LIFF เมื่อปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
-    const [booking_enabled, leave_enabled] = await Promise.all([
+    const [booking_enabled, leave_enabled, tenant] = await Promise.all([
       resolveBookingEnabled(req.tenantId, employeeId),
       resolveLeaveEnabled(req.tenantId, employeeId),
+      prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true } }),
     ])
 
-    return ok({ employee: { ...employee, booking_enabled, leave_enabled }, shifts })
+    return ok({ employee: { ...employee, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null }, shifts })
   })
 
   // GET /api/v1/employee/holidays?year=

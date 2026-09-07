@@ -24,6 +24,18 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash)
 }
 
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 10)
+}
+
+// เปลี่ยนรหัสผ่านของตัวเอง — ต้องยืนยันรหัสเดิมก่อน
+export async function changeOwnPassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) throw new Error('NOT_FOUND')
+  if (!(await bcrypt.compare(currentPassword, user.password))) throw new Error('WRONG_PASSWORD')
+  await prisma.user.update({ where: { id: userId }, data: { password: await bcrypt.hash(newPassword, 10), must_change_password: false } })
+}
+
 export function createAccessToken(app: FastifyInstance, user: User) {
   return app.jwt.sign(
     {
