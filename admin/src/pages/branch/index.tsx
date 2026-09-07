@@ -21,6 +21,8 @@ interface ApiBranch {
   is_active: boolean
   created_at: string
   group_id?: string | null
+  booking_enabled?: boolean | null
+  leave_enabled?: boolean | null
   _count: { employees: number; shifts: number }
 }
 interface ApiGroup { id: string; name: string }
@@ -117,6 +119,29 @@ const inputStyle: React.CSSProperties = {
 const QR_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="%23fff"/><rect x="10" y="10" width="50" height="50" rx="4" fill="%23111"/><rect x="18" y="18" width="34" height="34" rx="2" fill="%23fff"/><rect x="24" y="24" width="22" height="22" rx="1" fill="%23111"/><rect x="100" y="10" width="50" height="50" rx="4" fill="%23111"/><rect x="108" y="18" width="34" height="34" rx="2" fill="%23fff"/><rect x="114" y="24" width="22" height="22" rx="1" fill="%23111"/><rect x="10" y="100" width="50" height="50" rx="4" fill="%23111"/><rect x="18" y="108" width="34" height="34" rx="2" fill="%23fff"/><rect x="24" y="114" width="22" height="22" rx="1" fill="%23111"/><rect x="72" y="10" width="8" height="8" fill="%23111"/><rect x="72" y="24" width="8" height="8" fill="%23111"/><rect x="72" y="38" width="8" height="8" fill="%23111"/><rect x="72" y="52" width="8" height="8" fill="%23111"/><rect x="86" y="10" width="8" height="8" fill="%23111"/><rect x="86" y="38" width="8" height="8" fill="%23111"/><rect x="72" y="72" width="8" height="8" fill="%23111"/><rect x="86" y="72" width="8" height="8" fill="%23111"/><rect x="100" y="72" width="8" height="8" fill="%23111"/><rect x="114" y="72" width="8" height="8" fill="%23111"/><rect x="128" y="72" width="8" height="8" fill="%23111"/><rect x="142" y="72" width="8" height="8" fill="%23111"/><rect x="72" y="86" width="8" height="8" fill="%23111"/><rect x="100" y="86" width="8" height="8" fill="%23111"/><rect x="128" y="86" width="8" height="8" fill="%23111"/><rect x="72" y="100" width="8" height="8" fill="%23111"/><rect x="86" y="100" width="8" height="8" fill="%23111"/><rect x="100" y="100" width="8" height="8" fill="%23111"/><rect x="128" y="100" width="8" height="8" fill="%23111"/><rect x="142" y="100" width="8" height="8" fill="%23111"/><rect x="72" y="114" width="8" height="8" fill="%23111"/><rect x="114" y="114" width="8" height="8" fill="%23111"/><rect x="72" y="128" width="8" height="8" fill="%23111"/><rect x="86" y="128" width="8" height="8" fill="%23111"/><rect x="100" y="128" width="8" height="8" fill="%23111"/><rect x="128" y="128" width="8" height="8" fill="%23111"/><rect x="142" y="142" width="8" height="8" fill="%23111"/></svg>`
 
 type ModalMode = 'add' | 'edit' | 'qr' | null
+
+// 3-state policy toggle (null = inherit จากกลุ่ม) — สิทธิ์จองวันหยุด / การลา ระดับสาขา
+const BRANCH_POLICY_TXT = {
+  booking: { on: 'เปิด (จองได้)', off: 'ปิด (จองไม่ได้)' },
+  leave:   { on: 'เปิด (ลาได้)',  off: 'ปิด (ลาไม่ได้)' },
+} as const
+const BranchPolicyToggle = ({ value, onChange, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; kind: 'booking' | 'leave' }) => (
+  <div style={{ display: 'flex', gap: 4 }}>
+    {([
+      { v: null,  label: 'ใช้ค่าจากกลุ่ม',           color: '#6b7280', bg: '#f9fafb' },
+      { v: true,  label: BRANCH_POLICY_TXT[kind].on,  color: '#16a34a', bg: '#f0fdf4' },
+      { v: false, label: BRANCH_POLICY_TXT[kind].off, color: '#dc2626', bg: '#fef2f2' },
+    ] as const).map(opt => {
+      const active = value === opt.v
+      return (
+        <button key={String(opt.v)} type="button" onClick={() => onChange(opt.v)}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: `1.5px solid ${active ? opt.color : '#e5e7eb'}`, background: active ? opt.bg : '#fff', color: active ? opt.color : '#9ca3af', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          {opt.label}
+        </button>
+      )
+    })}
+  </div>
+)
 
 // ── Branch Tour ────────────────────────────────────────────────────────────────
 const BRANCH_TOUR_STEPS = [
@@ -321,7 +346,7 @@ export default function BranchPage() {
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
-  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK' })
+  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null })
 
   const [tourActive, setTourActive] = React.useState(false)
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
@@ -434,7 +459,7 @@ export default function BranchPage() {
   }
 
   const openAdd = () => {
-    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' })
+    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null })
     setEditTarget(null)
     setStep(1)
     setShowInfo(false)
@@ -444,7 +469,7 @@ export default function BranchPage() {
   }
 
   const openEdit = (b: ApiBranch) => {
-    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN' })
+    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null })
     setEditTarget(b)
     setStep(1)
     setShowInfo(false)
@@ -542,6 +567,8 @@ export default function BranchPage() {
       lng: form.lng ? parseFloat(form.lng) : undefined,
       gps_radius: parseInt(form.gps_radius) || 200,
       geo_mode: form.geo_mode,
+      booking_enabled: form.booking_enabled,
+      leave_enabled: form.leave_enabled,
     }
     if (modal === 'add') {
       createMutation.mutate(body)
@@ -694,6 +721,12 @@ export default function BranchPage() {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, fontWeight: 600, fontSize: '11px', background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
                     {b.geo_mode === 'BLOCK' ? <><Ban size={10} /> BLOCK</> : <><AlertTriangle size={10} /> WARN</>}
                   </span>
+                </p>
+              )}
+              {(b.booking_enabled === false || b.leave_enabled === false) && (
+                <p style={{ fontSize: '11px', margin: '0 0 8px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {b.booking_enabled === false && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, fontWeight: 700, background: '#fef2f2', color: '#dc2626' }}><Lock size={10} /> ปิดจองวันหยุด</span>}
+                  {b.leave_enabled === false && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, fontWeight: 700, background: '#fef2f2', color: '#dc2626' }}><Lock size={10} /> ปิดการลา</span>}
                 </p>
               )}
 
@@ -879,6 +912,15 @@ export default function BranchPage() {
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>ที่อยู่ / สถานที่ตั้ง</label>
                       <textarea value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                         placeholder="เลขที่ ถนน ตำบล อำเภอ จังหวัด" rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>สิทธิ์จองวันหยุด</label>
+                      <BranchPolicyToggle kind="booking" value={form.booking_enabled} onChange={v => setForm(f => ({ ...f, booking_enabled: v }))} />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>ฝ่าย/แผนก/ตำแหน่ง/พนักงาน ที่ตั้งค่าเจาะจงกว่าจะ override ค่านี้ได้</p>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>สิทธิ์การลา</label>
+                      <BranchPolicyToggle kind="leave" value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} />
                     </div>
                   </>
                 )}

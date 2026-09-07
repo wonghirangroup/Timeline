@@ -126,6 +126,8 @@ export async function updateEmployee(
     pending_fine?: number   // แอดมินปรับมือได้ (เช่น ยกเลิก/แก้ค่าปรับขาดที่ยกมา)
     position_id?: string | null
     employee_status_type_id?: string | null
+    booking_enabled_override?: boolean | null
+    leave_enabled_override?: boolean | null
   },
 ) {
   const { hired_at, ...rest } = data

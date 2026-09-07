@@ -1,5 +1,6 @@
 // server/src/modules/leave/leave.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { resolveLeaveEnabled } from '../group/group.service'
 
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listLeaveRequests(tenantId: string, filters: {
@@ -64,6 +65,7 @@ async function hasPositionConflict(
 
 // autoApprove: true เฉพาะตอนแอดมิน/หัวหน้าแผนกลงวันลาแทนพนักงานเอง (ไม่ต้องรออนุมัติซ้ำ
 // เพราะคนลงคือคนอนุมัติอยู่แล้วในตัว) — พนักงานยื่นเองผ่าน LIFF ต้องผ่าน PENDING ปกติเสมอ
+// force: แอดมินกด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ leave cascade = ปิด (พนักงาน LIFF ยื่นเองส่ง force ไม่ได้ → โดนบล็อก)
 export async function createLeaveRequest(
   tenantId: string,
   data: {
@@ -75,8 +77,16 @@ export async function createLeaveRequest(
     reason?: string
     autoApprove?: boolean
     reviewedBy?: string
+    force?: boolean
   },
 ) {
+  // gate ด้วย leave cascade (บุคคล→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag()
+  let leaveOverrideBy: string | null = null
+  if (!(await resolveLeaveEnabled(tenantId, data.employee_id))) {
+    if (!data.force) throw new Error('LEAVE_DISABLED')
+    leaveOverrideBy = data.reviewedBy ?? null
+  }
+
   // ตรวจสอบวันลาทับซ้อน (PENDING หรือ APPROVED)
   const overlap = await prisma.leaveRequest.findFirst({
     where: {
@@ -117,6 +127,7 @@ export async function createLeaveRequest(
       days: data.days,
       reason: data.reason,
       has_conflict: conflict,
+      policy_override_by: leaveOverrideBy,
       ...(data.autoApprove ? { status: 'APPROVED', reviewed_by: data.reviewedBy, reviewed_at: new Date() } : {}),
     },
   })

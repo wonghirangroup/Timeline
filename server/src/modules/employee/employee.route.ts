@@ -97,6 +97,8 @@ export async function employeeRoutes(app: FastifyInstance) {
           pending_fine: { type: 'number', description: 'ค่าปรับขาดที่ยกมา — แอดมินปรับมือได้ เช่น ยกเลิก/แก้' },
           position_id: { type: ['string', 'null'] },
           employee_status_type_id: { type: ['string', 'null'] },
+          booking_enabled_override: { type: ['boolean', 'null'], description: 'override สิทธิ์จองวันหยุดรายคน — null = inherit จากตำแหน่ง/แผนก/…/กลุ่ม' },
+          leave_enabled_override:   { type: ['boolean', 'null'], description: 'override สิทธิ์การลารายคน — null = inherit' },
         },
       },
     },

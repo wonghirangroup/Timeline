@@ -173,6 +173,7 @@ export default function LeaveRequestsTab() {
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
   const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '' })
+  const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา
   const [page, setPage]                   = useState(1)
   const PAGE_SIZE = 10
 
@@ -231,9 +232,10 @@ export default function LeaveRequestsTab() {
       setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '' })
       setTab('requests')
     },
-    onError: (err: any) => {
+    onError: (err: any, body: any) => {
       const code = err.response?.data?.error?.code
-      if (code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกัน')
+      if (code === 'LEAVE_DISABLED') setForcePrompt({ ...body, force: true })
+      else if (code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกัน')
       else if (code === 'INSUFFICIENT_BALANCE') showToast('error', 'วันลาคงเหลือไม่เพียงพอ')
       else showToast('error', 'สร้างไม่สำเร็จ')
     },
@@ -629,6 +631,17 @@ export default function LeaveRequestsTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {forcePrompt && (
+        <ConfirmDialog
+          title="สาขา/กลุ่มปิดสิทธิ์การลา"
+          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์การลา ยืนยันบันทึกวันลาให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          confirmLabel="ยืนยันเพิ่มให้"
+          variant="warning"
+          onConfirm={() => { const b = forcePrompt; setForcePrompt(null); addMutation.mutate(b) }}
+          onCancel={() => setForcePrompt(null)}
+        />
       )}
 
       {/* Delete confirm */}

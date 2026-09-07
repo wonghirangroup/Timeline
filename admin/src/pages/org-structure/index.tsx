@@ -32,11 +32,11 @@ const modalOverlay: React.CSSProperties = { position: 'fixed', inset: 0, backgro
 const modalBox: React.CSSProperties = { background: '#fff', borderRadius: 16, width: 400, maxWidth: '92vw', padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }
 const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
 
-interface GroupT { id: string; name: string; booking_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
+interface GroupT { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
 interface BranchT { id: string; name: string; group_id: string | null }
-interface Div  { id: string; name: string; group_id: string; booking_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
-interface Dept { id: string; name: string; division_id: string; booking_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
-interface Pos  { id: string; name: string; department_id: string; is_active: boolean; _count: { employees: number } }
+interface Div  { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
+interface Dept { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
+interface Pos  { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { employees: number } }
 
 interface TreePos extends Pos {}
 interface TreeDept extends Dept { positions: TreePos[] }
@@ -48,13 +48,17 @@ const LEVEL_ICON: Record<Level, JSX.Element> = { division: <Layers size={15}/>, 
 const LEVEL_COLOR: Record<Level, string> = { division: '#6366f1', department: '#0891b2', position: '#16a34a' }
 const LEVEL_ENDPOINT: Record<Level, string> = { division: 'divisions', department: 'departments', position: 'positions' }
 
-// null = inherit จากชั้นบน, true/false = override ตรงๆ — ใช้ซ้ำทั้ง Division/Department/Employee
-const BookingToggle = ({ value, onChange, inheritLabel }: { value: boolean | null; onChange: (v: boolean | null) => void; inheritLabel: string }) => (
+// null = inherit จากชั้นบน, true/false = override ตรงๆ — ใช้ซ้ำทั้ง Branch/Division/Department/Position/Employee
+const POLICY_TXT = {
+  booking: { on: 'เปิด (จองได้)', off: 'ปิด (จองไม่ได้)' },
+  leave:   { on: 'เปิด (ลาได้)',  off: 'ปิด (ลาไม่ได้)' },
+} as const
+const PolicyToggle = ({ value, onChange, inheritLabel, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; inheritLabel: string; kind: 'booking' | 'leave' }) => (
   <div style={{ display: 'flex', gap: 4 }}>
     {([
-      { v: null,  label: inheritLabel,  color: '#6b7280', bg: '#f9fafb' },
-      { v: true,  label: 'เปิด (จองได้)', color: '#16a34a', bg: '#f0fdf4' },
-      { v: false, label: 'ปิด (จองไม่ได้)', color: '#dc2626', bg: '#fef2f2' },
+      { v: null,  label: inheritLabel,        color: '#6b7280', bg: '#f9fafb' },
+      { v: true,  label: POLICY_TXT[kind].on,  color: '#16a34a', bg: '#f0fdf4' },
+      { v: false, label: POLICY_TXT[kind].off, color: '#dc2626', bg: '#fef2f2' },
     ] as const).map(opt => {
       const active = value === opt.v
       return (
@@ -67,12 +71,31 @@ const BookingToggle = ({ value, onChange, inheritLabel }: { value: boolean | nul
   </div>
 )
 
+// 2-state (ไม่มี inherit) — ใช้ที่ชั้นกลุ่ม
+const GROUP_TXT = {
+  booking: { on: 'เปิด — จองได้', off: 'ปิด — หยุดได้แค่เสาร์-อาทิตย์ตายตัว' },
+  leave:   { on: 'เปิด — ลาได้',  off: 'ปิด — ยื่นคำขอลาไม่ได้' },
+} as const
+const GroupToggle = ({ value, onChange, kind }: { value: boolean; onChange: (v: boolean) => void; kind: 'booking' | 'leave' }) => (
+  <div style={{ display: 'flex', gap: 4 }}>
+    {[{ v: true, label: GROUP_TXT[kind].on }, { v: false, label: GROUP_TXT[kind].off }].map(opt => {
+      const active = value === opt.v
+      return (
+        <button key={String(opt.v)} type="button" onClick={() => onChange(opt.v)}
+          style={{ flex: 1, padding: '9px 6px', borderRadius: 8, border: `1.5px solid ${active ? (opt.v ? '#16a34a' : '#dc2626') : '#e5e7eb'}`, background: active ? (opt.v ? '#f0fdf4' : '#fef2f2') : '#fff', color: active ? (opt.v ? '#16a34a' : '#dc2626') : '#9ca3af', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>
+          {opt.label}
+        </button>
+      )
+    })}
+  </div>
+)
+
 // ── กลุ่ม (บริษัท) Tab ───────────────────────────────────────────────────────
 function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string; onSelectGroup: (id: string) => void }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
-  const [form, setForm] = useState({ name: '', booking_enabled: true })
+  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true })
   const [deleteTarget, setDeleteTarget] = useState<GroupT | null>(null)
   const [assignBranchGroup, setAssignBranchGroup] = useState<Record<string, string>>({})
 
@@ -102,8 +125,8 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
     onError: () => showToast('error', 'ผูกไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', booking_enabled: true }); setModal({}) }
-  const openEdit = (g: GroupT) => { setForm({ name: g.name, booking_enabled: g.booking_enabled }); setModal({ edit: g }) }
+  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true }); setModal({}) }
+  const openEdit = (g: GroupT) => { setForm({ name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled }); setModal({ edit: g }) }
   const handleSave = () => {
     if (!modal || !form.name.trim()) return
     if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body: form })
@@ -116,7 +139,7 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)', maxWidth: 480 }}>
-          กลุ่ม (บริษัท) คั่นระหว่างสาขากับผังองค์กร — กำหนดสิทธิ์จองวันหยุดเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/พนักงานในกลุ่มนั้น
+          กลุ่ม (บริษัท) คั่นระหว่างสาขากับผังองค์กร — กำหนดสิทธิ์จองวันหยุด/การลา เริ่มต้นของทุกสาขา/ฝ่าย/แผนก/ตำแหน่ง/พนักงานในกลุ่มนั้น (ชั้นล่างกว่า override ได้)
         </p>
         <button style={btnPrimary} onClick={openAdd}><Plus size={14}/> เพิ่มกลุ่ม</button>
       </div>
@@ -139,6 +162,9 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: g.booking_enabled ? '#16a34a' : '#dc2626', background: g.booking_enabled ? '#f0fdf4' : '#fef2f2', padding: '4px 10px', borderRadius: 99 }}>
                   {g.booking_enabled ? 'จองวันหยุดได้' : 'จองวันหยุดไม่ได้'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: g.leave_enabled ? '#16a34a' : '#dc2626', background: g.leave_enabled ? '#f0fdf4' : '#fef2f2', padding: '4px 10px', borderRadius: 99 }}>
+                  {g.leave_enabled ? 'ลาได้' : 'ลาไม่ได้'}
                 </span>
                 <button onClick={() => onSelectGroup(g.id)} style={{ ...btnGhost('#f97316', '#fff7ed'), border: isSelected ? '1.5px solid #f97316' : '1px dashed #f9731655' }}>
                   {isSelected ? '✓ กำลังดูผังกลุ่มนี้' : 'ดูผังองค์กร'}
@@ -180,17 +206,9 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
             <label style={label}>ชื่อกลุ่ม</label>
             <input autoFocus style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น วงษ์, สมาร์ทจิ๊กซอว์" />
             <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์จองวันหยุด (ค่าเริ่มต้นของทุกอย่างในกลุ่มนี้)</label>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {[{ v: true, label: 'เปิด — จองได้' }, { v: false, label: 'ปิด — หยุดได้แค่เสาร์-อาทิตย์ตายตัว' }].map(opt => {
-                const active = form.booking_enabled === opt.v
-                return (
-                  <button key={String(opt.v)} type="button" onClick={() => setForm(f => ({ ...f, booking_enabled: opt.v }))}
-                    style={{ flex: 1, padding: '9px 6px', borderRadius: 8, border: `1.5px solid ${active ? (opt.v ? '#16a34a' : '#dc2626') : '#e5e7eb'}`, background: active ? (opt.v ? '#f0fdf4' : '#fef2f2') : '#fff', color: active ? (opt.v ? '#16a34a' : '#dc2626') : '#9ca3af', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+            <GroupToggle value={form.booking_enabled} onChange={v => setForm(f => ({ ...f, booking_enabled: v }))} kind="booking" />
+            <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา (ค่าเริ่มต้นของทุกอย่างในกลุ่มนี้)</label>
+            <GroupToggle value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} kind="leave" />
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
@@ -347,7 +365,7 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
   const { showToast } = useToast()
   const [addModal, setAddModal] = useState<Level | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
-  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null }>({ name: '', booking_enabled: null })
+  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null }>({ name: '', booking_enabled: null, leave_enabled: null })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
 
   const { data: divs  = [], isLoading } = useQuery<Div[]>({ queryKey: ['divisions', groupId], queryFn: () => api.get('/api/v1/admin/divisions', { params: { group_id: groupId } }).then(r => r.data.data) })
@@ -373,15 +391,19 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
     onError: (err: any) => showToast('error', err.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
   })
 
-  const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null }); setEditModal({ level, row }) }
+  const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null }); setEditModal({ level, row }) }
   const handleEditSave = () => {
     if (!editModal || !editForm.name.trim()) return
-    const body: any = { name: editForm.name }
-    if (editModal.level !== 'position') body.booking_enabled = editForm.booking_enabled
-    updateMutation.mutate({ level: editModal.level, id: editModal.row.id, body })
+    // ทุกชั้น (รวมตำแหน่ง) รับ booking_enabled/leave_enabled แล้ว
+    updateMutation.mutate({ level: editModal.level, id: editModal.row.id, body: {
+      name: editForm.name, booking_enabled: editForm.booking_enabled, leave_enabled: editForm.leave_enabled,
+    } })
   }
-  const bookingBadge = (v: boolean | null) => v === null ? null : (
-    <span style={{ fontSize: '9.5px', fontWeight: 700, color: v ? '#16a34a' : '#dc2626', background: v ? '#f0fdf4' : '#fef2f2', padding: '1px 6px', borderRadius: 99 }}>{v ? 'จองได้' : 'จองไม่ได้'}</span>
+  const policyBadge = (v: boolean | null, on: string, off: string) => v === null ? null : (
+    <span style={{ fontSize: '9.5px', fontWeight: 700, color: v ? '#16a34a' : '#dc2626', background: v ? '#f0fdf4' : '#fef2f2', padding: '1px 6px', borderRadius: 99 }}>{v ? on : off}</span>
+  )
+  const orgBadges = (row: { booking_enabled: boolean | null; leave_enabled: boolean | null }) => (
+    <>{policyBadge(row.booking_enabled, 'จองได้', 'จองไม่ได้')}{policyBadge(row.leave_enabled, 'ลาได้', 'ลาไม่ได้')}</>
   )
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
@@ -413,13 +435,13 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
                   </div>
                   <ul>
                     {tree.map(dv => (
-                      <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={bookingBadge(dv.booking_enabled)}
+                      <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
                         onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
                         {dv.departments.length > 0 ? dv.departments.map(dt => (
-                          <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={bookingBadge(dt.booking_enabled)}
+                          <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
                             onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
                             {dt.positions.map(p => (
-                              <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`}
+                              <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
                                 onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
                             ))}
                           </TreeNode>
@@ -442,16 +464,17 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>แก้ไข{LEVEL_LABEL[editModal.level]}</h3>
             <label style={label}>ชื่อ</label>
             <input autoFocus style={inputStyle} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-            {editModal.level !== 'position' && (
-              <>
-                <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์จองวันหยุด</label>
-                <BookingToggle
-                  value={editForm.booking_enabled}
-                  onChange={v => setEditForm(f => ({ ...f, booking_enabled: v }))}
-                  inheritLabel={editModal.level === 'division' ? 'ใช้ค่าจากกลุ่ม' : 'ใช้ค่าจากฝ่าย'}
-                />
-              </>
-            )}
+            {(() => {
+              const inheritLabel = editModal.level === 'division' ? 'ใช้ค่าจากกลุ่ม' : editModal.level === 'department' ? 'ใช้ค่าจากฝ่าย' : 'ใช้ค่าจากแผนก'
+              return (
+                <>
+                  <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์จองวันหยุด</label>
+                  <PolicyToggle kind="booking" value={editForm.booking_enabled} onChange={v => setEditForm(f => ({ ...f, booking_enabled: v }))} inheritLabel={inheritLabel} />
+                  <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา</label>
+                  <PolicyToggle kind="leave" value={editForm.leave_enabled} onChange={v => setEditForm(f => ({ ...f, leave_enabled: v }))} inheritLabel={inheritLabel} />
+                </>
+              )
+            })()}
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setEditModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleEditSave} disabled={!editForm.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !editForm.name.trim() ? 0.5 : 1 }}>

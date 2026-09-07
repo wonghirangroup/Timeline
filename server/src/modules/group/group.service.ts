@@ -1,7 +1,8 @@
 // server/src/modules/group/group.service.ts
 // กลุ่ม (บริษัท) — ชั้นนโยบายเหนือสาขา คั่นระหว่าง Tenant กับ Branch จำนวนกลุ่มต่อ tenant
-// จำกัดตาม Tenant.max_groups (package) — resolveBookingEnabled() คือ core ของ policy cascade:
-// Employee override → Department → Division → Group → true (default ปลอดภัยสุด ถ้าไม่มีอะไรตั้งไว้เลย)
+// จำกัดตาม Tenant.max_groups (package) — resolvePolicyFlag() คือ core ของ policy cascade 6 ชั้น:
+// บุคคล override → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม → true (เจาะจงกว่าชนะ)
+// 2 แกนอิสระ: 'booking' (จองวันหยุด) / 'leave' (ยื่นคำขอลา)
 import { prisma } from '../../common/utils/prisma'
 
 export async function listGroups(tenantId: string) {
@@ -12,7 +13,7 @@ export async function listGroups(tenantId: string) {
   })
 }
 
-export async function createGroup(tenantId: string, data: { name: string; booking_enabled?: boolean }) {
+export async function createGroup(tenantId: string, data: { name: string; booking_enabled?: boolean; leave_enabled?: boolean }) {
   const tenant = await prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null } })
   if (!tenant) throw new Error('TENANT_NOT_FOUND')
 
@@ -20,11 +21,16 @@ export async function createGroup(tenantId: string, data: { name: string; bookin
   if (current >= tenant.max_groups) throw new Error('LIMIT_REACHED')
 
   return prisma.group.create({
-    data: { tenant_id: tenantId, name: data.name, booking_enabled: data.booking_enabled ?? true },
+    data: {
+      tenant_id: tenantId,
+      name: data.name,
+      booking_enabled: data.booking_enabled ?? true,
+      leave_enabled: data.leave_enabled ?? true,
+    },
   })
 }
 
-export async function updateGroup(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean; is_active?: boolean }) {
+export async function updateGroup(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean; leave_enabled?: boolean; is_active?: boolean }) {
   const count = await prisma.group.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null
   return prisma.group.findFirst({ where: { id } })
@@ -58,21 +64,33 @@ export async function assignBranchToGroup(tenantId: string, branchId: string, gr
 }
 
 // ── Policy cascade ────────────────────────────────────────────
-// ลำดับ inherit: Employee override → Department (ผ่าน Position) → Division → Group
-// พนักงานส่วนใหญ่ยังไม่มี position_id (ผังองค์กรเพิ่งสร้าง ใช้น้อย) เลย fallback ไปหา
-// กลุ่มผ่าน Branch ตรงๆ ถ้าไม่มีตำแหน่ง — ไม่งั้น cascade นี้จะใช้งานไม่ได้กับคนส่วนใหญ่เลย
-export async function resolveBookingEnabled(tenantId: string, employeeId: string): Promise<boolean> {
+// ลำดับชั้น 6 ระดับ "เจาะจงกว่าชนะ" (first non-null):
+//   บุคคล(override) → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม(ของสาขา) → true
+// ชั้น "กลุ่ม" อ้างจาก branch.group เสมอ (ตรงกับ mental model กลุ่ม→สาขา และ branch_id มีทุกคน)
+// มี 2 แกนอิสระ: 'booking' (จองวันหยุด weekly-off) และ 'leave' (ยื่นคำขอลา)
+export type PolicyFlag = 'booking' | 'leave'
+
+const pick = (v: boolean | null | undefined): boolean | null => (v === null || v === undefined ? null : v)
+
+export async function resolvePolicyFlag(tenantId: string, employeeId: string, flag: PolicyFlag): Promise<boolean> {
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenant_id: tenantId },
     select: {
       booking_enabled_override: true,
-      branch: { select: { group: { select: { booking_enabled: true } } } },
+      leave_enabled_override: true,
+      branch: {
+        select: {
+          booking_enabled: true, leave_enabled: true,
+          group: { select: { booking_enabled: true, leave_enabled: true } },
+        },
+      },
       position: {
         select: {
+          booking_enabled: true, leave_enabled: true,
           department: {
             select: {
-              booking_enabled: true,
-              division: { select: { booking_enabled: true, group: { select: { booking_enabled: true } } } },
+              booking_enabled: true, leave_enabled: true,
+              division: { select: { booking_enabled: true, leave_enabled: true } },
             },
           },
         },
@@ -81,16 +99,24 @@ export async function resolveBookingEnabled(tenantId: string, employeeId: string
   })
   if (!employee) return true // ไม่รู้จักพนักงาน — ปลอดภัยไว้ก่อน ไม่บล็อกโดยไม่มีเหตุ
 
-  if (employee.booking_enabled_override !== null && employee.booking_enabled_override !== undefined) {
-    return employee.booking_enabled_override
-  }
+  const b = flag === 'booking'
+  const pos  = employee.position
+  const dept = pos?.department
+  const div  = dept?.division
+  const br   = employee.branch
 
-  const dept = employee.position?.department
-  if (dept && dept.booking_enabled !== null) return dept.booking_enabled
-  if (dept?.division && dept.division.booking_enabled !== null) return dept.division.booking_enabled
-
-  // ไม่มีตำแหน่ง (หรือมีแต่ dept/division ทุกชั้น inherit ว่างหมด) → ใช้กลุ่มของฝ่ายที่ตำแหน่งสังกัด
-  // ถ้ามี ไม่งั้น fallback ไปกลุ่มของสาขาที่พนักงานสังกัดโดยตรง
-  const group = dept?.division?.group ?? employee.branch?.group
-  return group?.booking_enabled ?? true
+  const chain: (boolean | null)[] = [
+    pick(b ? employee.booking_enabled_override : employee.leave_enabled_override),
+    pick(b ? pos?.booking_enabled  : pos?.leave_enabled),
+    pick(b ? dept?.booking_enabled : dept?.leave_enabled),
+    pick(b ? div?.booking_enabled  : div?.leave_enabled),
+    pick(b ? br?.booking_enabled   : br?.leave_enabled),
+    pick(b ? br?.group?.booking_enabled : br?.group?.leave_enabled),
+  ]
+  for (const v of chain) if (v !== null) return v
+  return true
 }
+
+// wrapper คงชื่อเดิมไว้ (มีที่เรียกจากหลายโมดูล)
+export const resolveBookingEnabled = (tenantId: string, employeeId: string) => resolvePolicyFlag(tenantId, employeeId, 'booking')
+export const resolveLeaveEnabled   = (tenantId: string, employeeId: string) => resolvePolicyFlag(tenantId, employeeId, 'leave')

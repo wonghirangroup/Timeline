@@ -16,6 +16,8 @@ export interface EmployeeProfile {
   // สิทธิ์จองวันหยุด — cascade จากกลุ่ม/ฝ่าย/แผนก (ตั้งค่าที่ admin → ผังองค์กร → กลุ่ม)
   // false = กลุ่มนี้จองวันหยุดไม่ได้ (หยุดได้แค่เสาร์-อาทิตย์ตายตัวตาม saturday_rule/sunday_rule)
   booking_enabled?: boolean
+  // สิทธิ์การลา — cascade เดียวกัน false = ยื่นคำขอลาไม่ได้ (ล็อกแท็บขอลา + พักร้อน/ชดเชย)
+  leave_enabled?: boolean
 }
 
 interface AuthStore {

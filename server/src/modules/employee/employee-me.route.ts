@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import { listHolidays, holidayAppliesTo } from '../tenant/holiday.service'
-import { resolveBookingEnabled } from '../group/group.service'
+import { resolveBookingEnabled, resolveLeaveEnabled } from '../group/group.service'
 
 export async function employeeMeRoutes(app: FastifyInstance) {
 
@@ -34,11 +34,14 @@ export async function employeeMeRoutes(app: FastifyInstance) {
       select: { id: true, name: true, start_time: true, end_time: true, late_threshold_1: true, late_threshold_2: true },
     })
 
-    // สิทธิ์จองวันหยุด — cascade จากกลุ่ม/ฝ่าย/แผนก/ตัวเอง (ดู group.service.ts)
-    // ใช้ซ่อน UI จองวันหยุดฝั่ง LIFF เมื่อกลุ่มปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
-    const booking_enabled = await resolveBookingEnabled(req.tenantId, employeeId)
+    // สิทธิ์จอง/ลา — cascade 6 ชั้น กลุ่ม→สาขา→ฝ่าย→แผนก→ตำแหน่ง→บุคคล (ดู group.service.ts)
+    // ใช้ซ่อน UI ฝั่ง LIFF เมื่อปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
+    const [booking_enabled, leave_enabled] = await Promise.all([
+      resolveBookingEnabled(req.tenantId, employeeId),
+      resolveLeaveEnabled(req.tenantId, employeeId),
+    ])
 
-    return ok({ employee: { ...employee, booking_enabled }, shifts })
+    return ok({ employee: { ...employee, booking_enabled, leave_enabled }, shifts })
   })
 
   // GET /api/v1/employee/holidays?year=

@@ -39,7 +39,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
       tags: [TAG], summary: 'สร้างฝ่ายใหม่ในกลุ่ม', security: [{ oauth2: [] }],
       body: {
         type: 'object', required: ['group_id', 'name'],
-        properties: { group_id: { type: 'string' }, name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] } },
+        properties: { group_id: { type: 'string' }, name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] } },
       },
     },
   }, async (req: any, reply) => {
@@ -54,9 +54,9 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.patch('/divisions/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขฝ่าย (booking_enabled: null = inherit จากกลุ่ม)', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขฝ่าย (booking_enabled/leave_enabled: null = inherit จากกลุ่ม)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     const d = await svc.updateDivision(req.tenantId, req.params.id, req.body)
@@ -90,7 +90,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
       tags: [TAG], summary: 'สร้างแผนกใหม่ในฝ่าย', security: [{ oauth2: [] }],
       body: {
         type: 'object', required: ['division_id', 'name'],
-        properties: { division_id: { type: 'string' }, name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] } },
+        properties: { division_id: { type: 'string' }, name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] } },
       },
     },
   }, async (req: any, reply) => {
@@ -105,9 +105,9 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.patch('/departments/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขแผนก (booking_enabled: null = inherit จากฝ่าย)', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขแผนก (booking_enabled/leave_enabled: null = inherit จากฝ่าย)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     const d = await svc.updateDepartment(req.tenantId, req.params.id, req.body)
@@ -138,8 +138,8 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.post('/positions', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'สร้างตำแหน่งใหม่ในแผนก', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' } } },
+      tags: [TAG], summary: 'สร้างตำแหน่งใหม่ในแผนก (booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] } } },
     },
   }, async (req: any, reply) => {
     try {
@@ -153,9 +153,9 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   app.patch('/positions/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขตำแหน่ง (ย้ายไปแผนกอื่นได้ด้วย)', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขตำแหน่ง (ย้ายไปแผนกอื่นได้ด้วย — booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: 'string' }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: 'string' }, booking_enabled: { type: ['boolean', 'null'] }, leave_enabled: { type: ['boolean', 'null'] }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     try {

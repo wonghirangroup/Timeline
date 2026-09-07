@@ -7,6 +7,7 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { deptName } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
@@ -409,6 +410,7 @@ export default function WeeklyOffPage() {
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
   const [addForm, setAddForm]     = useState({ employee_id: '', date: '' })
+  const [forcePrompt, setForcePrompt] = useState<any>(null)  // body ที่รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์จอง
   const [showCalendar, setShowCalendar] = useState(false)
   const [rejectId, setRejectId]   = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
@@ -488,8 +490,9 @@ export default function WeeklyOffPage() {
       invalidate(); showToast('success', 'เพิ่มวันหยุดสำเร็จ')
       setAddForm({ employee_id: '', date: '' }); setShowAdd(false); setShowCalendar(false)
     },
-    onError: (err: any) => {
+    onError: (err: any, body: any) => {
       const code = err.response?.data?.error?.code
+      if (code === 'BOOKING_DISABLED') { setForcePrompt({ ...body, force: true }); return }
       showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : 'เพิ่มไม่สำเร็จ')
     },
   })
@@ -651,6 +654,17 @@ export default function WeeklyOffPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {forcePrompt && (
+        <ConfirmDialog
+          variant="warning"
+          title="สาขา/กลุ่มปิดสิทธิ์จองวันหยุด"
+          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์จองวันหยุด ยืนยันเพิ่มวันหยุดให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          confirmLabel="ยืนยันเพิ่มให้"
+          onConfirm={() => { const b = forcePrompt; setForcePrompt(null); addMutation.mutate(b) }}
+          onCancel={() => setForcePrompt(null)}
+        />
       )}
 
       {/* Org filter */}

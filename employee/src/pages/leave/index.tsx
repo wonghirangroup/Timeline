@@ -1283,6 +1283,7 @@ export default function LeavePage() {
       const code = err.response?.data?.error?.code
       if (code === 'LEAVE_OVERLAP')        setErrorMsg('มีวันลาที่ทับซ้อนกันอยู่แล้ว')
       else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
+      else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการยื่นคำขอลา ติดต่อแอดมิน')
       else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })
@@ -1359,7 +1360,17 @@ export default function LeavePage() {
 
         {/* ── Request ─────────────────────────────────────────── */}
         {tab === 'request' && (
-          submitDone ? (
+          employee?.leave_enabled === false ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '36px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${COLOR.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Lock size={22} color={COLOR.primary} />
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณปิดการยื่นคำขอลา</p>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>
+                ถ้าจำเป็นต้องลา กรุณาติดต่อแอดมิน/หัวหน้างานให้บันทึกให้
+              </p>
+            </div>
+          ) : submitDone ? (
             <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
               <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
@@ -1468,6 +1479,14 @@ export default function LeavePage() {
               ) : (
                 <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
               )
+            ) : employee?.leave_enabled === false ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '32px 20px', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${COLOR.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Lock size={22} color={COLOR.primary} />
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณปิดการยื่นคำขอลา</p>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>ถ้าจำเป็นต้องใช้วันพักร้อน/ชดเชย กรุณาติดต่อแอดมิน</p>
+              </div>
             ) : (
               <LeaveQuotaBooking employeeId={employee?.id ?? ''} balances={balances} ownRequests={requests} />
             )}

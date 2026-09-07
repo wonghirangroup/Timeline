@@ -1,6 +1,16 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled } from '../group/group.service'
+
+// การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
+// พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
+// แอดมินเพิ่มให้: ปิดแล้วโดนบล็อกด้วย แต่ส่ง force=true (กด "ยืนยันเพิ่มให้อยู่ดี") ผ่านได้ + เก็บ policy_override_by
+export interface PolicyOpts { force?: boolean; actorUserId?: string }
+async function assertBookingAllowed(tenantId: string, employeeId: string, opts: PolicyOpts): Promise<string | null> {
+  if (await resolveBookingEnabled(tenantId, employeeId)) return null
+  if (!opts.force) throw new Error('BOOKING_DISABLED')
+  return opts.actorUserId ?? null
+}
 import { grantHolidayCompensation } from '../tenant/holiday.service' // ชื่อผูกกับ holiday แต่กลไกเป็น "ให้วันชดเชยเข้า LeaveBalance" ทั่วไป — reuse ตรงนี้ด้วย
 
 function getMondayOf(dateStr: string): Date {
@@ -78,16 +88,13 @@ export async function listWeeklyOff(tenantId: string, filters: {
   return results
 }
 
-// skipBookingCheck: true เฉพาะตอนแอดมินเพิ่มให้เอง (ผ่าน /admin/weekly-off หรือ
-// ปุ่ม "+" ในปฏิทินรวม) — booking_enabled ตั้งใจปิดแค่ "พนักงานจองเอง" ไม่ใช่
-// ปิดสิทธิ์แอดมินเพิ่มให้เองด้วย (เดิมใช้ฟังก์ชันร่วมกันเลยโดนบล็อกไปด้วย
-// โดยไม่ตั้งใจ — feedback 2026-09-02)
+// opts.force: แอดมินกด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking cascade = ปิด (พนักงานจองเองส่ง {} เสมอ)
 export async function createWeeklyOff(tenantId: string, data: {
   employee_id: string
   week_start: string    // YYYY-MM-DD (ระบบ normalize เป็น Monday อัตโนมัติ)
   day_of_week: number   // 0-6
-}, skipBookingCheck = false) {
-  if (!skipBookingCheck && !(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
+}, opts: PolicyOpts = {}) {
+  const overrideBy = await assertBookingAllowed(tenantId, data.employee_id, opts)
 
   const monday = getMondayOf(data.week_start)
 
@@ -106,6 +113,7 @@ export async function createWeeklyOff(tenantId: string, data: {
       week_start:  monday,
       day_of_week: data.day_of_week,
       has_conflict: conflict,
+      policy_override_by: overrideBy,
     },
     include: {
       employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } },
@@ -295,6 +303,8 @@ export async function createMonthlyOff(tenantId: string, data: {
   employee_id: string
   date: string // YYYY-MM-DD — วันที่จริงที่ต้องการหยุด
 }) {
+  if (!(await resolveBookingEnabled(tenantId, data.employee_id))) throw new Error('BOOKING_DISABLED')
+
   const d = new Date(data.date + 'T00:00:00Z')
   const year = d.getUTCFullYear()
   const month = d.getUTCMonth()

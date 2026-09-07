@@ -27,6 +27,8 @@ export async function createBranch(tenantId: string, data: {
   lng?: number
   gps_radius?: number
   geo_mode?: 'WARN' | 'BLOCK'
+  booking_enabled?: boolean | null
+  leave_enabled?: boolean | null
 }) {
   return prisma.branch.create({
     data: {
@@ -37,6 +39,8 @@ export async function createBranch(tenantId: string, data: {
       lng: data.lng,
       gps_radius: data.gps_radius ?? 200,
       geo_mode: data.geo_mode ?? 'WARN',
+      booking_enabled: data.booking_enabled ?? null,
+      leave_enabled: data.leave_enabled ?? null,
     },
   })
 }
@@ -55,7 +59,7 @@ export async function getBranchQrUrl(tenantId: string, branchId: string): Promis
 export async function updateBranch(
   tenantId: string,
   id: string,
-  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean },
+  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null },
 ) {
   const count = await prisma.branch.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },

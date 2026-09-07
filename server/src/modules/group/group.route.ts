@@ -20,7 +20,7 @@ export async function groupRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
       tags: [TAG], summary: 'สร้างกลุ่มใหม่ (จำกัดจำนวนตาม package)', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' } } },
+      body: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     try {
@@ -35,9 +35,9 @@ export async function groupRoutes(app: FastifyInstance) {
   app.patch('/groups/:id', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
-      tags: [TAG], summary: 'แก้ไขกลุ่ม (booking_enabled = ค่าเริ่มต้นของทุกฝ่าย/แผนก/คนในกลุ่มนี้)', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขกลุ่ม (booking_enabled/leave_enabled = ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/คนในกลุ่มนี้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     const g = await svc.updateGroup(req.tenantId, req.params.id, req.body)

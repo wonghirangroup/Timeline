@@ -17,15 +17,15 @@ export async function listDivisions(tenantId: string, groupId?: string) {
   })
 }
 
-export async function createDivision(tenantId: string, data: { group_id: string; name: string; booking_enabled?: boolean | null }) {
+export async function createDivision(tenantId: string, data: { group_id: string; name: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null }) {
   const group = await prisma.group.findFirst({ where: { id: data.group_id, tenant_id: tenantId, deleted_at: null } })
   if (!group) throw new Error('GROUP_NOT_FOUND')
   return prisma.division.create({
-    data: { tenant_id: tenantId, group_id: data.group_id, name: data.name, booking_enabled: data.booking_enabled ?? null },
+    data: { tenant_id: tenantId, group_id: data.group_id, name: data.name, booking_enabled: data.booking_enabled ?? null, leave_enabled: data.leave_enabled ?? null },
   })
 }
 
-export async function updateDivision(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean | null; is_active?: boolean }) {
+export async function updateDivision(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null; is_active?: boolean }) {
   const count = await prisma.division.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null
   return prisma.division.findFirst({ where: { id } })
@@ -53,15 +53,15 @@ export async function listDepartments(tenantId: string, divisionId?: string) {
   })
 }
 
-export async function createDepartment(tenantId: string, data: { division_id: string; name: string; booking_enabled?: boolean | null }) {
+export async function createDepartment(tenantId: string, data: { division_id: string; name: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null }) {
   const division = await prisma.division.findFirst({ where: { id: data.division_id, tenant_id: tenantId, deleted_at: null } })
   if (!division) throw new Error('DIVISION_NOT_FOUND')
   return prisma.department.create({
-    data: { tenant_id: tenantId, division_id: data.division_id, name: data.name, booking_enabled: data.booking_enabled ?? null },
+    data: { tenant_id: tenantId, division_id: data.division_id, name: data.name, booking_enabled: data.booking_enabled ?? null, leave_enabled: data.leave_enabled ?? null },
   })
 }
 
-export async function updateDepartment(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean | null; is_active?: boolean }) {
+export async function updateDepartment(tenantId: string, id: string, data: { name?: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null; is_active?: boolean }) {
   const count = await prisma.department.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null
   return prisma.department.findFirst({ where: { id } })
@@ -95,13 +95,15 @@ export async function listPositions(tenantId: string, departmentId?: string) {
   })
 }
 
-export async function createPosition(tenantId: string, data: { department_id: string; name: string }) {
+export async function createPosition(tenantId: string, data: { department_id: string; name: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null }) {
   const dept = await prisma.department.findFirst({ where: { id: data.department_id, tenant_id: tenantId, deleted_at: null } })
   if (!dept) throw new Error('DEPARTMENT_NOT_FOUND')
-  return prisma.position.create({ data: { tenant_id: tenantId, department_id: data.department_id, name: data.name } })
+  return prisma.position.create({
+    data: { tenant_id: tenantId, department_id: data.department_id, name: data.name, booking_enabled: data.booking_enabled ?? null, leave_enabled: data.leave_enabled ?? null },
+  })
 }
 
-export async function updatePosition(tenantId: string, id: string, data: { name?: string; department_id?: string; is_active?: boolean }) {
+export async function updatePosition(tenantId: string, id: string, data: { name?: string; department_id?: string; booking_enabled?: boolean | null; leave_enabled?: boolean | null; is_active?: boolean }) {
   if (data.department_id) {
     const dept = await prisma.department.findFirst({ where: { id: data.department_id, tenant_id: tenantId, deleted_at: null } })
     if (!dept) throw new Error('DEPARTMENT_NOT_FOUND')

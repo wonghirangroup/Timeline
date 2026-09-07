@@ -54,17 +54,17 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
           employee_id: { type: 'string' },
           week_start:  { type: 'string', description: 'YYYY-MM-DD' },
           day_of_week: { type: 'integer', minimum: 0, maximum: 6 },
+          force:       { type: 'boolean', description: 'true = ยืนยันเพิ่มให้ ทั้งที่ cascade ปิดสิทธิ์จองวันหยุด (เก็บ audit)' },
         },
       },
     },
   }, async (req: any, reply) => {
     try {
-      // แอดมินเพิ่มเอง ไม่ผ่านการเช็ค booking_enabled (นั่นไว้กันแค่พนักงานจองเอง)
-      const result = await createWeeklyOff(req.tenantId, req.body, true)
+      const result = await createWeeklyOff(req.tenantId, req.body, { force: req.body.force === true, actorUserId: req.userId })
       return reply.code(201).send(ok(result, 'เพิ่มวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว'))
-      if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของพนักงานนี้ปิดสิทธิ์จองวันหยุด'))
+      if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์จองวันหยุด — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       throw e
     }
   })
@@ -370,6 +370,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดเดือนนี้แล้ว'))
+      if (e.message === 'BOOKING_DISABLED')  return reply.code(403).send(fail('BOOKING_DISABLED', 'สาขาของคุณปิดสิทธิ์จองวันหยุด'))
       throw e
     }
   })

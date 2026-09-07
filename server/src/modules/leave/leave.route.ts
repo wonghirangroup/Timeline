@@ -87,16 +87,18 @@ export async function leaveRoutes(app: FastifyInstance) {
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'integer' },
           reason:      { type: 'string' },
+          force:       { type: 'boolean', description: 'true = ยืนยันเพิ่มให้ ทั้งที่ cascade ปิดสิทธิ์การลา (เก็บ audit)' },
         },
       },
     },
   }, async (req: any, reply) => {
     try {
-      const request = await createLeaveRequest(req.tenantId, { ...req.body, autoApprove: true, reviewedBy: req.userId })
+      const request = await createLeaveRequest(req.tenantId, { ...req.body, autoApprove: true, reviewedBy: req.userId, force: req.body.force === true })
       return reply.code(201).send(ok(request, 'สร้างคำขอวันลาสำเร็จ (อนุมัติอัตโนมัติ)'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
+      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์การลา — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       throw e
     }
   })
@@ -171,11 +173,14 @@ export async function leaveRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     try {
-      const request = await createLeaveRequest(req.tenantId, req.body)
+      // พนักงานยื่นเอง — บังคับ force/autoApprove = false เสมอ (กันส่ง flag ตรงๆ ผ่าน body)
+      const { employee_id, leave_type, start_date, end_date, days, reason } = req.body
+      const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, start_date, end_date, days, reason })
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))
+      if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขาของคุณปิดสิทธิ์การยื่นคำขอลา ติดต่อแอดมิน'))
       throw e
     }
   })

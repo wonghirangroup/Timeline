@@ -610,6 +610,7 @@ export default function TeamCalendarTab() {
   const groupFilter   = orgFilter.groupId  || 'all'
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
+  const [forcePrompt, setForcePrompt] = useState<{ kind: 'dayoff' | 'leave'; vars: any } | null>(null)  // cascade ปิดสิทธิ์ — รอ retry ด้วย force
   const [showRosterSettings, setShowRosterSettings] = useState(false)
   const [rosterCols, setRosterCols] = useState({ code: true, branch: true })
   const [rosterColors, setRosterColors] = useState<Record<string, string>>(() => loadRosterColors())
@@ -666,25 +667,27 @@ export default function TeamCalendarTab() {
 
   // เพิ่มวันหยุดประจำ/วันลาให้พนักงานตรงจากปฏิทิน (feedback backlog 2026-08-27)
   const addDayOffMutation = useMutation({
-    mutationFn: ({ employeeId, date }: { employeeId: string; date: string }) =>
-      api.post('/api/v1/admin/weekly-off', { employee_id: employeeId, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }),
+    mutationFn: ({ employeeId, date, force }: { employeeId: string; date: string; force?: boolean }) =>
+      api.post('/api/v1/admin/weekly-off', { employee_id: employeeId, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay(), force }),
     onSuccess: () => { invalidateCalendar(); showToast('success', 'เพิ่มวันหยุดสำเร็จ') },
-    onError: (e: any) => {
+    onError: (e: any, vars: any) => {
       const code = e?.response?.data?.error?.code
+      if (code === 'BOOKING_DISABLED') { setForcePrompt({ kind: 'dayoff', vars }); return }
       showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : 'เพิ่มไม่สำเร็จ')
     },
   })
   const addLeaveMutation = useMutation({
-    mutationFn: ({ employeeId, leaveType, date, reason }: { employeeId: string; leaveType: string; date: string; reason?: string }) =>
+    mutationFn: ({ employeeId, leaveType, date, reason, force }: { employeeId: string; leaveType: string; date: string; reason?: string; force?: boolean }) =>
       api.post('/api/v1/admin/leave-requests', {
-        employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1,
+        employee_id: employeeId, leave_type: leaveType, start_date: date, end_date: date, days: 1, force,
         // ห่อ reason ด้วย [ ] ตาม convention เดิม (getLeaveLabel ดึง label ละเอียดจาก
         // reason ก่อน enum เสมอ) ให้ "อื่นๆ" ที่พิมพ์เองแสดงผลถูกต้อง ไม่ fallback ไปโชว์ "ลากิจ"
         ...(reason ? { reason: `[${reason}]` } : {}),
       }),
     onSuccess: () => { invalidateCalendar(); showToast('success', 'เพิ่มวันลาสำเร็จ (อนุมัติอัตโนมัติ)') },
-    onError: (e: any) => {
+    onError: (e: any, vars: any) => {
       const code = e?.response?.data?.error?.code
+      if (code === 'LEAVE_DISABLED') { setForcePrompt({ kind: 'leave', vars }); return }
       showToast('error', code === 'LEAVE_OVERLAP' ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว' : code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่พอ' : 'เพิ่มไม่สำเร็จ')
     },
   })
@@ -1189,6 +1192,21 @@ export default function TeamCalendarTab() {
             </div>
           </>
         )
+      )}
+
+      {forcePrompt && (
+        <ConfirmDialog
+          title={forcePrompt.kind === 'dayoff' ? 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด' : 'สาขา/กลุ่มปิดสิทธิ์การลา'}
+          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์นี้ ยืนยันเพิ่มให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          confirmLabel="ยืนยันเพิ่มให้"
+          variant="warning"
+          onConfirm={() => {
+            const fp = forcePrompt; setForcePrompt(null)
+            if (fp.kind === 'dayoff') addDayOffMutation.mutate({ ...fp.vars, force: true })
+            else addLeaveMutation.mutate({ ...fp.vars, force: true })
+          }}
+          onCancel={() => setForcePrompt(null)}
+        />
       )}
 
       {/* Delete confirm */}
