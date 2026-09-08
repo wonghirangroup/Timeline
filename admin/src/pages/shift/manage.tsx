@@ -23,6 +23,10 @@ interface ApiShift {
   late_threshold_2: string | null
   late_fine_1: string | null
   late_fine_2: string | null
+  fine_mode?: 'TIER' | 'PER_MINUTE'
+  late_grace_minutes?: number | null
+  late_fine_per_minute?: string | null
+  late_fine_max?: string | null
   absent_threshold: string | null
   absent_fine: string | null
   shift_type: 'REGULAR' | 'SPECIAL'
@@ -42,6 +46,10 @@ const EMPTY_FORM = {
   late_threshold_2: '08:30',
   late_fine_1: '',
   late_fine_2: '',
+  fine_mode: 'TIER' as 'TIER' | 'PER_MINUTE',
+  late_grace_minutes: '' as string | number,
+  late_fine_per_minute: '',
+  late_fine_max: '',
   absent_threshold: '',
   absent_fine: '',
   shift_type: 'REGULAR' as 'REGULAR' | 'SPECIAL',
@@ -524,6 +532,10 @@ export default function ShiftPage() {
       late_threshold_2: s.late_threshold_2 ?? '',
       late_fine_1:      s.late_fine_1 ?? '',
       late_fine_2:      s.late_fine_2 ?? '',
+      fine_mode:        s.fine_mode ?? 'TIER',
+      late_grace_minutes:   s.late_grace_minutes ?? '',
+      late_fine_per_minute: s.late_fine_per_minute ?? '',
+      late_fine_max:        s.late_fine_max ?? '',
       absent_threshold: s.absent_threshold ?? '',
       absent_fine:      s.absent_fine ?? '',
       shift_type:       s.shift_type ?? 'REGULAR',
@@ -546,6 +558,10 @@ export default function ShiftPage() {
       late_threshold_2: form.late_threshold_2 || undefined,
       late_fine_1: form.late_fine_1 !== '' ? Number(form.late_fine_1) : null,
       late_fine_2: form.late_fine_2 !== '' ? Number(form.late_fine_2) : null,
+      fine_mode: form.fine_mode,
+      late_grace_minutes:   form.fine_mode === 'PER_MINUTE' && form.late_grace_minutes !== '' ? Number(form.late_grace_minutes) : null,
+      late_fine_per_minute: form.fine_mode === 'PER_MINUTE' && form.late_fine_per_minute !== '' ? Number(form.late_fine_per_minute) : null,
+      late_fine_max:        form.fine_mode === 'PER_MINUTE' && form.late_fine_max !== '' ? Number(form.late_fine_max) : null,
       absent_threshold: form.absent_threshold || undefined,
       absent_fine: form.absent_fine !== '' ? Number(form.absent_fine) : null,
       shift_type: form.shift_type,
@@ -693,10 +709,15 @@ export default function ShiftPage() {
                 <TimeRow icon={<Clock size={11} />} label="เวลาเริ่มงาน" value={s.start_time} color="#15803d" />
                 <TimeRow icon={<Clock size={11} />} label="เวลาเลิกงาน" value={s.end_time} color="#dc2626" />
                 {s.min_checkout && <TimeRow icon={<Lock size={11} />} label="เช็คเอาท์ได้ตั้งแต่" value={s.min_checkout} color="#7c3aed" />}
-                {!isSpecial && s.late_threshold_1 && <TimeRow icon={<AlertTriangle size={11} />} label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
-                {!isSpecial && s.late_threshold_2 && <TimeRow icon={<AlertOctagon size={11} />} label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
+                {!isSpecial && s.fine_mode === 'PER_MINUTE' && (
+                  <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: '#d97706', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <AlertTriangle size={12} /> หักตามนาที: สายเกิน {s.late_grace_minutes ?? 0} นาที → ฿{s.late_fine_per_minute ?? 0}/นาที{s.late_fine_max ? ` (สูงสุด ฿${s.late_fine_max})` : ''}
+                  </div>
+                )}
+                {!isSpecial && s.fine_mode !== 'PER_MINUTE' && s.late_threshold_1 && <TimeRow icon={<AlertTriangle size={11} />} label={`สายระดับ 1${s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}`} value={s.late_threshold_1} color="#d97706" />}
+                {!isSpecial && s.fine_mode !== 'PER_MINUTE' && s.late_threshold_2 && <TimeRow icon={<AlertOctagon size={11} />} label={`สายระดับ 2${s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}`} value={s.late_threshold_2} color="#dc2626" />}
                 {!isSpecial && s.absent_threshold && <TimeRow icon={<Ban size={11} />} label={`ขาด${s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}`} value={s.absent_threshold} color="#be185d" />}
-                {!isSpecial && !s.late_threshold_1 && !s.late_threshold_2 && (
+                {!isSpecial && s.fine_mode !== 'PER_MINUTE' && !s.late_threshold_1 && !s.late_threshold_2 && (
                   <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                 )}
                 {isSpecial && (
@@ -856,11 +877,27 @@ export default function ShiftPage() {
                   {/* เกณฑ์การสาย */}
                   <div>
                     <p style={sectionLabel}>เกณฑ์การสาย & ค่าปรับ</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 6px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={12} /> ระดับ 1/2 = สายปกติ (โดนปรับตามยอด)</span>
-                      <span>·</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={12} /> ขาด = สายเกินจนนับเป็นวันขาด — <strong>ยังเช็คอินได้ปกติ</strong> แต่จะถูกหักค่าปรับในวันที่มาเช็คอินถัดไป</span>
+
+                    {/* โหมดคิดค่าปรับ */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      {([
+                        { v: 'TIER', label: 'คงที่ตามระดับ', desc: 'สายระดับ 1/2 = ยอดปรับตายตัว' },
+                        { v: 'PER_MINUTE', label: 'หักตามนาที', desc: 'ปรับ = นาทีที่สาย × อัตรา/นาที' },
+                      ] as const).map(o => (
+                        <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, fine_mode: o.v }))}
+                          style={{ flex: 1, padding: '9px 10px', borderRadius: 8, textAlign: 'left', border: `2px solid ${form.fine_mode === o.v ? '#f97316' : '#e5e7eb'}`, background: form.fine_mode === o.v ? '#fff7ed' : '#fff', cursor: 'pointer' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: form.fine_mode === o.v ? '#ea580c' : '#374151' }}>{o.label}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{o.desc}</div>
+                        </button>
+                      ))}
                     </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 6px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#92400e', marginBottom: 10 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={12} /> ขาด = สายเกินจนนับเป็นวันขาด — <strong>ยังเช็คอินได้ปกติ</strong> แต่จะถูกหักค่าปรับ (ตาม "ค่าปรับขาด") ในวันที่มาเช็คอินถัดไป — ใช้กับทั้ง 2 โหมด</span>
+                    </div>
+
+                    {form.fine_mode === 'TIER' ? (
+                      <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
                         onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
@@ -883,6 +920,30 @@ export default function ShiftPage() {
                           placeholder="เช่น 200" style={inputStyle} />
                       </div>
                     </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div>
+                          <label style={labelStyle}>ผ่อนผัน (นาที)</label>
+                          <input type="number" min="0" step="1" value={form.late_grace_minutes}
+                            onChange={e => setForm(f => ({ ...f, late_grace_minutes: e.target.value }))}
+                            placeholder="เช่น 5" style={inputStyle} />
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 3 }}>สายไม่เกินนี้ไม่ปรับ</div>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>บาท / นาที</label>
+                          <input type="number" min="0" step="1" value={form.late_fine_per_minute}
+                            onChange={e => setForm(f => ({ ...f, late_fine_per_minute: e.target.value }))}
+                            placeholder="เช่น 5" style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>เพดาน/วัน (บาท)</label>
+                          <input type="number" min="0" step="10" value={form.late_fine_max}
+                            onChange={e => setForm(f => ({ ...f, late_fine_max: e.target.value }))}
+                            placeholder="ไม่จำกัด" style={inputStyle} />
+                        </div>
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
                       <TimeInput label={<><Ban size={12} /> ขาด (หลังจากนี้นับเป็นวันขาด)</>} value={form.absent_threshold}
                         onChange={v => setForm(f => ({ ...f, absent_threshold: v }))}
@@ -902,8 +963,30 @@ export default function ShiftPage() {
                   <p style={{ margin: '0 0 8px', fontSize: '0.75rem', fontWeight: 700, color: '#4338ca' }}>ตัวอย่างกะ "{form.name || '...'}"</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 0', fontSize: '0.8rem' }}>
                     <span style={{ color: 'var(--text-muted)' }}>เริ่มงาน</span><span style={{ fontWeight: 700, color: '#15803d' }}>{form.start_time}</span>
-                    {form.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
-                    {form.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
+                    {form.fine_mode === 'PER_MINUTE' ? (
+                      <>
+                        <span style={{ color: 'var(--text-muted)' }}>หักตามนาที</span>
+                        <span style={{ fontWeight: 700, color: '#d97706' }}>
+                          สายเกิน {form.late_grace_minutes || 0} นาที → ฿{form.late_fine_per_minute || 0}/นาที{form.late_fine_max ? ` (สูงสุด ฿${form.late_fine_max})` : ''}
+                        </span>
+                        {form.late_fine_per_minute && (
+                          <>
+                            <span style={{ color: 'var(--text-muted)' }}>ตัวอย่าง: สาย 20 นาที</span>
+                            <span style={{ fontWeight: 700, color: '#dc2626' }}>
+                              ปรับ ฿{Math.min(
+                                Math.max(0, 20 - Number(form.late_grace_minutes || 0)) * Number(form.late_fine_per_minute),
+                                form.late_fine_max ? Number(form.late_fine_max) : Infinity,
+                              )}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {form.late_threshold_1 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 1</span><span style={{ fontWeight: 700, color: '#d97706' }}>หลัง {form.late_threshold_1}{form.late_fine_1 ? ` (฿${form.late_fine_1})` : ''}</span></>}
+                        {form.late_threshold_2 && <><span style={{ color: 'var(--text-muted)' }}>สายระดับ 2</span><span style={{ fontWeight: 700, color: '#dc2626' }}>หลัง {form.late_threshold_2}{form.late_fine_2 ? ` (฿${form.late_fine_2})` : ''}</span></>}
+                      </>
+                    )}
                     {form.absent_threshold && <><span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ban size={11} /> ขาด</span><span style={{ fontWeight: 700, color: '#be185d' }}>หลัง {form.absent_threshold}{form.absent_fine ? ` (+฿${form.absent_fine} วันถัดไป)` : ''}</span></>}
                     {form.min_checkout && <><span style={{ color: 'var(--text-muted)' }}>เช็คเอาท์ได้ตั้งแต่</span><span style={{ fontWeight: 700, color: '#7c3aed' }}>{form.min_checkout}</span></>}
                     <span style={{ color: 'var(--text-muted)' }}>เลิกงาน</span><span style={{ fontWeight: 700, color: '#dc2626' }}>{form.end_time}</span>
@@ -1147,12 +1230,17 @@ export default function ShiftPage() {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
                     <Clock size={12} /> {s.start_time} – {s.end_time}
                   </span>
-                  {s.late_threshold_1 && (
+                  {s.fine_mode === 'PER_MINUTE' && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                      <AlertTriangle size={12} /> ปรับ ฿{s.late_fine_per_minute ?? 0}/นาที
+                    </span>
+                  )}
+                  {s.fine_mode !== 'PER_MINUTE' && s.late_threshold_1 && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
                       <AlertTriangle size={12} /> สาย {s.late_threshold_1}
                     </span>
                   )}
-                  {s.late_threshold_2 && (
+                  {s.fine_mode !== 'PER_MINUTE' && s.late_threshold_2 && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 99, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
                       <AlertOctagon size={12} /> สายระดับ 2 {s.late_threshold_2}
                     </span>
@@ -1192,16 +1280,19 @@ export default function ShiftPage() {
                     <InfoItem label={<><Clock size={11} /> เวลาเลิกงาน</>} value={s.end_time} color="#dc2626" />
                     {s.min_checkout && <InfoItem label={<><Lock size={11} /> เช็คเอาท์ตั้งแต่</>} value={s.min_checkout} color="#7c3aed" />}
                     {s.gps_radius && <InfoItem label={<><MapPin size={11} /> รัศมี GPS</>} value={`${s.gps_radius} ม.`} color="#0891b2" />}
-                    {!isSpec && s.late_threshold_1 && (
+                    {!isSpec && s.fine_mode === 'PER_MINUTE' && (
+                      <InfoItem label={<><AlertTriangle size={11} /> หักตามนาที (เกิน {s.late_grace_minutes ?? 0} นาที)</>} value={`฿${s.late_fine_per_minute ?? 0}/นาที${s.late_fine_max ? ` · สูงสุด ฿${s.late_fine_max}` : ''}`} color="#d97706" />
+                    )}
+                    {!isSpec && s.fine_mode !== 'PER_MINUTE' && s.late_threshold_1 && (
                       <InfoItem label={<><AlertTriangle size={11} /> สายระดับ 1{s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}</>} value={s.late_threshold_1} color="#d97706" />
                     )}
-                    {!isSpec && s.late_threshold_2 && (
+                    {!isSpec && s.fine_mode !== 'PER_MINUTE' && s.late_threshold_2 && (
                       <InfoItem label={<><AlertOctagon size={11} /> สายระดับ 2{s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}</>} value={s.late_threshold_2} color="#dc2626" />
                     )}
                     {!isSpec && s.absent_threshold && (
                       <InfoItem label={<><Ban size={11} /> ขาด{s.absent_fine ? ` (+฿${s.absent_fine} วันถัดไป)` : ''}</>} value={s.absent_threshold} color="#be185d" />
                     )}
-                    {!isSpec && !s.late_threshold_1 && !s.late_threshold_2 && (
+                    {!isSpec && s.fine_mode !== 'PER_MINUTE' && !s.late_threshold_1 && !s.late_threshold_2 && (
                       <div style={{ gridColumn: '1/-1', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> สายได้ {s.late_threshold} นาที</div>
                     )}
                   </div>

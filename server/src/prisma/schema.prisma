@@ -395,28 +395,33 @@ model BranchManager {
 // ─────────────────────────────────────────────
 
 model Shift {
-  id               String    @id @default(uuid())
-  tenant_id        String
-  branch_id        String
-  name             String
-  start_time       String // "08:00"
-  end_time         String // "17:00"
-  min_checkout     String? // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
-  late_threshold   Int       @default(15) // minutes — เก็บไว้ backward compat
-  late_threshold_1 String? // "08:05" — สายระดับ 1
-  late_threshold_2 String? // "08:30" — สายระดับ 2
-  late_fine_1      Decimal?  @db.Decimal(8, 2) // ค่าปรับสายระดับ 1 (บาท)
-  late_fine_2      Decimal?  @db.Decimal(8, 2) // ค่าปรับสายระดับ 2 (บาท)
-  absent_threshold String? // "08:31" — เช็คอินหลังเวลานี้ = นับว่าขาด (ยังเช็คอินได้ปกติ)
-  absent_fine      Decimal?  @db.Decimal(8, 2) // ค่าปรับที่จะถูกหักในวันที่มาเช็คอินถัดไป
-  shift_type       ShiftType @default(REGULAR)
-  gps_radius       Int? // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
-  allow_overlap    Boolean   @default(false)
-  day_off_quota    Int       @default(1)
-  is_active        Boolean   @default(true)
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
-  deleted_at       DateTime?
+  id                   String       @id @default(uuid())
+  tenant_id            String
+  branch_id            String
+  name                 String
+  start_time           String // "08:00"
+  end_time             String // "17:00"
+  min_checkout         String? // "17:55" — เช็คเอาท์ได้ตั้งแต่เวลานี้
+  late_threshold       Int          @default(15) // minutes — เก็บไว้ backward compat
+  late_threshold_1     String? // "08:05" — สายระดับ 1
+  late_threshold_2     String? // "08:30" — สายระดับ 2
+  late_fine_1          Decimal?     @db.Decimal(8, 2) // ค่าปรับสายระดับ 1 (บาท) — โหมด TIER
+  late_fine_2          Decimal?     @db.Decimal(8, 2) // ค่าปรับสายระดับ 2 (บาท) — โหมด TIER
+  // ── โหมดคิดค่าปรับสาย ──
+  fine_mode            LateFineMode @default(TIER) // TIER = คงที่ต่อระดับ (เดิม) · PER_MINUTE = หักตามนาทีที่สาย
+  late_grace_minutes   Int? // PER_MINUTE: นาทีผ่อนผันหลังเวลาเริ่มงาน (ไม่ปรับ) — null = 0
+  late_fine_per_minute Decimal?     @db.Decimal(8, 2) // PER_MINUTE: บาท/นาที ที่สายเกิน grace
+  late_fine_max        Decimal?     @db.Decimal(8, 2) // PER_MINUTE: เพดานค่าปรับสายต่อวัน — null = ไม่จำกัด
+  absent_threshold     String? // "08:31" — เช็คอินหลังเวลานี้ = นับว่าขาด (ยังเช็คอินได้ปกติ)
+  absent_fine          Decimal?     @db.Decimal(8, 2) // ค่าปรับที่จะถูกหักในวันที่มาเช็คอินถัดไป
+  shift_type           ShiftType    @default(REGULAR)
+  gps_radius           Int? // รัศมีเช็คอิน (เมตร) — null = ใช้ค่าของสาขา
+  allow_overlap        Boolean      @default(false)
+  day_off_quota        Int          @default(1)
+  is_active            Boolean      @default(true)
+  created_at           DateTime     @default(now())
+  updated_at           DateTime     @updatedAt
+  deleted_at           DateTime?
 
   tenant             Tenant             @relation(fields: [tenant_id], references: [id])
   branch             Branch             @relation(fields: [branch_id], references: [id])
@@ -529,6 +534,11 @@ enum ShiftType {
   REGULAR // กะทั่วไป auto-detect จากเวลา
   SPECIAL // กะพิเศษ เงื่อนไขเฉพาะ
   OFFSITE // งานนอกสถานที่ / Sale / Event — ไม่ check GPS แต่บันทึกพิกัด
+}
+
+enum LateFineMode {
+  TIER // ค่าปรับคงที่ต่อระดับสาย (late_fine_1 / late_fine_2) — พฤติกรรมเดิม
+  PER_MINUTE // ค่าปรับ = (นาทีที่สายเกิน grace) × late_fine_per_minute (มีเพดาน late_fine_max ได้)
 }
 
 enum CheckInMethod {

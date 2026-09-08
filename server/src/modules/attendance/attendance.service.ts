@@ -137,6 +137,7 @@ export async function getAttendanceReport(tenantId: string, filters: {
         id: true, name: true, branch_id: true, start_time: true, end_time: true,
         late_threshold_1: true, late_threshold_2: true, absent_threshold: true,
         late_fine_1: true, late_fine_2: true,
+        fine_mode: true, late_grace_minutes: true, late_fine_per_minute: true, late_fine_max: true,
       } },
     },
     orderBy: [{ date: 'asc' }, { check_in_at: 'asc' }],
@@ -168,6 +169,8 @@ interface ShiftLateConfig {
   late_threshold_1: string | null
   late_threshold_2: string | null
   absent_threshold: string | null
+  fine_mode?: 'TIER' | 'PER_MINUTE' | null
+  late_grace_minutes?: number | null
 }
 interface LateStatus {
   is_late: boolean
@@ -181,13 +184,24 @@ function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): LateSta
   if (checkInMins <= startMins) return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
 
   const late_minutes = checkInMins - startMins
-  const late1Mins   = shift.late_threshold_1   ? toMins(shift.late_threshold_1)   : null
-  const late2Mins   = shift.late_threshold_2   ? toMins(shift.late_threshold_2)   : null
   const absentMins  = shift.absent_threshold   ? toMins(shift.absent_threshold)   : null
 
+  // ขาด (absent_threshold) มาก่อนเสมอ ไม่ว่าโหมดไหน
   if (absentMins != null && checkInMins >= absentMins) {
     return { is_late: true, late_level: 2, late_minutes, is_absent: true }
   }
+
+  // โหมด PER_MINUTE: สายเมื่อเกินนาทีผ่อนผัน (grace) หลังเวลาเริ่มงาน — ไม่มีระดับ 2 (คิดต่อนาที)
+  if (shift.fine_mode === 'PER_MINUTE') {
+    const grace = shift.late_grace_minutes ?? 0
+    return late_minutes > grace
+      ? { is_late: true, late_level: 1, late_minutes, is_absent: false }
+      : { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
+  }
+
+  // โหมด TIER (เดิม)
+  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
+  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
   if (late2Mins != null && checkInMins >= late2Mins) {
     return { is_late: true, late_level: 2, late_minutes, is_absent: false }
   }
@@ -201,9 +215,26 @@ function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): LateSta
   return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false } // สายแต่ยังไม่ถึงเกณฑ์ไหน (grace period)
 }
 
-function fineForLevel(shift: { late_fine_1: unknown; late_fine_2: unknown }, level: 0 | 1 | 2): number {
-  if (level === 1) return shift.late_fine_1 != null ? Number(shift.late_fine_1) : 0
-  if (level === 2) return shift.late_fine_2 != null ? Number(shift.late_fine_2) : 0
+interface ShiftFineConfig {
+  fine_mode?: 'TIER' | 'PER_MINUTE' | null
+  late_fine_1: unknown; late_fine_2: unknown
+  late_fine_per_minute?: unknown; late_grace_minutes?: number | null; late_fine_max?: unknown
+}
+
+// ค่าปรับสายของวันนี้ (ไม่รวม absent_fine/carried) — แตกตามโหมดของกะ
+function computeFine(shift: ShiftFineConfig, late: LateStatus): number {
+  if (late.is_absent || !late.is_late) return 0
+  if (shift.fine_mode === 'PER_MINUTE') {
+    const rate  = shift.late_fine_per_minute != null ? Number(shift.late_fine_per_minute) : 0
+    const grace = shift.late_grace_minutes ?? 0
+    const chargeable = Math.max(0, late.late_minutes - grace)
+    let f = chargeable * rate
+    if (shift.late_fine_max != null) f = Math.min(f, Number(shift.late_fine_max))
+    return Math.round(f * 100) / 100
+  }
+  // TIER
+  if (late.late_level === 1) return shift.late_fine_1 != null ? Number(shift.late_fine_1) : 0
+  if (late.late_level === 2) return shift.late_fine_2 != null ? Number(shift.late_fine_2) : 0
   return 0
 }
 
@@ -259,7 +290,7 @@ export async function createManualAttendance(tenantId: string, data: {
   let levelFine = 0
   if (shift && checkInAt) {
     late = computeLateStatus(shift, dateToBangkokMins(checkInAt))
-    levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
+    levelFine = computeFine(shift, late)
   }
 
   return prisma.$transaction(async (tx) => {
@@ -348,7 +379,7 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
     is_late      = late.is_late
     late_minutes = late.late_minutes
     is_absent    = late.is_absent
-    fine         = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
+    fine         = computeFine(shift, late)
   } else if (data.check_in_at !== undefined && !checkInAt) {
     is_late = false; late_minutes = 0; is_absent = false; fine = 0
   }
@@ -512,7 +543,7 @@ export async function checkInAuto(tenantId: string, data: {
   const today = getTodayBangkok()
   const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
   const { late, dayRuleNote } = applyDayRule(computeLateStatus(shift, dateToBangkokMins(now)), dayRule)
-  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
+  const levelFine = computeFine(shift, late)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -603,7 +634,7 @@ export async function checkIn(tenantId: string, data: {
   const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
   const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
   const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
-  const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
+  const levelFine = shift ? computeFine(shift, late) : 0
 
   // ตรวจสอบ GPS vs geo_mode ของสาขา
   let is_outside_area = false
@@ -692,7 +723,7 @@ export async function checkInQR(tenantId: string, data: {
   const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
   const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
   const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
-  const levelFine = shift && !late.is_absent ? fineForLevel(shift, late.late_level) : 0
+  const levelFine = shift ? computeFine(shift, late) : 0
 
   const record = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -764,7 +795,7 @@ export async function checkInScan(tenantId: string, data: {
 
   const now = new Date()
   const late = computeLateStatus(shift, dateToBangkokMins(now))
-  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
+  const levelFine = computeFine(shift, late)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -810,7 +841,7 @@ export async function checkInOffsite(tenantId: string, data: {
 
   const now = new Date()
   const late = computeLateStatus(shift, dateToBangkokMins(now))
-  const levelFine = late.is_absent ? 0 : fineForLevel(shift, late.late_level)
+  const levelFine = computeFine(shift, late)
 
   const today = getTodayBangkok()
   const { record, carried } = await prisma.$transaction(async (tx) => {

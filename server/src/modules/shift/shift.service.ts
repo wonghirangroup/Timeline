@@ -68,6 +68,10 @@ export async function createShift(
     late_threshold_2?: string
     late_fine_1?: number | null
     late_fine_2?: number | null
+    fine_mode?: 'TIER' | 'PER_MINUTE'
+    late_grace_minutes?: number | null
+    late_fine_per_minute?: number | null
+    late_fine_max?: number | null
     absent_threshold?: string
     absent_fine?: number | null
     gps_radius?: number
@@ -91,6 +95,10 @@ export async function updateShift(
     late_threshold_2?: string | null
     late_fine_1?: number | null
     late_fine_2?: number | null
+    fine_mode?: 'TIER' | 'PER_MINUTE'
+    late_grace_minutes?: number | null
+    late_fine_per_minute?: number | null
+    late_fine_max?: number | null
     absent_threshold?: string | null
     absent_fine?: number | null
     gps_radius?: number | null
