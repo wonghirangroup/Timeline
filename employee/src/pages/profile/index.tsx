@@ -5,7 +5,7 @@ import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpe
 import { PageLoader } from '../../components/ui'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/axios'
-import { uploadImage, cloudinaryEnabled } from '../../lib/upload'
+import { uploadImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -52,7 +52,7 @@ export default function ProfilePage() {
           <div style={{ position: 'relative', width: 80, height: 80 }}>
             <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
               {employee.photo_url
-                ? <img src={employee.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <img src={avatarUrl(employee.photo_url, 160) ?? employee.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : employee.first_name.charAt(0)}
             </div>
             {cloudinaryEnabled && (

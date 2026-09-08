@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Camera, Loader2, X } from 'lucide-react'
-import { uploadImage, cloudinaryEnabled } from '../../lib/upload'
+import { uploadImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
 import { useToast } from './Toast'
 
 interface Props {
@@ -44,7 +44,7 @@ export default function AvatarUpload({ value, fallback, size = 88, disabled, onC
           color: '#fff', fontSize: size * 0.34, fontWeight: 800, border: '3px solid #fff', boxShadow: 'var(--shadow-md)',
         }}>
           {value
-            ? <img src={value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={avatarUrl(value, Math.round(size * 2)) ?? value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : (fallback ?? '?')}
         </div>
 

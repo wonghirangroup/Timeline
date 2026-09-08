@@ -12,6 +12,7 @@ import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { avatarUrl } from '../../lib/upload'
 import OrgStructurePage from '../org-structure'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
@@ -53,7 +54,7 @@ interface ApiEmployee {
 function MiniAvatar({ url, name }: { url?: string | null; name: string }) {
   return (
     <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: url ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: 12, fontWeight: 800 }}>
-      {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name.charAt(0) || '?')}
+      {url ? <img src={avatarUrl(url, 56) ?? url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name.charAt(0) || '?')}
     </span>
   )
 }

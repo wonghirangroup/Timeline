@@ -1,12 +1,12 @@
-// อัปโหลดรูปผ่าน Cloudinary (unsigned upload preset) — ตั้งค่าที่ ENV:
-//   VITE_CLOUDINARY_CLOUD_NAME
-//   VITE_CLOUDINARY_UPLOAD_PRESET
-const CLOUD  = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
-const PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined
+// อัปโหลดรูปผ่าน Cloudinary (unsigned upload preset)
+// ใช้บัญชีเดียวกับ linecommerce-pro
+const CLOUD_NAME    = 'dffqpiizc'
+const UPLOAD_PRESET = 'my_shop_preset'
+const FOLDER        = 'timeline/employees'
 
-export const cloudinaryEnabled = !!(CLOUD && PRESET)
+export const cloudinaryEnabled = true
 
-export async function resizeImage(file: File, maxDim = 640, quality = 0.82): Promise<Blob> {
+export async function resizeImage(file: File, maxDim = 640, quality = 0.85): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
   const w = Math.round(bitmap.width * scale)
@@ -21,13 +21,21 @@ export async function resizeImage(file: File, maxDim = 640, quality = 0.82): Pro
 }
 
 export async function uploadImage(file: File): Promise<string> {
-  if (!cloudinaryEnabled) throw new Error('CLOUDINARY_NOT_CONFIGURED')
   const blob = await resizeImage(file).catch(() => file)
   const fd = new FormData()
   fd.append('file', blob)
-  fd.append('upload_preset', PRESET!)
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, { method: 'POST', body: fd })
+  fd.append('upload_preset', UPLOAD_PRESET)
+  fd.append('folder', FOLDER)
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd })
   if (!res.ok) throw new Error('UPLOAD_FAILED')
   const json = await res.json()
   return json.secure_url as string
+}
+
+export function avatarUrl(url: string | null | undefined, size = 160): string | null {
+  if (!url) return null
+  const marker = '/image/upload/'
+  const i = url.indexOf(marker)
+  if (i === -1) return url
+  return `${url.slice(0, i + marker.length)}c_fill,g_face,q_auto,f_auto,w_${size},h_${size}/${url.slice(i + marker.length)}`
 }
