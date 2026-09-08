@@ -53,6 +53,32 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     return ok({ employee: { ...empRest, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
   })
 
+  // PATCH /api/v1/employee/photo — พนักงานตั้ง/ลบรูปโปรไฟล์ตัวเองผ่าน LIFF
+  app.patch('/employee/photo', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ตั้ง/ลบรูปโปรไฟล์ตัวเอง (LIFF) — photo_url=null เพื่อลบ',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['photo_url'],
+        properties: { photo_url: { type: ['string', 'null'] } },
+      },
+    },
+  }, async (req: any, reply) => {
+    const employeeId = req.employeeId
+    if (!employeeId) return reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบข้อมูล employee'))
+    const url = req.body.photo_url
+    if (url && !/^https:\/\/\S+$/.test(url)) return reply.code(400).send(fail('INVALID_URL', 'URL ไม่ถูกต้อง'))
+    const c = await prisma.employee.updateMany({
+      where: { id: employeeId, tenant_id: req.tenantId, deleted_at: null },
+      data: { photo_url: url || null },
+    })
+    if (c.count === 0) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    return ok({ photo_url: url || null })
+  })
+
   // GET /api/v1/employee/holidays?year=
   // วันหยุดนักขัตฤกษ์/ประจำปีของ tenant ที่ใช้กับพนักงานคนนี้ (กรองตามสาขา/แผนกที่ holiday กำหนดไว้)
   app.get('/employee/holidays', {

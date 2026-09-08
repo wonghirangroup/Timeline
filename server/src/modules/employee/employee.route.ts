@@ -104,6 +104,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           employee_status_type_id: { type: ['string', 'null'] },
           booking_enabled_override: { type: ['boolean', 'null'], description: 'override สิทธิ์จองวันหยุดรายคน — null = inherit จากตำแหน่ง/แผนก/…/กลุ่ม' },
           leave_enabled_override:   { type: ['boolean', 'null'], description: 'override สิทธิ์การลารายคน — null = inherit' },
+          photo_url:    { type: ['string', 'null'], description: 'URL รูปโปรไฟล์ (อัปโหลดผ่าน Cloudinary ฝั่ง client)' },
         },
       },
     },

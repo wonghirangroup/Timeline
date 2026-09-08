@@ -167,6 +167,7 @@ model Employee {
   probation_result         ProbationResult? // ผลประเมิน — null = ยังไม่ประเมิน
   probation_note           String? // บันทึกผลประเมินทดลองงาน
   user_id                  String?          @unique // บัญชี User (แอดมิน) ที่ผูกกับพนักงานคนนี้ — ให้ switch ไปเว็บแอดมินจาก LIFF ได้ (null = ไม่มีสิทธิ์แอดมิน)
+  photo_url                String?          @db.Text // รูปโปรไฟล์ — URL (อัปโหลดผ่าน Cloudinary ฝั่ง client)
   created_at               DateTime         @default(now())
   updated_at               DateTime         @updatedAt
   deleted_at               DateTime?

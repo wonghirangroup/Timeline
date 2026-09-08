@@ -72,7 +72,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const admin_access = !!employee.admin_user?.is_active
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/list?line_channel_id=xxx

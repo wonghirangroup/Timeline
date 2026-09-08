@@ -1,12 +1,34 @@
 // employee/src/pages/profile/index.tsx
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink } from 'lucide-react'
+import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
 import { useAuthStore } from '../../stores/authStore'
+import { api } from '../../lib/axios'
+import { uploadImage, cloudinaryEnabled } from '../../lib/upload'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const employee = useAuthStore(s => s.employee)
+  const patchEmployee = useAuthStore(s => s.patchEmployee)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !file.type.startsWith('image/')) return
+    setUploading(true)
+    try {
+      const url = await uploadImage(file)
+      await api.patch('/api/v1/employee/photo', { photo_url: url })
+      patchEmployee({ photo_url: url })
+    } catch {
+      alert('อัปโหลดรูปไม่สำเร็จ')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const adminUrl = employee?.admin_access && employee.admin_url ? employee.admin_url : null
 
@@ -27,8 +49,21 @@ export default function ProfilePage() {
       {/* ── Orange Gradient Header ──────────────────────────────── */}
       <div className="app-header" style={{ paddingBottom: 64, paddingTop: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-            {employee.first_name.charAt(0)}
+          <div style={{ position: 'relative', width: 80, height: 80 }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+              {employee.photo_url
+                ? <img src={employee.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : employee.first_name.charAt(0)}
+            </div>
+            {cloudinaryEnabled && (
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: '50%', border: '2px solid #fff', background: '#EA580C', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                aria-label="เปลี่ยนรูปโปรไฟล์">
+                <Camera size={14} />
+              </button>
+            )}
+            {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>...</div>}
+            <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} hidden />
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{fullName}</div>

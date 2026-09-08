@@ -203,6 +203,7 @@ export async function updateEmployee(
     employee_status_type_id?: string | null
     booking_enabled_override?: boolean | null
     leave_enabled_override?: boolean | null
+    photo_url?: string | null
   },
 ) {
   const { hired_at, ...rest } = data

@@ -24,6 +24,7 @@ export interface EmployeeProfile {
   feat_resignation?: boolean  // tenant เปิดให้พนักงานยื่นลาออกผ่าน LIFF ไหม
   admin_access?: boolean      // พนักงานคนนี้มีบัญชีแอดมิน (active) — โชว์เมนู "สลับไปเว็บแอดมิน"
   admin_url?: string | null   // URL เว็บแอดมินสำหรับกดสลับ
+  photo_url?: string | null   // รูปโปรไฟล์ (URL จาก Cloudinary)
 }
 
 interface AuthStore {
@@ -31,6 +32,7 @@ interface AuthStore {
   isAuthenticated: boolean
   isVerifying: boolean
   setAuth: (employee: EmployeeProfile, token: string) => void
+  patchEmployee: (patch: Partial<EmployeeProfile>) => void
   setVerifying: (v: boolean) => void
   logout: () => void
 }
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     setJwt(token)
     set({ employee, isAuthenticated: true, isVerifying: false })
   },
+  patchEmployee: (patch) => set(s => ({ employee: s.employee ? { ...s.employee, ...patch } : s.employee })),
   setVerifying: (isVerifying) => set({ isVerifying }),
   logout: () => {
     setJwt('')

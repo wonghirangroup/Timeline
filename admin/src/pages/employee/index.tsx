@@ -47,6 +47,15 @@ interface ApiEmployee {
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
+  photo_url?: string | null
+}
+
+function MiniAvatar({ url, name }: { url?: string | null; name: string }) {
+  return (
+    <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: url ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: 12, fontWeight: 800 }}>
+      {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name.charAt(0) || '?')}
+    </span>
+  )
 }
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department (แผนก) → Division (ฝ่าย)
@@ -564,11 +573,16 @@ export default function EmployeePage() {
                 onMouseLeave={ev => (ev.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}>
                   <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{e.employee_code}</td>
                   <td style={{ padding: '11px 14px' }}>
-                    <button onClick={() => navigate(`/employee/${e.id}`)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: '#ea580c', fontSize: '0.875rem', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2 }}>
-                      {e.first_name} {e.last_name}
-                    </button>
-                    {e.nickname && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 5 }}>({e.nickname})</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <MiniAvatar url={e.photo_url} name={e.first_name} />
+                      <span>
+                        <button onClick={() => navigate(`/employee/${e.id}`)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: '#ea580c', fontSize: '0.875rem', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                          {e.first_name} {e.last_name}
+                        </button>
+                        {e.nickname && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 5 }}>({e.nickname})</span>}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{deptName(e.department)}</td>
                   <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.branch.name}</td>
@@ -643,12 +657,15 @@ export default function EmployeePage() {
           {paginated.map(e => (
             <div key={e.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <MiniAvatar url={e.photo_url} name={e.first_name} />
+                  <div>
                   <button onClick={() => navigate(`/employee/${e.id}`)} style={{ fontWeight: 700, color: '#ea580c', fontSize: '14px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
                     {e.first_name} {e.last_name}
                     {e.nickname && <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>({e.nickname})</span>}
                   </button>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{e.employee_code} · {e.branch.name}{e.department ? ` · ${deptName(e.department)}` : ''}</div>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                   <div style={{ display: 'flex', gap: 4 }}>

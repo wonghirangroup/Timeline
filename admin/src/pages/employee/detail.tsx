@@ -16,6 +16,7 @@ import { useToast } from '../../components/ui/Toast'
 import { deptName } from '../../lib/format'
 import { useAuthStore } from '../../stores/authStore'
 import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
+import AvatarUpload from '../../components/ui/AvatarUpload'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -746,6 +747,17 @@ export default function EmployeeDetailPage() {
     setTimeout(() => setInviteSent(false), 3000)
   }
 
+  async function savePhoto(url: string | null) {
+    try {
+      await axios.patch(`/api/v1/admin/employees/${id}`, { photo_url: url })
+      queryClient.invalidateQueries({ queryKey: ['employee', id] })
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', url ? 'อัปเดตรูปโปรไฟล์แล้ว' : 'ลบรูปโปรไฟล์แล้ว')
+    } catch {
+      showToast('error', 'บันทึกรูปไม่สำเร็จ')
+    }
+  }
+
   async function doResetLine() {
     setConfirmReset(false)
     setResetting(true)
@@ -801,14 +813,12 @@ export default function EmployeeDetailPage() {
         </button>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 18, flexShrink: 0,
-            background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.5rem', fontWeight: 800, color: avatarText,
-            boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
-          }}>
-            {nickname.slice(0, 2)}
-          </div>
+          <AvatarUpload
+            value={emp.photo_url}
+            fallback={nickname.slice(0, 2)}
+            size={78}
+            onChange={savePhoto}
+          />
 
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
