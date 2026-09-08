@@ -1,5 +1,5 @@
 // admin/src/pages/dashboard/index.tsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning } from 'lucide-react'
@@ -346,6 +346,21 @@ export default function DashboardPage() {
   const pending = filtered.filter(r => r.status === 'PENDING').length
   const total   = filtered.length
 
+  // ── กดการ์ด KPI เพื่อกรอง "รายชื่อวันนี้" ───────────────────────────────
+  type TodayFilter = 'ALL' | 'ON_TIME' | 'LATE' | 'PENDING'
+  const [todayFilter, setTodayFilter] = useState<TodayFilter>('ALL')
+  const listRef = useRef<HTMLDivElement>(null)
+  const pickFilter = (f: TodayFilter) => {
+    setTodayFilter(prev => (prev === f ? 'ALL' : f))
+    if (isMobile) setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+  const listFiltered = useMemo(() => {
+    if (todayFilter === 'ALL') return filtered
+    if (todayFilter === 'LATE') return filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2')
+    return filtered.filter(r => r.status === todayFilter)
+  }, [filtered, todayFilter])
+  const FILTER_LABEL: Record<Exclude<TodayFilter, 'ALL'>, string> = { ON_TIME: 'เข้างานปกติ', LATE: 'มาสาย', PENDING: 'ยังไม่เช็ค' }
+
   const pendingLeaveCount = pendingLeaves.length
 
   return (
@@ -443,27 +458,32 @@ export default function DashboardPage() {
 
         {/* ── KPI cards ────────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
             เรียลไทม์วันนี้ · สถานะพนักงาน
           </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 12 }}>แตะการ์ดเพื่อดูรายชื่อในหมวดนั้น</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-            {[
-              { label: 'ทั้งหมด',    value: total,   icon: <Users size={18}/>,         color: 'var(--info)',    bg: 'var(--info-bg)',    iconColor: '#3b82f6' },
-              { label: 'เข้างานปกติ', value: onTime,  icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', bg: 'var(--success-bg)', iconColor: '#10b981' },
-              { label: 'มาสาย',      value: late,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', bg: 'var(--warning-bg)', iconColor: '#f59e0b' },
-              { label: 'ยังไม่เช็ค', value: pending, icon: <Clock size={18}/>,         color: 'var(--text-muted)', bg: '#f8fafc',       iconColor: '#94a3b8' },
-            ].map(card => (
-              <button key={card.label} onClick={() => navigate('/report')} className="premium-card"
-                style={{ padding: '20px', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', background: 'var(--bg-card)' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.iconColor }}>
-                    {card.icon}
+            {([
+              { label: 'ทั้งหมด',    value: total,   filter: 'ALL' as TodayFilter,     icon: <Users size={18}/>,         color: 'var(--info)',    bg: 'var(--info-bg)',    iconColor: '#3b82f6', ring: '#3b82f6' },
+              { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', bg: 'var(--success-bg)', iconColor: '#10b981', ring: '#10b981' },
+              { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', bg: 'var(--warning-bg)', iconColor: '#f59e0b', ring: '#f59e0b' },
+              { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: 'var(--text-muted)', bg: '#f8fafc',       iconColor: '#94a3b8', ring: '#94a3b8' },
+            ]).map(card => {
+              const active = todayFilter === card.filter
+              return (
+                <button key={card.label} onClick={() => pickFilter(card.filter)} className="premium-card"
+                  aria-pressed={active}
+                  style={{ padding: '20px', border: active ? `2px solid ${card.ring}` : '2px solid transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', background: 'var(--bg-card)', boxShadow: active ? `0 0 0 3px ${card.ring}22` : undefined, transition: 'border-color 0.15s, box-shadow 0.15s' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.iconColor }}>
+                      {card.icon}
+                    </div>
+                    <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
                   </div>
-                  <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>{card.label}</div>
-              </button>
-            ))}
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>{card.label}</div>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -484,7 +504,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Right Column (รายชื่อวันนี้) ──────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, order: isMobile ? 1 : 2, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
+      <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 16, order: isMobile ? 1 : 2, height: isMobile ? 'auto' : 'calc(100vh - 110px)', scrollMarginTop: 12 }}>
 
         {/* Org filter */}
         <div>
@@ -493,26 +513,34 @@ export default function DashboardPage() {
 
         {/* List card */}
         <div className="premium-card" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', flexShrink: 0 }}>
-            <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)' }}>รายชื่อวันนี้</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, background: '#e2e8f0', padding: '2px 10px', borderRadius: 99 }}>{filtered.length} คน</span>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', flexShrink: 0, gap: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              รายชื่อวันนี้
+              {todayFilter !== 'ALL' && (
+                <button onClick={() => setTodayFilter('ALL')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '11px', fontWeight: 700, color: '#475569', background: '#e2e8f0', border: 'none', borderRadius: 99, padding: '3px 8px 3px 10px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {FILTER_LABEL[todayFilter]} <XCircle size={13}/>
+                </button>
+              )}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, background: '#e2e8f0', padding: '2px 10px', borderRadius: 99, flexShrink: 0 }}>{listFiltered.length} คน</span>
           </div>
 
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {recordsLoading && filtered.length === 0 ? (
+            {recordsLoading && listFiltered.length === 0 ? (
               <SkeletonRows rows={8} />
-            ) : filtered.length === 0 ? (
+            ) : listFiltered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ marginBottom: 12, opacity: 0.4, display: 'flex', justifyContent: 'center' }}><CalendarDays size={40}/></div>
-                <div style={{ fontWeight: 600, fontSize: '13px' }}>ไม่มีข้อมูล</div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>{todayFilter === 'ALL' ? 'ไม่มีข้อมูล' : `ไม่มีคนในหมวด "${FILTER_LABEL[todayFilter]}"`}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {filtered.map((row, i) => {
+                {listFiltered.map((row, i) => {
                   const s = STATUS_CFG[row.status]
                   return (
                     <div key={row.key} onClick={() => navigate(`/employee/${row.empId}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < filtered.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none', background: 'var(--bg-card)', transition: 'background 0.2s', cursor: 'pointer' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < listFiltered.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none', background: 'var(--bg-card)', transition: 'background 0.2s', cursor: 'pointer' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#f8fafc' }}
                       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-card)' }}
                     >
