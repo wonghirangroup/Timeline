@@ -78,7 +78,7 @@ export default function ProfilePage() {
             </button>
           )}
           <button onClick={() => navigate('/verify')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#9CA3AF', textDecoration: 'underline', fontFamily: 'inherit' }}>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#6B7280', textDecoration: 'underline', fontFamily: 'inherit' }}>
             เปลี่ยนบัญชี LINE
           </button>
         </div>

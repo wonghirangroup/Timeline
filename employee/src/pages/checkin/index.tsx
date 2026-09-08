@@ -138,7 +138,7 @@ function CheckInSheet({ result, onClose }: { result: CheckInResult; onClose: () 
           <MapPin size={16} /> ดูพิกัดที่เช็คอินใน Google Maps
         </a>
       )}
-      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
         รับทราบ
       </button>
     </BottomSheet>
@@ -172,7 +172,7 @@ function CheckOutSheet({ result, onClose }: { result: CheckOutResult; onClose: (
         ))}
       </div>
 
-      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: '#2563EB', color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
         รับทราบ
       </button>
     </BottomSheet>
@@ -235,7 +235,7 @@ function OffsiteResultSheet({ record, mode, onClose }: {
           <MapPin size={16} /> ดูพิกัดใน Google Maps
         </a>
       )}
-      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: `linear-gradient(135deg, ${color}, ${color})`, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
+      <button onClick={onClose} style={{ width: '100%', padding: '16px', borderRadius: 20, border: 'none', background: color, color: '#fff', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer' }}>
         รับทราบ
       </button>
     </BottomSheet>
@@ -282,7 +282,7 @@ function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
         </button>
         <button onClick={onConfirm} disabled={loading}
           style={{ flex: 2, padding: '14px', borderRadius: 16, border: 'none',
-            background: loading ? '#d1d5db' : isCheckout ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`,
+            background: loading ? '#d1d5db' : isCheckout ? '#2563EB' : COLOR.primary,
             color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {loading
@@ -305,9 +305,9 @@ function LiveClock() {
     <div style={{ textAlign: 'center' }}>
       <div style={{
         fontVariantNumeric: 'tabular-nums', fontSize: '3rem', fontWeight: 800,
-        background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryEnd})`,
+        background: COLOR.primary,
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        lineHeight: 1, marginBottom: 8, filter: 'drop-shadow(0 4px 12px rgba(255,94,0,0.15))',
+        lineHeight: 1, marginBottom: 8, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.12))',
       }}>
         {formatTime(now)}
       </div>
@@ -394,7 +394,7 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
     <BottomSheet onClose={onClose} zIndex={300}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <p style={{ fontWeight: 800, fontSize: '1rem', color: '#111827', margin: 0 }}>สแกน QR Code</p>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><X size={20} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4 }}><X size={20} /></button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
@@ -443,7 +443,7 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
               style={{ width: '100%', padding: '28px', borderRadius: 16, border: '2px dashed #d1d5db', background: '#f9fafb', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <Image size={40} color={COLOR.primary} />
               <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#374151' }}>เลือกรูปภาพ QR</span>
-              <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>รองรับ JPG, PNG, WEBP</span>
+              <span style={{ fontSize: '0.78rem', color: '#6B7280' }}>รองรับ JPG, PNG, WEBP</span>
             </button>
           </div>
         )}
@@ -666,7 +666,7 @@ export default function CheckinPage() {
 
         {/* Employee card */}
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', marginBottom: 32 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: COLOR.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
             {employee.first_name.charAt(0)}
           </div>
           <div style={{ flex: 1 }}>
@@ -756,9 +756,9 @@ export default function CheckinPage() {
                 ? '#e5e7eb'
                 : hasOpenRecord
                   ? '#f3f4f6'
-                  : `linear-gradient(145deg, ${COLOR.primary}, ${COLOR.primaryEnd})`,
+                  : COLOR.primary,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: (!busy && !allCheckedOut && !hasOpenRecord) ? '0 8px 24px rgba(255,94,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
+              boxShadow: (!busy && !allCheckedOut && !hasOpenRecord) ? '0 4px 12px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
               opacity: hasOpenRecord ? 0.5 : 1,
             }}
           >
@@ -781,7 +781,7 @@ export default function CheckinPage() {
               width: 160, height: 160, borderRadius: '50%', border: 'none',
               cursor: (busy || !hasOpenRecord) ? 'not-allowed' : 'pointer',
               background: hasOpenRecord
-                ? 'linear-gradient(145deg, #2563eb, #1d4ed8)'
+                ? '#2563EB'
                 : '#f3f4f6',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
               boxShadow: hasOpenRecord ? '0 8px 24px rgba(37,99,235,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
@@ -810,11 +810,11 @@ export default function CheckinPage() {
         {/* เช็คอินนอกสถานที่ — ปักหมุด GPS อิสระจากกะปกติ ใช้ได้ทุกเมื่อ */}
         <div style={{
           margin: '24px 0 0', padding: '20px', borderRadius: 20,
-          background: activeOffsite ? 'linear-gradient(135deg,#eff6ff,#dbeafe)' : 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+          background: activeOffsite ? '#EFF6FF' : '#F0FDF4',
           border: `1.5px solid ${activeOffsite ? '#93c5fd' : '#86efac'}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: activeOffsite ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : 'linear-gradient(135deg,#16a34a,#15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: activeOffsite ? '#2563EB' : '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Navigation size={20} color="#fff" strokeWidth={2} />
             </div>
             <div>
@@ -840,7 +840,7 @@ export default function CheckinPage() {
             style={{
               width: '100%', padding: '14px', borderRadius: 16, border: 'none',
               cursor: offsiteBusy ? 'not-allowed' : 'pointer',
-              background: offsiteBusy ? '#d1d5db' : activeOffsite ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : 'linear-gradient(135deg,#16a34a,#15803d)',
+              background: offsiteBusy ? '#d1d5db' : activeOffsite ? '#2563EB' : '#16A34A',
               color: '#fff', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>

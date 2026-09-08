@@ -1,7 +1,7 @@
 // employee/src/components/layout/BottomNav.tsx — Premium Floating Bottom Navigation
 import { NavLink, useLocation } from 'react-router-dom'
 import { QrCode, BarChart2, Layers, User } from 'lucide-react'
-import { COLOR, SHADOW } from '../ui/tokens'
+import { COLOR } from '../ui/tokens'
 
 interface NavItem {
   path: string
@@ -27,13 +27,11 @@ export default function BottomNav() {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', left: 16, right: 16,
+      position: 'fixed', bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', left: 12, right: 12,
       background: COLOR.navBg,
-      borderRadius: 24,
-      boxShadow: SHADOW.nav,
+      borderRadius: 18,
+      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       border: `1px solid ${COLOR.navBorder}`,
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '8px',
       zIndex: 50,
@@ -52,12 +50,11 @@ export default function BottomNav() {
             }}
           >
             {active ? (
-              /* Active: Icon wrapped in primary gradient */
+              /* Active: solid primary circle */
               <div className="animate-fade-in" style={{
                 width: 44, height: 44, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})`,
+                background: COLOR.primary,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: SHADOW.btn,
                 marginBottom: 2,
               }}>
                 <Icon size={20} strokeWidth={2.5} color="#ffffff" />

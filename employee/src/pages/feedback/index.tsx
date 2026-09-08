@@ -41,7 +41,7 @@ export default function FeedbackPage() {
           minHeight: '80dvh', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', padding: '40px 24px',
         }}>
-          <MessageCircle size={70} color="var(--accent-start)" strokeWidth={1.5} className="animate-success-pop" style={{ marginBottom: 20 }} />
+          <MessageCircle size={70} color="var(--accent-primary)" strokeWidth={1.5} className="animate-success-pop" style={{ marginBottom: 20 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' }}>
             ขอบคุณสำหรับความคิดเห็น!
           </div>
@@ -53,9 +53,9 @@ export default function FeedbackPage() {
             onClick={() => { submitMutation.reset(); setCategory(''); setText('') }}
             style={{
               marginTop: 28, padding: '14px 36px', borderRadius: 16, border: 'none',
-              cursor: 'pointer', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))',
+              cursor: 'pointer', background: 'var(--accent-primary)',
               color: '#fff', fontWeight: 700, fontSize: '0.95rem',
-              boxShadow: '0 4px 16px rgba(255,107,53,0.3)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             }}
           >
             ส่งอีกครั้ง
@@ -70,7 +70,7 @@ export default function FeedbackPage() {
 
       {/* Header */}
       <div className="header-strip animate-fade-in" style={{ padding: '28px 20px 20px', textAlign: 'center' }}>
-        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 14px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 14px' }} />
         <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>ส่งความคิดเห็น</div>
 
         {/* Anonymous Badge */}
@@ -92,13 +92,13 @@ export default function FeedbackPage() {
                   key={cat.code}
                   onClick={() => setCategory(cat.code)}
                   style={{
-                    padding: '12px 8px', borderRadius: 14, border: `2px solid ${isSelected ? 'var(--accent-start)' : 'transparent'}`,
-                    cursor: 'pointer', background: isSelected ? 'rgba(255,107,53,0.08)' : 'rgba(0,0,0,0.04)',
+                    padding: '12px 8px', borderRadius: 14, border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'transparent'}`,
+                    cursor: 'pointer', background: isSelected ? '#FFF7ED' : 'rgba(0,0,0,0.04)',
                     transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   }}
                 >
-                  <cat.Icon size={22} color={isSelected ? 'var(--accent-start)' : 'var(--text-secondary)'} />
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: isSelected ? 'var(--accent-start)' : 'var(--text-secondary)', lineHeight: 1.3 }}>
+                  <cat.Icon size={22} color={isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)'} />
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)', lineHeight: 1.3 }}>
                     {cat.label}
                   </span>
                 </button>
@@ -122,8 +122,8 @@ export default function FeedbackPage() {
             rows={6}
             style={{
               width: '100%', padding: '12px 14px', borderRadius: 12,
-              border: `2px solid ${text.length >= 10 ? 'rgba(22,163,74,0.3)' : 'rgba(255,107,53,0.2)'}`,
-              fontSize: '0.9rem', background: 'rgba(255,255,255,0.85)', outline: 'none',
+              border: `2px solid ${text.length >= 10 ? 'rgba(22,163,74,0.3)' : '#FCD9BE'}`,
+              fontSize: '0.9rem', background: '#ffffff', outline: 'none',
               boxSizing: 'border-box', resize: 'none', lineHeight: 1.6, fontFamily: 'inherit',
               transition: 'border-color 0.2s',
             }}
@@ -157,11 +157,11 @@ export default function FeedbackPage() {
             width: '100%', padding: '18px', borderRadius: 16, border: 'none',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
             background: canSubmit
-              ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))'
+              ? 'var(--accent-primary)'
               : 'rgba(0,0,0,0.08)',
             color: canSubmit ? '#fff' : 'var(--text-muted)',
             fontSize: '1rem', fontWeight: 700,
-            boxShadow: canSubmit ? '0 4px 16px rgba(255,107,53,0.3)' : 'none',
+            boxShadow: canSubmit ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
             transition: 'all 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}

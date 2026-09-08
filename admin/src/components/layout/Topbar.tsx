@@ -125,7 +125,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             background: 'linear-gradient(135deg, #f97316, #ea580c)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</div>
@@ -370,7 +370,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
                 background: 'linear-gradient(135deg, #f97316, #ea580c)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               {!isMobile && (
                 <>

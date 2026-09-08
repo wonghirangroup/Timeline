@@ -1,46 +1,53 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 /* ── Design Tokens ─────────────────────────────────────────── */
+/* แนวทาง: calm & minimal ให้ตรงกับแอป admin (ดู admin/src/index.css) —
+   เลิก glassmorphism / gradient-text / bounce / พื้นหลัง peach
+   แอป employee เก็บแค่ touch target ใหญ่ + bottom-nav ergonomics ไว้ */
 :root {
   /* Background */
-  --bg-page:        #F8F9FA;
+  --bg-page:        #F1F5F9;   /* slate-100 — เดียวกับ admin */
   --bg-deep:        #ffffff;
-  --bg-subtle:      #FEF0E6;
+  --bg-subtle:      #F8FAFC;
 
-  /* Vibrant Orange/Coral Accent */
-  --accent-start:   #FF5E00;
-  --accent-mid:     #FF7A29;
-  --accent-end:     #FF9D5C;
+  /* Accent — Orange (เดียวกับ admin: orange-600/700) */
+  --accent-primary: #EA580C;
+  --accent-hover:   #C2410C;
+  --accent-light:   #FFEDD5;
+  /* alias เดิม (โค้ดบางที่ยังอ้าง --accent-start/mid/end อยู่) → map มาที่สีเดียว */
+  --accent-start:   #EA580C;
+  --accent-mid:     #EA580C;
+  --accent-end:     #EA580C;
 
-  /* Glass / Card */
-  --glass-bg:       rgba(255, 255, 255, 0.75);
-  --glass-bg-hover: rgba(255, 255, 255, 0.9);
-  --glass-border:   rgba(255, 255, 255, 0.6);
-  --glass-glow:     inset 0 0 0 1px rgba(255,255,255,0.5), 0 8px 32px rgba(255, 94, 0, 0.08);
-  --card-shadow:    0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  --card-shadow-lg: 0 12px 48px rgba(255, 94, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.05);
+  /* Card */
+  --card-bg:        #ffffff;
+  --card-border:    #e5e7eb;
+  --card-shadow:    0 1px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03);
+  --card-shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
 
-  /* Text */
+  /* Text — ทุกระดับผ่าน WCAG AA 4.5:1 บนพื้นสว่าง */
   --text-primary:   #1A1A1A;
-  --text-secondary: #6B7280;
-  --text-muted:     #9CA3AF;
+  --text-secondary: #4B5563;   /* gray-600 (~7:1) */
+  --text-muted:     #6B7280;   /* gray-500 (~4.6:1) — จางสุดที่ยังใช้กับตัวหนังสือได้ */
   --text-on-accent: #ffffff;
 
-  /* Status */
-  --success:        #10B981;
-  --success-bg:     rgba(16, 185, 129, 0.1);
-  --success-border: rgba(16, 185, 129, 0.25);
-  --warning:        #F59E0B;
-  --warning-bg:     rgba(245, 158, 11, 0.1);
-  --warning-border: rgba(245, 158, 11, 0.25);
-  --error:          #EF4444;
-  --error-bg:       rgba(239, 68, 68, 0.1);
-  --error-border:   rgba(239, 68, 68, 0.25);
+  /* Status — สี text เข้มพอผ่าน AA, พื้น badge เป็น tint ทึบ */
+  --success:        #16A34A;
+  --success-bg:     #DCFCE7;
+  --success-border: #86EFAC;
+  --warning:        #D97706;
+  --warning-bg:     #FEF3C7;
+  --warning-border: #FCD34D;
+  --error:          #DC2626;
+  --error-bg:       #FEE2E2;
+  --error-border:   #FCA5A5;
+  --info:           #2563EB;
+  --info-bg:        #DBEAFE;
 
   /* Nav */
   --nav-height:     76px;
-  --nav-bg:         rgba(255, 255, 255, 0.85);
-  --nav-border:     rgba(255, 255, 255, 0.3);
+  --nav-bg:         #ffffff;
+  --nav-border:     #e5e7eb;
 }
 
 /* ── Reset & Base ──────────────────────────────────────────── */
@@ -54,194 +61,152 @@ html, body, #root {
   min-height: 100%;
   min-height: 100dvh;
   font-family: 'Noto Sans Thai', 'Inter', ui-sans-serif, system-ui, sans-serif;
-  background: #FFF0E6;
+  background: var(--bg-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Focus Visible ─────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 0;
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,107,53,0.2); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 99px; }
 
 /* ── Card ──────────────────────────────────────────────────── */
 .glass-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  box-shadow: var(--card-shadow), var(--glass-glow);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .glass-card:hover {
-  background: var(--glass-bg-hover);
-  box-shadow: var(--card-shadow-lg), var(--glass-glow);
-  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-lg);
 }
 
 /* ── Animations ────────────────────────────────────────────── */
 @keyframes pulse-ring {
-  0%   { transform: scale(0.9);  opacity: 0.8; }
-  100% { transform: scale(1.8);  opacity: 0; }
+  0%   { transform: scale(0.9);  opacity: 0.6; }
+  100% { transform: scale(1.7);  opacity: 0; }
 }
-
 @keyframes pulse-ring-2 {
-  0%   { transform: scale(0.9);  opacity: 0.5; }
-  100% { transform: scale(2.2);  opacity: 0; }
+  0%   { transform: scale(0.9);  opacity: 0.4; }
+  100% { transform: scale(2.0);  opacity: 0; }
 }
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-16px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(24px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fade-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-
 @keyframes success-pop {
-  0%   { transform: scale(0.8); opacity: 0; }
-  50%  { transform: scale(1.15); }
-  100% { transform: scale(1);   opacity: 1; }
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
-
 @keyframes dot-blink {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.3; transform: scale(0.8); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
-
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
-
 @keyframes tl-progress {
   0%   { transform: translateX(-110%); }
   60%  { transform: translateX(160%); }
   100% { transform: translateX(160%); }
 }
 
-/* ── Utility Classes ───────────────────────────────────────── */
-.animate-pulse-ring  { animation: pulse-ring   2.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
-.animate-pulse-ring-2{ animation: pulse-ring-2 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite 0.6s; }
-.animate-float       { animation: float        3s ease-in-out infinite; }
-.animate-spin        { animation: spin         0.8s linear infinite; }
-.animate-slide-down  { animation: slide-down   0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-slide-up    { animation: slide-up     0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-fade-in     { animation: fade-in      0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-success-pop { animation: success-pop  0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.animate-dot-blink   { animation: dot-blink    1.5s ease-in-out infinite; }
+.animate-pulse-ring   { animation: pulse-ring   2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.animate-pulse-ring-2 { animation: pulse-ring-2 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.5s; }
+.animate-spin         { animation: spin        0.8s linear infinite; }
+.animate-slide-down    { animation: slide-down  0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-up      { animation: slide-up    0.3s  cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in       { animation: fade-in     0.25s ease-out both; }
+.animate-success-pop   { animation: success-pop 0.3s  cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-dot-blink     { animation: dot-blink   1.6s ease-in-out infinite; }
 
-/* stagger children */
 .stagger > *:nth-child(1) { animation-delay:   0ms; }
-.stagger > *:nth-child(2) { animation-delay:  80ms; }
-.stagger > *:nth-child(3) { animation-delay: 160ms; }
+.stagger > *:nth-child(2) { animation-delay:  60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
 
-/* ── Gradient Utilities ────────────────────────────────────── */
-.gradient-text {
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.gradient-bg {
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-mid), var(--accent-end));
-}
+/* ── (compat) เดิมเป็น gradient — คงชื่อคลาสไว้ ให้เป็นสีทึบสีเดียว ── */
+.gradient-text { color: var(--accent-primary); }
+.gradient-bg   { background: var(--accent-primary); }
 
 /* ── Bottom Navigation ─────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0; left: 0; right: 0;
   height: var(--nav-height);
   background: var(--nav-bg);
   border-top: 1px solid var(--nav-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   justify-content: space-around;
   padding: 0 8px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 50;
-  box-shadow: 0 -4px 20px rgba(255, 107, 53, 0.06);
 }
-
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
   padding: 8px 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.15s;
   text-decoration: none;
   flex: 1;
 }
-
-.nav-item:hover {
-  background: rgba(255, 107, 53, 0.06);
-}
-
-.nav-item:active {
-  transform: scale(0.94);
-}
-
+.nav-item:active { background: rgba(0,0,0,0.04); }
 .nav-item-icon {
   font-size: 1.25rem;
   line-height: 1;
-  opacity: 0.35;
-  transition: opacity 0.2s;
+  opacity: 0.4;
+  transition: opacity 0.15s;
 }
-
 .nav-item-label {
-  font-size: 0.64rem;
+  font-size: 0.66rem;
   font-weight: 500;
   color: var(--text-muted);
-  transition: color 0.2s;
+  transition: color 0.15s;
 }
-
-.nav-item.active .nav-item-icon {
-  opacity: 1;
-}
-
-.nav-item.active .nav-item-label {
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 600;
-}
-
-/* active indicator dot */
+.nav-item.active .nav-item-icon  { opacity: 1; }
+.nav-item.active .nav-item-label { color: var(--accent-primary); font-weight: 700; }
 .nav-item.active::after {
   content: '';
   display: block;
-  width: 4px;
-  height: 4px;
+  width: 4px; height: 4px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+  background: var(--accent-primary);
   margin-top: -2px;
 }
 
@@ -251,92 +216,73 @@ html, body, #root {
   padding-bottom: calc(var(--nav-height) + 8px);
 }
 
-/* ── Header Gradient Strip ─────────────────────────────────── */
+/* ── Header ────────────────────────────────────────────────── */
 .header-strip {
-  background: linear-gradient(160deg, #fff8f4 0%, #fff3ea 50%, #fef6ee 100%);
-  border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+  background: #ffffff;
+  border-bottom: 1px solid var(--card-border);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   FinWise-style App Shell — Premium Edition
-   ══════════════════════════════════════════════════════════════ */
-
-/* Premium vibrant gradient header */
+/* App shell — solid header + plain panel (เดิมเป็น gradient + floating glass) */
 .app-header {
-  background: linear-gradient(135deg, #FF5E00 0%, #FF7A29 45%, #FFA770 100%);
-  padding: 24px 20px 64px;
+  background: var(--accent-primary);
+  padding: 24px 20px 56px;
   position: relative;
-  overflow: hidden;
-}
-.app-header::before {
-  content: '';
-  position: absolute;
-  top: -50%; right: -20%;
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
 }
 
-/* White floating content panel */
 .app-panel {
-  background: #FFFFFF;
-  border-radius: 32px 32px 0 0;
-  margin-top: -32px;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  margin-top: -28px;
   position: relative;
   z-index: 2;
-  padding: 32px 24px;
+  padding: 28px 24px;
   min-height: 65vh;
-  box-shadow: 0 -8px 32px rgba(255, 94, 0, 0.12);
+  border-top: 1px solid var(--card-border);
 }
 
-/* List row (FinWise pattern) */
+/* List row */
 .fw-row {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 13px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #f1f5f9;
 }
 .fw-row:last-child { border-bottom: none; }
 
-/* Icon bubble variants */
+/* Icon bubble — สีทึบเรียบ (เดิมเป็น gradient) */
 .icon-bubble {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
-.icon-bubble-blue   { background: linear-gradient(135deg, #60A5FA, #3B82F6); color: #fff; }
-.icon-bubble-teal   { background: linear-gradient(135deg, #34D399, #10B981); color: #fff; }
-.icon-bubble-orange { background: linear-gradient(135deg, #FB923C, #F97316); color: #fff; }
-.icon-bubble-purple { background: linear-gradient(135deg, #C084FC, #A855F7); color: #fff; }
+.icon-bubble-blue   { background: #DBEAFE; color: #2563EB; }
+.icon-bubble-teal   { background: #D1FAE5; color: #0D9488; }
+.icon-bubble-orange { background: #FFEDD5; color: #C2410C; }
+.icon-bubble-purple { background: #EDE9FE; color: #7C3AED; }
 
-/* Stat row inside header (two columns) */
+/* Stat row inside header */
 .header-stat-row {
   display: flex;
   align-items: stretch;
   gap: 0;
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
 }
-.header-stat-col {
-  flex: 1;
-  padding: 0 4px;
-}
+.header-stat-col { flex: 1; padding: 0 4px; }
 .header-stat-col + .header-stat-col {
   padding-left: 16px;
-  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
 }
 .header-stat-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 500;
   margin-bottom: 4px;
   display: flex;
@@ -349,15 +295,13 @@ html, body, #root {
   color: #ffffff;
   letter-spacing: -0.3px;
 }
-.header-stat-value.accent {
-  color: #ffffff;
-}
+.header-stat-value.accent { color: #ffffff; }
 
-/* Tab pills (FinWise style) */
+/* Tab pills */
 .fw-tabs {
   display: flex;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.05);
+  background: #f1f5f9;
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 20px;
@@ -371,21 +315,21 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s;
   background: transparent;
-  color: #6B7D90;
+  color: var(--text-muted);
 }
 .fw-tab.active {
-  background: #FF6B35;
-  color: #ffffff;
-  box-shadow: 0 3px 12px rgba(255, 107, 53, 0.38);
+  background: #ffffff;
+  color: var(--accent-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
 /* Progress bar (header) */
 .header-progress-wrap {
   margin-top: 14px;
   height: 28px;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 99px;
   position: relative;
   overflow: hidden;
@@ -394,7 +338,7 @@ html, body, #root {
 }
 .header-progress-fill {
   height: 100%;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 99px;
   display: flex;
   align-items: center;
@@ -403,12 +347,12 @@ html, body, #root {
 .header-progress-label {
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--accent-primary);
 }
 .header-progress-right {
   position: absolute;
   right: 12px;
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.9);
 }

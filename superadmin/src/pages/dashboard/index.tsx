@@ -1,7 +1,7 @@
 // superadmin/src/pages/dashboard/index.tsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, Building2, Pencil, UserPlus, MessageCircle, SlidersHorizontal, FileText, CheckCircle2, LogIn, Radio } from 'lucide-react'
+import { Clock, Building2, Pencil, UserPlus, MessageCircle, SlidersHorizontal, FileText, CheckCircle2, LogIn, Radio, Users, PieChart, AlertTriangle, Loader2, Check, Minus } from 'lucide-react'
 import { api } from '../../lib/axios'
 
 // API shape from /api/v1/super-admin/tenants
@@ -118,7 +118,7 @@ export default function SuperAdminDashboard() {
     <div>
       {loading && (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span className="animate-spin" style={{ display: 'inline-block', fontSize: '1.2rem' }}>⟳</span> กำลังโหลด…</div>
+          <Loader2 size={18} className="animate-spin" /> กำลังโหลด…</div>
       )}
 
       {!loading && (
@@ -126,7 +126,7 @@ export default function SuperAdminDashboard() {
           {/* Alert for expiring trials */}
           {trialTenants > 0 && (
             <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 10, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span>⚠️</span>
+              <AlertTriangle size={16} color="#b45309" style={{ flexShrink: 0 }} />
               <span style={{ fontSize: '0.875rem', color: '#92400e' }}>
                 มี <strong>{trialTenants} Tenant</strong> ที่อยู่ในช่วงทดลองใช้ — ควรติดตามเพื่อปิดการขาย
               </span>
@@ -136,15 +136,15 @@ export default function SuperAdminDashboard() {
           {/* Stat Cards */}
           <div className="grid-stats" style={{ marginBottom: 24 }}>
             {[
-              { label: 'Tenant ทั้งหมด',       value: tenants.length, unit: 'บริษัท', color: 'var(--sa-accent)', bg: '#ede9fe', icon: '🏗' },
-              { label: 'ใช้งานอยู่',            value: activeTenants,  unit: 'Tenant', color: 'var(--success-text)', bg: '#dcfce7', icon: '✅' },
-              { label: 'พนักงานรวมทุก Tenant', value: totalEmployees,  unit: 'คน',    color: '#2563eb', bg: '#dbeafe', icon: '👥' },
-              { label: 'Line OA ตั้งค่าแล้ว',  value: lineConfigured,  unit: 'Tenant', color: '#f97316', bg: '#fff7ed', icon: '💚' },
+              { label: 'Tenant ทั้งหมด',       value: tenants.length, unit: 'บริษัท', color: 'var(--sa-accent)', bg: '#fff', Icon: Building2,   iconColor: 'var(--sa-accent)' },
+              { label: 'ใช้งานอยู่',            value: activeTenants,  unit: 'Tenant', color: 'var(--success-text)', bg: '#fff', Icon: CheckCircle2, iconColor: 'var(--success-text)' },
+              { label: 'พนักงานรวมทุก Tenant', value: totalEmployees,  unit: 'คน',    color: '#2563eb', bg: '#fff', Icon: Users,       iconColor: '#2563eb' },
+              { label: 'Line OA ตั้งค่าแล้ว',  value: lineConfigured,  unit: 'Tenant', color: 'var(--text-dark)', bg: '#fff', Icon: MessageCircle, iconColor: '#16a34a' },
             ].map(s => (
-              <div key={s.label} style={{ background: s.bg, borderRadius: 14, padding: '18px 20px', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <div key={s.label} style={{ background: s.bg, borderRadius: 14, padding: '18px 20px', border: '1px solid var(--border-default)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-gray)', fontWeight: 500 }}>{s.label}</div>
-                  <span style={{ fontSize: '1.3rem' }}>{s.icon}</span>
+                  <s.Icon size={17} color={s.iconColor} />
                 </div>
                 <div style={{ fontSize: '2rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>
                   {s.value}
@@ -154,7 +154,7 @@ export default function SuperAdminDashboard() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+          <div className="dash-split" style={{ display: 'grid', gap: 20, alignItems: 'start' }}>
             {/* Tenant Table */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -192,7 +192,7 @@ export default function SuperAdminDashboard() {
                         const pc = PLAN_CFG[t.plan] ?? { label: t.plan, color: 'var(--text-body)', bg: '#f3f4f6' }
                         return (
                           <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
-                            onClick={() => navigate('/tenants')}
+                            onClick={() => navigate(`/tenants/${t.id}`)}
                           >
                             <td style={{ padding: '11px 14px' }}>
                               <div style={{ fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.875rem' }}>{t.name}</div>
@@ -205,8 +205,8 @@ export default function SuperAdminDashboard() {
                             <td style={{ padding: '11px 14px', color: 'var(--text-body)', fontWeight: 600 }}>{t.employee_count}</td>
                             <td style={{ padding: '11px 14px' }}>
                               {t.line_configured
-                                ? <span style={{ color: 'var(--success-text)', fontWeight: 700, fontSize: '0.82rem' }}>✓ ตั้งค่าแล้ว</span>
-                                : <span style={{ color: 'var(--text-subtle)', fontSize: '0.82rem' }}>— ยังไม่ตั้งค่า</span>}
+                                ? <span style={{ color: 'var(--success-text)', fontWeight: 700, fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={13} /> ตั้งค่าแล้ว</span>
+                                : <span style={{ color: 'var(--text-subtle)', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Minus size={13} /> ยังไม่ตั้งค่า</span>}
                             </td>
                             <td style={{ padding: '11px 14px' }}>
                               <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -230,7 +230,7 @@ export default function SuperAdminDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Plan breakdown */}
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '18px' }}>
-                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700 }}>📊 แบ่งตาม Plan</h3>
+                <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><PieChart size={15} /> แบ่งตาม Plan</h3>
                 {PLAN_DISPLAY_ORDER.filter(plan => tenants.some(t => t.plan === plan)).map(plan => {
                   const count = tenants.filter(t => t.plan === plan).length
                   const pct = tenants.length > 0 ? Math.round((count / tenants.length) * 100) : 0

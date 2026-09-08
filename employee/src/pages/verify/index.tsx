@@ -15,12 +15,12 @@ interface EmpItem {
 type Step = 'loading' | 'select' | 'confirm' | 'success' | 'error'
 
 const COLORS = [
-  'linear-gradient(135deg,#ff6b35,#ffab40)',
-  'linear-gradient(135deg,#3b82f6,#60a5fa)',
-  'linear-gradient(135deg,#8b5cf6,#a78bfa)',
-  'linear-gradient(135deg,#16a34a,#4ade80)',
-  'linear-gradient(135deg,#d97706,#fbbf24)',
-  'linear-gradient(135deg,#db2777,#f472b6)',
+  '#EA580C',
+  '#2563EB',
+  '#7C3AED',
+  '#16A34A',
+  '#D97706',
+  '#DB2777',
 ]
 
 export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {}) {
@@ -99,7 +99,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
       <div style={{ fontSize: '3rem' }}>⚠️</div>
       <div style={{ fontWeight: 700, color: 'var(--error)', marginBottom: 16 }}>{errMsg}</div>
       <button onClick={() => { setErrMsg(''); setStep('select') }}
-        style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+        style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: 'var(--accent-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
         ลองใหม่
       </button>
     </div>
@@ -123,7 +123,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
     return (
       <div style={{ maxWidth: 430, margin: '0 auto', padding: '24px 16px', minHeight: '100dvh', background: 'var(--bg-page)' }}>
         <button onClick={() => setStep('select')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent-start)', fontWeight: 600, fontSize: '0.9rem', marginBottom: 28 }}>
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.9rem', marginBottom: 28 }}>
           ← เลือกใหม่
         </button>
 
@@ -145,7 +145,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
           <div className="glass-card animate-slide-up" style={{ padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
             {profile.pictureUrl
               ? <img src={profile.pictureUrl} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
-              : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>{profile.displayName.charAt(0)}</div>
+              : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>{profile.displayName.charAt(0)}</div>
             }
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>จะผูกกับบัญชี LINE</div>
@@ -155,7 +155,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
         )}
 
         <button onClick={handleLink} disabled={linking}
-          style={{ width: '100%', padding: '18px', borderRadius: 16, border: 'none', cursor: linking ? 'not-allowed' : 'pointer', background: linking ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', color: linking ? 'var(--text-muted)' : '#fff', fontSize: '1.05rem', fontWeight: 700, boxShadow: linking ? 'none' : '0 4px 16px rgba(255,107,53,0.3)' }}>
+          style={{ width: '100%', padding: '18px', borderRadius: 16, border: 'none', cursor: linking ? 'not-allowed' : 'pointer', background: linking ? 'rgba(0,0,0,0.08)' : 'var(--accent-primary)', color: linking ? 'var(--text-muted)' : '#fff', fontSize: '1.05rem', fontWeight: 700, boxShadow: linking ? 'none' : '0 2px 8px rgba(0,0,0,0.1)' }}>
           {linking ? '⏳ กำลังผูกบัญชี…' : '✅ ใช่ นี่คือฉัน — ผูกบัญชี'}
         </button>
       </div>
@@ -166,7 +166,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   return (
     <div style={{ maxWidth: 430, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-page)' }}>
       <div className="header-strip animate-fade-in" style={{ padding: '32px 16px 20px', textAlign: 'center' }}>
-        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 14px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 14px' }} />
         <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>ยินดีต้อนรับ 👋</div>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>
           เลือกชื่อของคุณจากรายการด้านล่าง
@@ -184,7 +184,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
           <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="ค้นหาชื่อ, ชื่อเล่น, สาขา…"
-            style={{ width: '100%', padding: '13px 14px 13px 42px', borderRadius: 14, border: '1.5px solid rgba(255,107,53,0.2)', fontSize: '0.9rem', background: 'rgba(255,255,255,0.88)', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '13px 14px 13px 42px', borderRadius: 14, border: '1px solid #e5e7eb', fontSize: '0.9rem', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
 
@@ -215,7 +215,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
                     {emp.department ?? ''}{emp.department ? ' · ' : ''}{emp.branch.name}
                   </div>
                 </div>
-                <span style={{ color: 'var(--accent-start)', fontSize: '1.3rem', opacity: 0.7, flexShrink: 0 }}>›</span>
+                <span style={{ color: 'var(--accent-primary)', fontSize: '1.3rem', opacity: 0.7, flexShrink: 0 }}>›</span>
               </button>
             ))}
           </div>

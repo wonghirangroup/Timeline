@@ -122,7 +122,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
               background: 'linear-gradient(135deg,var(--sa-accent-soft),var(--sa-accent))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             {!isMobile && (
               <>
@@ -149,7 +149,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
                 <>
                   <div style={{ padding: '16px', background: 'linear-gradient(135deg,var(--sa-accent),#6d28d9)', textAlign: 'center' }}>
                     <div style={{ width: 52, height: 52, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', border: '2px solid rgba(255,255,255,0.4)' }}>
-                      <img src="/mascot-cat.jpg" alt="" className="animate-mascot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{name}</div>
                     <div style={{ fontSize: '0.72rem', color: '#c4b5fd', marginTop: 2 }}>Super Administrator</div>

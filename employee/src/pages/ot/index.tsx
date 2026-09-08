@@ -85,7 +85,7 @@ export default function OtPage() {
 
       {/* Header */}
       <div className="header-strip animate-fade-in" style={{ padding: '28px 20px 20px', textAlign: 'center' }}>
-        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 14px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 14px' }} />
         <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>ทำงานล่วงเวลา (OT)</div>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 3 }}>ประวัติและขอ OT</div>
       </div>
@@ -118,7 +118,7 @@ export default function OtPage() {
             style={{
               flex: 1, padding: '10px', border: 'none', cursor: 'pointer', borderRadius: 10, fontWeight: 600, fontSize: '0.88rem',
               background: tab === t.id ? '#fff' : 'transparent',
-              color: tab === t.id ? 'var(--accent-start)' : 'var(--text-secondary)',
+              color: tab === t.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
               boxShadow: tab === t.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
               transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -175,14 +175,14 @@ export default function OtPage() {
         <div style={{ margin: '14px 16px 0' }}>
           {submitDone ? (
             <div className="glass-card animate-slide-up" style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <Send size={44} color="var(--accent-start)" className="animate-success-pop" style={{ marginBottom: 14 }} />
+              <Send size={44} color="var(--accent-primary)" className="animate-success-pop" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>ส่งคำขอแล้ว!</div>
               <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>
                 รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE
               </div>
               <button
                 onClick={() => { setSubmitDone(false); setTab('history') }}
-                style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}
+                style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: 'var(--accent-primary)', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}
               >
                 ดูประวัติ
               </button>
@@ -196,7 +196,7 @@ export default function OtPage() {
                   type="date"
                   value={form.date}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                  style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '2px solid rgba(255,107,53,0.2)', fontSize: '0.88rem', background: 'rgba(255,255,255,0.85)', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1px solid #e5e7eb', fontSize: '0.88rem', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -212,13 +212,13 @@ export default function OtPage() {
                       type="time"
                       value={form[key]}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '2px solid rgba(255,107,53,0.2)', fontSize: '0.88rem', background: 'rgba(255,255,255,0.85)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1px solid #e5e7eb', fontSize: '0.88rem', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
                 ))}
               </div>
               {hours > 0 && (
-                <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,107,53,0.06)', fontSize: '0.82rem', color: 'var(--accent-start)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: '#FFF7ED', fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Clock size={14} /> รวม {hours} ชั่วโมง
                 </div>
               )}
@@ -233,8 +233,8 @@ export default function OtPage() {
                   rows={3}
                   style={{
                     width: '100%', padding: '12px 14px', borderRadius: 12,
-                    border: '2px solid rgba(255,107,53,0.2)', fontSize: '0.88rem',
-                    background: 'rgba(255,255,255,0.85)', outline: 'none',
+                    border: '1px solid #e5e7eb', fontSize: '0.88rem',
+                    background: '#ffffff', outline: 'none',
                     boxSizing: 'border-box', resize: 'none', lineHeight: 1.55, fontFamily: 'inherit',
                   }}
                 />
@@ -253,11 +253,11 @@ export default function OtPage() {
                   width: '100%', padding: '16px', borderRadius: 14, border: 'none',
                   cursor: canSubmit ? 'pointer' : 'not-allowed',
                   background: canSubmit
-                    ? 'linear-gradient(135deg,var(--accent-start),var(--accent-end))'
+                    ? 'var(--accent-primary)'
                     : 'rgba(0,0,0,0.08)',
                   color: canSubmit ? '#fff' : 'var(--text-muted)',
                   fontSize: '1rem', fontWeight: 700,
-                  boxShadow: canSubmit ? '0 4px 16px rgba(255,107,53,0.3)' : 'none',
+                  boxShadow: canSubmit ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                   transition: 'all 0.2s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}

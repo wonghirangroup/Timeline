@@ -44,9 +44,7 @@ export function Button({ children, variant = 'primary', size = 'md', fullWidth, 
   }
   const variants: Record<string, CSSProperties> = {
     primary: {
-      background: disabled || loading
-        ? 'rgba(255,107,53,0.35)'
-        : `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid}, ${COLOR.primaryEnd})`,
+      background: disabled || loading ? '#FDBA8C' : COLOR.primary,
       color: COLOR.textOnAccent,
       border: 'none',
       boxShadow: disabled || loading ? 'none' : SHADOW.btn,
@@ -81,10 +79,10 @@ export function Button({ children, variant = 'primary', size = 'md', fullWidth, 
         ...sizes[size],
         ...variants[variant],
       }}
-      onMouseDown={e => { if (!disabled && !loading) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+      onMouseDown={e => { if (!disabled && !loading) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)' }}
       onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)' }}
     >
-      {loading ? <span className="animate-spin">⏳</span> : icon}
+      {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
       {children}
     </button>
   )
@@ -156,10 +154,9 @@ export function Avatar({ name, size = 48, fontSize }: AvatarProps) {
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryEnd})`,
+      background: COLOR.primarySubtle,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: fs, fontWeight: 700, color: COLOR.textOnAccent,
-      boxShadow: `0 4px 16px rgba(255,107,53,0.28)`,
+      fontSize: fs, fontWeight: 700, color: COLOR.primary,
     }}>
       {initial}
     </div>
@@ -219,7 +216,7 @@ export function SkeletonLine({ width = '100%', height = 14, mb = 8 }: { width?: 
 // ─── GradientAccent ───────────────────────────────────────────────
 export function GradientBar({ width = 40 }: { width?: number }) {
   return (
-    <div style={{ width, height: 4, borderRadius: RADIUS.full, background: `linear-gradient(90deg,${COLOR.primary},${COLOR.primaryEnd})`, margin: '0 auto 16px' }} />
+    <div style={{ width, height: 4, borderRadius: RADIUS.full, background: COLOR.primary, margin: '0 auto 16px' }} />
   )
 }
 
@@ -271,10 +268,10 @@ export function ProgressBar({ value, height = 4, rounded = true, style, showLabe
           <span style={{ fontSize: FONT.xs, fontWeight: 700, color: COLOR.primary }}>{value}%</span>
         </div>
       )}
-      <div style={{ width: '100%', height, borderRadius: rounded ? 99 : 0, background: 'rgba(251,146,60,0.18)', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height, borderRadius: rounded ? 99 : 0, background: COLOR.primarySubtle, overflow: 'hidden' }}>
         <div style={{
           height: '100%', borderRadius: 99,
-          background: `linear-gradient(90deg,${COLOR.primary},${COLOR.primaryEnd})`,
+          background: COLOR.primary,
           ...(deterministic
             ? { width: `${value}%`, transition: 'width 0.08s linear' }
             : { width: '45%', animation: 'tl-progress 1.4s ease-in-out infinite' }),
@@ -296,7 +293,7 @@ export function PageLoader({ title = 'กำลังโหลด...', sub, full
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       gap: 20, padding: '40px',
-      ...(fullPage ? { minHeight: '100dvh', background: 'linear-gradient(160deg,#fff7f3 0%,#fff 60%)' } : {}),
+      ...(fullPage ? { minHeight: '100dvh', background: '#fff' } : {}),
     }}>
       <img src={LOADING_ANIMATION} alt="" style={{ width: 200, height: 200, flexShrink: 0, objectFit: 'contain' }} />
       <div style={{ textAlign: 'center' }}>

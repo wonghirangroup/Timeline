@@ -34,7 +34,7 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
       <div style={{ fontWeight: 700, color: '#dc2626', lineHeight: 1.5 }}>{message}</div>
       <button onClick={onRetry} style={{
         padding: '12px 28px', borderRadius: 14, border: 'none',
-        background: 'linear-gradient(135deg,#fb923c,#ea580c)', color: '#fff',
+        background: '#EA580C', color: '#fff',
         fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem',
       }}>ลองใหม่</button>
     </div>
@@ -82,7 +82,7 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ display: 'inline-block', background: '#fee2e2', color: '#dc2626', borderRadius: 8, padding: '4px 12px', fontSize: '0.72rem', fontWeight: 700, marginBottom: 12 }}>🛠 DEV MODE</div>
         <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a2b3c' }}>เลือกพนักงาน</div>
-        <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 4 }}>เฉพาะการทดสอบ — ไม่แสดงใน production</div>
+        <div style={{ fontSize: '0.78rem', color: '#6B7280', marginTop: 4 }}>เฉพาะการทดสอบ — ไม่แสดงใน production</div>
       </div>
 
       <input value={search} onChange={e => setSearch(e.target.value)}
@@ -90,9 +90,9 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
         style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #fed7aa', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: 14, outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: '0.85rem' }}>กำลังโหลดรายชื่อพนักงาน…</div>
+        <div style={{ textAlign: 'center', padding: '32px 0', color: '#6B7280', fontSize: '0.85rem' }}>กำลังโหลดรายชื่อพนักงาน…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>ไม่พบพนักงาน</div>
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#6B7280' }}>ไม่พบพนักงาน</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(e => (
@@ -104,7 +104,7 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
             }}>
               <div style={{
                 width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg,#fb923c,#ea580c)',
+                background: '#EA580C',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '1.1rem', fontWeight: 700, color: '#fff',
               }}>
@@ -113,7 +113,7 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1a2b3c' }}>
                   {e.first_name} {e.last_name}
-                  {e.nickname && <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}> ({e.nickname})</span>}
+                  {e.nickname && <span style={{ fontWeight: 400, color: '#6B7280', fontSize: '0.8rem' }}> ({e.nickname})</span>}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 2 }}>
                   {e.employee_code} · {e.branch.name}

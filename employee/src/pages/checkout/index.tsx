@@ -70,7 +70,7 @@ export default function CheckoutPage() {
     return (
       <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
-          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 20px' }} />
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 20px' }} />
           <CheckCircle2 size={64} color="var(--success)" strokeWidth={1.6} className="animate-success-pop" style={{ marginBottom: 16 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์สำเร็จ!</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>บันทึกเวลาเรียบร้อยแล้ว</div>
@@ -90,7 +90,7 @@ export default function CheckoutPage() {
           </div>
           <div style={{ textAlign: 'center', padding: '10px 0', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ระยะเวลาทำงาน </span>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent-start)' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
               {Math.floor(doneResult.workMinutes / 60)} ชม. {doneResult.workMinutes % 60} นาที
             </span>
           </div>
@@ -98,7 +98,7 @@ export default function CheckoutPage() {
 
         <div className="glass-card animate-slide-up" style={{ margin: '12px 16px 0', padding: '14px 18px', animationDelay: '60ms' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
               {employee.first_name.charAt(0)}
             </div>
             <div>
@@ -116,8 +116,8 @@ export default function CheckoutPage() {
     return (
       <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
-          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 20px' }} />
-          <Flag size={64} color="var(--accent-start)" strokeWidth={1.6} style={{ marginBottom: 16 }} />
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 20px' }} />
+          <Flag size={64} color="var(--accent-primary)" strokeWidth={1.6} style={{ marginBottom: 16 }} />
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์แล้ววันนี้</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>คุณได้เช็คเอาต์ทุกกะแล้ว</div>
         </div>
@@ -129,7 +129,7 @@ export default function CheckoutPage() {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmtTime(r.check_in_at)} → {fmtTime(r.check_out_at)}</div>
               </div>
               {r.check_in_at && r.check_out_at && (
-                <div style={{ fontSize: '0.78rem', color: 'var(--accent-start)', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
                   {fmtDuration(r.check_in_at, r.check_out_at)}
                 </div>
               )}
@@ -146,14 +146,14 @@ export default function CheckoutPage() {
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
       <div className="header-strip animate-fade-in" style={{ padding: '32px 20px 24px', textAlign: 'center' }}>
-        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'linear-gradient(90deg,var(--accent-start),var(--accent-end))', margin: '0 auto 18px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 18px' }} />
         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์</div>
         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4 }}>บันทึกเวลาเลิกงาน</div>
       </div>
 
       <div className="glass-card animate-slide-up" style={{ margin: '4px 16px 0', padding: '20px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent-start),var(--accent-end))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
             {employee.first_name.charAt(0)}
           </div>
           <div style={{ flex: 1 }}>
@@ -187,7 +187,7 @@ export default function CheckoutPage() {
         <button
           onClick={() => { setErrorMsg(null); checkoutMutation.mutate() }}
           disabled={unchecked.length === 0 || loading}
-          style={{ width: '100%', padding: '20px', borderRadius: 20, border: 'none', cursor: unchecked.length > 0 && !loading ? 'pointer' : 'not-allowed', background: unchecked.length > 0 && !loading ? 'linear-gradient(135deg, #475569, #1e293b)' : 'rgba(0,0,0,0.08)', color: unchecked.length > 0 && !loading ? '#fff' : 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 700, boxShadow: unchecked.length > 0 ? '0 4px 20px rgba(30,41,59,0.3)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          style={{ width: '100%', padding: '20px', borderRadius: 20, border: 'none', cursor: unchecked.length > 0 && !loading ? 'pointer' : 'not-allowed', background: unchecked.length > 0 && !loading ? '#334155' : 'rgba(0,0,0,0.08)', color: unchecked.length > 0 && !loading ? '#fff' : 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 700, boxShadow: unchecked.length > 0 ? '0 4px 20px rgba(30,41,59,0.3)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           {loading ? <><Loader2 size={20} className="animate-spin" /> กำลังบันทึก...</> : <><DoorOpen size={20} /> เช็คเอาต์ตอนนี้</>}
         </button>
       </div>

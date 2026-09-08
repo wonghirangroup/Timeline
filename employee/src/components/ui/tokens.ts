@@ -1,45 +1,46 @@
 // employee/src/components/ui/tokens.ts
 // ══════════════════════════════════════════════════════════════════
 //  Employee App — Design Tokens
-//  แก้สีทั้งระบบตรงนี้ที่เดียว แล้ว copy ไปใส่ CSS :root ด้วย
+//  แนวทาง calm & minimal ให้ตรงกับแอป admin — เลิก gradient / glass / glow
+//  แก้สีที่นี่แล้ว mirror ไปที่ src/index.css :root ด้วย
 // ══════════════════════════════════════════════════════════════════
 
 export const COLOR = {
-  // Primary — Vibrant Orange/Coral
-  primary:       '#FF5E00',
-  primaryMid:    '#FF7A29',
-  primaryEnd:    '#FF9D5C',
-  primaryBg:     '#FFF5F0',
-  primarySubtle: '#FEF0E6',
-  primaryBorder: 'rgba(255,94,0,0.15)',
+  // Primary — Orange (เดียวกับ admin: orange-600 / 700)
+  primary:       '#EA580C',
+  primaryMid:    '#EA580C',   // (เดิมเป็น mid-stop ของ gradient) → สีเดียว
+  primaryEnd:    '#EA580C',   // (เดิมเป็น end-stop ของ gradient) → สีเดียว
+  primaryBg:     '#FFF7ED',
+  primarySubtle: '#FFEDD5',
+  primaryBorder: 'rgba(234,88,12,0.18)',
 
-  // Text
+  // Text — ทุกระดับผ่าน WCAG AA 4.5:1
   textPrimary:   '#1A1A1A',
-  textSecondary: '#6B7280',
-  textMuted:     '#9CA3AF',
+  textSecondary: '#4B5563',   // gray-600
+  textMuted:     '#6B7280',   // gray-500 — จางสุดที่ยังใช้กับตัวหนังสือได้
   textOnAccent:  '#FFFFFF',
 
   // Surface
   white:         '#FFFFFF',
-  pageBg:        '#F8F9FA',
-  cardBg:        'rgba(255, 255, 255, 0.75)',
+  pageBg:        '#F1F5F9',
+  cardBg:        '#FFFFFF',
 
-  // Status
-  success:       '#10B981',
-  successBg:     'rgba(16, 185, 129, 0.1)',
-  successBorder: 'rgba(16, 185, 129, 0.25)',
-  warning:       '#F59E0B',
-  warningBg:     'rgba(245, 158, 11, 0.1)',
-  warningBorder: 'rgba(245, 158, 11, 0.25)',
-  error:         '#EF4444',
-  errorBg:       'rgba(239, 68, 68, 0.1)',
-  errorBorder:   'rgba(239, 68, 68, 0.25)',
-  info:          '#3B82F6',
-  infoBg:        'rgba(59, 130, 246, 0.1)',
+  // Status — text เข้มพอผ่าน AA, พื้น badge เป็น tint ทึบ
+  success:       '#16A34A',
+  successBg:     '#DCFCE7',
+  successBorder: '#86EFAC',
+  warning:       '#D97706',
+  warningBg:     '#FEF3C7',
+  warningBorder: '#FCD34D',
+  error:         '#DC2626',
+  errorBg:       '#FEE2E2',
+  errorBorder:   '#FCA5A5',
+  info:          '#2563EB',
+  infoBg:        '#DBEAFE',
 
   // Nav
-  navBg:         'rgba(255, 255, 255, 0.85)',
-  navBorder:     'rgba(255, 255, 255, 0.3)',
+  navBg:         '#FFFFFF',
+  navBorder:     '#E5E7EB',
 } as const
 
 export const RADIUS = {
@@ -47,16 +48,16 @@ export const RADIUS = {
   md:   12,
   lg:   16,
   xl:   20,
-  xxl:  28,
+  xxl:  24,
   full: 9999,
 } as const
 
 export const SHADOW = {
-  card:     '0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  cardLg:   '0 12px 48px rgba(255, 94, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.05)',
-  btn:      '0 8px 24px rgba(255, 94, 0, 0.3), 0 2px 6px rgba(255, 94, 0, 0.15)',
-  nav:      '0 8px 32px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1)',
-  glassGlow:'inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 8px 32px rgba(255, 94, 0, 0.15)',
+  card:     '0 1px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)',
+  cardLg:   '0 8px 24px rgba(0,0,0,0.08)',
+  btn:      '0 1px 2px rgba(0,0,0,0.06)',
+  nav:      '0 -1px 0 rgba(0,0,0,0.06)',
+  glassGlow:'none',
 } as const
 
 export const FONT = {

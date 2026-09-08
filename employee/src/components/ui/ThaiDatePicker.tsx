@@ -106,7 +106,7 @@ export function ThaiDatePicker({ value, onChange, min, placeholder = 'เลื�
           {/* Day headers */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
             {DAYS_SHORT.map((d, i) => (
-              <div key={d} style={{ textAlign: 'center', fontSize: '0.62rem', fontWeight: 700, color: i === 0 ? '#EF4444' : i === 6 ? '#3B82F6' : '#9CA3AF' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontSize: '0.62rem', fontWeight: 700, color: i === 0 ? '#DC2626' : i === 6 ? '#2563EB' : '#6B7280' }}>{d}</div>
             ))}
           </div>
 

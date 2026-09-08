@@ -53,9 +53,11 @@
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
   --text-body:   #374151;  /* gray-700 — body / form labels */
-  --text-gray:   #6b7280;  /* gray-500 — secondary labels */
-  --text-subtle: #9ca3af;  /* gray-400 — meta / placeholder */
-  --text-faint:  #94a3b8;  /* slate-400 — very light meta */
+  --text-gray:   #6b7280;  /* gray-500 — secondary labels (~4.6:1 on white, AA) */
+  /* --text-subtle/--text-faint เดิม gray-400/slate-400 (~2.8:1) ไม่ผ่าน WCAG AA
+     สำหรับตัวหนังสือปกติ — รวมเป็น gray-500 เหมือนแอด admin (ดู admin/src/index.css) */
+  --text-subtle: #6b7280;  /* gray-500 — meta / placeholder (AA) */
+  --text-faint:  #6b7280;  /* gray-500 — very light meta (AA) */
 
   /* ── Extended surfaces ── */
   --bg-subtle:      #f8fafc;
@@ -162,18 +164,9 @@ button {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* mascot avatar — เด้ง+โยกเบาๆ ให้ภาพนิ่งดูมีชีวิตชีวาโดยไม่ต้องมีวิดีโอ/GIF จริง */
-@keyframes mascot-bounce {
-  0%, 100% { transform: translateY(0)   rotate(0deg); }
-  25%      { transform: translateY(-2px) rotate(-4deg); }
-  50%      { transform: translateY(0)   rotate(0deg); }
-  75%      { transform: translateY(-1px) rotate(4deg); }
-}
-
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse { animation: pulse-scale 1.6s ease-in-out infinite; }
 .animate-slide-up { animation: slide-up 0.25s ease-out both; }
-.animate-mascot { animation: mascot-bounce 1.8s ease-in-out infinite; }
 
 .animate-fade-in-up {
   animation: fade-in-up 0.4s ease-out backwards;
@@ -341,6 +334,10 @@ textarea:focus-visible {
   align-items: start;
 }
 @media (max-width: 900px) { .content-sidebar { grid-template-columns: 1fr; } }
+
+/* Dashboard: main + 300px rail → stack under 1000px */
+.dash-split { grid-template-columns: 1fr 300px; }
+@media (max-width: 1000px) { .dash-split { grid-template-columns: 1fr; } }
 
 /* Mobile-only hide/show */
 .hide-mobile  { display: block; }

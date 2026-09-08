@@ -172,7 +172,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 6 }}>
           {DAYS_SHORT.map((d, i) => (
             <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, paddingBottom: 2,
-              color: i === 0 ? '#EF4444' : i === 6 ? '#3B82F6' : '#9CA3AF' }}>{d}</div>
+              color: i === 0 ? '#DC2626' : i === 6 ? '#2563EB' : '#6B7280' }}>{d}</div>
           ))}
         </div>
 
@@ -229,7 +229,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                   width: 28, height: 28, borderRadius: '50%', fontSize: '0.82rem', fontWeight: 800,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: isToday ? '#fff' : holiday ? '#dc2626' : isApprOff ? '#EA580C' : '#1A2B3C',
-                  background: isToday ? 'linear-gradient(135deg,#FB923C,#EA580C)' : 'transparent',
+                  background: isToday ? '#EA580C' : 'transparent',
                 }}>{day}</div>
 
                 {/* My day-off mark — big and clear */}
@@ -257,7 +257,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                     {colls.slice(0, 3).map((c, ci) => (
                       <div key={ci} style={{ width: 5, height: 5, borderRadius: '50%', background: c.status === 'APPROVED' ? '#16a34a' : '#d97706' }} />
                     ))}
-                    {colls.length > 3 && <span style={{ fontSize: '0.42rem', color: '#9ca3af' }}>+{colls.length - 3}</span>}
+                    {colls.length > 3 && <span style={{ fontSize: '0.42rem', color: '#6B7280' }}>+{colls.length - 3}</span>}
                   </div>
                 )}
               </button>
@@ -279,7 +279,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
           ].map((it, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 14, height: 14, borderRadius: 4, background: it.bg, border: it.border, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.68rem', color: '#9CA3AF' }}>{it.label}</span>
+              <span style={{ fontSize: '0.68rem', color: '#6B7280' }}>{it.label}</span>
             </div>
           ))}
         </div>
@@ -295,7 +295,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
           {selEmpty && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <Calendar size={32} color="#D1D5DB" style={{ marginBottom: 6 }} />
-              <div style={{ fontSize: '0.82rem', color: '#9CA3AF' }}>ไม่มีกำหนดการในวันนี้</div>
+              <div style={{ fontSize: '0.82rem', color: '#6B7280' }}>ไม่มีกำหนดการในวันนี้</div>
               <button onClick={onBooking} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 20, border: 'none', background: '#FFF7ED', color: '#EA580C', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 จองวันหยุดวันนี้ →
               </button>
@@ -319,7 +319,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                 <CalendarDays size={22} color={cfg.color} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>{cfg.label}</div>
-                  {lr.reason && <div style={{ fontSize: '0.73rem', color: '#9CA3AF', marginTop: 1 }}>{lr.reason}</div>}
+                  {lr.reason && <div style={{ fontSize: '0.73rem', color: '#6B7280', marginTop: 1 }}>{lr.reason}</div>}
                 </div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99 }}>{s.label}</span>
               </div>
@@ -334,7 +334,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                 const s    = STATUS_CFG[c.status]
                 return (
                   <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#6C89F5,#5B6CF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                       {c.employee.first_name.charAt(0)}
                     </div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1A2B3C' }}>{name}</div>
@@ -353,7 +353,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
           ประวัติการขอลาล่าสุด
         </div>
         {requests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#9CA3AF', fontSize: '0.82rem' }}>
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#6B7280', fontSize: '0.82rem' }}>
             ยังไม่มีประวัติการลา
           </div>
         ) : (
@@ -368,7 +368,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C' }}>{cfg?.label ?? r.leave_type}</div>
-                    <div style={{ fontSize: '0.73rem', color: '#9CA3AF', marginTop: 2 }}>
+                    <div style={{ fontSize: '0.73rem', color: '#6B7280', marginTop: 2 }}>
                       {r.start_date === r.end_date ? fmtDate(r.start_date) : `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`}
                       {leavePeriodBadge(r) ? ` · ${leavePeriodBadge(r)}` : ''} · {r.days} วัน
                     </div>
@@ -587,7 +587,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
           <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองเดือนนี้</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
+          <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
         </div>
       )}
 
@@ -636,7 +636,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
               : `เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ (${pickedCount}/${requiredWeeks.length})`}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
-            {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#9CA3AF', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
+            {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#6B7280', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 16 }}>
             {Array.from({ length: totalCells }, (_, i) => {
@@ -673,7 +673,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
           </div>
 
           {colleagues.some(c => c.same_position) && (
-            <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
               เพื่อนร่วมตำแหน่งเดียวกันจองวันนี้แล้ว — ยังจองได้ แอดมินจะเป็นคนพิจารณา
             </div>
@@ -683,7 +683,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
             style={{
               width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
               cursor: complete ? 'pointer' : 'not-allowed',
-              background: complete ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)',
+              background: complete ? COLOR.primary : 'rgba(0,0,0,0.08)',
               color: complete ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700,
               boxShadow: complete ? `0 4px 16px ${COLOR.primary}44` : 'none', marginBottom: 14,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -841,7 +841,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
           <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองสัปดาห์นี้</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
+          <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
         </div>
       )}
 
@@ -913,11 +913,11 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
           <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingLeft: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} />
-              <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>เพื่อนจองแล้ว</span>
+              <span style={{ fontSize: '0.62rem', color: '#6B7280' }}>เพื่อนจองแล้ว</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }} />
-              <span style={{ fontSize: '0.62rem', color: '#9CA3AF' }}>เพื่อนร่วมตำแหน่งจองแล้ว</span>
+              <span style={{ fontSize: '0.62rem', color: '#6B7280' }}>เพื่อนร่วมตำแหน่งจองแล้ว</span>
             </div>
           </div>
         </div>
@@ -929,7 +929,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
           style={{
             width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
             cursor: selDow !== null ? 'pointer' : 'not-allowed',
-            background: selDow !== null ? `linear-gradient(135deg, ${COLOR.primary}, ${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)',
+            background: selDow !== null ? COLOR.primary : 'rgba(0,0,0,0.08)',
             color: selDow !== null ? '#fff' : '#9CA3AF',
             fontSize: '1rem', fontWeight: 700,
             boxShadow: selDow !== null ? `0 4px 16px ${COLOR.primary}44` : 'none',
@@ -960,14 +960,14 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             const name = c.employee.nickname ?? c.employee.first_name
             return (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#F9FAFB', borderRadius: 10, marginBottom: 6 }}>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#6C89F5,#5B6CF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                   {c.employee.first_name.charAt(0)}
                 </div>
                 <div style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#1A2B3C' }}>{name}</div>
                 <span style={{ fontSize: '0.68rem', fontWeight: 700, color: cfg.color, background: cfg.bg, padding: '2px 8px', borderRadius: 99 }}>
                   วัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(c.day_of_week)]}
                 </span>
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF' }}>{cfg.label}</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#6B7280' }}>{cfg.label}</span>
               </div>
             )
           })}
@@ -995,7 +995,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
                     <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>
                       หยุดวัน{dLabel} {fmtDate(date)}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: 2 }}>{range}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginTop: 2 }}>{range}</div>
                   </div>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: cfg.color, background: cfg.bg, padding: '3px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
                     {cfg.label}
@@ -1129,9 +1129,9 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
       <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
         <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
         <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
-        <div style={{ fontSize: '0.82rem', color: '#9CA3AF', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
+        <div style={{ fontSize: '0.82rem', color: '#6B7280', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
         <button onClick={() => setDone(false)}
-          style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit' }}>
+          style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: COLOR.primary, color: '#fff', fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit' }}>
           จองต่อ
         </button>
       </div>
@@ -1148,7 +1148,7 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
             return (
               <button key={t.code} onClick={() => { setLeaveType(t.code); setPicks(new Set()) }}
                 style={{ flex: 1, padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? t.color : 'transparent'}`, cursor: 'pointer', background: active ? `${t.color}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? t.color : '#9CA3AF' }}>{t.label}</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? t.color : '#6B7280' }}>{t.label}</div>
               </button>
             )
           })}
@@ -1171,7 +1171,7 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
         เลือกวันที่ต้องการใช้โควต้า{activeType?.label} ({pickedCount}/{remaining})
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
-        {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#9CA3AF', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
+        {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#6B7280', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 16 }}>
         {Array.from({ length: totalCells }, (_, i) => {
@@ -1204,7 +1204,7 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
       </div>
 
       {colleagueLeaves.some(c => c.same_position) && (
-        <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
           เพื่อนร่วมตำแหน่งเดียวกันลาวันนี้แล้ว — ยังขอได้ แอดมินจะเป็นคนพิจารณา
         </div>
@@ -1214,7 +1214,7 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
         style={{
           width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
           cursor: pickedCount > 0 ? 'pointer' : 'not-allowed',
-          background: pickedCount > 0 ? `linear-gradient(135deg, ${activeType?.color}, ${activeType?.color})` : 'rgba(0,0,0,0.08)',
+          background: pickedCount > 0 ? (activeType?.color) : 'rgba(0,0,0,0.08)',
           color: pickedCount > 0 ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700,
           marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
@@ -1411,9 +1411,9 @@ export default function LeavePage() {
             <div style={{ padding: '40px 20px', textAlign: 'center', background: '#F9FAFB', borderRadius: 18 }}>
               <Send size={44} color={COLOR.primary} className="animate-success-pop" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2B3C' }}>ส่งคำขอแล้ว!</div>
-              <div style={{ fontSize: '0.82rem', color: '#9CA3AF', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
+              <div style={{ fontSize: '0.82rem', color: '#6B7280', marginTop: 6, lineHeight: 1.6 }}>รอผู้จัดการพิจารณา<br />คุณจะได้รับแจ้งผลทาง LINE</div>
               <button onClick={() => { setSubmitDone(false); setTab('calendar') }}
-                style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})`, color: '#fff', fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit' }}>
+                style={{ marginTop: 20, padding: '12px 28px', borderRadius: 14, border: 'none', cursor: 'pointer', background: COLOR.primary, color: '#fff', fontWeight: 700, fontSize: '0.9rem', fontFamily: 'inherit' }}>
                 ดูประวัติ
               </button>
             </div>
@@ -1434,7 +1434,7 @@ export default function LeavePage() {
                     return (
                       <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code }))}
                         style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? lt.color : 'transparent'}`, cursor: 'pointer', background: active ? `${lt.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? lt.color : '#9CA3AF' }}>{lt.label}</div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? lt.color : '#6B7280' }}>{lt.label}</div>
                       </button>
                     )
                   })}
@@ -1470,7 +1470,7 @@ export default function LeavePage() {
                     const active = form.period === o.v
                     return (
                       <button key={o.v} onClick={() => setForm(f => ({ ...f, period: o.v }))}
-                        style={{ padding: '8px 12px', borderRadius: 10, border: `2px solid ${active ? COLOR.primary : 'transparent'}`, background: active ? `${COLOR.primary}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: active ? COLOR.primary : '#9CA3AF' }}>
+                        style={{ padding: '8px 12px', borderRadius: 10, border: `2px solid ${active ? COLOR.primary : 'transparent'}`, background: active ? `${COLOR.primary}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: active ? COLOR.primary : '#6B7280' }}>
                         {o.label}
                       </button>
                     )
@@ -1483,12 +1483,12 @@ export default function LeavePage() {
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>ลาตั้งแต่เวลา</div>
                     <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
-                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1.5px solid rgba(255,107,53,0.2)', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1px solid #e5e7eb', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                   </div>
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>ถึงเวลา</div>
                     <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
-                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1.5px solid rgba(255,107,53,0.2)', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                      style={{ width: '100%', padding: '11px 12px', borderRadius: 12, border: '1px solid #e5e7eb', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                   </div>
                 </div>
               )}
@@ -1515,11 +1515,11 @@ export default function LeavePage() {
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>เหตุผล *</div>
                 <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
                   placeholder="ระบุเหตุผลในการลา..." rows={3}
-                  style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: `1.5px solid rgba(255,107,53,0.2)`, fontSize: '0.88rem', background: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'none', lineHeight: 1.55, fontFamily: 'inherit' }} />
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: `1px solid #e5e7eb`, fontSize: '0.88rem', background: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'none', lineHeight: 1.55, fontFamily: 'inherit' }} />
               </div>
               {errorMsg && <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {errorMsg}</div>}
               <button onClick={handleSubmitLeave} disabled={!canSubmit || submitting}
-                style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed', background: canSubmit ? `linear-gradient(135deg,${COLOR.primary},${COLOR.primaryMid})` : 'rgba(0,0,0,0.08)', color: canSubmit ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                style={{ width: '100%', padding: '15px', borderRadius: 14, border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed', background: canSubmit ? COLOR.primary : 'rgba(0,0,0,0.08)', color: canSubmit ? '#fff' : '#9CA3AF', fontSize: '1rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {submitting ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</> : <><Send size={17} /> ส่งคำขอลา</>}
               </button>
             </div>
@@ -1538,7 +1538,7 @@ export default function LeavePage() {
                 return (
                   <button key={m.id} onClick={() => setBookingMode(m.id)}
                     style={{ flex: 1, padding: '9px 6px', borderRadius: 12, border: `2px solid ${active ? COLOR.primary : 'transparent'}`, cursor: 'pointer', background: active ? `${COLOR.primary}15` : 'rgba(0,0,0,0.04)', fontFamily: 'inherit' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? COLOR.primary : '#9CA3AF' }}>{m.label}</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? COLOR.primary : '#6B7280' }}>{m.label}</span>
                   </button>
                 )
               })}
@@ -1551,7 +1551,7 @@ export default function LeavePage() {
                     <Lock size={22} color={COLOR.primary} />
                   </div>
                   <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณไม่ต้องจองวันหยุด</p>
-                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#6B7280', maxWidth: 260 }}>
                     ระบบตั้งวันหยุดประจำให้อัตโนมัติแล้วตามตารางของกลุ่ม ถ้ามีข้อสงสัยติดต่อแอดมิน
                   </p>
                 </div>
@@ -1566,7 +1566,7 @@ export default function LeavePage() {
                   <Lock size={22} color={COLOR.primary} />
                 </div>
                 <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>สาขาของคุณปิดการยื่นคำขอลา</p>
-                <p style={{ margin: 0, fontSize: '0.78rem', color: '#9CA3AF', maxWidth: 260 }}>ถ้าจำเป็นต้องใช้วันพักร้อน/ชดเชย กรุณาติดต่อแอดมิน</p>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#6B7280', maxWidth: 260 }}>ถ้าจำเป็นต้องใช้วันพักร้อน/ชดเชย กรุณาติดต่อแอดมิน</p>
               </div>
             ) : (
               <LeaveQuotaBooking employeeId={employee?.id ?? ''} balances={balances} ownRequests={requests} />

@@ -135,7 +135,7 @@ export function OffsiteMapPicker({ mode, onConfirm, onCancel, loading }: Offsite
           disabled={loading || !pos}
           style={{
             flex: 2, padding: '14px', borderRadius: 16, border: 'none',
-            background: (loading || !pos) ? '#d1d5db' : `linear-gradient(135deg, ${color}, ${color})`,
+            background: (loading || !pos) ? '#d1d5db' : color,
             color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: (loading || !pos) ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
