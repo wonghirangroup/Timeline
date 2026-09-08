@@ -112,6 +112,7 @@ export async function authRoutes(app: FastifyInstance) {
           role: user.role,
           tenant_id: user.tenant_id,
           enabled_features: user.tenant?.enabled_features ?? null,
+          must_change_password: user.must_change_password,
         },
         accessToken,
         refreshToken,
@@ -179,7 +180,12 @@ export async function authRoutes(app: FastifyInstance) {
         })
         enabled_features = tenant?.enabled_features ?? null
       }
-      return { success: true, data: { ...request.user, enabled_features } }
+      // อ่านสดจาก DB — ต้องอัปเดตทันทีหลังผู้ใช้เปลี่ยนรหัส (JWT ไม่ได้ refresh)
+      const fresh = await prisma.user.findUnique({
+        where: { id: request.user.id },
+        select: { must_change_password: true, is_active: true },
+      })
+      return { success: true, data: { ...request.user, enabled_features, must_change_password: fresh?.must_change_password ?? false } }
     } catch (err) {
       reply.code(401)
       return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }

@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
+import ForcedPasswordChange from './ForcedPasswordChange'
 
 // ── Sync enabled_features แบบเกือบ real-time ────────────────────────────────
 // ปกติ enabledFeatures มาจาก login ครั้งเดียว — ถ้า Super Admin ปิดฟีเจอร์ระหว่าง
@@ -16,7 +17,7 @@ function useSyncEnabledFeatures() {
   const setEnabledFeatures = useAuthStore(s => s.setEnabledFeatures)
 
   const { data } = useQuery({
-    queryKey: ['auth', 'me', 'enabled-features'],
+    queryKey: ['auth', 'me'],
     queryFn: () => api.get('/api/v1/auth/me').then((r: any) => r.data.data),
     enabled: !!token,
     refetchInterval: 30_000,
@@ -27,6 +28,8 @@ function useSyncEnabledFeatures() {
   useEffect(() => {
     if (data) setEnabledFeatures(data.enabled_features ?? null)
   }, [data, setEnabledFeatures])
+
+  return { mustChangePassword: data?.must_change_password === true }
 }
 
 const SIDEBAR_W   = 260
@@ -40,7 +43,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   })
   const location = useLocation()
 
-  useSyncEnabledFeatures()
+  const { mustChangePassword } = useSyncEnabledFeatures()
 
   useEffect(() => {
     function onResize() {
@@ -95,6 +98,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </main>
       </div>
 
+      {mustChangePassword && <ForcedPasswordChange />}
     </div>
   )
 }
