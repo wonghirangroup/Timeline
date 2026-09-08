@@ -654,9 +654,9 @@ export default function CheckinPage() {
       <div className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.65)', fontWeight: 500, marginBottom: 1 }}>TimeLine HR</div>
+            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 1 }}>TimeLine HR</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{th}</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>{en}</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>{en}</div>
           </div>
         </div>
       </div>
@@ -741,63 +741,42 @@ export default function CheckinPage() {
           </div>
         )}
 
-        {/* Buttons */}
+        {/* ปุ่มหลักปุ่มเดียว — เปลี่ยนตามสถานะ (เช็คอิน / เช็คเอาต์ / เสร็จแล้ว)
+            เดิมมี 2 วงกลมโชว์พร้อมกันโดยอันที่ใช้ไม่ได้จะจาง ทำให้ต้องคิดทุกครั้งว่ากดอันไหน */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, margin: '36px 0 8px' }}>
-
-          {/* Check-in button */}
-          <button
-            type="button"
-            onClick={() => openScanner('checkin')}
-            disabled={busy || hasOpenRecord || allCheckedOut}
-            style={{
-              width: 160, height: 160, borderRadius: '50%', border: 'none',
-              cursor: (busy || allCheckedOut) ? 'not-allowed' : 'pointer',
-              background: allCheckedOut
-                ? '#e5e7eb'
-                : hasOpenRecord
-                  ? '#f3f4f6'
-                  : COLOR.primary,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: (!busy && !allCheckedOut && !hasOpenRecord) ? '0 4px 12px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
-              opacity: hasOpenRecord ? 0.5 : 1,
-            }}
-          >
-            <QrCode size={46} strokeWidth={1.6} color={(!allCheckedOut && !hasOpenRecord) ? 'rgba(255,255,255,0.95)' : '#9ca3af'} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700,
-              color: (!allCheckedOut && !hasOpenRecord) ? 'rgba(255,255,255,0.95)' : '#9ca3af',
-              letterSpacing: '0.3px' }}>
-              เช็คอิน
-            </span>
-          </button>
-
-          <div style={{ fontSize: '0.8rem', color: COLOR.textMuted, fontWeight: 600 }}>— หรือ —</div>
-
-          {/* Check-out button */}
-          <button
-            type="button"
-            onClick={() => openScanner('checkout')}
-            disabled={busy || !hasOpenRecord}
-            style={{
-              width: 160, height: 160, borderRadius: '50%', border: 'none',
-              cursor: (busy || !hasOpenRecord) ? 'not-allowed' : 'pointer',
-              background: hasOpenRecord
-                ? '#2563EB'
-                : '#f3f4f6',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: hasOpenRecord ? '0 8px 24px rgba(37,99,235,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
-              opacity: hasOpenRecord ? 1 : 0.4,
-            }}
-          >
-            <Flag size={46} strokeWidth={1.6} color={hasOpenRecord ? 'rgba(255,255,255,0.95)' : '#9ca3af'} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700,
-              color: hasOpenRecord ? 'rgba(255,255,255,0.95)' : '#9ca3af',
-              letterSpacing: '0.3px' }}>
-              เช็คเอาต์
-            </span>
-          </button>
+          {(() => {
+            const mode: 'checkin' | 'checkout' | 'done' = allCheckedOut ? 'done' : hasOpenRecord ? 'checkout' : 'checkin'
+            const cfg = {
+              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(234,88,12,0.25)' },
+              checkout: { bg: '#2563EB',     Icon: Flag,   label: 'เช็คเอาต์', shadow: '0 4px 14px rgba(37,99,235,0.25)' },
+              done:     { bg: '#e5e7eb',     Icon: CheckCircle2, label: 'เสร็จแล้ว', shadow: 'none' },
+            }[mode]
+            return (
+              <button
+                type="button"
+                onClick={() => openScanner(mode === 'checkout' ? 'checkout' : 'checkin')}
+                disabled={busy || mode === 'done'}
+                aria-label={mode === 'done' ? 'เสร็จงานวันนี้แล้ว' : `${cfg.label} — สแกน QR`}
+                style={{
+                  width: 168, height: 168, borderRadius: '50%', border: 'none',
+                  cursor: (busy || mode === 'done') ? 'not-allowed' : 'pointer',
+                  background: cfg.bg,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  boxShadow: cfg.shadow,
+                  opacity: busy ? 0.6 : 1,
+                  transition: 'background 0.2s',
+                }}
+              >
+                <cfg.Icon size={48} strokeWidth={1.6} color={mode === 'done' ? '#9ca3af' : '#fff'} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: mode === 'done' ? '#9ca3af' : '#fff', letterSpacing: '0.3px' }}>
+                  {cfg.label}
+                </span>
+              </button>
+            )
+          })()}
 
           {!error && (
-            <div style={{ fontSize: '0.8rem', color: COLOR.textMuted, textAlign: 'center', lineHeight: 1.6, marginTop: 4 }}>
+            <div style={{ fontSize: '0.8rem', color: COLOR.textMuted, textAlign: 'center', lineHeight: 1.6, marginTop: 4, whiteSpace: 'pre-line' }}>
               {hasOpenRecord
                 ? 'สแกน QR Code เดิมที่หน้าสาขา เพื่อเช็คเอาต์'
                 : allCheckedOut
@@ -828,7 +807,7 @@ export default function CheckinPage() {
           </div>
 
           {activeOffsite?.check_in_address && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: 'rgba(255,255,255,0.7)', borderRadius: 10, padding: '8px 10px', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 10, padding: '8px 10px', marginBottom: 12 }}>
               <MapPin size={13} color="#2563eb" style={{ flexShrink: 0, marginTop: 2 }} />
               <span style={{ fontSize: '0.76rem', color: '#1e3a8a', lineHeight: 1.5 }}>{activeOffsite.check_in_address}</span>
             </div>

@@ -888,14 +888,14 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
                     {day}
                   </div>
                   {spanMonth && (
-                    <div style={{ fontSize: '0.52rem', color: isSel ? 'rgba(255,255,255,0.7)' : '#9CA3AF', marginTop: 3 }}>
+                    <div style={{ fontSize: '0.52rem', color: isSel ? 'rgba(255,255,255,0.9)' : '#9CA3AF', marginTop: 3 }}>
                       {mon}
                     </div>
                   )}
                   {(samePosition || otherColleague) && (
                     <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
                       width: 5, height: 5, borderRadius: '50%',
-                      background: isSel ? 'rgba(255,255,255,0.7)' : samePosition ? '#DC2626' : '#F59E0B' }} />
+                      background: isSel ? 'rgba(255,255,255,0.9)' : samePosition ? '#DC2626' : '#F59E0B' }} />
                   )}
                 </button>
               )
@@ -1362,7 +1362,7 @@ export default function LeavePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>วันลา</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>
               {employee?.first_name} {employee?.last_name} · จัดการวันลา
             </div>
           </div>

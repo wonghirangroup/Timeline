@@ -154,7 +154,7 @@ export default function HistoryPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>ประวัติ</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>
               {employee ? `${employee.first_name} ${employee.last_name} · ${employee.branch.name}` : ''}
             </div>
           </div>
