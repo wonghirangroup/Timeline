@@ -7,12 +7,12 @@ import AttendanceTab from '../attendance'
 type ShiftTab = 'schedule' | 'attendance'
 
 const TABS: { id: ShiftTab; label: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
-  { id: 'schedule',   label: 'ตารางกะ',      icon: <AlignLeft size={15}/>,      color: '#2563eb', activeBg: '#eff6ff', activeBorder: '#3b82f6' },
   { id: 'attendance', label: 'เช็คอินวันนี้', icon: <ClipboardCheck size={15}/>, color: '#16a34a', activeBg: '#f0fdf4', activeBorder: '#22c55e' },
+  { id: 'schedule',   label: 'ตารางกะ',      icon: <AlignLeft size={15}/>,      color: '#2563eb', activeBg: '#eff6ff', activeBorder: '#3b82f6' },
 ]
 
 export default function ShiftHubPage() {
-  const [activeTab, setActiveTab] = useState<ShiftTab>('schedule')
+  const [activeTab, setActiveTab] = useState<ShiftTab>('attendance')
 
   function renderTab(t: typeof TABS[0]) {
     const isActive = activeTab === t.id
@@ -51,11 +51,11 @@ export default function ShiftHubPage() {
       </div>
 
       {/* Content */}
-      <div style={{ display: activeTab === 'schedule' ? 'block' : 'none' }}>
-        <ShiftScheduleTab />
-      </div>
       <div style={{ display: activeTab === 'attendance' ? 'block' : 'none' }}>
         <AttendanceTab />
+      </div>
+      <div style={{ display: activeTab === 'schedule' ? 'block' : 'none' }}>
+        <ShiftScheduleTab />
       </div>
     </div>
   )
