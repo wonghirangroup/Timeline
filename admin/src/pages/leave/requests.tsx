@@ -186,7 +186,7 @@ export default function LeaveRequestsTab() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const isReadOnly = useIsReadOnly()
-  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
+  const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
   const [tab, setTab]             = useState<'requests' | 'add'>('requests')
@@ -379,6 +379,13 @@ export default function LeaveRequestsTab() {
     })
     setEditTarget(r)
   }
+
+  // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติให้เลย (ถ้ายัง PENDING)
+  useEffect(() => {
+    if (!autoApprove || !focusId || isReadOnly) return
+    const row = requests.find(r => r.id === focusId && r.status === 'PENDING')
+    if (row) setApproveTarget(row)
+  }, [autoApprove, focusId, requests, isReadOnly])
 
   function handleApprove()  { if (approveTarget) approveMutation.mutate(approveTarget.id) }
   function handleReject()   { if (rejectTarget)  rejectMutation.mutate({ id: rejectTarget.id, note: rejectNote }) }

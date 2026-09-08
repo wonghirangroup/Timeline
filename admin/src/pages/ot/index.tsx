@@ -94,7 +94,7 @@ export default function OtPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const isReadOnly = useIsReadOnly()
-  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
+  const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
   const { data: rawRows = [] } = useQuery<ApiOt[]>({
@@ -303,6 +303,14 @@ export default function OtPage() {
     setCalcRate('')
     setCalcMultiplier(r.multiplier)
   }
+
+  // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติ OT ให้เลย
+  useEffect(() => {
+    if (!autoApprove || !focusId || isReadOnly) return
+    const row = rows.find(r => r.id === focusId && r.status === 'PENDING')
+    if (row) openApprove(row)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApprove, focusId, rows, isReadOnly])
 
   const modalBackdrop = (open: boolean): React.CSSProperties => ({
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',

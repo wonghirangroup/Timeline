@@ -1,6 +1,6 @@
 // admin/src/pages/resignations/index.tsx
 // คำขอลาออกที่พนักงานยื่นผ่าน LIFF — อนุมัติ = set สถานะพนักงานเป็น RESIGNED
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { DoorOpen, Check, X, Search } from 'lucide-react'
@@ -26,7 +26,7 @@ export default function ResignationsPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const isReadOnly = useIsReadOnly()
-  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
+  const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const [statusFilter, setStatusFilter] = useState('')
   const [approveTarget, setApproveTarget] = useState<any>(null)
   const [rejectTarget, setRejectTarget] = useState<any>(null)
@@ -36,6 +36,13 @@ export default function ResignationsPage() {
     queryKey: ['admin', 'resignations', statusFilter],
     queryFn: () => api.get('/api/v1/admin/resignations', { params: { status: statusFilter || undefined } }).then(r => r.data.data),
   })
+
+  // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติลาออกให้เลย
+  useEffect(() => {
+    if (!autoApprove || !focusId || isReadOnly) return
+    const row = rows.find((r: any) => r.id === focusId && r.status === 'PENDING')
+    if (row) setApproveTarget(row)
+  }, [autoApprove, focusId, rows, isReadOnly])
 
   const reviewMut = useMutation({
     mutationFn: ({ id, approve, note }: { id: string; approve: boolean; note?: string }) =>

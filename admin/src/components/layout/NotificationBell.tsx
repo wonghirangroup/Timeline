@@ -42,6 +42,14 @@ const GROUP_LABEL: { key: NotifSeverity; label: string }[] = [
   { key: 'info',   label: 'ความเคลื่อนไหวล่าสุด' },
 ]
 
+const READ_KEY = 'tl_notif_read'
+function loadRead(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')) } catch { return new Set() }
+}
+function saveRead(s: Set<string>) {
+  try { localStorage.setItem(READ_KEY, JSON.stringify([...s].slice(-300))) } catch { /* private mode */ }
+}
+
 export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
   const navigate = useNavigate()
   const { data } = useNotifications()
@@ -49,7 +57,32 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
 
   const items = data?.items ?? []
-  const badge = (data?.count ?? 0) + (data?.warn_count ?? 0)
+  const [read, setRead] = useState<Set<string>>(loadRead)
+
+  // prune: เก็บเฉพาะ id ที่ยังมีอยู่จริง (รายการที่ resolve แล้วหลุดจาก server → เอาออกจาก read set)
+  useEffect(() => {
+    if (!data) return
+    const present = new Set(items.map(i => i.id))
+    setRead(prev => {
+      const next = new Set([...prev].filter(id => present.has(id)))
+      if (next.size !== prev.size) saveRead(next)
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
+  function markRead(ids: string[]) {
+    setRead(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.add(id))
+      saveRead(next)
+      return next
+    })
+  }
+
+  const isUnread = (it: NotifItem) => it.severity !== 'info' && !read.has(it.id)
+  // ตัวเลขบนกระดิ่ง = รายการที่ต้องจัดการ/ควรตรวจสอบ ที่ยังไม่ได้กดเข้าไปดู
+  const badge = items.filter(isUnread).length
 
   useEffect(() => {
     if (!open || isMobile) return
@@ -66,19 +99,23 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
   }, [open])
 
   function go(it: NotifItem) {
+    markRead([it.id])
     setOpen(false)
     navigate(it.link)
+  }
+  function markAll() {
+    markRead(items.filter(i => i.severity !== 'info').map(i => i.id))
   }
 
   const panel = (
     <div style={{ display: 'flex', flexDirection: 'column', maxHeight: isMobile ? '80vh' : 460 }}>
-      <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)' }}>การแจ้งเตือน</span>
-        {badge > 0 && (
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--action-primary-hover)', background: 'var(--accent-light)', padding: '2px 9px', borderRadius: 99 }}>
-            {badge} รายการ
-          </span>
-        )}
+        {badge > 0
+          ? <button onClick={markAll} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}>
+              ทำเครื่องหมายอ่านทั้งหมด
+            </button>
+          : null}
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -99,20 +136,22 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
                 </div>
                 {rows.map(it => {
                   const s = SEV[it.severity]
+                  const unread = isUnread(it)
                   return (
                     <button key={it.id} onClick={() => go(it)}
-                      style={{ display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: '11px 18px', border: 'none', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-card)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-card)')}
+                      style={{ display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: '11px 18px', border: 'none', borderBottom: '1px solid var(--border-light)', background: unread ? 'var(--bg-card)' : 'var(--bg-subtle)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s', opacity: unread ? 1 : 0.6 }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-muted)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = unread ? 'var(--bg-card)' : 'var(--bg-subtle)')}
                     >
                       <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: s.bg, color: s.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
                         {KIND_ICON[it.kind] ?? <Bell size={15} />}
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--text-main)' }}>{it.title}</span>
+                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: unread ? 700 : 600, color: 'var(--text-main)' }}>{it.title}</span>
                         <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1, lineHeight: 1.45 }}>{it.detail}</span>
                         <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-faint)', marginTop: 3 }}>{relThai(it.at)}</span>
                       </span>
+                      {unread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.dot, flexShrink: 0, alignSelf: 'center' }} />}
                     </button>
                   )
                 })}

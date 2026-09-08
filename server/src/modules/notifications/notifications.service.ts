@@ -88,7 +88,7 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
       title: r.has_conflict ? 'ใบลา — ตำแหน่งเดียวกันลาทับ' : 'ใบลารออนุมัติ',
       detail: `${empName(r.employee)} · ${LEAVE_LABEL[r.leave_type] ?? r.leave_type} ${d(r.start_date)}${
         r.end_date > r.start_date ? `–${d(r.end_date)}` : ''}${r.has_conflict ? ' · ⚠ ทับกับคนตำแหน่งเดียวกัน' : ''}`,
-      link: `/leave?tab=requests&focus=${r.id}`,
+      link: `/leave?tab=requests&approve=${r.id}`,
       employee_id: r.employee.id, employee_name: empName(r.employee),
       at: r.created_at.toISOString(),
     })
@@ -99,7 +99,7 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
       id: `ot:${r.id}`, kind: 'pending_ot', severity: 'action',
       title: 'คำขอ OT รออนุมัติ',
       detail: `${empName(r.employee)} · ${d(r.date)} ${r.start_time}–${r.end_time} (${Number(r.hours)} ชม.)`,
-      link: `/ot?focus=${r.id}`,
+      link: `/ot?approve=${r.id}`,
       employee_id: r.employee.id, employee_name: empName(r.employee),
       at: r.created_at.toISOString(),
     })
@@ -110,7 +110,7 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
       id: `resign:${r.id}`, kind: 'pending_resignation', severity: 'action',
       title: 'คำขอลาออกรอพิจารณา',
       detail: `${empName(r.employee)} · วันทำงานสุดท้าย ${d(r.last_working_date)}`,
-      link: `/resignations?focus=${r.id}`,
+      link: `/resignations?approve=${r.id}`,
       employee_id: r.employee.id, employee_name: empName(r.employee),
       at: r.created_at.toISOString(),
     })
