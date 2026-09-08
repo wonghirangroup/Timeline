@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Modal from '../../components/ui/Modal'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -195,7 +196,17 @@ export default function LeaveRequestsTab() {
   const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
   const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา
   const [page, setPage]                   = useState(1)
+  const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
+  const [bulkConfirm, setBulkConfirm]     = useState<null | 'approve' | 'reject'>(null)
+  const [bulkNote, setBulkNote]           = useState('')
   const PAGE_SIZE = 10
+
+  const toggleSel = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  const clearSel = () => setSelectedIds(new Set())
 
   const { data: requests = [], isLoading } = useQuery<ApiLeaveRequest[]>({
     queryKey: ['admin', 'leave-requests'],
@@ -242,6 +253,17 @@ export default function LeaveRequestsTab() {
     mutationFn: (id: string) => api.delete(`/api/v1/admin/leave-requests/${id}`).then(r => r.data),
     onSuccess: () => { invalidate(); showToast('success', `ลบคำขอวันลาของ ${deleteTarget?.employee.first_name} แล้ว`); setDeleteTarget(null) },
     onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+
+  const bulkMutation = useMutation({
+    mutationFn: ({ action, ids, note }: { action: 'approve' | 'reject'; ids: string[]; note?: string }) =>
+      api.post(`/api/v1/admin/leave-requests/bulk-${action}`, { ids, reject_note: note || undefined }).then(r => r.data),
+    onSuccess: (res: any) => {
+      invalidate()
+      showToast('success', res?.message ?? 'ดำเนินการสำเร็จ')
+      clearSel(); setBulkConfirm(null); setBulkNote('')
+    },
+    onError: () => showToast('error', 'ดำเนินการไม่สำเร็จ'),
   })
 
   const addMutation = useMutation({
@@ -302,6 +324,34 @@ export default function LeaveRequestsTab() {
     approved: requests.filter(r => r.status === 'APPROVED').length,
     rejected: requests.filter(r => r.status === 'REJECTED').length,
   }), [requests])
+
+  // คำขอ PENDING ที่มองเห็นตอนนี้ (ตามฟิลเตอร์) — ฐานของการเลือกหลายรายการ
+  const pendingVisible = useMemo(() => filtered.filter(r => r.status === 'PENDING'), [filtered])
+  const pendingVisibleIds = useMemo(() => pendingVisible.map(r => r.id), [pendingVisible])
+  // ตัด id ที่หลุดจากรายการ (อนุมัติไปแล้ว/ฟิลเตอร์เปลี่ยน) ออกจาก selection อัตโนมัติ
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const valid = new Set(pendingVisibleIds)
+      const next = new Set([...prev].filter(id => valid.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [pendingVisibleIds])
+  const allVisibleSelected = pendingVisibleIds.length > 0 && pendingVisibleIds.every(id => selectedIds.has(id))
+  const selectedConflicts = pendingVisible.filter(r => selectedIds.has(r.id) && r.has_conflict).length
+
+  // คีย์ลัด: a = อนุมัติที่เลือก · r = ปฏิเสธที่เลือก · Esc = ล้างการเลือก
+  useEffect(() => {
+    if (selectedIds.size === 0 || isReadOnly) return
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'Escape') clearSel()
+      else if (e.key === 'a') { e.preventDefault(); setBulkConfirm('approve') }
+      else if (e.key === 'r') { e.preventDefault(); setBulkConfirm('reject') }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedIds.size, isReadOnly])
 
   function openEdit(r: ApiLeaveRequest) {
     setEditForm({
@@ -517,10 +567,20 @@ export default function LeaveRequestsTab() {
             </select>
           </div>
 
+          {!isReadOnly && pendingVisible.length > 0 && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.8rem', color: 'var(--text-body)', cursor: 'pointer', userSelect: 'none' }}>
+              <input type="checkbox" checked={allVisibleSelected}
+                onChange={e => setSelectedIds(e.target.checked ? new Set(pendingVisibleIds) : new Set())}
+                style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: 'pointer' }} />
+              เลือกทั้งหมดที่รอพิจารณา ({pendingVisible.length})
+              {selectedIds.size > 0 && <span style={{ color: 'var(--text-muted)' }}>· เลือกแล้ว {selectedIds.size}</span>}
+            </label>
+          )}
+
           {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>กำลังโหลด...</p>}
 
           {!loading && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', marginBottom: selectedIds.size > 0 ? 76 : 0 }}>
               {isMobile ? (
                 <div>
                   {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</p>}
@@ -528,9 +588,14 @@ export default function LeaveRequestsTab() {
                     const tc = getTypeCfg(r.leave_type, r.reason)
                     const sc = STATUS_CFG[r.status]
                     return (
-                      <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
+                      <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: selectedIds.has(r.id) ? '#f0fdf4' : undefined }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            {!isReadOnly && r.status === 'PENDING' && (
+                              <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} aria-label="เลือกคำขอนี้"
+                                style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: 'pointer', marginTop: 3, flexShrink: 0 }} />
+                            )}
+                            <div>
                             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
                               {r.has_conflict && (
@@ -540,6 +605,7 @@ export default function LeaveRequestsTab() {
                               )}
                             </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch.name}</div>
+                            </div>
                           </div>
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
                         </div>
@@ -571,6 +637,14 @@ export default function LeaveRequestsTab() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                   <thead>
                     <tr style={{ background: '#fff7ed' }}>
+                      {!isReadOnly && (
+                        <th style={{ padding: '11px 8px 11px 14px', width: 34 }}>
+                          <input type="checkbox" checked={allVisibleSelected} disabled={pendingVisibleIds.length === 0}
+                            onChange={e => setSelectedIds(e.target.checked ? new Set(pendingVisibleIds) : new Set())}
+                            aria-label="เลือกทั้งหมดที่รอพิจารณา"
+                            style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: pendingVisibleIds.length ? 'pointer' : 'default' }} />
+                        </th>
+                      )}
                       {['พนักงาน', 'สาขา', 'ประเภท', 'ช่วงวันลา', 'จำนวน', 'เหตุผล', 'สถานะ', 'จัดการ'].map(h => (
                         <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#c2410c', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
@@ -578,13 +652,22 @@ export default function LeaveRequestsTab() {
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</td></tr>
+                      <tr><td colSpan={isReadOnly ? 8 : 9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</td></tr>
                     )}
                     {paginated.map((r, i) => {
                       const tc = getTypeCfg(r.leave_type, r.reason)
                       const sc = STATUS_CFG[r.status]
+                      const sel = selectedIds.has(r.id)
                       return (
-                        <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: sel ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          {!isReadOnly && (
+                            <td style={{ padding: '11px 8px 11px 14px' }}>
+                              {r.status === 'PENDING' && (
+                                <input type="checkbox" checked={sel} onChange={() => toggleSel(r.id)} aria-label={`เลือกคำขอของ ${r.employee.first_name}`}
+                                  style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: 'pointer' }} />
+                              )}
+                            </td>
+                          )}
                           <td style={{ padding: '11px 14px' }}>
                             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
@@ -640,7 +723,64 @@ export default function LeaveRequestsTab() {
           )}
 
           {!loading && <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="รายการ" />}
+
+          {/* Bulk action bar — โผล่เมื่อเลือกคำขอไว้ */}
+          {selectedIds.size > 0 && !isReadOnly && (
+            <div style={{
+              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 300,
+              background: '#fff', borderTop: '1px solid #e5e7eb', boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+              padding: isMobile ? '10px 14px' : '12px 24px',
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            }}>
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-dark)' }}>เลือก {selectedIds.size} รายการ</span>
+              {selectedConflicts > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: '#dc2626', fontWeight: 700 }}>
+                  <AlertTriangle size={12} /> {selectedConflicts} รายการชนตำแหน่ง
+                </span>
+              )}
+              <span style={{ flex: 1 }} />
+              <button onClick={clearSel} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.8rem', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => { setBulkNote(''); setBulkConfirm('reject') }} disabled={bulkMutation.isPending}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <X size={14} /> ปฏิเสธที่เลือก
+              </button>
+              <button onClick={() => setBulkConfirm('approve')} disabled={bulkMutation.isPending}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Check size={14} /> อนุมัติที่เลือก
+              </button>
+            </div>
+          )}
         </>
+      )}
+
+      {bulkConfirm === 'approve' && (
+        <ConfirmDialog
+          variant="default"
+          title={`อนุมัติ ${selectedIds.size} คำขอ?`}
+          message={selectedConflicts > 0
+            ? `มี ${selectedConflicts} รายการที่ชนวันลากับคนตำแหน่งเดียวกัน — อนุมัติทั้งหมดอยู่ดีหรือไม่?`
+            : `คำขอวันลาที่เลือกไว้ทั้งหมดจะถูกอนุมัติ`}
+          confirmLabel="อนุมัติทั้งหมด"
+          onConfirm={() => bulkMutation.mutate({ action: 'approve', ids: [...selectedIds] })}
+          onCancel={() => setBulkConfirm(null)}
+        />
+      )}
+      {bulkConfirm === 'reject' && (
+        <Modal onClose={() => setBulkConfirm(null)} width={380}>
+          <div style={{ padding: 24 }}>
+            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 6px' }}>ปฏิเสธ {selectedIds.size} คำขอ?</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-gray)', margin: '0 0 14px' }}>ใส่หมายเหตุร่วม (ไม่บังคับ) — จะแนบไปกับทุกคำขอที่เลือก</p>
+            <textarea value={bulkNote} onChange={e => setBulkNote(e.target.value)} rows={3} placeholder="เหตุผลที่ปฏิเสธ"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'none' }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => bulkMutation.mutate({ action: 'reject', ids: [...selectedIds], note: bulkNote })} disabled={bulkMutation.isPending}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                {bulkMutation.isPending ? 'กำลังปฏิเสธ...' : 'ปฏิเสธทั้งหมด'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Edit modal */}

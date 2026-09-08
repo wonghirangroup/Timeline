@@ -334,13 +334,14 @@ export default function DashboardPage() {
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 380px', gap: 24, alignItems: 'start' }}>
 
       {/* ── Left Column ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* ── การใช้งานเทียบแพ็กเกจ ─────────────────────────────────── */}
-        <PlanUsageRow />
+      {/* บนมือถือ: ให้ "รายชื่อวันนี้" (คอลัมน์ขวา) ขึ้นก่อน เมตร/KPI ลงล่าง */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, order: isMobile ? 2 : 1 }}>
 
         {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
         <RangeKpiSection branchFilter={branchFilter} />
+
+        {/* ── การใช้งานเทียบแพ็กเกจ ─────────────────────────────────── */}
+        <PlanUsageRow />
 
         {/* ── Action required ──────────────────────────────────────── */}
         {pendingLeaveCount > 0 && (
@@ -430,7 +431,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Right Column (รายชื่อวันนี้) ──────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, order: isMobile ? 1 : 2, height: isMobile ? 'auto' : 'calc(100vh - 110px)' }}>
 
         {/* Org filter */}
         <div>

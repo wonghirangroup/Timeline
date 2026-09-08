@@ -12,6 +12,8 @@ interface NavItem {
 // เช็คเอาท์ไม่มีแท็บแยกแล้ว — รวมเข้ากับหน้าเช็คอิน (ปุ่ม "เช็คเอาท์" สแกน QR
 // สาขาไหนก็ได้อยู่ในหน้าเดียวกัน) กันซ้ำซ้อนกับ /checkout เดิมที่ยังอยู่ (เข้าถึงได้
 // ถ้ามีลิงก์ตรงมา แต่ไม่ผูกกับ nav หลักแล้ว)
+// OT / Feedback เข้าถึงผ่านหน้า "โปรไฟล์" — คงเมนูให้เห็นบนหน้าพวกนั้นด้วย
+// (เดิมซ่อน nav ทำให้เป็นทางตัน) และ tab โปรไฟล์จะ active ค้างไว้
 const NAV_ITEMS: NavItem[] = [
   { path: '/checkin',  label: 'เช็คอิน',  Icon: QrCode },
   { path: '/history',  label: 'ประวัติ',  Icon: BarChart2 },
@@ -19,7 +21,9 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/profile',  label: 'โปรไฟล์', Icon: User },
 ]
 
-const NO_NAV = ['/verify', '/ot', '/feedback']
+// tab โปรไฟล์ครอบหน้าลูกพวกนี้ (เข้าถึงจากเมนูในโปรไฟล์)
+const PROFILE_SUBPAGES = ['/ot', '/feedback', '/checkout']
+const NO_NAV = ['/verify']
 
 export default function BottomNav() {
   const { pathname } = useLocation()
@@ -37,7 +41,9 @@ export default function BottomNav() {
       zIndex: 50,
     }}>
       {NAV_ITEMS.map(({ path, label, Icon }) => {
-        const active = pathname === path || (pathname === '/' && path === '/checkin')
+        const active = pathname === path
+          || (pathname === '/' && path === '/checkin')
+          || (path === '/profile' && PROFILE_SUBPAGES.includes(pathname))
         return (
           <NavLink
             key={path}

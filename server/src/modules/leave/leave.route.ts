@@ -70,6 +70,40 @@ export async function leaveRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธวันลาแล้ว')
   })
 
+  // ── Admin/Manager/DEPT_HEAD: Bulk approve / reject ────────────────
+  // อนุมัติ/ปฏิเสธหลายคำขอในครั้งเดียว (งาน triage รายวัน) — ทำทีละอันตามลำดับ,
+  // คืนจำนวนที่สำเร็จ/ข้าม (คำขอที่ไม่ใช่ PENDING แล้ว หรืออยู่นอก scope ของ DEPT_HEAD)
+  const bulkBodySchema = {
+    type: 'object',
+    required: ['ids'],
+    properties: {
+      ids:         { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 200 },
+      reject_note: { type: 'string' },
+    },
+  }
+  for (const action of ['approve', 'reject'] as const) {
+    app.post(`/admin/leave-requests/bulk-${action}`, {
+      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('leave_management')],
+      schema: {
+        tags: ['Admin'],
+        summary: `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอวันลาหลายรายการในครั้งเดียว`,
+        security: [{ oauth2: [] }],
+        body: bulkBodySchema,
+      },
+    }, async (req: any) => {
+      let done = 0, skipped = 0
+      for (const id of req.body.ids as string[]) {
+        try {
+          const r = action === 'approve'
+            ? await approveLeaveRequest(req.tenantId, id, req.userId!, req.scopedEmployeeIds)
+            : await rejectLeaveRequest(req.tenantId, id, req.userId!, req.body?.reject_note, req.scopedEmployeeIds)
+          if (r) done++; else skipped++
+        } catch { skipped++ }
+      }
+      return ok({ done, skipped }, `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'} ${done} รายการ${skipped ? ` · ข้าม ${skipped}` : ''}`)
+    })
+  }
+
   // ── Admin: สร้างวันลาแทนพนักงาน (อนุมัติอัตโนมัติทันที) ────────────
   app.post('/admin/leave-requests', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('leave_management')],
