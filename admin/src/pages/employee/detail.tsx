@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Pagination from '../../components/ui/Pagination'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { useToast } from '../../components/ui/Toast'
 import { deptName } from '../../lib/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -616,6 +618,8 @@ export default function EmployeeDetailPage() {
   const [tab, setTab] = useState<Tab>('overview')
   const [inviteSent, setInviteSent] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const { showToast } = useToast()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['employee', id],
@@ -630,14 +634,15 @@ export default function EmployeeDetailPage() {
     setTimeout(() => setInviteSent(false), 3000)
   }
 
-  async function handleResetLine() {
-    if (!window.confirm(`ยืนยันการ Reset LINE ของ ${emp?.first_name} ${emp?.last_name}?\n\nพนักงานจะต้องผูกบัญชีใหม่อีกครั้งผ่าน LIFF`)) return
+  async function doResetLine() {
+    setConfirmReset(false)
     setResetting(true)
     try {
       await axios.delete(`/api/v1/admin/employees/${id}/line`)
       queryClient.invalidateQueries({ queryKey: ['employee', id] })
+      showToast('success', 'รีเซ็ต LINE แล้ว — พนักงานต้องผูกบัญชีใหม่ผ่าน LIFF')
     } catch {
-      alert('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      showToast('error', 'เกิดข้อผิดพลาด กรุณาลองใหม่')
     } finally {
       setResetting(false)
     }
@@ -707,7 +712,7 @@ export default function EmployeeDetailPage() {
                     <CheckCircle2 size={12} /> ผูก Line แล้ว
                   </span>
                   <button
-                    onClick={handleResetLine}
+                    onClick={() => setConfirmReset(true)}
                     disabled={resetting}
                     style={{ padding: '3px 10px', borderRadius: 99, border: '1px solid #fca5a5', background: '#fff5f5', color: '#dc2626', fontSize: '0.72rem', fontWeight: 700, cursor: resetting ? 'not-allowed' : 'pointer', opacity: resetting ? 0.6 : 1 }}
                   >
@@ -778,8 +783,19 @@ export default function EmployeeDetailPage() {
         {tab === 'overview'   && <OverviewTab   employeeId={emp.id} />}
         {tab === 'attendance' && <AttendanceTab employeeId={emp.id} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}
-        {tab === 'info'       && <InfoTab       emp={emp} onResetLine={handleResetLine} />}
+        {tab === 'info'       && <InfoTab       emp={emp} onResetLine={() => setConfirmReset(true)} />}
       </div>
+
+      {confirmReset && (
+        <ConfirmDialog
+          variant="warning"
+          title="รีเซ็ต LINE ของพนักงานคนนี้?"
+          message={`${emp.first_name} ${emp.last_name} จะต้องผูกบัญชี LINE ใหม่อีกครั้งผ่าน LIFF`}
+          confirmLabel="รีเซ็ต LINE"
+          onConfirm={doResetLine}
+          onCancel={() => setConfirmReset(false)}
+        />
+      )}
     </div>
   )
 }

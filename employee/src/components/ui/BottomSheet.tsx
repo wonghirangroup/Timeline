@@ -3,7 +3,7 @@
 // และ "สไลด์ลง" ด้วยนิ้ว (touch) ไม่มี gesture library ในโปรเจกต์นี้ เลยเขียนเอง
 // แบบง่าย: ลาก drag-handle แล้ววัดระยะ Y ถ้าลากพ้น threshold หรือปล่อยตอน velocity
 // สูงพอ ถือว่าปิด ไม่งั้น sheet เด้งกลับตำแหน่งเดิม
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 const CLOSE_DISTANCE = 100  // px ที่ต้องลากลงถึงจะปิด
 const CLOSE_VELOCITY = 0.5  // px/ms ที่ถือว่า "ปัดเร็ว" ปิดได้แม้ลากไม่ถึงระยะ
@@ -22,6 +22,21 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
   const startT   = useRef(0)
   const lastY    = useRef(0)
   const lastT    = useRef(0)
+  const cardRef  = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const prevFocus = document.activeElement as HTMLElement | null
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    cardRef.current?.querySelector<HTMLElement>('button,a,input,textarea,select,[tabindex]')?.focus()
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.body.style.overflow = prevOverflow
+      prevFocus?.focus?.()
+    }
+  }, [onClose])
 
   function handleTouchStart(e: React.TouchEvent) {
     const y = e.touches[0].clientY
@@ -48,14 +63,17 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex, display: 'flex', alignItems: 'flex-end' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex, display: 'flex', alignItems: 'flex-end' }}
       className="animate-fade-in"
       onClick={onClose}
     >
       <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
         style={{
-          background: '#fff', borderRadius: '32px 32px 0 0', width: '100%', maxWidth, margin: '0 auto',
-          padding: '24px 24px 40px', boxShadow: '0 -16px 48px rgba(0,0,0,0.12)',
+          background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth, margin: '0 auto',
+          padding: '24px 24px 40px', boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
           transform: `translateY(${dragY}px)`,
           transition: dragging ? 'none' : 'transform 0.25s cubic-bezier(0.16,1,0.3,1)',
         }}

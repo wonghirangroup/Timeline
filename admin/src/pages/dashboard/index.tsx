@@ -9,6 +9,7 @@ import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
+import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -144,7 +145,9 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
       )}
 
       {isLoading || !summary ? (
-        <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>กำลังโหลด...</div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
+          <SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(1, 1fr)' : 'repeat(3, 1fr)', gap: 16 }}>
@@ -265,7 +268,7 @@ export default function DashboardPage() {
   })
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
-  const { data: records = [] } = useQuery<ApiRecord[]>({
+  const { data: records = [], isLoading: recordsLoading } = useQuery<ApiRecord[]>({
     queryKey: ['admin', 'attendance', today],
     queryFn: () => api.get('/api/v1/admin/attendance', { params: { date: today } }).then(r => r.data.data),
     refetchInterval: 60_000,
@@ -442,7 +445,9 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {filtered.length === 0 ? (
+            {recordsLoading && filtered.length === 0 ? (
+              <SkeletonRows rows={8} />
+            ) : filtered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ marginBottom: 12, opacity: 0.4, display: 'flex', justifyContent: 'center' }}><CalendarDays size={40}/></div>
                 <div style={{ fontWeight: 600, fontSize: '13px' }}>ไม่มีข้อมูล</div>

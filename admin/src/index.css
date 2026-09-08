@@ -157,6 +157,11 @@ button {
   to   { transform: rotate(360deg); }
 }
 
+@keyframes sk-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @keyframes pulse-scale {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%       { transform: scale(0.92); opacity: 0.7; }

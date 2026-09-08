@@ -144,6 +144,7 @@ function BulkModePanel() {
   const isMobile = useIsMobile()
   const [bulkDept, setBulkDept] = useState('')
   const [bulkMode, setBulkMode] = useState<'WEEKLY' | 'MONTHLY_BATCH'>('MONTHLY_BATCH')
+  const [confirmAll, setConfirmAll] = useState(false)
 
   const bulkModeMutation = useMutation({
     mutationFn: () => api.patch('/api/v1/admin/employees/bulk-weekly-off-mode', { department: bulkDept, mode: bulkMode }).then(r => r.data.data),
@@ -170,13 +171,22 @@ function BulkModePanel() {
         <option value="MONTHLY_BATCH">{WEEKLY_OFF_MODE_LABEL.MONTHLY_BATCH}</option>
         <option value="WEEKLY">{WEEKLY_OFF_MODE_LABEL.WEEKLY}</option>
       </select>
-      <button onClick={() => {
-          if (bulkDept === 'ALL' && !window.confirm(`ยืนยันตั้งค่าโหมดจองวันหยุดเป็น "${WEEKLY_OFF_MODE_LABEL[bulkMode]}" ให้พนักงานทุกคนในบริษัท (ทุกแผนก)?`)) return
-          bulkModeMutation.mutate()
-        }} disabled={!bulkDept || bulkModeMutation.isPending}
+      <button onClick={() => bulkDept === 'ALL' ? setConfirmAll(true) : bulkModeMutation.mutate()}
+        disabled={!bulkDept || bulkModeMutation.isPending}
         style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: !bulkDept ? '#d1d5db' : bulkDept === 'ALL' ? '#dc2626' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !bulkDept ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
         {bulkModeMutation.isPending ? 'กำลังบันทึก...' : bulkDept === 'ALL' ? 'ใช้กับพนักงานทั้งหมด' : 'ใช้กับทั้งแผนกนี้'}
       </button>
+
+      {confirmAll && (
+        <ConfirmDialog
+          variant="warning"
+          title="ตั้งค่าให้พนักงานทุกคนในบริษัท?"
+          message={`โหมดจองวันหยุดของพนักงานทุกแผนกจะถูกเปลี่ยนเป็น "${WEEKLY_OFF_MODE_LABEL[bulkMode]}"`}
+          confirmLabel="ใช้กับทั้งบริษัท"
+          onConfirm={() => { setConfirmAll(false); bulkModeMutation.mutate() }}
+          onCancel={() => setConfirmAll(false)}
+        />
+      )}
     </div>
   )
 }

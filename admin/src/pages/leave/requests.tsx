@@ -556,8 +556,8 @@ export default function LeaveRequestsTab() {
                             <button onClick={() => setApproveTarget(r)} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Check size={13}/> อนุมัติ</button>
                             <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><X size={13}/> ปฏิเสธ</button>
                           </>}
-                          <button onClick={() => openEdit(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', cursor: 'pointer' }}><Pencil size={13}/></button>
-                          <button onClick={() => setDeleteTarget(r)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={13}/></button>
+                          <button onClick={() => openEdit(r)} aria-label="แก้ไข" style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', cursor: 'pointer' }}><Pencil size={13}/></button>
+                          <button onClick={() => setDeleteTarget(r)} aria-label="ลบ" style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={13}/></button>
                         </div>
                         )}
                         {r.status === 'REJECTED' && r.reject_note && (
@@ -618,14 +618,14 @@ export default function LeaveRequestsTab() {
                             {!isReadOnly && (
                             <div style={{ display: 'flex', gap: 5 }}>
                               {r.status === 'PENDING' && <>
-                                <button onClick={() => setApproveTarget(r)}
+                                <button onClick={() => setApproveTarget(r)} aria-label="อนุมัติ"
                                   style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}><Check size={13}/></button>
-                                <button onClick={() => { setRejectTarget(r); setRejectNote('') }}
-                                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }} aria-label="ลบ"><X size={13}/></button>
+                                <button onClick={() => { setRejectTarget(r); setRejectNote('') }} aria-label="ปฏิเสธ"
+                                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}><X size={13}/></button>
                               </>}
-                              <button onClick={() => openEdit(r)}
+                              <button onClick={() => openEdit(r)} aria-label="แก้ไข"
                                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '0.75rem', cursor: 'pointer' }}><Pencil size={13}/></button>
-                              <button onClick={() => setDeleteTarget(r)}
+                              <button onClick={() => setDeleteTarget(r)} aria-label="ลบ"
                                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={13}/></button>
                             </div>
                             )}
