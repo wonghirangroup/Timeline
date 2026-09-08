@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
+import NotificationBell from './NotificationBell'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':    'ภาพรวมระบบ',
@@ -355,7 +356,13 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
               <div style={{ width: '1px', height: 16, background: '#e5e7eb' }} />
             </>
           )}
-          <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: roleColor.bg, color: roleColor.color }}>{roleLabel}</span>
+          {!isMobile && (
+            <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: roleColor.bg, color: roleColor.color }}>{roleLabel}</span>
+          )}
+
+          <NotificationBell isMobile={isMobile} />
+
+          {/* role chip บนมือถือ — ย้ายไปในเมนูโปรไฟล์แทนเพื่อเว้นที่ให้กระดิ่ง */}
 
           {/* Clickable profile area */}
           <div ref={panelRef} style={{ position: 'relative' }}>

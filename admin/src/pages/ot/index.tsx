@@ -11,6 +11,7 @@ import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
 import { useBulkSelect } from '../../hooks/useBulkSelect'
 import { api } from '../../lib/axios'
+import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -93,6 +94,7 @@ export default function OtPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const isReadOnly = useIsReadOnly()
+  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
   const { data: rawRows = [] } = useQuery<ApiOt[]>({
@@ -445,7 +447,7 @@ export default function OtPage() {
               const wh = getWeeklyApprovedHours(rows, r.employee_id, wk)
               const lv = capLevel(wh)
               return (
-                <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa', ...rowHighlight(r.id) }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{r.full_name}</div>
@@ -513,7 +515,7 @@ export default function OtPage() {
                   const lv = capLevel(wh)
                   const sel = bulk.has(r.id)
                   return (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc', background: sel ? '#f0fdf4' : r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: '1px solid #f8fafc', background: sel ? '#f0fdf4' : r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa', ...rowHighlight(r.id) }}>
                       {!isReadOnly && (
                         <td style={{ padding: '11px 8px 11px 14px' }}>
                           {r.status === 'PENDING' && (

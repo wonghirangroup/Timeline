@@ -1,5 +1,6 @@
 // admin/src/pages/leave/index.tsx — combined leave hub
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, CalendarOff, BarChart3, LayoutGrid, Palmtree } from 'lucide-react'
 import LeaveRequestsTab  from './requests'
 import WeeklyOffPage     from '../weekly-off'
@@ -18,9 +19,21 @@ const TABS: { id: LeaveTab; label: string; mobileLabel: string; icon: React.Reac
   { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
 ]
 
+const VALID_TABS: LeaveTab[] = ['requests', 'time-off', 'holiday', 'balance', 'calendar']
+
 export default function LeavePage() {
-  const [activeTab, setActiveTab] = useState<LeaveTab>('requests')
+  const [sp] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<LeaveTab>(() => {
+    const t = sp.get('tab') as LeaveTab | null
+    return t && VALID_TABS.includes(t) ? t : 'requests'
+  })
   const isMobile = useIsMobile()
+
+  // กระดิ่งแจ้งเตือนส่ง ?tab=&focus= มา — สลับแท็บตาม URL (child tab อ่าน ?focus/?worked เอง)
+  useEffect(() => {
+    const t = sp.get('tab') as LeaveTab | null
+    if (t && VALID_TABS.includes(t)) setActiveTab(t)
+  }, [sp])
 
   function renderTab(t: typeof TABS[0]) {
     const isActive = activeTab === t.id

@@ -9,7 +9,7 @@ import {
   CheckCircle2, Clock, XCircle, Scale, Folder, Phone,
   Building2, Smartphone, AlertTriangle, Users, Wallet,
 } from 'lucide-react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/Toast'
@@ -616,8 +616,12 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [sp] = useSearchParams()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = sp.get('tab') as Tab | null
+    return t && ['overview', 'attendance', 'leave', 'hr', 'info'].includes(t) ? t : 'overview'
+  })
   const [inviteSent, setInviteSent] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)

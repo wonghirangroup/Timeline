@@ -10,6 +10,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 
@@ -25,6 +26,7 @@ export default function ResignationsPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const isReadOnly = useIsReadOnly()
+  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
   const [statusFilter, setStatusFilter] = useState('')
   const [approveTarget, setApproveTarget] = useState<any>(null)
   const [rejectTarget, setRejectTarget] = useState<any>(null)
@@ -66,7 +68,7 @@ export default function ResignationsPage() {
         ) : rows.map((r, i) => {
           const sc = STATUS_CFG[r.status]
           return (
-            <div key={r.id} style={{ padding: '14px 18px', borderBottom: i < rows.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+            <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < rows.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#111827' }}>

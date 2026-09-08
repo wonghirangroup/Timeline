@@ -29,6 +29,7 @@ import { orgStructureRoutes } from './modules/org-structure/org-structure.route'
 import { employeeStatusTypeRoutes } from './modules/employee-status-type/employee-status-type.route'
 import { groupRoutes } from './modules/group/group.route'
 import { dashboardRoutes } from './modules/dashboard/dashboard.route'
+import { notificationRoutes } from './modules/notifications/notifications.route'
 import { settingsRoutes } from './modules/settings/settings.route'
 import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
 import { hrLifecycleRoutes } from './modules/hr-lifecycle/hr-lifecycle.route'
@@ -137,6 +138,7 @@ app.register(groupRoutes, { prefix: '/api/v1/admin' })               // ADMIN: �
 app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: ผังองค์กร Division→Department→Position (ใต้กลุ่ม)
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
 app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: KPI สรุปตามช่วงวันที่ (Dashboard)
+app.register(notificationRoutes, { prefix: '/api/v1/admin' })        // ADMIN: กระดิ่งแจ้งเตือนรวม
 app.register(settingsRoutes,     { prefix: '/api/v1/admin' })        // ADMIN: การตั้งค่าบริษัท (โปรไฟล์/แบรนด์/นโยบาย)
 app.register(hrLifecycleRoutes,  { prefix: '/api/v1' })              // ADMIN: เอกสาร/ทดลองงาน/หนังสือเตือน/ลาออก + EMPLOYEE (LIFF) รับทราบ/ยื่นลาออก
 app.register(leaveTypesRoutes,   { prefix: '/api/v1' })              // ADMIN: ประเภทการลากำหนดเอง + accrual · EMPLOYEE (LIFF) ดูประเภท

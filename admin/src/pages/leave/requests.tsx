@@ -10,6 +10,7 @@ import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import Pagination from '../../components/ui/Pagination'
+import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
@@ -185,6 +186,7 @@ export default function LeaveRequestsTab() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const isReadOnly = useIsReadOnly()
+  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
   const [tab, setTab]             = useState<'requests' | 'add'>('requests')
@@ -618,7 +620,7 @@ export default function LeaveRequestsTab() {
                     const tc = getTypeCfg(r.leave_type, r.reason, (r as any).custom_type)
                     const sc = STATUS_CFG[r.status]
                     return (
-                      <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: selectedIds.has(r.id) ? '#f0fdf4' : undefined }}>
+                      <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: selectedIds.has(r.id) ? '#f0fdf4' : undefined, ...rowHighlight(r.id) }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div style={{ display: 'flex', gap: 10 }}>
                             {!isReadOnly && r.status === 'PENDING' && (
@@ -695,7 +697,7 @@ export default function LeaveRequestsTab() {
                       const sc = STATUS_CFG[r.status]
                       const sel = selectedIds.has(r.id)
                       return (
-                        <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: sel ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: '1px solid #f3f4f6', background: sel ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa', ...rowHighlight(r.id) }}>
                           {!isReadOnly && (
                             <td style={{ padding: '11px 8px 11px 14px' }}>
                               {r.status === 'PENDING' && (
