@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      # dummy — จำเป็นสำหรับ prisma generate / instantiate เท่านั้น ไม่มีการต่อ DB จริงใน CI
+      DATABASE_URL: "mysql://ci:ci@localhost:3306/ci"
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate --schema server/src/prisma/schema.prisma
+
+      - name: Server — typecheck
+        run: npm run build --workspace=server
+
+      - name: Server — unit tests
+        run: npm run test --workspace=server
+
+      - name: Admin — build
+        run: npm run build --workspace=admin
+
+      - name: Employee — build
+        run: npm run build --workspace=employee
+
+      - name: Superadmin — build
+        run: npm run build --workspace=superadmin

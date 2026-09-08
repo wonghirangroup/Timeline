@@ -72,6 +72,35 @@ export type PolicyFlag = 'booking' | 'leave'
 
 const pick = (v: boolean | null | undefined): boolean | null => (v === null || v === undefined ? null : v)
 
+// รูปร่างข้อมูลที่ resolvePolicyFromChain ต้องใช้ (subset ของ employee ที่ query มา)
+export interface PolicyNode { booking_enabled?: boolean | null; leave_enabled?: boolean | null }
+export interface PolicyEmployeeShape {
+  booking_enabled_override?: boolean | null
+  leave_enabled_override?: boolean | null
+  branch?: (PolicyNode & { group?: PolicyNode | null }) | null
+  position?: (PolicyNode & { department?: (PolicyNode & { division?: PolicyNode | null }) | null }) | null
+}
+
+// pure — "เจาะจงกว่าชนะ" first non-null; null ทั้ง chain → true (แยกไว้ unit test ได้ไม่ต้องแตะ DB)
+export function resolvePolicyFromChain(employee: PolicyEmployeeShape | null, flag: PolicyFlag): boolean {
+  if (!employee) return true
+  const b = flag === 'booking'
+  const pos  = employee.position
+  const dept = pos?.department
+  const div  = dept?.division
+  const br   = employee.branch
+  const chain: (boolean | null)[] = [
+    pick(b ? employee.booking_enabled_override : employee.leave_enabled_override),
+    pick(b ? pos?.booking_enabled  : pos?.leave_enabled),
+    pick(b ? dept?.booking_enabled : dept?.leave_enabled),
+    pick(b ? div?.booking_enabled  : div?.leave_enabled),
+    pick(b ? br?.booking_enabled   : br?.leave_enabled),
+    pick(b ? br?.group?.booking_enabled : br?.group?.leave_enabled),
+  ]
+  for (const v of chain) if (v !== null) return v
+  return true
+}
+
 export async function resolvePolicyFlag(tenantId: string, employeeId: string, flag: PolicyFlag): Promise<boolean> {
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenant_id: tenantId },
@@ -97,24 +126,7 @@ export async function resolvePolicyFlag(tenantId: string, employeeId: string, fl
       },
     },
   })
-  if (!employee) return true // ไม่รู้จักพนักงาน — ปลอดภัยไว้ก่อน ไม่บล็อกโดยไม่มีเหตุ
-
-  const b = flag === 'booking'
-  const pos  = employee.position
-  const dept = pos?.department
-  const div  = dept?.division
-  const br   = employee.branch
-
-  const chain: (boolean | null)[] = [
-    pick(b ? employee.booking_enabled_override : employee.leave_enabled_override),
-    pick(b ? pos?.booking_enabled  : pos?.leave_enabled),
-    pick(b ? dept?.booking_enabled : dept?.leave_enabled),
-    pick(b ? div?.booking_enabled  : div?.leave_enabled),
-    pick(b ? br?.booking_enabled   : br?.leave_enabled),
-    pick(b ? br?.group?.booking_enabled : br?.group?.leave_enabled),
-  ]
-  for (const v of chain) if (v !== null) return v
-  return true
+  return resolvePolicyFromChain(employee, flag)
 }
 
 // wrapper คงชื่อเดิมไว้ (มีที่เรียกจากหลายโมดูล)

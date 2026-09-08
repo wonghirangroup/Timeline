@@ -2,6 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
+import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
@@ -144,11 +145,6 @@ export async function getAttendanceReport(tenantId: string, filters: {
   })
 }
 
-function toMins(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
-}
-
 function dateToBangkokMins(d: Date): number {
   const utcMins = d.getUTCHours() * 60 + d.getUTCMinutes()
   return (utcMins + 7 * 60) % (24 * 60)
@@ -156,86 +152,6 @@ function dateToBangkokMins(d: Date): number {
 
 function getNowBangkokMins(): number {
   return dateToBangkokMins(new Date())
-}
-
-// ── Late/absent tier calculation ────────────────────────────────────────────
-// ลำดับความสำคัญ: ขาด (absent_threshold) > สายระดับ 2 (late_threshold_2) >
-// สายระดับ 1 (late_threshold_1) — เช็คจากเกณฑ์ที่หนักสุดก่อนเสมอ เพื่อไม่ให้
-// เกณฑ์ที่ผ่อนกว่าทับเกณฑ์ที่หนักกว่าโดยไม่ตั้งใจ (เช่น ตั้ง absent_threshold
-// ไว้ก่อน late_threshold_2 ในเวลาโดยพลาด)
-interface ShiftLateConfig {
-  start_time: string
-  late_threshold: number
-  late_threshold_1: string | null
-  late_threshold_2: string | null
-  absent_threshold: string | null
-  fine_mode?: 'TIER' | 'PER_MINUTE' | null
-  late_grace_minutes?: number | null
-}
-interface LateStatus {
-  is_late: boolean
-  late_level: 0 | 1 | 2
-  late_minutes: number
-  is_absent: boolean
-}
-
-function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): LateStatus {
-  const startMins = toMins(shift.start_time)
-  if (checkInMins <= startMins) return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
-
-  const late_minutes = checkInMins - startMins
-  const absentMins  = shift.absent_threshold   ? toMins(shift.absent_threshold)   : null
-
-  // ขาด (absent_threshold) มาก่อนเสมอ ไม่ว่าโหมดไหน
-  if (absentMins != null && checkInMins >= absentMins) {
-    return { is_late: true, late_level: 2, late_minutes, is_absent: true }
-  }
-
-  // โหมด PER_MINUTE: สายเมื่อเกินนาทีผ่อนผัน (grace) หลังเวลาเริ่มงาน — ไม่มีระดับ 2 (คิดต่อนาที)
-  if (shift.fine_mode === 'PER_MINUTE') {
-    const grace = shift.late_grace_minutes ?? 0
-    return late_minutes > grace
-      ? { is_late: true, late_level: 1, late_minutes, is_absent: false }
-      : { is_late: false, late_level: 0, late_minutes: 0, is_absent: false }
-  }
-
-  // โหมด TIER (เดิม)
-  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
-  if (late2Mins != null && checkInMins >= late2Mins) {
-    return { is_late: true, late_level: 2, late_minutes, is_absent: false }
-  }
-  if (late1Mins != null && checkInMins >= late1Mins) {
-    return { is_late: true, late_level: 1, late_minutes, is_absent: false }
-  }
-  if (late1Mins == null && late2Mins == null && late_minutes > shift.late_threshold) {
-    // fallback: ใช้ integer late_threshold (นาที) เมื่อไม่ได้กำหนด threshold_1/2 เลย
-    return { is_late: true, late_level: 1, late_minutes, is_absent: false }
-  }
-  return { is_late: false, late_level: 0, late_minutes: 0, is_absent: false } // สายแต่ยังไม่ถึงเกณฑ์ไหน (grace period)
-}
-
-interface ShiftFineConfig {
-  fine_mode?: 'TIER' | 'PER_MINUTE' | null
-  late_fine_1: unknown; late_fine_2: unknown
-  late_fine_per_minute?: unknown; late_grace_minutes?: number | null; late_fine_max?: unknown
-}
-
-// ค่าปรับสายของวันนี้ (ไม่รวม absent_fine/carried) — แตกตามโหมดของกะ
-function computeFine(shift: ShiftFineConfig, late: LateStatus): number {
-  if (late.is_absent || !late.is_late) return 0
-  if (shift.fine_mode === 'PER_MINUTE') {
-    const rate  = shift.late_fine_per_minute != null ? Number(shift.late_fine_per_minute) : 0
-    const grace = shift.late_grace_minutes ?? 0
-    const chargeable = Math.max(0, late.late_minutes - grace)
-    let f = chargeable * rate
-    if (shift.late_fine_max != null) f = Math.min(f, Number(shift.late_fine_max))
-    return Math.round(f * 100) / 100
-  }
-  // TIER
-  if (late.late_level === 1) return shift.late_fine_1 != null ? Number(shift.late_fine_1) : 0
-  if (late.late_level === 2) return shift.late_fine_2 != null ? Number(shift.late_fine_2) : 0
-  return 0
 }
 
 // อ่านค่าปรับขาดที่ยกมาจากการขาดงานครั้งก่อน (ถ้ามี) แล้วเคลียร์ทิ้งทันที

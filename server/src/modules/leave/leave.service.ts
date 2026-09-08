@@ -36,7 +36,7 @@ async function getEmployeeWorkdayHours(tenantId: string, employeeId: string): Pr
 //  FULL      → ใช้ค่า fallbackDays ที่ client ส่งมา (นับจากช่วงวันที่)
 //  MORNING/AFTERNOON → 0.5 (บังคับลา 1 วัน)
 //  CUSTOM    → (end_time - start_time) / ชม.ทำงานต่อวัน ปัดเป็นทวีคูณ 0.5 ขั้นต่ำ 0.5
-function resolveLeaveDays(period: LeavePeriod, fallbackDays: number, startTime?: string | null, endTime?: string | null, workdayHours = DEFAULT_WORKDAY_HOURS): number {
+export function resolveLeaveDays(period: LeavePeriod, fallbackDays: number, startTime?: string | null, endTime?: string | null, workdayHours = DEFAULT_WORKDAY_HOURS): number {
   if (period === 'MORNING' || period === 'AFTERNOON') return 0.5
   if (period === 'CUSTOM') {
     const mins = toMin(endTime) - toMin(startTime)
