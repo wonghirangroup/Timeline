@@ -141,7 +141,7 @@ model UserDepartment {
 // ─────────────────────────────────────────────
 
 model Employee {
-  id                       String         @id @default(uuid())
+  id                       String           @id @default(uuid())
   tenant_id                String
   branch_id                String
   employee_code            String
@@ -150,27 +150,30 @@ model Employee {
   nickname                 String?
   department               String?
   phone                    String?
-  hired_at                 DateTime?      @db.Date
+  hired_at                 DateTime?        @db.Date
   line_user_id             String? // mapped after Line verify
-  is_active                Boolean        @default(true) // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
-  status                   EmployeeStatus @default(ACTIVE)
+  is_active                Boolean          @default(true) // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
+  status                   EmployeeStatus   @default(ACTIVE)
   status_reason            String? // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
-  weekly_off_mode          WeeklyOffMode  @default(WEEKLY) // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
+  weekly_off_mode          WeeklyOffMode    @default(WEEKLY) // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
   default_shift_id         String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
-  pending_fine             Decimal        @default(0) @db.Decimal(8, 2) // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
+  pending_fine             Decimal          @default(0) @db.Decimal(8, 2) // ค่าปรับขาดที่ยังไม่ได้หัก — จะถูกยกไปรวมกับ fine ของ attendance record ถัดไปแล้วรีเซ็ตเป็น 0
   position_id              String? // ตำแหน่งในผังองค์กร (Department→Division→Section→Position) — nullable ระหว่าง migrate, ไม่แทนที่ field `department` เดิม
   employee_status_type_id  String? // สถานะพนักงาน (ประจำ/ชั่วคราว/...) กำหนดโควต้าวันหยุดต่อเดือน — nullable = ยังไม่ผูก ใช้ fallback เดิม
   booking_enabled_override Boolean? // override สิทธิ์จองวันหยุดรายบุคคล — null = inherit จาก Position→Department→Division→Branch→Group (ดู resolvePolicyFlag())
   leave_enabled_override   Boolean? // override สิทธิ์ยื่นคำขอลารายบุคคล — null = inherit ลำดับเดียวกับ booking (ดู resolvePolicyFlag())
-  created_at               DateTime       @default(now())
-  updated_at               DateTime       @updatedAt
+  probation_end_date       DateTime?        @db.Date // วันครบทดลองงาน — null = ผ่านโปรแล้ว/ไม่ระบุ (feature: probation)
+  probation_result         ProbationResult? // ผลประเมิน — null = ยังไม่ประเมิน
+  probation_note           String? // บันทึกผลประเมินทดลองงาน
+  created_at               DateTime         @default(now())
+  updated_at               DateTime         @updatedAt
   deleted_at               DateTime?
 
-  tenant               Tenant              @relation(fields: [tenant_id], references: [id])
-  branch               Branch              @relation(fields: [branch_id], references: [id])
-  default_shift        Shift?              @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
-  position             Position?           @relation(fields: [position_id], references: [id], onDelete: SetNull)
-  employee_status_type EmployeeStatusType? @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)
+  tenant               Tenant               @relation(fields: [tenant_id], references: [id])
+  branch               Branch               @relation(fields: [branch_id], references: [id])
+  default_shift        Shift?               @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
+  position             Position?            @relation(fields: [position_id], references: [id], onDelete: SetNull)
+  employee_status_type EmployeeStatusType?  @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)
   attendance_records   AttendanceRecord[]
   offsite_checkins     OffsiteCheckin[]
   leave_requests       LeaveRequest[]
@@ -180,6 +183,9 @@ model Employee {
   status_logs          EmployeeStatusLog[]
   shift_assignments    ShiftAssignment[]
   employee_shifts      EmployeeShift[] // กะที่ประจำอยู่ (many-to-many — 1 คนอยู่ได้หลายกะ) ต่างจาก default_shift_id ที่เป็นแค่ข้อมูล 1 กะหลักเดิม
+  documents            EmployeeDocument[]
+  disciplinary_records DisciplinaryRecord[]
+  resignation_requests ResignationRequest[]
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
@@ -196,6 +202,85 @@ enum EmployeeStatus {
   INACTIVE // ไม่ใช้งาน
   RESIGNED // ลาออก
   TERMINATED // เลิกจ้าง
+}
+
+enum ProbationResult {
+  PASS // ผ่านทดลองงาน
+  FAIL // ไม่ผ่าน
+}
+
+// ─────────────────────────────────────────────
+// HR LIFECYCLE — เอกสาร / หนังสือเตือน / ลาออก (Tier A 2026-09-08)
+// แต่ละอันเป็น feature ที่ Super Admin เปิด/ปิดต่อ tenant ได้ (ดู features.ts)
+// ─────────────────────────────────────────────
+
+// เอกสารพนักงาน — สัญญาจ้าง, สำเนาบัตร, work permit/วีซ่า, ใบขับขี่/certificate
+// expiry_date != null → โผล่การ์ดเตือนบน Dashboard เมื่อใกล้หมด (feature: employee_documents)
+model EmployeeDocument {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  type        String // CONTRACT | ID_CARD | HOUSE_REG | WORK_PERMIT | VISA | LICENSE | CERT | OTHER
+  name        String
+  file_url    String
+  issued_date DateTime? @db.Date
+  expiry_date DateTime? @db.Date
+  note        String?
+  uploaded_by String? // user_id
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@index([expiry_date])
+  @@map("employee_documents")
+}
+
+// หนังสือเตือน — level 1 (วาจา) / 2 (ลายลักษณ์อักษร) / 3 (ครั้งสุดท้าย)
+// acknowledged_at != null = พนักงานกดรับทราบผ่าน LIFF แล้ว (feature: disciplinary)
+model DisciplinaryRecord {
+  id              String    @id @default(uuid())
+  tenant_id       String
+  employee_id     String
+  level           Int // 1 | 2 | 3
+  category        String // LATE | ABSENCE | MISCONDUCT | PERFORMANCE | SAFETY | OTHER
+  detail          String    @db.Text
+  incident_date   DateTime  @db.Date
+  issued_by       String? // user_id
+  attachment_url  String?
+  acknowledged_at DateTime? // พนักงานรับทราบผ่าน LIFF
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("disciplinary_records")
+}
+
+// คำขอลาออก — พนักงานยื่นผ่าน LIFF → แอดมินอนุมัติ → set Employee.status = RESIGNED
+// + EmployeeStatusLog (ใช้กลไกเดิม) status ใช้ LeaveStatus (PENDING/APPROVED/REJECTED) ร่วม
+model ResignationRequest {
+  id                String      @id @default(uuid())
+  tenant_id         String
+  employee_id       String
+  reason            String?     @db.Text
+  last_working_date DateTime    @db.Date
+  status            LeaveStatus @default(PENDING)
+  reviewed_by       String? // user_id
+  reviewed_at       DateTime?
+  reject_note       String?
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("resignation_requests")
 }
 
 model EmployeeStatusLog {

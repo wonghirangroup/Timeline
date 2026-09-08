@@ -22,7 +22,7 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 // tab โปรไฟล์ครอบหน้าลูกพวกนี้ (เข้าถึงจากเมนูในโปรไฟล์)
-const PROFILE_SUBPAGES = ['/ot', '/feedback', '/checkout']
+const PROFILE_SUBPAGES = ['/ot', '/feedback', '/checkout', '/notices', '/resign']
 const NO_NAV = ['/verify']
 
 export default function BottomNav() {

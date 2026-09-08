@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
@@ -10,6 +10,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
 import SetupChecklist from '../../components/shared/SetupChecklist'
+import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
@@ -280,6 +281,22 @@ export default function DashboardPage() {
     queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { status: 'PENDING' } }).then(r => r.data.data),
   })
 
+  // ── HR lifecycle alerts (feature-gated — 403 = ปิดอยู่ ก็แค่ว่างไป) ──
+  const ef = useAuthStore(s => s.enabledFeatures)
+  const featOn = (k: string) => !ef || ef[k] !== false
+  const { data: expiringDocs = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'documents', 'expiring'], enabled: featOn('employee_documents'),
+    queryFn: () => api.get('/api/v1/admin/documents/expiring').then(r => r.data.data).catch(() => []),
+  })
+  const { data: probationDue = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'probation', 'due'], enabled: featOn('probation'),
+    queryFn: () => api.get('/api/v1/admin/probation/due').then(r => r.data.data).catch(() => []),
+  })
+  const { data: pendingResignations = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'resignations', 'PENDING'], enabled: featOn('resignation'),
+    queryFn: () => api.get('/api/v1/admin/resignations', { params: { status: 'PENDING' } }).then(r => r.data.data).catch(() => []),
+  })
+
   const { activeOffsite } = useActiveOffsite()
 
   // ── Merge employees + records into rows ───────────────────────────────────
@@ -348,20 +365,52 @@ export default function DashboardPage() {
         <PlanUsageRow />
 
         {/* ── Action required ──────────────────────────────────────── */}
-        {pendingLeaveCount > 0 && (
+        {(pendingLeaveCount > 0 || pendingResignations.length > 0 || probationDue.length > 0 || expiringDocs.length > 0) && (
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Zap size={12} style={{ color: '#f59e0b' }}/> ต้องดำเนินการ
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <button onClick={() => navigate('/leave')} className="premium-card"
-                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', cursor: 'pointer', textAlign: 'left', background: 'var(--warning-bg)', border: '1.5px solid #fcd34d' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}><ClipboardList size={20}/></div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)' }}>ใบลา รออนุมัติ</div>
-                  <div style={{ fontSize: '12px', color: 'var(--warning)', fontWeight: 600, marginTop: 2 }}>{pendingLeaveCount} รายการ</div>
-                </div>
-              </button>
+              {pendingLeaveCount > 0 && (
+                <button onClick={() => navigate('/leave')} className="premium-card"
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: 'var(--warning-bg)', border: '1.5px solid #fcd34d' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}><ClipboardList size={19}/></div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>ใบลา รออนุมัติ</div>
+                    <div style={{ fontSize: '12px', color: 'var(--warning)', fontWeight: 600, marginTop: 2 }}>{pendingLeaveCount} รายการ</div>
+                  </div>
+                </button>
+              )}
+              {pendingResignations.length > 0 && (
+                <button onClick={() => navigate('/resignations')} className="premium-card"
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: '#fef2f2', border: '1.5px solid #fca5a5' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}><DoorOpen size={19}/></div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>คำขอลาออก</div>
+                    <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: 600, marginTop: 2 }}>{pendingResignations.length} รายการ</div>
+                  </div>
+                </button>
+              )}
+              {probationDue.length > 0 && (
+                <button onClick={() => navigate(`/employee/${probationDue[0].id}`)} className="premium-card"
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: '#fffbeb', border: '1.5px solid #fcd34d' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}><Target size={19}/></div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>ครบทดลองงาน — ต้องประเมิน</div>
+                    <div style={{ fontSize: '12px', color: '#d97706', fontWeight: 600, marginTop: 2 }}>{probationDue.length} คน</div>
+                  </div>
+                </button>
+              )}
+              {expiringDocs.length > 0 && (
+                <button onClick={() => navigate(`/employee/${expiringDocs[0].employee.id}`)} className="premium-card"
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: '#fff7ed', border: '1.5px solid #fdba74' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fed7aa', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c2410c', flexShrink: 0 }}><FileWarning size={19}/></div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>เอกสารใกล้/หมดอายุ</div>
+                    <div style={{ fontSize: '12px', color: '#c2410c', fontWeight: 600, marginTop: 2 }}>{expiringDocs.length} ฉบับ</div>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         )}

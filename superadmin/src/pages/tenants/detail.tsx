@@ -21,8 +21,12 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'report_export',    label: 'Export รายงาน',         desc: 'ดาวน์โหลด Excel / PDF รายงานเช็คชื่อ',     icon: '📊' },
   { key: 'feedback',         label: 'ระบบ Feedback',         desc: 'พนักงานส่ง feedback แบบไม่ระบุชื่อ',       icon: '💬' },
   { key: 'line_oa',          label: 'Line OA Integration',   desc: 'แจ้งเตือนผ่าน Line Messaging API',          icon: '💚' },
+  { key: 'employee_documents', label: 'เอกสารพนักงาน',       desc: 'เก็บสัญญา/บัตร/work permit + เตือนวันหมดอายุ', icon: '📄' },
+  { key: 'probation',        label: 'ทดลองงาน',              desc: 'ติดตามช่วงทดลองงาน + เตือนก่อนครบ + บันทึกผล', icon: '🎯' },
+  { key: 'disciplinary',     label: 'หนังสือเตือน',          desc: 'ออกหนังสือเตือน 1/2/3 + พนักงานรับทราบผ่าน LIFF', icon: '⚠️' },
+  { key: 'resignation',      label: 'ลาออก (พนักงานยื่นเอง)', desc: 'พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ',   icon: '🚪' },
 ]
-const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin'])
+const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin', 'employee_documents', 'probation', 'disciplinary', 'resignation'])
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },

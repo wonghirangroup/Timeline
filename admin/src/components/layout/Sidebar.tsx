@@ -3,7 +3,7 @@ import {
   LayoutGrid, Users, Building2, Clock, AlignLeft,
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
-  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2,
+  Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2, DoorOpen,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
@@ -49,6 +49,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'การลา',
     items: [
       { path: '/leave', label: 'การลา & วันหยุด', feature: 'leave_management', icon: <CalendarDays size={16}/> },
+      { path: '/resignations', label: 'คำขอลาออก', feature: 'resignation', icon: <DoorOpen size={16}/> },
     ],
   },
   {

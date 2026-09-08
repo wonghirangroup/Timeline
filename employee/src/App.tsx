@@ -15,6 +15,8 @@ const LeavePage    = lazy(() => import('./pages/leave'))
 const OtPage       = lazy(() => import('./pages/ot'))
 const FeedbackPage = lazy(() => import('./pages/feedback'))
 const ProfilePage  = lazy(() => import('./pages/profile'))
+const NoticesPage  = lazy(() => import('./pages/notices'))
+const ResignPage   = lazy(() => import('./pages/resign'))
 const VerifyPage   = lazy(() => import('./pages/verify'))
 const UiKitPage    = lazy(() => import('./pages/ui-kit'))
 
@@ -226,6 +228,8 @@ export default function App() {
               <Route path="/leave"    element={<LeavePage />} />
               <Route path="/ot"       element={<OtPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
+              <Route path="/notices"  element={<NoticesPage />} />
+              <Route path="/resign"   element={<ResignPage />} />
               <Route path="/profile"  element={<ProfilePage />} />
               <Route path="/ui-kit"   element={<UiKitPage />} />
               <Route path="*"         element={<Navigate to="/checkin" replace />} />

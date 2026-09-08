@@ -244,6 +244,10 @@ export interface PlanFeatures {
   line_oa: boolean             // Line OA Integration
   gps_checkin: boolean         // เช็คอิน GPS
   feedback: boolean            // ระบบ Feedback
+  employee_documents?: boolean // เอกสารพนักงาน + เตือนหมดอายุ
+  probation?: boolean          // ทดลองงาน
+  disciplinary?: boolean       // หนังสือเตือน
+  resignation?: boolean        // ลาออก (พนักงานยื่นเอง)
 }
 
 export interface PlanConfig {

@@ -14,6 +14,8 @@ import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/Toast'
 import { deptName } from '../../lib/format'
+import { useAuthStore } from '../../stores/authStore'
+import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -150,7 +152,7 @@ function avatarPalette(id: string) {
   return AVATAR_PALETTES[i]
 }
 
-type Tab = 'overview' | 'attendance' | 'leave' | 'info'
+type Tab = 'overview' | 'attendance' | 'leave' | 'hr' | 'info'
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ employeeId }: { employeeId: string }) {
@@ -668,10 +670,15 @@ export default function EmployeeDetailPage() {
   const nickname = emp.nickname ?? fullName.slice(0, 2)
   const [avatarBg, avatarText] = avatarPalette(emp.id)
 
+  const ef = useAuthStore(s => s.enabledFeatures)
+  const hrOn = (k: string) => !ef || ef[k] !== false
+  const showHr = hrOn('employee_documents') || hrOn('probation') || hrOn('disciplinary')
+
   const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
     { key: 'overview',   label: 'ภาพรวม',        icon: <BarChart2 size={15}/> },
     { key: 'attendance', label: 'ประวัติเช็คอิน', icon: <ClipboardList size={15}/> },
     { key: 'leave',      label: 'วันลา',          icon: <Umbrella size={15}/> },
+    ...(showHr ? [{ key: 'hr' as Tab, label: 'เอกสาร & วินัย', icon: <Folder size={15}/> }] : []),
     { key: 'info',       label: 'ข้อมูลส่วนตัว',  icon: <Info size={15}/> },
   ]
 
@@ -783,6 +790,7 @@ export default function EmployeeDetailPage() {
         {tab === 'overview'   && <OverviewTab   employeeId={emp.id} />}
         {tab === 'attendance' && <AttendanceTab employeeId={emp.id} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}
+        {tab === 'hr'         && <HrLifecyclePanel employeeId={emp.id} emp={emp} features={{ employee_documents: hrOn('employee_documents'), probation: hrOn('probation'), disciplinary: hrOn('disciplinary') }} />}
         {tab === 'info'       && <InfoTab       emp={emp} onResetLine={() => setConfirmReset(true)} />}
       </div>
 

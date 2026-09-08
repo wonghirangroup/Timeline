@@ -5,6 +5,7 @@ import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import { listHolidays, holidayAppliesTo } from '../tenant/holiday.service'
 import { resolveBookingEnabled, resolveLeaveEnabled } from '../group/group.service'
+import { isFeatureEnabled } from '../../common/utils/features'
 
 export async function employeeMeRoutes(app: FastifyInstance) {
 
@@ -39,10 +40,11 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     const [booking_enabled, leave_enabled, tenant] = await Promise.all([
       resolveBookingEnabled(req.tenantId, employeeId),
       resolveLeaveEnabled(req.tenantId, employeeId),
-      prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true } }),
+      prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true } }),
     ])
+    const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
 
-    return ok({ employee: { ...employee, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null }, shifts })
+    return ok({ employee: { ...employee, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') }, shifts })
   })
 
   // GET /api/v1/employee/holidays?year=

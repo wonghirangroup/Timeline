@@ -31,6 +31,7 @@ import { groupRoutes } from './modules/group/group.route'
 import { dashboardRoutes } from './modules/dashboard/dashboard.route'
 import { settingsRoutes } from './modules/settings/settings.route'
 import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
+import { hrLifecycleRoutes } from './modules/hr-lifecycle/hr-lifecycle.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 
 const app = Fastify({
@@ -136,6 +137,7 @@ app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: �
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
 app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: KPI สรุปตามช่วงวันที่ (Dashboard)
 app.register(settingsRoutes,     { prefix: '/api/v1/admin' })        // ADMIN: การตั้งค่าบริษัท (โปรไฟล์/แบรนด์/นโยบาย)
+app.register(hrLifecycleRoutes,  { prefix: '/api/v1' })              // ADMIN: เอกสาร/ทดลองงาน/หนังสือเตือน/ลาออก + EMPLOYEE (LIFF) รับทราบ/ยื่นลาออก
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 app.register(firebaseSyncRoutes, { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: ซิงค์ระบบเก่า (Firebase) — bespoke, ดู modules/firebase-sync
 

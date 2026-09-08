@@ -13,6 +13,11 @@ export const FEATURE_KEYS = [
   'line_oa',
   'report_export',
   'feedback',
+  // ── Tier A (2026-09-08) — HR lifecycle add-ons ──
+  'employee_documents', // เก็บเอกสารพนักงาน + เตือนวันหมดอายุ (สัญญา/work permit/ใบขับขี่)
+  'probation',          // ติดตามช่วงทดลองงาน + เตือนก่อนครบ + บันทึกผลประเมิน
+  'disciplinary',       // หนังสือเตือน 1/2/3 + พนักงานรับทราบผ่าน LIFF
+  'resignation',        // พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ
 ] as const
 
 export type FeatureKey = typeof FEATURE_KEYS[number]
@@ -28,6 +33,10 @@ export const ENFORCED_FEATURES: FeatureKey[] = [
   'announcement',
   'feedback',
   'gps_checkin', // เช็คอินนอกสถานที่แบบปักหมุด (offsite_checkins) ผูกกับ key นี้
+  'employee_documents',
+  'probation',
+  'disciplinary',
+  'resignation',
 ]
 
 export function isFeatureEnabled(enabledFeatures: unknown, key: FeatureKey): boolean {

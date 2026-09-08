@@ -20,6 +20,8 @@ export interface EmployeeProfile {
   leave_enabled?: boolean
   // ยื่นลาผ่าน LIFF ย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — ตั้งที่ admin การตั้งค่า → นโยบายการลา
   leave_backdate_days?: number | null
+  feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม
+  feat_resignation?: boolean  // tenant เปิดให้พนักงานยื่นลาออกผ่าน LIFF ไหม
 }
 
 interface AuthStore {

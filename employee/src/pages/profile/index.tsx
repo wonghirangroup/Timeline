@@ -1,17 +1,19 @@
 // employee/src/pages/profile/index.tsx
 import { useNavigate } from 'react-router-dom'
-import { IdCard, Building2, Clock, MessageCircle, Wrench } from 'lucide-react'
+import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
 import { useAuthStore } from '../../stores/authStore'
-
-const MENU_ITEMS = [
-  { Icon: Clock,          label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot' },
-  { Icon: MessageCircle,  label: 'ส่งความคิดเห็น', sub: 'ไม่ระบุตัวตน',         bubbleClass: 'icon-bubble-purple', path: '/feedback' },
-]
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const employee = useAuthStore(s => s.employee)
+
+  const MENU_ITEMS = [
+    { Icon: Clock,          label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot',       show: true },
+    { Icon: AlertTriangle,  label: 'หนังสือเตือน',   sub: 'ดู + กดรับทราบ',       bubbleClass: 'icon-bubble-orange', path: '/notices',  show: !!employee && employee.feat_disciplinary !== false },
+    { Icon: MessageCircle,  label: 'ส่งความคิดเห็น', sub: 'ไม่ระบุตัวตน',         bubbleClass: 'icon-bubble-purple', path: '/feedback', show: true },
+    { Icon: DoorOpen,       label: 'ยื่นลาออก',      sub: 'ผู้ดูแลจะตรวจสอบ',      bubbleClass: 'icon-bubble-orange', path: '/resign',   show: !!employee && employee.feat_resignation !== false },
+  ].filter(m => m.show)
 
   if (!employee) return <PageLoader />
 
