@@ -1,6 +1,8 @@
 // server/src/modules/employee/employee.service.ts
+import bcrypt from 'bcryptjs'
 import { prisma } from '../../common/utils/prisma'
 import { assertPlanCapacity } from '../tenant/tenant.service'
+import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POSITION_INCLUDE = {
@@ -66,6 +68,13 @@ export async function listEmployees(tenantId: string, branchId?: string, include
   })
 }
 
+const ADMIN_USER_INCLUDE = {
+  select: {
+    id: true, email: true, role: true, is_active: true,
+    managed_departments: { select: { department_id: true } },
+  },
+} as const
+
 export async function getEmployee(tenantId: string, id: string) {
   return prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
@@ -73,8 +82,72 @@ export async function getEmployee(tenantId: string, id: string) {
       branch: { select: { id: true, name: true, group_id: true } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
+      admin_user: ADMIN_USER_INCLUDE,
     },
   })
+}
+
+// ── สิทธิ์เข้าเว็บแอดมิน (ผูก Employee ↔ User) ──────────────────────────────
+type AdminRole = 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
+
+export async function setEmployeeAdminAccess(tenantId: string, employeeId: string, data: {
+  role: AdminRole | null
+  email?: string
+  department_ids?: string[]
+}): Promise<
+  | { notFound: true }
+  | { needEmail: true }
+  | { duplicateEmail: true }
+  | { ok: true; admin_access: any; temp_password?: string }
+> {
+  const emp = await prisma.employee.findFirst({
+    where: { id: employeeId, tenant_id: tenantId, deleted_at: null },
+    include: { admin_user: true },
+  })
+  if (!emp) return { notFound: true }
+
+  // ปิดสิทธิ์ — ปิดใช้งานบัญชีที่ผูกไว้ (ไม่ลบ เผื่อเปิดใหม่ภายหลัง)
+  if (data.role === null) {
+    if (emp.user_id) await prisma.user.update({ where: { id: emp.user_id }, data: { is_active: false } })
+    return { ok: true, admin_access: null }
+  }
+
+  // มีบัญชีผูกอยู่แล้ว — อัปเดต role + เปิดใช้งาน
+  if (emp.user_id && emp.admin_user) {
+    await prisma.user.update({ where: { id: emp.user_id }, data: { role: data.role, is_active: true } })
+    if (data.role === 'DEPT_HEAD') await setUserDepartments(tenantId, emp.user_id, data.department_ids ?? [])
+    else await prisma.userDepartment.deleteMany({ where: { user_id: emp.user_id } })
+    const u = await prisma.user.findUnique({ where: { id: emp.user_id }, ...ADMIN_USER_INCLUDE })
+    return { ok: true, admin_access: u }
+  }
+
+  // สร้างบัญชีใหม่ + ผูก
+  if (!data.email) return { needEmail: true }
+  const tempPassword = generateTempPassword()
+  const hashed = await bcrypt.hash(tempPassword, 10)
+  try {
+    const user = await prisma.user.create({
+      data: {
+        tenant_id: tenantId,
+        email: data.email.trim().toLowerCase(),
+        password: hashed,
+        first_name: emp.first_name,
+        last_name: emp.last_name,
+        role: data.role,
+        is_active: true,
+        must_change_password: true,
+        ...(data.role === 'DEPT_HEAD' && data.department_ids?.length
+          ? { managed_departments: { create: data.department_ids.map(department_id => ({ department_id })) } }
+          : {}),
+      },
+      ...ADMIN_USER_INCLUDE,
+    })
+    await prisma.employee.update({ where: { id: employeeId }, data: { user_id: user.id } })
+    return { ok: true, admin_access: user, temp_password: tempPassword }
+  } catch (e: any) {
+    if (e.code === 'P2002') return { duplicateEmail: true }
+    throw e
+  }
 }
 
 export async function createEmployee(

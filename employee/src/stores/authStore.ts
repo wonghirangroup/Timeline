@@ -22,6 +22,8 @@ export interface EmployeeProfile {
   leave_backdate_days?: number | null
   feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม
   feat_resignation?: boolean  // tenant เปิดให้พนักงานยื่นลาออกผ่าน LIFF ไหม
+  admin_access?: boolean      // พนักงานคนนี้มีบัญชีแอดมิน (active) — โชว์เมนู "สลับไปเว็บแอดมิน"
+  admin_url?: string | null   // URL เว็บแอดมินสำหรับกดสลับ
 }
 
 interface AuthStore {

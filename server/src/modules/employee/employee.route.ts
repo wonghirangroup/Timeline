@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
-import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory } from './employee.service'
+import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
 
 const TAG = 'Admin'
 
@@ -157,6 +157,36 @@ export async function employeeRoutes(app: FastifyInstance) {
     })
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
     return ok(employee, 'เปลี่ยนสถานะสำเร็จ')
+  })
+
+  // PATCH /api/v1/admin/employees/:id/admin-access — ให้/ถอนสิทธิ์เข้าเว็บแอดมิน
+  app.patch('/employees/:id/admin-access', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ให้/ถอนสิทธิ์เข้าเว็บแอดมินของพนักงาน — role=null ถอนสิทธิ์, มี role ครั้งแรกต้องส่ง email เพื่อสร้างบัญชี (ได้รหัสชั่วคราวกลับมา)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['role'],
+        properties: {
+          role:           { type: ['string', 'null'], enum: ['ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD', null] },
+          email:          { type: 'string', format: 'email' },
+          department_ids: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const r = await setEmployeeAdminAccess(req.tenantId, req.params.id, {
+      role: req.body.role ?? null,
+      email: req.body.email,
+      department_ids: req.body.department_ids,
+    })
+    if ('notFound' in r)       return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    if ('needEmail' in r)      return reply.code(400).send(fail('EMAIL_REQUIRED', 'ต้องกรอกอีเมลเพื่อสร้างบัญชีแอดมิน'))
+    if ('duplicateEmail' in r) return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีบัญชีอยู่แล้ว'))
+    return ok(r, r.temp_password ? 'สร้างบัญชีแอดมินให้พนักงานแล้ว' : 'อัปเดตสิทธิ์แล้ว')
   })
 
   // GET /api/v1/admin/employees/:id/status-history — ประวัติการเปลี่ยนสถานะ

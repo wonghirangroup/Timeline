@@ -106,6 +106,7 @@ model User {
   tenant              Tenant?          @relation(fields: [tenant_id], references: [id])
   managed_branches    BranchManager[]
   managed_departments UserDepartment[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (many-to-many, ดูแลได้หลายแผนก)
+  linked_employee     Employee?        @relation("EmployeeAdminUser") // พนักงานที่ผูกบัญชีนี้ไว้ (ถ้าสร้างผ่านหน้าพนักงาน)
 
   @@index([tenant_id])
   @@map("users")
@@ -165,12 +166,14 @@ model Employee {
   probation_end_date       DateTime?        @db.Date // วันครบทดลองงาน — null = ผ่านโปรแล้ว/ไม่ระบุ (feature: probation)
   probation_result         ProbationResult? // ผลประเมิน — null = ยังไม่ประเมิน
   probation_note           String? // บันทึกผลประเมินทดลองงาน
+  user_id                  String?          @unique // บัญชี User (แอดมิน) ที่ผูกกับพนักงานคนนี้ — ให้ switch ไปเว็บแอดมินจาก LIFF ได้ (null = ไม่มีสิทธิ์แอดมิน)
   created_at               DateTime         @default(now())
   updated_at               DateTime         @updatedAt
   deleted_at               DateTime?
 
   tenant               Tenant               @relation(fields: [tenant_id], references: [id])
   branch               Branch               @relation(fields: [branch_id], references: [id])
+  admin_user           User?                @relation("EmployeeAdminUser", fields: [user_id], references: [id], onDelete: SetNull)
   default_shift        Shift?               @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
   position             Position?            @relation(fields: [position_id], references: [id], onDelete: SetNull)
   employee_status_type EmployeeStatusType?  @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)

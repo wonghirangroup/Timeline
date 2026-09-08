@@ -6,6 +6,9 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled, resolveLeaveEnabled } from '../group/group.service'
 import { isFeatureEnabled } from '../../common/utils/features'
 
+// URL เว็บแอดมิน — สำหรับพนักงานที่ได้สิทธิ์แอดมิน กด "สลับไปเว็บแอดมิน" ใน LIFF
+const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
+
 export async function employeeAuthRoutes(app: FastifyInstance) {
 
   // POST /api/v1/employee/auth/liff
@@ -44,6 +47,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       include: {
         branch: { select: { id: true, name: true } },
         employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
+        admin_user: { select: { is_active: true } },
       },
     })
     if (!employee) {
@@ -66,8 +70,9 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       prisma.tenant.findFirst({ where: { id: config.tenant.id }, select: { leave_backdate_days: true, enabled_features: true } }),
     ])
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
+    const admin_access = !!employee.admin_user?.is_active
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/list?line_channel_id=xxx

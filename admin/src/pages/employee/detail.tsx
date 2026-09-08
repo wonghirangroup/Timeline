@@ -1,7 +1,7 @@
 // admin/src/pages/employee/detail.tsx
 import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { api as axios } from '../../lib/axios'
 import {
   Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft,
@@ -558,6 +558,107 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
 }
 
 // ── Info Tab ──────────────────────────────────────────────────────────────────
+const ADMIN_ROLE_LABEL: Record<string, string> = {
+  ADMIN: 'แอดมิน / HR', MANAGER: 'ผู้จัดการ', EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
+}
+
+function AdminAccessCard({ emp }: { emp: any }) {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const current = emp.admin_user as { id: string; email: string; role: string; is_active: boolean } | null | undefined
+  const active = !!current?.is_active
+
+  const [role, setRole]   = useState<string>(active ? current!.role : '')
+  const [email, setEmail] = useState('')
+  const [tempPw, setTempPw] = useState<string | null>(null)
+  const [confirmRevoke, setConfirmRevoke] = useState(false)
+
+  const mut = useMutation({
+    mutationFn: (body: any) => axios.patch(`/api/v1/admin/employees/${emp.id}/admin-access`, body).then(r => r.data.data),
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ['employee', emp.id] })
+      if (data?.temp_password) setTempPw(data.temp_password)
+      setEmail('')
+      showToast('success', data?.temp_password ? 'สร้างบัญชีแอดมินให้พนักงานแล้ว' : 'อัปเดตสิทธิ์เรียบร้อย')
+    },
+    onError: (e: any) => showToast('error', e.response?.data?.error?.message || 'ดำเนินการไม่สำเร็จ'),
+  })
+
+  const needEmail = !current && !!role
+  const canSave = role !== '' && role !== (active ? current!.role : '') && (!needEmail || /^\S+@\S+\.\S+$/.test(email))
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4338ca' }}><Users size={15} /></div>
+        <div>
+          <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0f172a' }}>สิทธิ์เข้าเว็บแอดมิน</div>
+          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>พนักงานคนนี้จะเห็นเมนู "สลับไปเว็บแอดมิน" ในแอป LINE</div>
+        </div>
+      </div>
+
+      {active && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px' }}>
+          <CheckCircle2 size={14} color="#16a34a" />
+          <span style={{ fontWeight: 700, color: '#15803d' }}>เปิดใช้งาน</span>
+          <span style={{ color: '#475569' }}>· {current!.email} · {ADMIN_ROLE_LABEL[current!.role] ?? current!.role}</span>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 160px' }}>
+          <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>บทบาท</label>
+          <select value={role} onChange={e => setRole(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', background: '#fff' }}>
+            <option value="">— ไม่มีสิทธิ์แอดมิน —</option>
+            {Object.keys(ADMIN_ROLE_LABEL).map(r => <option key={r} value={r}>{ADMIN_ROLE_LABEL[r]}</option>)}
+          </select>
+        </div>
+        {needEmail && (
+          <div style={{ flex: '1 1 180px' }}>
+            <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>อีเมลสำหรับล็อกอิน *</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
+          </div>
+        )}
+        <button disabled={!canSave || mut.isPending}
+          onClick={() => mut.mutate({ role, email: needEmail ? email.trim() : undefined })}
+          style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: canSave && !mut.isPending ? 'var(--action-primary)' : '#e2e8f0', color: canSave && !mut.isPending ? '#fff' : '#94a3b8', fontSize: '0.82rem', fontWeight: 700, cursor: canSave && !mut.isPending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+          {mut.isPending ? 'กำลังบันทึก...' : current ? 'เปลี่ยนบทบาท' : 'สร้างบัญชีแอดมิน'}
+        </button>
+        {active && (
+          <button onClick={() => setConfirmRevoke(true)}
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            ถอนสิทธิ์
+          </button>
+        )}
+      </div>
+
+      {tempPw && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 12px', fontSize: '0.8rem' }}>
+          <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 3 }}>รหัสผ่านชั่วคราว (แสดงครั้งเดียว)</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <code style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', background: '#fff', padding: '3px 10px', borderRadius: 6, border: '1px solid #fde68a' }}>{tempPw}</code>
+            <button onClick={() => { navigator.clipboard?.writeText(tempPw); showToast('success', 'คัดลอกแล้ว') }}
+              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.72rem', cursor: 'pointer' }}>คัดลอก</button>
+          </div>
+          <div style={{ color: '#b45309', marginTop: 4, fontSize: '0.72rem' }}>ส่งให้พนักงาน — ระบบจะบังคับตั้งรหัสใหม่ตอนล็อกอินครั้งแรก · หัวหน้าแผนก: ตั้งแผนกที่ดูแลได้ที่ การตั้งค่า → ผู้ใช้งาน</div>
+        </div>
+      )}
+
+      {confirmRevoke && (
+        <ConfirmDialog
+          title="ถอนสิทธิ์เข้าเว็บแอดมิน?"
+          message={`${current?.email} จะเข้าเว็บแอดมินไม่ได้อีก (บัญชีถูกปิดใช้งาน ไม่ถูกลบ — เปิดคืนได้ภายหลัง)`}
+          confirmLabel="ถอนสิทธิ์"
+          onConfirm={() => { setConfirmRevoke(false); setRole(''); mut.mutate({ role: null }) }}
+          onCancel={() => setConfirmRevoke(false)}
+        />
+      )}
+    </div>
+  )
+}
+
 function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
   const rows = [
     { label: 'รหัสพนักงาน',   value: emp.employee_code,  mono: true },
@@ -608,6 +709,8 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
           </div>
         </div>
       </div>
+
+      <AdminAccessCard emp={emp} />
     </div>
   )
 }

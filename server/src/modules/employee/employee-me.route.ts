@@ -24,7 +24,10 @@ export async function employeeMeRoutes(app: FastifyInstance) {
 
     const employee = await prisma.employee.findFirst({
       where: { id: employeeId, tenant_id: req.tenantId, deleted_at: null, is_active: true },
-      include: { branch: { select: { id: true, name: true } } },
+      include: {
+        branch: { select: { id: true, name: true } },
+        admin_user: { select: { is_active: true } },
+      },
     })
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
 
@@ -43,8 +46,11 @@ export async function employeeMeRoutes(app: FastifyInstance) {
       prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true } }),
     ])
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
+    const { admin_user, ...empRest } = employee as any
+    const admin_access = !!admin_user?.is_active
+    const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
-    return ok({ employee: { ...employee, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') }, shifts })
+    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
   })
 
   // GET /api/v1/employee/holidays?year=
