@@ -622,6 +622,9 @@ export default function EmployeeDetailPage() {
   const [resetting, setResetting] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const { showToast } = useToast()
+  const ef = useAuthStore(s => s.enabledFeatures)
+  const hrOn = (k: string) => !ef || ef[k] !== false
+  const showHr = hrOn('employee_documents') || hrOn('probation') || hrOn('disciplinary')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['employee', id],
@@ -669,10 +672,6 @@ export default function EmployeeDetailPage() {
   const fullName = `${emp.first_name} ${emp.last_name}`
   const nickname = emp.nickname ?? fullName.slice(0, 2)
   const [avatarBg, avatarText] = avatarPalette(emp.id)
-
-  const ef = useAuthStore(s => s.enabledFeatures)
-  const hrOn = (k: string) => !ef || ef[k] !== false
-  const showHr = hrOn('employee_documents') || hrOn('probation') || hrOn('disciplinary')
 
   const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
     { key: 'overview',   label: 'ภาพรวม',        icon: <BarChart2 size={15}/> },
