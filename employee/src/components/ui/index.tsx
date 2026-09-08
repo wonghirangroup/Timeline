@@ -270,10 +270,9 @@ export function ProgressBar({ value, height = 4, rounded = true, style, showLabe
       )}
       <div style={{ width: '100%', height, borderRadius: rounded ? 99 : 0, background: COLOR.primarySubtle, overflow: 'hidden' }}>
         <div style={{
-          height: '100%', borderRadius: 99,
-          background: COLOR.primary,
+          height: '100%', borderRadius: 99, background: COLOR.primary,
           ...(deterministic
-            ? { width: `${value}%`, transition: 'width 0.08s linear' }
+            ? { width: '100%', transformOrigin: 'left', transform: `scaleX(${Math.max(0, Math.min(100, value ?? 0)) / 100})`, transition: 'transform 0.1s linear' }
             : { width: '45%', animation: 'tl-progress 1.4s ease-in-out infinite' }),
         }} />
       </div>
