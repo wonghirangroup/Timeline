@@ -129,7 +129,18 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
   )
 }
 
-// ── Sidebar body ──────────────────────────────────────────────────────────────
+// ── สีประจำหมวด (เฉดสว่างสำหรับ sidebar พื้นเข้ม) ──────────────────────────────
+// เรียงตาม NAV_SECTIONS: [ภาพรวม, บุคลากร, กะ&เวลา, การลา, รายงาน&อื่นๆ]
+interface SecAccent { text: string; bg: string }
+const SECTION_ACCENT: SecAccent[] = [
+  { text: '#FB923C', bg: 'rgba(249,115,22,0.16)' },  // ภาพรวม — ส้ม (brand)
+  { text: '#2DD4BF', bg: 'rgba(45,212,191,0.15)' },  // บุคลากร — teal
+  { text: '#60A5FA', bg: 'rgba(96,165,250,0.15)' },  // กะ & เวลา — blue
+  { text: '#A78BFA', bg: 'rgba(167,139,250,0.15)' }, // การลา — violet
+  { text: '#FBBF24', bg: 'rgba(251,191,36,0.15)' },  // รายงาน & อื่นๆ — amber
+]
+const SETTINGS_ACCENT: SecAccent = { text: '#94A3B8', bg: 'rgba(148,163,184,0.16)' } // slate
+
 const ROLE_CHIP: Partial<Record<string, { label: string; bg: string; color: string }>> = {
   EXECUTIVE: { label: 'ผู้บริหาร · อ่านอย่างเดียว', bg: '#f1f5f9', color: '#475569' },
   DEPT_HEAD: { label: 'หัวหน้าแผนก · เห็นเฉพาะแผนกที่ดูแล', bg: '#eef2ff', color: '#4338ca' },
@@ -151,7 +162,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
   }
 
   // ── helper: icon-centered nav link ───────────────────────────────────────
-  function NavItem({ item }: { item: { path: string; label: string; icon: JSX.Element; badge?: number } }) {
+  function NavItem({ item, accent }: { item: { path: string; label: string; icon: JSX.Element; badge?: number }; accent: SecAccent }) {
     // highlight ค้างไว้ถ้ายังอยู่ในหน้าลูกของเมนูนี้ เช่น /employee/:id ก็ยัง highlight "พนักงาน"
     const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
     return (
@@ -167,14 +178,15 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           borderRadius: 'var(--radius-md)',
           textDecoration: 'none', fontSize: '14px',
           fontWeight: isActive ? 700 : 500,
-          color: isActive ? '#fb923c' : 'rgba(248,250,252,0.55)',
-          background: isActive ? 'rgba(249,115,22,0.15)' : 'transparent',
+          color: isActive ? accent.text : 'rgba(248,250,252,0.55)',
+          background: isActive ? accent.bg : 'transparent',
+          boxShadow: isActive ? `inset 3px 0 0 ${accent.text}` : 'none',
           transition: 'all 0.15s',
         }}
         onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#f8fafc'; } }}
         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)'; } }}
       >
-        <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? '#f97316' : 'inherit' }}>
+        <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>
           {item.icon}
         </div>
         {!collapsed && (
@@ -232,10 +244,12 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         {NAV_SECTIONS.map((section, si) => {
           const visItems = section.items.filter(it => visible(it.feature))
           if (visItems.length === 0) return null
+          const accent = SECTION_ACCENT[si] ?? SECTION_ACCENT[0]
           return (
             <div key={si} style={{ marginBottom: 8 }}>
               {section.label && !collapsed && (
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(248,250,252,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '12px 10px 6px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '11px', fontWeight: 700, color: 'rgba(248,250,252,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '12px 10px 6px', whiteSpace: 'nowrap' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent.text, flexShrink: 0 }} />
                   {section.label}
                 </div>
               )}
@@ -243,7 +257,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 4px' }} />
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {visItems.map(item => <NavItem key={item.path} item={item} />)}
+                {visItems.map(item => <NavItem key={item.path} item={item} accent={accent} />)}
               </div>
               {!collapsed && si < NAV_SECTIONS.length - 1 && (
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '12px 10px 4px' }} />
@@ -254,7 +268,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
 
         {/* Settings */}
         <div style={{ marginTop: 8, paddingTop: collapsed ? 0 : 8 }}>
-          <NavItem item={{ path: '/settings', label: 'การตั้งค่า', icon: <Settings size={16}/> }} />
+          <NavItem item={{ path: '/settings', label: 'การตั้งค่า', icon: <Settings size={16}/> }} accent={SETTINGS_ACCENT} />
         </div>
       </nav>
 

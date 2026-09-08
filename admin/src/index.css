@@ -25,6 +25,22 @@
   --info: #3B82F6;
   --info-bg: #EFF6FF;
 
+  /* ── Action colors — สีตามชนิดการกระทำ (ใช้กับ <Button>) ── */
+  --action-primary:        #EA580C;  /* บันทึก / ยืนยัน / ปุ่มหลักของหน้า */
+  --action-primary-hover:  #C2410C;
+  --action-approve:        #16A34A;  /* อนุมัติ / ยืนยันเชิงบวก */
+  --action-approve-hover:  #15803D;
+  --action-danger:         #DC2626;  /* ลบ / ปฏิเสธ / ทำลาย */
+  --action-danger-hover:   #B91C1C;
+
+  /* ── Section colors — สีประจำหมวดใน sidebar + หัวหน้า ──
+     mid = ใช้บนพื้นขาว (หัวหน้า/ไอคอน) · dark sidebar ใช้เฉดสว่างใน Sidebar.tsx */
+  --sec-people:   #0D9488;  /* teal   — บุคลากร */
+  --sec-time:     #2563EB;  /* blue   — กะ & เวลา */
+  --sec-leave:    #7C3AED;  /* violet — การลา */
+  --sec-report:   #D97706;  /* amber  — รายงาน & อื่นๆ */
+  --sec-settings: #475569;  /* slate  — การตั้งค่า */
+
   /* Shadows - Soft, premium feel */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
@@ -139,6 +155,35 @@ button {
   background: var(--accent-hover);
   transform: translateY(-1px);
 }
+
+/* ── <Button> primitive — สีตามชนิดการกระทำ ───────────────── */
+.tl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: inherit; font-weight: 600; white-space: nowrap;
+  border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.tl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tl-btn:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.tl-btn--sm { padding: 6px 12px; font-size: 12px; }
+.tl-btn--md { padding: 9px 16px; font-size: 13.5px; }
+.tl-btn--lg { padding: 11px 20px; font-size: 14px; }
+.tl-btn--block { width: 100%; }
+
+.tl-btn--primary   { background: var(--action-primary); color: #fff; }
+.tl-btn--primary:not(:disabled):hover   { background: var(--action-primary-hover); }
+.tl-btn--success   { background: var(--action-approve); color: #fff; }
+.tl-btn--success:not(:disabled):hover   { background: var(--action-approve-hover); }
+.tl-btn--danger    { background: var(--action-danger); color: #fff; }
+.tl-btn--danger:not(:disabled):hover    { background: var(--action-danger-hover); }
+.tl-btn--success-soft { background: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+.tl-btn--success-soft:not(:disabled):hover { background: #dcfce7; }
+.tl-btn--danger-soft  { background: var(--error-bg); color: var(--error-text); border-color: var(--error-border); }
+.tl-btn--danger-soft:not(:disabled):hover  { background: #fee2e2; }
+.tl-btn--secondary { background: #fff; color: var(--text-body); border-color: var(--border-default); }
+.tl-btn--secondary:not(:disabled):hover { background: var(--bg-subtle); border-color: #d1d5db; }
+.tl-btn--ghost     { background: transparent; color: var(--text-muted); }
+.tl-btn--ghost:not(:disabled):hover     { background: var(--bg-muted); }
 
 /* ── Custom Scrollbar ──────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

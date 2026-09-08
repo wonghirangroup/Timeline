@@ -9,6 +9,7 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
+import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 
@@ -82,8 +83,8 @@ export default function ResignationsPage() {
               </div>
               {r.status === 'PENDING' && !isReadOnly && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => setApproveTarget(r)} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#16a34a', color: '#fff', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}><Check size={13} /> อนุมัติลาออก</button>
-                  <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}><X size={13} /> ปฏิเสธ</button>
+                  <Button variant="success" size="sm" icon={<Check size={13} />} onClick={() => setApproveTarget(r)}>อนุมัติลาออก</Button>
+                  <Button variant="danger-soft" size="sm" icon={<X size={13} />} onClick={() => { setRejectTarget(r); setRejectNote('') }}>ปฏิเสธ</Button>
                 </div>
               )}
             </div>
@@ -107,9 +108,9 @@ export default function ResignationsPage() {
             <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value)} rows={3}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'none' }} />
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-              <button onClick={() => setRejectTarget(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={() => reviewMut.mutate({ id: rejectTarget.id, approve: false, note: rejectNote })} disabled={reviewMut.isPending}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ปฏิเสธคำขอ</button>
+              <Button variant="ghost" block onClick={() => setRejectTarget(null)}>ยกเลิก</Button>
+              <Button variant="danger" block loading={reviewMut.isPending}
+                onClick={() => reviewMut.mutate({ id: rejectTarget.id, approve: false, note: rejectNote })}>ปฏิเสธคำขอ</Button>
             </div>
           </div>
         </Modal>

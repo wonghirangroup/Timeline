@@ -13,9 +13,9 @@ interface ConfirmDialogProps {
 }
 
 const VARIANT = {
-  danger:  { btn: '#ef4444', hover: '#dc2626', icon: '#fef2f2', iconColor: '#dc2626' },
-  warning: { btn: '#f59e0b', hover: '#d97706', icon: '#fffbeb', iconColor: '#d97706' },
-  default: { btn: '#f97316', hover: '#ea580c', icon: '#fff7ed', iconColor: '#ea580c' },
+  danger:  { btn: 'var(--action-danger)',  hover: 'var(--action-danger-hover)',  icon: 'var(--error-bg)',   iconColor: 'var(--action-danger)' },
+  warning: { btn: 'var(--warning)',         hover: 'var(--warning-text)',          icon: 'var(--warning-bg)', iconColor: 'var(--warning-text)' },
+  default: { btn: 'var(--action-primary)',  hover: 'var(--action-primary-hover)',  icon: 'var(--accent-light)', iconColor: 'var(--action-primary)' },
 }
 
 export default function ConfirmDialog({

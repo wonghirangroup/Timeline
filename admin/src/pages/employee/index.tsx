@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
+import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
@@ -413,9 +414,9 @@ export default function EmployeePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <PlanMeter kind="employees" compact />
         {!isReadOnly && (
-          <button onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
-            + เพิ่มพนักงาน
-          </button>
+          <Button variant="primary" size="lg" icon={<Plus size={16} />} onClick={openAdd} style={{ marginLeft: 'auto' }}>
+            เพิ่มพนักงาน
+          </Button>
         )}
       </div>
 
@@ -596,8 +597,8 @@ export default function EmployeePage() {
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ display: 'flex', gap: 5 }}>
                       {!isReadOnly && <>
-                      <button onClick={() => openEdit(e)} aria-label={`แก้ไข ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#374151' }}><Pencil size={13}/></button>
-                      <button onClick={() => setDeleteTarget(e)} aria-label={`ลบ ${e.first_name} ${e.last_name}`} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fff', fontSize: '0.75rem', color: '#dc2626' }}><Trash2 size={13}/></button>
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(e)} aria-label={`แก้ไข ${e.first_name} ${e.last_name}`} icon={<Pencil size={13}/>} />
+                      <Button variant="danger-soft" size="sm" onClick={() => setDeleteTarget(e)} aria-label={`ลบ ${e.first_name} ${e.last_name}`} icon={<Trash2 size={13}/>} />
                       </>}
                     </div>
                   </td>
@@ -670,8 +671,8 @@ export default function EmployeePage() {
               {e.phone && <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}
               {!isReadOnly && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => openEdit(e)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#ea580c', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Pencil size={13}/> แก้ไข</button>
-                  <button onClick={() => setDeleteTarget(e)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>ลบ</button>
+                  <Button variant="secondary" size="sm" block icon={<Pencil size={13}/>} onClick={() => openEdit(e)}>แก้ไข</Button>
+                  <Button variant="danger-soft" size="sm" onClick={() => setDeleteTarget(e)}>ลบ</Button>
                 </div>
               )}
             </div>
