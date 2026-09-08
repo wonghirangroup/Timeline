@@ -194,7 +194,10 @@ export default function AttendancePage() {
   // ค่านี้ไป backend เป็น override ตอนบันทึก ถ้า false ปล่อยให้ backend คำนวณเอง
   const [editStatusTouched, setEditStatusTouched] = useState(false)
   const [editFineTouched,   setEditFineTouched]   = useState(false)
-  const [manualForm, setManualForm]     = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
+  const [manualForm, setManualForm]     = useState({ shift_id: '', check_in_at: '', check_out_at: '', note: '', status: 'ON_TIME' as EditStatus, fine: '0' })
+  const [manualStatusTouched, setManualStatusTouched] = useState(false)
+  const [manualFineTouched,   setManualFineTouched]   = useState(false)
+  const [manualNoteError,     setManualNoteError]     = useState(false)
 
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['admin', 'branches'],
@@ -399,13 +402,30 @@ export default function AttendancePage() {
   }
 
   function openManual(emp: ApiEmployee) {
-    setManualForm({ shift_id: '', check_in_at: '', check_out_at: '', note: '' })
+    setManualForm({ shift_id: '', check_in_at: '', check_out_at: '', note: '', status: 'ON_TIME', fine: '0' })
+    setManualStatusTouched(false)
+    setManualFineTouched(false)
+    setManualNoteError(false)
     setManualTarget(emp)
+  }
+
+  // พรีวิวสถานะ/ค่าปรับจาก shift+เวลาเข้า (เหมือน edit modal) — ตราบใดที่แอดมินยังไม่แก้เอง
+  function manualRecalc(next: typeof manualForm): typeof manualForm {
+    const shift = allShifts.find(s => s.id === next.shift_id)
+    if (!shift || !next.check_in_at || manualStatusTouched) return next
+    const status = previewStatus(shift, next.check_in_at)
+    const fine   = manualFineTouched ? next.fine : String(previewFine(shift, status))
+    return { ...next, status, fine }
   }
 
   function handleManual() {
     if (!manualTarget || !manualForm.shift_id || !manualForm.check_in_at) {
       showToast('error', 'กรุณาเลือกกะและกรอกเวลาเข้างาน')
+      return
+    }
+    if (!manualForm.note.trim()) {
+      setManualNoteError(true)
+      showToast('error', 'กรุณากรอกหมายเหตุ — แอดมินลงเวลาแทนต้องระบุเหตุผล')
       return
     }
     manualMutation.mutate({
@@ -414,7 +434,9 @@ export default function AttendancePage() {
       date,
       check_in_at:  manualForm.check_in_at,
       check_out_at: manualForm.check_out_at || undefined,
-      note:         manualForm.note || undefined,
+      note:         manualForm.note.trim(),
+      status:       manualStatusTouched ? manualForm.status : undefined,
+      fine:         manualFineTouched   ? Number(manualForm.fine) : undefined,
     })
   }
 
@@ -788,25 +810,64 @@ export default function AttendancePage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>กะ *</label>
-                <select value={manualForm.shift_id} onChange={e => setManualForm(f => ({ ...f, shift_id: e.target.value }))} style={inp}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
+                <select value={manualForm.shift_id} onChange={e => setManualForm(f => manualRecalc({ ...f, shift_id: e.target.value }))} style={inp}>
                   <option value="">— เลือกกะ —</option>
                   {manualTargetShifts.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาเข้างาน *</label>
-                <input type="time" value={manualForm.check_in_at} onChange={e => setManualForm(f => ({ ...f, check_in_at: e.target.value }))} style={inp} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> เวลาเข้างาน</label>
+                  <input type="time" value={manualForm.check_in_at} onChange={e => setManualForm(f => manualRecalc({ ...f, check_in_at: e.target.value }))} style={inp} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาออกงาน</label>
+                  <input type="time" value={manualForm.check_out_at} onChange={e => setManualForm(f => ({ ...f, check_out_at: e.target.value }))} style={inp} />
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาออกงาน</label>
-                <input type="time" value={manualForm.check_out_at} onChange={e => setManualForm(f => ({ ...f, check_out_at: e.target.value }))} style={inp} />
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>สถานะ</label>
+                  <select value={manualForm.status}
+                    onChange={e => {
+                      const status = e.target.value as EditStatus
+                      setManualStatusTouched(true)
+                      setManualForm(f => {
+                        const shift = allShifts.find(s => s.id === f.shift_id)
+                        return { ...f, status, fine: manualFineTouched || !shift ? f.fine : String(previewFine(shift, status)) }
+                      })
+                    }}
+                    style={inp}>
+                    {(Object.keys(EDIT_STATUS_CFG) as EditStatus[]).map(s => <option key={s} value={s}>{EDIT_STATUS_CFG[s]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>ค่าปรับ (บาท)</label>
+                  <div style={{ position: 'relative' }}>
+                    <Wallet size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                    <input type="number" min={0} value={manualForm.fine}
+                      onChange={e => { setManualForm(f => ({ ...f, fine: e.target.value })); setManualFineTouched(true) }}
+                      style={{ ...inp, paddingLeft: 32 }} />
+                  </div>
+                </div>
               </div>
+              {(manualStatusTouched || manualFineTouched) && (
+                <p style={{ margin: '-6px 0 0', fontSize: '0.72rem', color: '#d97706' }}>
+                  กำหนดสถานะ/ค่าปรับเองด้วยมือ — ระบบจะไม่คำนวณใหม่
+                </p>
+              )}
+
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>หมายเหตุ</label>
-                <input value={manualForm.note} onChange={e => setManualForm(f => ({ ...f, note: e.target.value }))} placeholder="เช่น ลืมเช็คอิน" style={inp} />
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> หมายเหตุ</label>
+                <textarea value={manualForm.note}
+                  onChange={e => { setManualForm(f => ({ ...f, note: e.target.value })); if (manualNoteError && e.target.value.trim()) setManualNoteError(false) }}
+                  placeholder="เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย" rows={2}
+                  style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', borderColor: manualNoteError ? '#ef4444' : undefined }} />
+                {manualNoteError && <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#ef4444' }}>ต้องกรอกหมายเหตุก่อนบันทึก</p>}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>

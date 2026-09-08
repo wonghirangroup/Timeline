@@ -49,18 +49,20 @@ export async function attendanceRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: ['Admin'],
-      summary: 'Admin ลงเวลาแทนพนักงาน',
+      summary: 'Admin ลงเวลาแทนพนักงาน — บังคับกรอกหมายเหตุ, เลือก override สถานะ/ค่าปรับได้',
       security: [{ oauth2: [] }],
       body: {
         type: 'object',
-        required: ['employee_id', 'shift_id', 'date'],
+        required: ['employee_id', 'shift_id', 'date', 'note'],
         properties: {
           employee_id:  { type: 'string' },
           shift_id:     { type: 'string' },
           date:         { type: 'string', description: 'YYYY-MM-DD' },
           check_in_at:  { type: 'string', description: 'HH:mm' },
           check_out_at: { type: 'string', description: 'HH:mm' },
-          note:         { type: 'string' },
+          note:         { type: 'string', minLength: 1, description: 'บังคับ — เหตุผลที่แอดมินลงเวลาแทน' },
+          status:       { type: 'string', enum: ['ON_TIME', 'LATE_1', 'LATE_2', 'ABSENT'], description: 'override ผลคำนวณอัตโนมัติด้วยมือ' },
+          fine:         { type: 'number', minimum: 0, description: 'override ค่าปรับด้วยมือ (บาท)' },
         },
       },
     },

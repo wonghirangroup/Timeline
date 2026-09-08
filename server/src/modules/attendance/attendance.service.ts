@@ -182,7 +182,9 @@ export async function createManualAttendance(tenantId: string, data: {
   date: string        // YYYY-MM-DD
   check_in_at?: string   // HH:mm
   check_out_at?: string  // HH:mm
-  note?: string
+  note: string           // บังคับ — แอดมินลงเวลาแทนต้องระบุเหตุผลเสมอ
+  status?: 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT'  // override ผลคำนวณอัตโนมัติด้วยมือ
+  fine?: number                                        // override ค่าปรับด้วยมือ (บาท)
 }) {
   // Parse as UTC midnight to avoid timezone shift (MySQL DATE column is date-only)
   const [y, mo, d] = data.date.split('-').map(Number)
@@ -210,6 +212,17 @@ export async function createManualAttendance(tenantId: string, data: {
     levelFine = computeFine(shift, late)
   }
 
+  // เริ่มจากผล auto-calc แล้วให้แอดมิน override ด้วยมือได้ (เหมือน updateAttendanceTime)
+  let is_late      = late.is_late
+  let late_minutes = late.late_minutes
+  let is_absent    = late.is_absent
+  let fine         = levelFine
+  if (data.status !== undefined) {
+    const ov = applyStatusOverride(data.status, late_minutes)
+    is_late = ov.is_late; late_minutes = ov.late_minutes; is_absent = ov.is_absent
+  }
+  if (data.fine !== undefined) fine = data.fine
+
   return prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
     const record = await tx.attendanceRecord.create({
@@ -221,14 +234,16 @@ export async function createManualAttendance(tenantId: string, data: {
         check_in_at:     checkInAt ?? undefined,
         check_out_at:    buildDateTime(data.date, data.check_out_at) ?? undefined,
         check_in_method: 'ADMIN',
-        is_late:         late.is_late,
-        late_minutes:    late.late_minutes,
-        is_absent:       late.is_absent,
-        fine:            levelFine,
+        is_late,
+        late_minutes,
+        is_absent,
+        fine,
         carried_fine:    carried,
-        note:            data.note ?? (late.is_absent && checkInAt ? absentNote(checkInAt) : undefined),
+        note:            data.note,
       },
     })
+    // ค่าปรับขาดที่ยกไปหักวันถัดไป: อิงผล auto-calc (การ override สถานะเป็น ABSENT
+    // ด้วยมือ ถือว่าแอดมินจัดการค่าปรับเองผ่านช่อง fine แล้ว)
     if (late.is_absent && shift?.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
     return record
   })
