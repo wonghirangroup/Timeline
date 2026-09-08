@@ -224,9 +224,14 @@ export interface CheckinSyncResult { created: number; skippedExisting: number; s
 // พนักงานที่ถูกลงทะเบียนซ้ำใน TimeLine ด้วยรหัสใหม่ (ย้ายสาขา/แผนก) แต่ Firebase (ระบบเก่า)
 // ยังใช้รหัสเดิมอยู่ — map รหัส Firebase เดิม → รหัสจริงปัจจุบันใน TimeLine
 // (จิรพงศ์ ศรีอำไพ / กิตตินันท์ ทิพย์รักษา — ย้ายจากวงษ์หิรัญ → สมาทจิ๊กซอว์ ดู _LOG_VIEW v092)
+// กตณรงค์ ทนโคกสูง (แจ็ค): Firebase 69-04-004 / TimeLine 69-04-002 — เช็คอินทุกวันตั้งแต่ ส.ค.
+// แต่ไม่เข้า TimeLine เลย (ดู diagnose-firebase-checkins.ts v099) — เพิ่ม alias
+//   หมายเหตุ: ก่อน 19 ส.ค. (วันเข้างานแจ็ค) code 69-04-004 ใน Firebase เคยเป็น "สถาพร เปลื้องมณี"
+//   ~3 รายการ จะพลอย map เข้า 69-04-002 ด้วย — สถาพรไม่มีใน TimeLine อยู่แล้ว ถือเป็น noise ที่รับได้
 const FIREBASE_CODE_ALIAS: Record<string, string> = {
   '68-02-004': '68-02-005',
   '69-02-002': '69-02-004',
+  '69-04-004': '69-04-002',
 }
 
 async function syncCheckins(db: Firestore, tenantId: string): Promise<CheckinSyncResult> {
