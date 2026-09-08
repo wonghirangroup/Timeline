@@ -1,6 +1,7 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled } from '../group/group.service'
+import { bangkokDateStr } from '../../common/utils/time'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -187,10 +188,7 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
 // พนักงาน mode นี้ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว (1 วัน/สัปดาห์ x 4-5 สัปดาห์)
 // ไม่บังคับจำนวนตายตัวเป็น 4 — คำนวณจากจำนวนวันจันทร์จริงในเดือนนั้น (บางเดือนมี 5)
 
-function getTodayStrBangkok(): string {
-  const bkk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
-  return `${bkk.getFullYear()}-${String(bkk.getMonth() + 1).padStart(2, '0')}-${String(bkk.getDate()).padStart(2, '0')}`
-}
+const getTodayStrBangkok = bangkokDateStr // ดู common/utils/time.ts
 
 // สัปดาห์ที่ "ต้องเลือกให้ครบ" จริง — ไม่นับสัปดาห์ที่ผ่านไปแล้วทั้งสัปดาห์ (mirror ของ
 // getWeeksOfMonth ฝั่ง frontend employee/src/pages/leave/index.tsx) กันเคส user เปิดดู

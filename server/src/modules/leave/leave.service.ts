@@ -1,6 +1,7 @@
 // server/src/modules/leave/leave.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
+import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
 const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
@@ -140,8 +141,8 @@ export async function createLeaveRequest(
     const tenant = await prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null }, select: { leave_backdate_days: true } })
     const maxBack = tenant?.leave_backdate_days
     if (maxBack != null) {
-      const today = new Date(); today.setUTCHours(0, 0, 0, 0)
-      const earliest = new Date(today); earliest.setUTCDate(earliest.getUTCDate() - maxBack)
+      // เทียบกับ "วันนี้" ตามปฏิทินไทย ไม่ใช่ UTC (ช่วง 00:00–07:00 ICT UTC ยังเป็นเมื่อวาน)
+      const earliest = bangkokAddDays(bangkokToday(), -maxBack)
       if (new Date(data.start_date) < earliest) throw new Error('LEAVE_BACKDATE_EXCEEDED')
     }
   }

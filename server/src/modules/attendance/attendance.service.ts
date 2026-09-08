@@ -3,6 +3,7 @@ import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
+import { bangkokToday } from '../../common/utils/time'
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
@@ -350,12 +351,8 @@ export async function deleteAttendanceRecord(tenantId: string, id: string): Prom
   return true
 }
 
-// วันที่ Bangkok ณ ตอนนี้ เก็บเป็น UTC midnight ของวันนั้น
-// ตัวอย่าง: 15:05 BKK (= 08:05 UTC) → return 2026-06-24 00:00:00 UTC
-function getTodayBangkok(): Date {
-  const bkk = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
-  return new Date(Date.UTC(bkk.getFullYear(), bkk.getMonth(), bkk.getDate()))
-}
+// วันที่ Bangkok ณ ตอนนี้ เก็บเป็น UTC midnight ของวันนั้น — ดู common/utils/time.ts
+const getTodayBangkok = bangkokToday
 
 // ค้นหากะที่ match กับเวลาปัจจุบัน (ภายใน window ของกะ)
 // คืนค่า { shift, isOutsideShift }
