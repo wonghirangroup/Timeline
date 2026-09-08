@@ -45,6 +45,7 @@ model Tenant {
   feedbacks             Feedback[]
   invoices              Invoice[]
   activity_logs         ActivityLog[]
+  firebase_sync_runs    FirebaseSyncRun[]
   groups                Group[]
   divisions             Division[]
   departments           Department[]
@@ -905,4 +906,24 @@ model ActivityLog {
   @@index([tenant_id])
   @@index([created_at])
   @@map("activity_logs")
+}
+
+// ประวัติการรันซิงค์ Firebase (cron + manual) — ให้ Super Admin เห็นว่ารอบล่าสุด
+// สำเร็จ/ล้มเหลว เวลาไหน กันกรณี cron เงียบหายแล้วไม่มีใครรู้ (ดู hardening checklist M1a/b)
+model FirebaseSyncRun {
+  id          String    @id @default(uuid())
+  tenant_id   String
+  trigger     String // CRON | MANUAL
+  status      String // SUCCESS | FAILED
+  started_at  DateTime  @default(now())
+  finished_at DateTime?
+  duration_ms Int?
+  summary     Json? // FirebaseSyncSummary เมื่อ SUCCESS
+  error       String?   @db.Text
+  created_at  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id, started_at])
+  @@map("firebase_sync_runs")
 }

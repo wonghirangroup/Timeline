@@ -5,7 +5,7 @@
 // ปิดได้ต่อ tenant จาก Super Admin เมื่อ tenant เลิกใช้ระบบเก่าแล้ว ย้าย SQL เต็มตัว
 import cron from 'node-cron'
 import { prisma } from '../common/utils/prisma'
-import { runFirebaseSync } from '../modules/firebase-sync/firebase-sync.service'
+import { runFirebaseSyncTracked } from '../modules/firebase-sync/firebase-sync.service'
 
 // เวลาไทยที่ให้รันซิงค์ — ครอบชั่วโมงทำงาน
 const SYNC_HOURS_BKK = '3,10,13,16,19'
@@ -37,9 +37,10 @@ async function _runForEnabledTenants() {
   for (const t of tenants) {
     console.log(`[firebase-sync] เริ่มซิงค์ tenant "${t.name}" (${t.id})`)
     try {
-      const result = await runFirebaseSync(t.id)
+      const result = await runFirebaseSyncTracked(t.id, 'CRON')
       console.log(`[firebase-sync] "${t.name}" เสร็จ:`, JSON.stringify(result))
     } catch (e: any) {
+      // runFirebaseSyncTracked บันทึก FirebaseSyncRun(FAILED) + ActivityLog ให้แล้ว
       console.error(`[firebase-sync] "${t.name}" ล้มเหลว:`, e.message)
     }
   }

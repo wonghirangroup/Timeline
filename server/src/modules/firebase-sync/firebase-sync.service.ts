@@ -324,3 +324,93 @@ export async function runFirebaseSync(tenantId: string): Promise<FirebaseSyncSum
   const checkin = await syncCheckins(db, tenantId)
   return { ranAt: new Date().toISOString(), leave, holiday, checkin }
 }
+
+// wrapper ที่บันทึกผลทุกรอบลง FirebaseSyncRun + ActivityLog เมื่อล้มเหลว —
+// cron job และปุ่ม "ซิงค์ตอนนี้เลย" เรียกผ่านตัวนี้เสมอ เพื่อให้ Super Admin
+// เห็นสถานะรอบล่าสุด (กัน cron เงียบหายแล้วไม่มีใครรู้ — hardening M1a/b)
+export async function runFirebaseSyncTracked(
+  tenantId: string,
+  trigger: 'CRON' | 'MANUAL',
+): Promise<FirebaseSyncSummary> {
+  const startedAt = new Date()
+  try {
+    const summary = await runFirebaseSync(tenantId)
+    const totalErrors = summary.leave.errors + summary.holiday.errors + summary.checkin.errors
+    await prisma.firebaseSyncRun.create({
+      data: {
+        id: uuid(), tenant_id: tenantId, trigger, status: 'SUCCESS',
+        started_at: startedAt, finished_at: new Date(),
+        duration_ms: Date.now() - startedAt.getTime(),
+        summary: summary as any,
+      },
+    }).catch(() => {})
+    // ซิงค์ผ่าน แต่มี row-level error ปนอยู่ — log ไว้ให้เห็น ไม่ถือว่า fail ทั้งรอบ
+    if (totalErrors > 0) {
+      await writeSyncActivityLog(tenantId, `ซิงค์ Firebase เสร็จแต่มี ${totalErrors} รายการผิดพลาด (${trigger})`).catch(() => {})
+    }
+    return summary
+  } catch (e: any) {
+    const msg = e?.message ?? String(e)
+    await prisma.firebaseSyncRun.create({
+      data: {
+        id: uuid(), tenant_id: tenantId, trigger, status: 'FAILED',
+        started_at: startedAt, finished_at: new Date(),
+        duration_ms: Date.now() - startedAt.getTime(),
+        error: msg.slice(0, 2000),
+      },
+    }).catch(() => {})
+    await writeSyncActivityLog(tenantId, `ซิงค์ Firebase ล้มเหลว (${trigger}): ${msg.slice(0, 300)}`).catch(() => {})
+    throw e
+  }
+}
+
+async function writeSyncActivityLog(tenantId: string, message: string) {
+  await prisma.activityLog.create({
+    data: { id: uuid(), tenant_id: tenantId, actor_name: 'ระบบ (cron)', action: 'FIREBASE_SYNC_FAILED', message },
+  })
+}
+
+export interface FirebaseSyncStatus {
+  tenant_id: string
+  tenant_name: string
+  last_run: {
+    trigger: string; status: string; started_at: string; finished_at: string | null
+    duration_ms: number | null; error: string | null; summary: FirebaseSyncSummary | null
+  } | null
+  recent: { trigger: string; status: string; started_at: string; error: string | null }[]
+}
+
+// สถานะซิงค์ล่าสุดของทุก tenant ที่เปิด firebase_sync_enabled — สำหรับหน้า Super Admin
+export async function getFirebaseSyncStatus(): Promise<FirebaseSyncStatus[]> {
+  const tenants = await prisma.tenant.findMany({
+    where: { firebase_sync_enabled: true, deleted_at: null },
+    select: { id: true, name: true },
+  })
+  const out: FirebaseSyncStatus[] = []
+  for (const t of tenants) {
+    const runs = await prisma.firebaseSyncRun.findMany({
+      where: { tenant_id: t.id },
+      orderBy: { started_at: 'desc' },
+      take: 10,
+    })
+    const last = runs[0]
+    out.push({
+      tenant_id: t.id,
+      tenant_name: t.name,
+      last_run: last
+        ? {
+            trigger: last.trigger, status: last.status,
+            started_at: last.started_at.toISOString(),
+            finished_at: last.finished_at?.toISOString() ?? null,
+            duration_ms: last.duration_ms, error: last.error,
+            summary: (last.summary as any) ?? null,
+          }
+        : null,
+      recent: runs.map(r => ({
+        trigger: r.trigger, status: r.status,
+        started_at: r.started_at.toISOString(), error: r.error,
+      })),
+    })
+  }
+  return out
+}

@@ -5,7 +5,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { runFirebaseSync }  from './firebase-sync.service'
+import { runFirebaseSyncTracked, getFirebaseSyncStatus } from './firebase-sync.service'
 
 export async function firebaseSyncRoutes(app: FastifyInstance) {
   // POST /api/v1/super-admin/firebase-sync/:tenantId/run
@@ -19,10 +19,22 @@ export async function firebaseSyncRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     try {
-      const result = await runFirebaseSync(req.params.tenantId)
+      const result = await runFirebaseSyncTracked(req.params.tenantId, 'MANUAL')
       return ok(result, 'ซิงค์สำเร็จ')
     } catch (e: any) {
       return reply.code(500).send(fail('SYNC_FAILED', e.message ?? 'ซิงค์ไม่สำเร็จ'))
     }
+  })
+
+  // GET /api/v1/super-admin/firebase-sync/status — สถานะรอบซิงค์ล่าสุดของทุก tenant ที่เปิดไว้
+  app.get('/firebase-sync/status', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: ['Super Admin'],
+      summary: 'สถานะการซิงค์ Firebase ล่าสุด (cron + manual) — เห็นว่ารอบไหนล้มเหลว',
+      security: [{ oauth2: [] }],
+    },
+  }, async () => {
+    return ok(await getFirebaseSyncStatus())
   })
 }

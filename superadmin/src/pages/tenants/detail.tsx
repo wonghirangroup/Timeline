@@ -183,13 +183,26 @@ export default function TenantDetailPage() {
     onError: () => showToast('error', 'อัปเดตขีดจำกัดไม่สำเร็จ'),
   })
 
+  // สถานะรอบซิงค์ Firebase ล่าสุด (cron + manual) — กัน cron เงียบหายแล้วไม่มีใครรู้
+  const { data: syncStatus } = useQuery({
+    queryKey: ['sa', 'firebase-sync-status'],
+    queryFn: () => api.get('/api/v1/super-admin/firebase-sync/status').then((r: any) => r.data.data),
+    enabled: !!tenant?.firebase_sync_enabled,
+    refetchInterval: 60_000,
+  })
+  const mySync = Array.isArray(syncStatus) ? syncStatus.find((s: any) => s.tenant_id === id) : null
+
   const runFirebaseSyncNowMutation = useMutation({
     mutationFn: () => api.post(`/api/v1/super-admin/firebase-sync/${id}/run`).then((r: any) => r.data.data),
     onSuccess: (result: any) => {
       const { leave, holiday, checkin } = result
       showToast('success', `ซิงค์เสร็จ — วันลา: สร้างใหม่ ${leave.created} แก้ ${leave.repaired} · เช็คอิน: สร้างใหม่ ${checkin.created}`)
+      qc.invalidateQueries({ queryKey: ['sa', 'firebase-sync-status'] })
     },
-    onError: () => showToast('error', 'ซิงค์ไม่สำเร็จ — เช็ค credential/log บน server'),
+    onError: () => {
+      showToast('error', 'ซิงค์ไม่สำเร็จ — เช็ค credential/log บน server')
+      qc.invalidateQueries({ queryKey: ['sa', 'firebase-sync-status'] })
+    },
   })
 
   if (isLoading) return (
@@ -439,9 +452,47 @@ export default function TenantDetailPage() {
                   {runFirebaseSyncNowMutation.isPending ? 'กำลังซิงค์...' : 'ซิงค์ตอนนี้เลย'}
                 </button>
                 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                  {tenant.firebase_sync_enabled ? '● เปิดอยู่ — รอบถัดไป 03:00' : '○ ปิดอยู่'}
+                  {tenant.firebase_sync_enabled ? '● เปิดอยู่ — รอบ cron 03:00 / 10:00 / 13:00 / 16:00 / 19:00' : '○ ปิดอยู่'}
                 </span>
               </div>
+              {tenant.firebase_sync_enabled && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6', fontSize: '0.78rem' }}>
+                  {!mySync?.last_run ? (
+                    <span style={{ color: '#9ca3af' }}>ยังไม่มีประวัติการซิงค์</span>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontWeight: 700,
+                          color: mySync.last_run.status === 'SUCCESS' ? 'var(--success-text)' : 'var(--error-text)',
+                        }}>
+                          {mySync.last_run.status === 'SUCCESS' ? '✓ รอบล่าสุดสำเร็จ' : '✕ รอบล่าสุดล้มเหลว'}
+                        </span>
+                        <span style={{ color: '#9ca3af' }}>
+                          {thDate(mySync.last_run.started_at)} {new Date(mySync.last_run.started_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{mySync.last_run.trigger === 'CRON' ? 'อัตโนมัติ' : 'กดเอง'}
+                          {mySync.last_run.duration_ms != null && ` · ${(mySync.last_run.duration_ms / 1000).toFixed(1)} วิ`}
+                        </span>
+                      </div>
+                      {mySync.last_run.error && (
+                        <div style={{ marginTop: 4, color: 'var(--error-text)', fontFamily: 'monospace', fontSize: '0.72rem', wordBreak: 'break-all' }}>
+                          {mySync.last_run.error}
+                        </div>
+                      )}
+                      {mySync.recent?.length > 1 && (
+                        <div style={{ marginTop: 6, color: '#9ca3af' }}>
+                          10 รอบล่าสุด:{' '}
+                          {mySync.recent.map((r: any, i: number) => (
+                            <span key={i} title={`${thDate(r.started_at)} ${r.trigger}`} style={{ color: r.status === 'SUCCESS' ? 'var(--success-text)' : 'var(--error-text)' }}>
+                              {r.status === 'SUCCESS' ? '●' : '✕'}{' '}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
