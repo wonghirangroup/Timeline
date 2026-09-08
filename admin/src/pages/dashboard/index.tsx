@@ -9,6 +9,7 @@ import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
+import SetupChecklist from '../../components/shared/SetupChecklist'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
@@ -336,6 +337,9 @@ export default function DashboardPage() {
       {/* ── Left Column ───────────────────────────────────────────── */}
       {/* บนมือถือ: ให้ "รายชื่อวันนี้" (คอลัมน์ขวา) ขึ้นก่อน เมตร/KPI ลงล่าง */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, order: isMobile ? 2 : 1 }}>
+
+        {/* ── รายการตั้งค่าเริ่มต้น (โผล่ตอน tenant ใหม่) ──────────────── */}
+        <SetupChecklist />
 
         {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
         <RangeKpiSection branchFilter={branchFilter} />

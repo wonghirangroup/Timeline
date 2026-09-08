@@ -4,6 +4,7 @@ import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, Che
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import EmptyState from '../../components/ui/EmptyState'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
@@ -666,9 +667,12 @@ export default function ShiftPage() {
         {!loading && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>
           {filtered.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <p style={{ marginBottom: 12 }}>{shifts.length === 0 ? 'ยังไม่มีกะ' : 'ไม่พบกะในสาขาที่เลือก'}</p>
-              {shifts.length === 0 && <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มกะแรก</button>}
+            <div style={{ gridColumn: '1/-1' }}>
+              {shifts.length === 0
+                ? <EmptyState icon={<Clock size={22} />} title="ยังไม่มีกะการทำงาน"
+                    hint="กำหนดเวลาเข้า-ออกงาน เกณฑ์สาย/ขาด และ QR สำหรับให้พนักงานสแกน"
+                    action={{ label: 'เพิ่มกะแรก', onClick: openAdd }} />
+                : <EmptyState icon={<Search size={22} />} title="ไม่พบกะในสาขาที่เลือก" compact />}
             </div>
           )}
           {paginated.map((s, idx) => {

@@ -4,6 +4,7 @@ import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Bui
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import EmptyState from '../../components/ui/EmptyState'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
@@ -546,8 +547,14 @@ export default function EmployeePage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  {employees.length === 0 ? 'ยังไม่มีพนักงาน กรุณาเพิ่มพนักงานแรก' : 'ไม่พบพนักงานที่ตรงกับเงื่อนไข'}
+                <tr><td colSpan={8} style={{ padding: 0 }}>
+                  {employees.length === 0 ? (
+                    <EmptyState icon={<Users size={22} />} title="ยังไม่มีพนักงาน"
+                      hint="เพิ่มพนักงานทีละคน หรือนำเข้าหลายคนพร้อมกันจากไฟล์ Excel"
+                      action={isReadOnly ? undefined : { label: 'เพิ่มพนักงานคนแรก', onClick: openAdd }} />
+                  ) : (
+                    <EmptyState icon={<Search size={22} />} title="ไม่พบพนักงานที่ตรงกับเงื่อนไข" hint="ลองปรับตัวกรองหรือคำค้นหา" compact />
+                  )}
                 </td></tr>
               )}
               {paginated.map((e, i) => (

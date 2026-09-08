@@ -7,6 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
+import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -496,15 +497,18 @@ export default function LeaveRequestsTab() {
               </div>
             </div>
             {addForm.leave_period === 'CUSTOM' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ลาตั้งแต่เวลา *</label>
-                  <input type="time" value={addForm.start_time} onChange={e => setAddForm(f => ({ ...f, start_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', e.target.value, f.end_time) }))} style={inp} />
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ลาตั้งแต่เวลา *</label>
+                    <input type="time" value={addForm.start_time} onChange={e => setAddForm(f => ({ ...f, start_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', e.target.value, f.end_time) }))} style={inp} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ถึงเวลา *</label>
+                    <input type="time" value={addForm.end_time} onChange={e => setAddForm(f => ({ ...f, end_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', f.start_time, e.target.value) }))} style={inp} />
+                  </div>
                 </div>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ถึงเวลา *</label>
-                  <input type="time" value={addForm.end_time} onChange={e => setAddForm(f => ({ ...f, end_time: e.target.value, days: calcDays(f.start_date, f.start_date, 'CUSTOM', f.start_time, e.target.value) }))} style={inp} />
-                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>ระบบคิดจำนวนวันลาจากช่วงเวลาที่เลือกเทียบกับชั่วโมงทำงานของกะพนักงาน (ปัดเป็นครึ่งวัน)</p>
               </div>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: addForm.leave_period === 'FULL' ? '1fr 1fr auto' : '1fr auto', gap: 10, alignItems: 'end' }}>
@@ -583,7 +587,13 @@ export default function LeaveRequestsTab() {
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', marginBottom: selectedIds.size > 0 ? 76 : 0 }}>
               {isMobile ? (
                 <div>
-                  {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</p>}
+                  {filtered.length === 0 && (
+                    requests.length === 0
+                      ? <EmptyState icon={<CalendarDays size={22} />} title="ยังไม่มีคำขอวันลา"
+                          hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ — หรือกด 'สร้างวันลา' ลงให้เอง"
+                          action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setTab('add') }} />
+                      : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" hint="ลองปรับเดือน สถานะ หรือตัวกรอง" compact />
+                  )}
                   {paginated.map(r => {
                     const tc = getTypeCfg(r.leave_type, r.reason)
                     const sc = STATUS_CFG[r.status]
@@ -652,7 +662,13 @@ export default function LeaveRequestsTab() {
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={isReadOnly ? 8 : 9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบรายการ</td></tr>
+                      <tr><td colSpan={isReadOnly ? 8 : 9} style={{ padding: 0 }}>
+                        {requests.length === 0
+                          ? <EmptyState icon={<CalendarDays size={22} />} title="ยังไม่มีคำขอวันลา"
+                              hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ — หรือกด 'สร้างวันลา' ลงให้เอง"
+                              action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setTab('add') }} />
+                          : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" hint="ลองปรับเดือน สถานะ หรือตัวกรอง" compact />}
+                      </td></tr>
                     )}
                     {paginated.map((r, i) => {
                       const tc = getTypeCfg(r.leave_type, r.reason)

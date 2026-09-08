@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Building2, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star } from 'lucide-react'
+import { Plus, Building2, Search, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import EmptyState from '../../components/ui/EmptyState'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
@@ -688,11 +689,12 @@ export default function BranchPage() {
       {!loading && (
         <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {branchesFiltered.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-              <p style={{ fontSize: '14px', marginBottom: 12 }}>{branches.length === 0 ? 'ยังไม่มีสาขา' : 'ไม่พบสาขาในกลุ่มที่เลือก'}</p>
-              {branches.length === 0 && (
-                <button onClick={openAdd} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>+ เพิ่มสาขาแรก</button>
-              )}
+            <div style={{ gridColumn: '1/-1' }}>
+              {branches.length === 0
+                ? <EmptyState icon={<Building2 size={22} />} title="ยังไม่มีสาขา"
+                    hint="สาขาคือจุดที่พนักงานเช็คอิน — กำหนดที่ตั้งและรัศมีได้"
+                    action={{ label: 'เพิ่มสาขาแรก', onClick: openAdd }} />
+                : <EmptyState icon={<Search size={22} />} title="ไม่พบสาขาในกลุ่มที่เลือก" compact />}
             </div>
           )}
           {paginated.map((b, idx) => (
