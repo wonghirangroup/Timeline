@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2 } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
@@ -551,9 +551,14 @@ export default function DashboardPage() {
                         <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {row.name}{row.nickname ? ` (${row.nickname})` : ''}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {fmtTime(row.record?.check_in_at ?? null)} · {s.label}
                         </div>
+                        {row.branch?.name && (
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Building2 size={10} style={{ flexShrink: 0 }} /> {row.branch.name}
+                          </div>
+                        )}
                       </div>
                       <div style={{ flexShrink: 0, width: 8, height: 8, borderRadius: '50%', background: s.dot }} />
                     </div>
