@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
+import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
@@ -662,7 +663,7 @@ export default function ShiftPage() {
           setSwipeStart(null)
         }}
       >
-        {loading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
+        {loading && <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>{[0,1,2,3,4,5].map(i => <SkeletonCard key={i} h={140} />)}</div>}
 
         {!loading && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>

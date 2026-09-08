@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import { SkeletonRows } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
@@ -477,7 +478,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>กำลังโหลด...</p>}
+      {loading && <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}><SkeletonRows rows={8} /></div>}
 
       {/* Table */}
       {!loading && (

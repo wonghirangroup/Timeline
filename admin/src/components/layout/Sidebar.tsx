@@ -129,12 +129,19 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
 }
 
 // ── Sidebar body ──────────────────────────────────────────────────────────────
+const ROLE_CHIP: Partial<Record<string, { label: string; bg: string; color: string }>> = {
+  EXECUTIVE: { label: 'ผู้บริหาร · อ่านอย่างเดียว', bg: '#f1f5f9', color: '#475569' },
+  DEPT_HEAD: { label: 'หัวหน้าแผนก · เห็นเฉพาะแผนกที่ดูแล', bg: '#eef2ff', color: '#4338ca' },
+}
+
 function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
   onLogout: () => void; onNavClick: () => void
   collapsed: boolean; onToggleCollapse?: () => void
 }) {
   const location        = useLocation()
   const enabledFeatures = useAuthStore(s => s.enabledFeatures)
+  const role            = useAuthStore(s => s.role)
+  const roleChip        = role ? ROLE_CHIP[role] : undefined
 
   // ปิดจริงที่ backend ด้วย (requireFeature middleware) — ตรงนี้แค่ซ่อนเมนูให้ตรงกับสิทธิ์
   // ไม่มี key ใน enabledFeatures เลย (tenant ไม่เคยถูกตั้งค่า) = เปิดใช้งานทุกฟีเจอร์ (ค่า default)
@@ -250,8 +257,13 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         </div>
       </nav>
 
-      {/* Footer — logout เท่านั้น (user profile ย้ายไปอยู่ Topbar แล้ว) */}
+      {/* Footer — role chip + logout (user profile อยู่ Topbar) */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '12px' }}>
+        {roleChip && !collapsed && (
+          <div style={{ margin: '0 2px 8px', padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', fontSize: '11px', fontWeight: 600, color: 'rgba(248,250,252,0.7)', lineHeight: 1.4 }}>
+            {roleChip.label}
+          </div>
+        )}
         <button
           onClick={onLogout}
           title={collapsed ? 'ออกจากระบบ' : undefined}

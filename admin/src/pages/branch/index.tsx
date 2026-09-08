@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
+import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
@@ -683,7 +684,7 @@ export default function BranchPage() {
       </div>
 
       {/* Loading */}
-      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>}
+      {loading && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>{[0,1,2,3,4,5].map(i => <SkeletonCard key={i} h={140} />)}</div>}
 
       {/* Branch cards */}
       {!loading && (

@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, Clock, Users, BarC
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import Modal from '../../components/ui/Modal'
 import axios from 'axios'
 
 // ถ้า VITE_API_URL ว่าง ใช้ '' (relative) → Vite proxy จะ forward ไป Render
@@ -223,10 +224,8 @@ export default function LoginPage() {
 
       {/* Forgot password — info modal (ยังไม่มีระบบส่งอีเมลจริง) */}
       {showForgot && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 20 }}
-          onClick={() => setShowForgot(false)}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 380, maxWidth: '100%', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}
-            onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setShowForgot(false)} width={380}>
+          <div style={{ padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316' }}>
                 <Mail size={19} />
@@ -242,7 +241,7 @@ export default function LoginPage() {
               เข้าใจแล้ว
             </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

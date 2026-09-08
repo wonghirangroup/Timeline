@@ -8,6 +8,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
+import { SkeletonRows } from '../../components/ui/Skeleton'
 import Pagination from '../../components/ui/Pagination'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -581,7 +582,7 @@ export default function LeaveRequestsTab() {
             </label>
           )}
 
-          {loading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>กำลังโหลด...</p>}
+          {loading && <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}><SkeletonRows rows={8} /></div>}
 
           {!loading && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', marginBottom: selectedIds.size > 0 ? 76 : 0 }}>
@@ -927,10 +928,8 @@ export default function LeaveRequestsTab() {
 
       {/* Reject modal */}
       {rejectTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
-          onClick={() => setRejectTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: 24, width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
-            onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setRejectTarget(null)} width={420}>
+          <div style={{ padding: 24 }}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>ปฏิเสธวันลา</h3>
             <p style={{ margin: '0 0 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {rejectTarget.employee.first_name} {rejectTarget.employee.last_name} — {TYPE_CFG[rejectTarget.leave_type].label} {rejectTarget.days} วัน
@@ -939,7 +938,7 @@ export default function LeaveRequestsTab() {
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>เหตุผลที่ปฏิเสธ (ไม่บังคับ)</label>
               <input value={rejectNote} onChange={e => setRejectNote(e.target.value)}
                 placeholder="เช่น พนักงานไม่เพียงพอในวันนั้น"
-                style={inp} autoFocus
+                style={inp}
                 onKeyDown={e => { if (e.key === 'Enter') handleReject() }} />
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
@@ -950,7 +949,7 @@ export default function LeaveRequestsTab() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
