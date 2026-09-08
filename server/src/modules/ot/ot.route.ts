@@ -67,6 +67,37 @@ export async function otRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธ OT แล้ว')
   })
 
+  // ── Admin/Manager/DEPT_HEAD: Bulk approve / reject OT ─────────────
+  for (const action of ['approve', 'reject'] as const) {
+    app.post(`/admin/ot-requests/bulk-${action}`, {
+      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('ot_management')],
+      schema: {
+        tags: ['Admin'],
+        summary: `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'} OT หลายรายการในครั้งเดียว`,
+        security: [{ oauth2: [] }],
+        body: {
+          type: 'object',
+          required: ['ids'],
+          properties: {
+            ids:         { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 200 },
+            reject_note: { type: 'string' },
+          },
+        },
+      },
+    }, async (req: any) => {
+      let done = 0, skipped = 0
+      for (const id of req.body.ids as string[]) {
+        try {
+          const r = action === 'approve'
+            ? await approveOtRequest(req.tenantId, id, req.userId!, req.scopedEmployeeIds)
+            : await rejectOtRequest(req.tenantId, id, req.userId!, req.body?.reject_note, req.scopedEmployeeIds)
+          if (r) done++; else skipped++
+        } catch { skipped++ }
+      }
+      return ok({ done, skipped }, `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'} ${done} รายการ${skipped ? ` · ข้าม ${skipped}` : ''}`)
+    })
+  }
+
   // ── Employee (LIFF): ยื่นขอ OT ───────────────────────────────────
   app.post('/employee/ot-requests', {
     preHandler: [tenantMiddleware, requireFeature('ot_management')],

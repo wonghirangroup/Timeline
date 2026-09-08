@@ -6,6 +6,10 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Modal from '../../components/ui/Modal'
+import EmptyState from '../../components/ui/EmptyState'
+import { useBulkSelect } from '../../hooks/useBulkSelect'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
@@ -235,6 +239,26 @@ export default function OtPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   useEffect(() => { setPage(1) }, [statusFilter, orgFilter, search])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── เลือกหลายรายการ (bulk approve/reject) ────────────────────────────────
+  const pendingVisibleIds = useMemo(() => filtered.filter(r => r.status === 'PENDING').map(r => r.id), [filtered])
+  const [bulkConfirm, setBulkConfirm] = useState<null | 'approve' | 'reject'>(null)
+  const [bulkNote, setBulkNote] = useState('')
+  const bulk = useBulkSelect(pendingVisibleIds, {
+    disabled: isReadOnly,
+    onApproveKey: () => setBulkConfirm('approve'),
+    onRejectKey: () => { setBulkNote(''); setBulkConfirm('reject') },
+  })
+  const bulkMutation = useMutation({
+    mutationFn: ({ action, ids, note }: { action: 'approve' | 'reject'; ids: string[]; note?: string }) =>
+      api.post(`/api/v1/admin/ot-requests/bulk-${action}`, { ids, reject_note: note || undefined }).then(r => r.data),
+    onSuccess: (res: any) => {
+      invalidate()
+      showToast('success', res?.message ?? 'ดำเนินการสำเร็จ')
+      bulk.clear(); setBulkConfirm(null); setBulkNote('')
+    },
+    onError: () => showToast('error', 'ดำเนินการไม่สำเร็จ'),
+  })
 
   const doApprove = () => {
     if (!approveTarget) return
@@ -469,6 +493,13 @@ export default function OtPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#fff7ed', borderBottom: '1px solid #f1f5f9' }}>
+                  {!isReadOnly && (
+                    <th style={{ padding: '10px 8px 10px 14px', width: 34 }}>
+                      <input type="checkbox" checked={bulk.allSelected} disabled={pendingVisibleIds.length === 0}
+                        onChange={e => bulk.setAll(e.target.checked)} aria-label="เลือกทั้งหมดที่รอพิจารณา"
+                        style={{ width: 15, height: 15, accentColor: '#15803d', cursor: pendingVisibleIds.length ? 'pointer' : 'default' }} />
+                    </th>
+                  )}
                   {['พนักงาน','สาขา','วันที่','เวลา','ชม.','ตัวคูณ','OT สัปดาห์นี้','หมายเหตุ','สถานะ','จัดการ'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#c2410c', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
@@ -480,8 +511,17 @@ export default function OtPage() {
                   const wk = getMondayOf(r.date)
                   const wh = getWeeklyApprovedHours(rows, r.employee_id, wk)
                   const lv = capLevel(wh)
+                  const sel = bulk.has(r.id)
                   return (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc', background: r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc', background: sel ? '#f0fdf4' : r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      {!isReadOnly && (
+                        <td style={{ padding: '11px 8px 11px 14px' }}>
+                          {r.status === 'PENDING' && (
+                            <input type="checkbox" checked={sel} onChange={() => bulk.toggle(r.id)} aria-label={`เลือก OT ของ ${r.full_name}`}
+                              style={{ width: 15, height: 15, accentColor: '#15803d', cursor: 'pointer' }} />
+                          )}
+                        </td>
+                      )}
                       <td style={{ padding: '11px 14px' }}>
                         <p style={{ margin: 0, fontWeight: 600, color: '#111827' }}>{r.full_name}</p>
                         <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{r.nickname}</p>
@@ -529,7 +569,11 @@ export default function OtPage() {
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการ OT</td></tr>
+                  <tr><td colSpan={isReadOnly ? 10 : 11} style={{ padding: 0 }}>
+                    {rows.length === 0
+                      ? <EmptyState icon={<Clock size={22} />} title="ยังไม่มีคำขอ OT" hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ" />
+                      : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" compact />}
+                  </td></tr>
                 )}
               </tbody>
             </table>
@@ -538,6 +582,50 @@ export default function OtPage() {
       </div>
 
       <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="รายการ" />
+
+      {bulk.count > 0 && !isReadOnly && (
+        <div style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 300,
+          background: '#fff', borderTop: '1px solid #e5e7eb', boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+          padding: isMobile ? '10px 14px' : '12px 24px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-dark)' }}>เลือก {bulk.count} รายการ</span>
+          <span style={{ flex: 1 }} />
+          <button onClick={bulk.clear} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.8rem', cursor: 'pointer' }}>ยกเลิก</button>
+          <button onClick={() => { setBulkNote(''); setBulkConfirm('reject') }} disabled={bulkMutation.isPending}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <X size={14} /> ไม่อนุมัติที่เลือก
+          </button>
+          <button onClick={() => setBulkConfirm('approve')} disabled={bulkMutation.isPending}
+            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#15803d', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Check size={14} /> อนุมัติที่เลือก
+          </button>
+        </div>
+      )}
+      {bulkConfirm === 'approve' && (
+        <ConfirmDialog variant="default" title={`อนุมัติ OT ${bulk.count} รายการ?`}
+          message="คำขอ OT ที่เลือกไว้ทั้งหมดจะถูกอนุมัติ"
+          confirmLabel="อนุมัติทั้งหมด"
+          onConfirm={() => bulkMutation.mutate({ action: 'approve', ids: bulk.ids })}
+          onCancel={() => setBulkConfirm(null)} />
+      )}
+      {bulkConfirm === 'reject' && (
+        <Modal onClose={() => setBulkConfirm(null)} width={380}>
+          <div style={{ padding: 24 }}>
+            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 6px' }}>ไม่อนุมัติ OT {bulk.count} รายการ?</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-gray)', margin: '0 0 14px' }}>ใส่หมายเหตุร่วม (ไม่บังคับ) — จะแนบไปกับทุกคำขอที่เลือก</p>
+            <textarea value={bulkNote} onChange={e => setBulkNote(e.target.value)} rows={3} placeholder="เหตุผลที่ไม่อนุมัติ"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'none' }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => bulkMutation.mutate({ action: 'reject', ids: bulk.ids, note: bulkNote })} disabled={bulkMutation.isPending}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                {bulkMutation.isPending ? 'กำลังบันทึก...' : 'ไม่อนุมัติทั้งหมด'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ── Approve Modal (with inline calculator) ── */}
       {approveTarget && (
