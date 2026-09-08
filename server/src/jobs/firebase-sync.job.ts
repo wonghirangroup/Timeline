@@ -1,12 +1,31 @@
 // server/src/jobs/firebase-sync.job.ts
 // รัน server/src/modules/firebase-sync ให้ทุก tenant ที่เปิด firebase_sync_enabled
-// ไว้ทุกวันอัตโนมัติ (03:00 เวลาไทย) — ปิดได้ต่อ tenant จาก Super Admin เมื่อไหร่ที่
-// tenant เลิกใช้ระบบเก่า (Firebase) แล้ว ย้าย SQL เต็มตัว
+// อัตโนมัติหลายรอบต่อวัน (เวลาไทย) — 03:00 = full sync ตอนคนใช้น้อย + รอบกลางวันให้
+// "เรียลไทม์วันนี้" บน Dashboard ไม่ตกยุคเกิน ~3 ชม. ระหว่างที่ยังใช้ Firebase คู่ขนาน
+// ปิดได้ต่อ tenant จาก Super Admin เมื่อ tenant เลิกใช้ระบบเก่าแล้ว ย้าย SQL เต็มตัว
 import cron from 'node-cron'
 import { prisma } from '../common/utils/prisma'
 import { runFirebaseSync } from '../modules/firebase-sync/firebase-sync.service'
 
+// เวลาไทยที่ให้รันซิงค์ — ครอบชั่วโมงทำงาน
+const SYNC_HOURS_BKK = '3,10,13,16,19'
+
+let running = false
+
 async function runForEnabledTenants() {
+  if (running) {
+    console.log('[firebase-sync] รอบก่อนหน้ายังไม่เสร็จ ข้ามรอบนี้')
+    return
+  }
+  running = true
+  try {
+    await _runForEnabledTenants()
+  } finally {
+    running = false
+  }
+}
+
+async function _runForEnabledTenants() {
   const tenants = await prisma.tenant.findMany({
     where: { firebase_sync_enabled: true, deleted_at: null },
     select: { id: true, name: true },
@@ -27,11 +46,10 @@ async function runForEnabledTenants() {
 }
 
 export function startFirebaseSyncCron() {
-  // 03:00 ทุกวัน เวลาไทย — ช่วงคนใช้งานน้อยสุด
-  cron.schedule('0 3 * * *', () => {
+  cron.schedule(`0 ${SYNC_HOURS_BKK} * * *`, () => {
     runForEnabledTenants().catch(e => console.error('[firebase-sync] cron tick ล้มเหลว:', e))
   }, { timezone: 'Asia/Bangkok' })
-  console.log('[firebase-sync] ตั้ง cron รายวันแล้ว (03:00 Asia/Bangkok)')
+  console.log(`[firebase-sync] ตั้ง cron แล้ว — ${SYNC_HOURS_BKK} น. (Asia/Bangkok)`)
 }
 
 // เผื่อ Super Admin กด "ซิงค์ตอนนี้เลย" จาก UI — เรียกตรงๆ ได้โดยไม่ต้องรอ cron
