@@ -116,7 +116,8 @@ export async function leaveRoutes(app: FastifyInstance) {
         required: ['employee_id', 'leave_type', 'start_date', 'end_date', 'days'],
         properties: {
           employee_id: { type: 'string' },
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE', 'OTHER'] },
+          custom_type_id: { type: 'string', description: 'เมื่อ leave_type = OTHER' },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'number', description: 'ใช้กับ leave_period=FULL — ครึ่งวัน/CUSTOM ระบบคำนวณเอง' },
@@ -173,6 +174,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'LEAVE_OVERLAP') return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
+      if (e.message === 'INVALID_LEAVE_TYPE') return reply.code(400).send(fail('INVALID_LEAVE_TYPE', 'ประเภทการลาไม่ถูกต้อง'))
       throw e
     }
   })
@@ -207,7 +209,8 @@ export async function leaveRoutes(app: FastifyInstance) {
           // COMPENSATE เปิดให้พนักงานยื่นเองได้ (ผ่านหน้าจองวันหยุด → ใช้โควต้าพักร้อน/ชดเชย)
           // แต่ยังถูก gate ด้วย LeaveBalance เหมือนประเภทอื่น — ถ้าแอดมินไม่เคย grant โควต้า
           // ให้ (total_days=0) จะขอไม่ผ่านอยู่ดี (INSUFFICIENT_BALANCE)
-          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE'] },
+          leave_type:  { type: 'string', enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE', 'OTHER'] },
+          custom_type_id: { type: 'string', description: 'เมื่อ leave_type = OTHER' },
           start_date:  { type: 'string', description: 'YYYY-MM-DD' },
           end_date:    { type: 'string', description: 'YYYY-MM-DD' },
           days:        { type: 'number' },
@@ -221,8 +224,8 @@ export async function leaveRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       // พนักงานยื่นเอง — บังคับ force/autoApprove = false เสมอ (กันส่ง flag ตรงๆ ผ่าน body)
-      const { employee_id, leave_type, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
-      const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, start_date, end_date, days, reason, leave_period, start_time, end_time })
+      const { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
+      const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
@@ -231,6 +234,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'LEAVE_BACKDATE_EXCEEDED') return reply.code(400).send(fail('LEAVE_BACKDATE_EXCEEDED', 'ยื่นลาย้อนหลังเกินกำหนดของบริษัท — ติดต่อแอดมินให้บันทึกให้'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
+      if (e.message === 'INVALID_LEAVE_TYPE') return reply.code(400).send(fail('INVALID_LEAVE_TYPE', 'ประเภทการลาไม่ถูกต้อง'))
       throw e
     }
   })

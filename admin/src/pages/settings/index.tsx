@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import { useIsReadOnly } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
@@ -428,7 +429,7 @@ export default function SettingsPage() {
 
       {tab === 'general' && <><CompanyProfileTab /><ShortcutCard /></>}
       {tab === 'users' && <><SelfPasswordCard /><UserManagementSettings /></>}
-      {tab === 'leave' && <LeavePolicyTab />}
+      {tab === 'leave' && <><LeavePolicyTab /><LeaveTypesManager /></>}
       {tab === 'plan' && (
         <div style={{ ...card, padding: 20 }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>

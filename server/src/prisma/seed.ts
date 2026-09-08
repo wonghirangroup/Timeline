@@ -140,11 +140,8 @@ async function main() {
   const year = new Date().getFullYear()
   for (const emp of employees) {
     for (const [leave_type, total_days] of [['SICK', 30], ['PERSONAL', 6], ['VACATION', 10]] as const) {
-      await prisma.leaveBalance.upsert({
-        where: { employee_id_leave_type_year: { employee_id: emp.id, leave_type, year } },
-        update: {},
-        create: { tenant_id: tenant.id, employee_id: emp.id, leave_type, year, total_days },
-      })
+      const existBal = await prisma.leaveBalance.findFirst({ where: { employee_id: emp.id, leave_type, custom_type_id: null, year } })
+      if (!existBal) await prisma.leaveBalance.create({ data: { tenant_id: tenant.id, employee_id: emp.id, leave_type, year, total_days } })
     }
   }
   console.log(`✅ Leave Balances: ${employees.length * 3} records`)

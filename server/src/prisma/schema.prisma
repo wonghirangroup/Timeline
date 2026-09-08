@@ -686,14 +686,64 @@ model LeaveRequest {
   reject_note        String?
   has_conflict       Boolean     @default(false) // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ยังขอได้ปกติ แค่ flag ให้แอดมินเห็นตอนอนุมัติ
   policy_override_by String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ leave_enabled cascade = ปิด (null = สร้างตามปกติ)
+  custom_type_id     String? // เมื่อ leave_type = OTHER — ชี้ไปที่ TenantLeaveType (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน ฯลฯ)
   created_at         DateTime    @default(now())
   updated_at         DateTime    @updatedAt
 
-  employee Employee @relation(fields: [employee_id], references: [id])
+  employee    Employee         @relation(fields: [employee_id], references: [id])
+  custom_type TenantLeaveType? @relation(fields: [custom_type_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id])
   @@index([employee_id])
+  @@index([custom_type_id])
   @@map("leave_requests")
+}
+
+// ประเภทการลาที่ tenant กำหนดเอง (นอกเหนือ 5 enum มาตรฐาน) — feature: custom_leave_types
+// LeaveRequest.leave_type = OTHER + custom_type_id ชี้มาที่นี่
+model TenantLeaveType {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  name          String // "ลาบวช", "ลาเกณฑ์ทหาร", "ลาไม่รับเงิน"
+  color         String   @default("#64748b")
+  default_days  Float    @default(0) // โควต้าเริ่มต้นต่อปี (ใช้ตอนสร้าง LeaveBalance)
+  paid          Boolean  @default(true) // ลาแบบได้รับเงิน/ไม่ได้รับเงิน (informational)
+  deducts_quota Boolean  @default(true) // หักโควต้าไหม (ลาไม่รับเงินบางที่ไม่จำกัดวัน)
+  active        Boolean  @default(true)
+  sort_order    Int      @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  leave_requests LeaveRequest[]
+  leave_balances LeaveBalance[]
+  accrual_rules  LeaveAccrualRule[]
+
+  @@index([tenant_id])
+  @@map("tenant_leave_types")
+}
+
+// กติกาสะสมวันลา — feature: leave_accrual
+// active=false → ไม่ทำอะไร (ค่าเริ่มต้น — ต้องเปิดเองต่อประเภท)
+// ตอนนี้รันด้วยปุ่ม "ประมวลผลตอนนี้" ของแอดมินเท่านั้น (ยังไม่มี cron อัตโนมัติ)
+model LeaveAccrualRule {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  leave_type            String // "SICK" | "PERSONAL" | ... | "OTHER"
+  custom_type_id        String? // เมื่อ leave_type = OTHER
+  days_per_month        Float    @default(0) // สะสมกี่วัน/เดือน
+  max_balance           Float? // เพดานยอดสะสม (null = ไม่จำกัด)
+  max_carryover         Float? // ยกยอดข้ามปีได้ไม่เกินกี่วัน (null = ยกได้หมด, 0 = ไม่ยก)
+  start_after_probation Boolean  @default(false) // เริ่มสะสมหลังผ่านทดลองงาน
+  active                Boolean  @default(false)
+  last_run_ym           String? // "YYYY-MM" เดือนล่าสุดที่ประมวลผลไปแล้ว (กันรันซ้ำ)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  custom_type TenantLeaveType? @relation(fields: [custom_type_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, leave_type, custom_type_id])
+  @@index([tenant_id])
+  @@map("leave_accrual_rules")
 }
 
 enum LeavePeriod {
@@ -709,6 +759,7 @@ enum LeaveType {
   VACATION
   MATERNITY
   COMPENSATE
+  OTHER // ประเภทที่ tenant กำหนดเอง — ดู LeaveRequest.custom_type_id → TenantLeaveType
 }
 
 enum LeaveStatus {
@@ -749,19 +800,22 @@ model WeeklyOffSwap {
 }
 
 model LeaveBalance {
-  id          String    @id @default(uuid())
-  tenant_id   String
-  employee_id String
-  leave_type  LeaveType
-  year        Int
-  total_days  Float // โควต้ารวม — Float รองรับการหักครึ่งวัน (used_days อาจเป็น 2.5)
-  used_days   Float     @default(0)
-  updated_at  DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  tenant_id      String
+  employee_id    String
+  leave_type     LeaveType
+  custom_type_id String? // เมื่อ leave_type = OTHER — 1 row ต่อ 1 TenantLeaveType
+  year           Int
+  total_days     Float // โควต้ารวม — Float รองรับการหักครึ่งวัน (used_days อาจเป็น 2.5)
+  used_days      Float     @default(0)
+  updated_at     DateTime  @updatedAt
 
-  employee Employee @relation(fields: [employee_id], references: [id])
+  employee    Employee         @relation(fields: [employee_id], references: [id])
+  custom_type TenantLeaveType? @relation(fields: [custom_type_id], references: [id], onDelete: Cascade)
 
-  @@unique([employee_id, leave_type, year])
+  @@unique([employee_id, leave_type, custom_type_id, year])
   @@index([tenant_id])
+  @@index([employee_id])
   @@map("leave_balances")
 }
 

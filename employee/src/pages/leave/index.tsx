@@ -192,7 +192,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
             const isApprOff = false
             const isPendOff = false
             const firstLeave = myLeaves[0]
-            const lCfg       = firstLeave ? DISPLAY_LEAVE_TYPES.find(t => t.code === firstLeave.leave_type) : null
+            const lCfg = firstLeave ? (firstLeave.leave_type === 'OTHER' && (firstLeave as any).custom_type ? { label: (firstLeave as any).custom_type.name, color: (firstLeave as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === firstLeave.leave_type)) : null
             const isPast     = dateStr < today
             // หยุด/ทำงานนอกสถานที่อัตโนมัติตามเงื่อนไขสถานะพนักงาน — เสาร์/อาทิตย์มี 3 สถานะ
             // (ทำงานปกติ/หยุด/นอกสถานที่) เผื่อกรณี office หยุดอาทิตย์แต่เสาร์ต้องออกไปทำงานนอกสถานที่
@@ -311,7 +311,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
           {false && selMyOff && null}
 
           {selLeaves.map(lr => {
-            const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === lr.leave_type)
+            const cfg = lr.leave_type === 'OTHER' && (lr as any).custom_type ? { label: (lr as any).custom_type.name, color: (lr as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === lr.leave_type)
             const s   = STATUS_CFG[lr.status]
             if (!cfg) return null
             return (
@@ -360,7 +360,7 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {requests.slice(0, 5).map(r => {
               const s   = STATUS_CFG[r.status]
-              const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === r.leave_type)
+              const cfg = r.leave_type === 'OTHER' && (r as any).custom_type ? { label: (r as any).custom_type.name, color: (r as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === r.leave_type)
               return (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: `${cfg?.color ?? '#94A3B8'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1244,7 +1244,13 @@ export default function LeavePage() {
     const t = new URLSearchParams(window.location.search).get('tab')
     return (t === 'booking' || t === 'request' || t === 'calendar') ? t : 'calendar'
   })
-  const [form,       setForm]      = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '', period: 'FULL' as 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM', startTime: '', endTime: '' })
+  const [form,       setForm]      = useState({ leaveType: 'SICK', customTypeId: '', startDate: '', endDate: '', reason: '', period: 'FULL' as 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM', startTime: '', endTime: '' })
+
+  // ประเภทการลาที่ tenant กำหนดเอง — 403 (feature ปิด) = []
+  const { data: customLeaveTypes = [] } = useQuery<{ id: string; name: string; color: string }[]>({
+    queryKey: ['employee', 'leave-types'],
+    queryFn: () => api.get('/api/v1/employee/leave-types').then(r => r.data.data).catch(() => []),
+  })
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)
   const [bookingMode, setBookingMode] = useState<'off' | 'leave'>('off')
@@ -1286,7 +1292,7 @@ export default function LeavePage() {
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
       qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
       setSubmitDone(true)
-      setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '', period: 'FULL', startTime: '', endTime: '' })
+      setForm({ leaveType: 'SICK', customTypeId: '', startDate: '', endDate: '', reason: '', period: 'FULL', startTime: '', endTime: '' })
     },
     onError: (err: any) => {
       const code = err.response?.data?.error?.code
@@ -1322,6 +1328,7 @@ export default function LeavePage() {
     submitMutation.mutate({
       employee_id: employee?.id,
       leave_type:  form.leaveType,
+      ...(form.leaveType === 'OTHER' ? { custom_type_id: form.customTypeId } : {}),
       start_date:  form.startDate,
       end_date:    endDate,
       days,
@@ -1432,16 +1439,25 @@ export default function LeavePage() {
                   {availableLeaveTypes.map(lt => {
                     const active = form.leaveType === lt.code
                     return (
-                      <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code }))}
+                      <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code, customTypeId: '' }))}
                         style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? lt.color : 'transparent'}`, cursor: 'pointer', background: active ? `${lt.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? lt.color : '#6B7280' }}>{lt.label}</div>
+                      </button>
+                    )
+                  })}
+                  {!leaveRestricted && customLeaveTypes.map(ct => {
+                    const active = form.leaveType === 'OTHER' && form.customTypeId === ct.id
+                    return (
+                      <button key={ct.id} onClick={() => setForm(f => ({ ...f, leaveType: 'OTHER', customTypeId: ct.id }))}
+                        style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? ct.color : 'transparent'}`, cursor: 'pointer', background: active ? `${ct.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? ct.color : '#6B7280' }}>{ct.name}</div>
                       </button>
                     )
                   })}
                 </div>
               </div>
               {/* Leave balance — field แยกต่างหาก อัปเดตตามประเภทที่เลือกอยู่ */}
-              {(() => {
+              {form.leaveType !== 'OTHER' && (() => {
                 const selCfg = LEAVE_TYPES.find(t => t.code === form.leaveType)!
                 const selBal = balances.find(b => b.leave_type === form.leaveType)
                 const remaining = selBal ? selBal.total_days - selBal.used_days : null

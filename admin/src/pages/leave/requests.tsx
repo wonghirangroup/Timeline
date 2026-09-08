@@ -15,7 +15,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
+type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
 type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch_id: string; branch: { id: string; name: string } }
@@ -49,6 +49,7 @@ const TYPE_CFG: Record<LeaveType, { label: string; color: string; bg: string }> 
   VACATION:  { label: 'พักร้อน',   color: '#d97706', bg: '#fef3c7' },
   MATERNITY: { label: 'ลาคลอด',   color: '#7c3aed', bg: '#ede9fe' },
   COMPENSATE: { label: 'ชดเชย',   color: '#0891b2', bg: '#ecfeff' },
+  OTHER:     { label: 'อื่นๆ',    color: '#64748b', bg: '#f1f5f9' },
 }
 const STATUS_CFG: Record<LeaveStatus, { label: string; color: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: '#fef3c7' },
@@ -76,8 +77,11 @@ function periodBadge(r: { leave_period?: LeavePeriod; start_time?: string | null
 
 const HOLIDAY_LABELS = new Set(['หยุด', 'หยุดนักขัตฤกษ์', 'ชดเชย'])
 
-function getTypeCfg(leave_type: LeaveType, reason?: string | null) {
+function getTypeCfg(leave_type: LeaveType, reason?: string | null, customType?: { name: string; color: string } | null) {
   const bracket = reason?.match(/^\[(.+?)\]/)?.[1]
+  if (leave_type === 'OTHER' && customType) {
+    return { label: customType.name, color: customType.color, bg: customType.color + '18', displayLabel: bracket ?? customType.name }
+  }
   const base = TYPE_CFG[leave_type]
   if (!bracket) return { ...base, displayLabel: base.label }
   if (HOLIDAY_LABELS.has(bracket)) return { color: '#dc2626', bg: '#fee2e2', displayLabel: bracket }
@@ -195,7 +199,7 @@ export default function LeaveRequestsTab() {
   const [deleteTarget, setDeleteTarget]   = useState<ApiLeaveRequest | null>(null)
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
-  const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
+  const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, custom_type_id: '', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
   const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา
   const [page, setPage]                   = useState(1)
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
@@ -225,6 +229,11 @@ export default function LeaveRequestsTab() {
     queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
+
+  const { data: customLeaveTypes = [] } = useQuery<{ id: string; name: string; color: string }[]>({
+    queryKey: ['leave-types'],
+    queryFn: () => api.get('/api/v1/admin/leave-types').then(r => r.data.data).catch(() => []),
+  })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
 
@@ -273,7 +282,7 @@ export default function LeaveRequestsTab() {
     onSuccess: () => {
       invalidate()
       showToast('success', 'สร้างและอนุมัติวันลาสำเร็จ')
-      setAddForm({ employee_id: '', leave_type: 'SICK', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL', start_time: '', end_time: '' })
+      setAddForm({ employee_id: '', leave_type: 'SICK', custom_type_id: '', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL', start_time: '', end_time: '' })
       setTab('requests')
     },
     onError: (err: any, body: any) => {
@@ -393,7 +402,8 @@ export default function LeaveRequestsTab() {
     const end = addForm.leave_period === 'FULL' ? addForm.end_date : addForm.start_date
     if (end < addForm.start_date) { showToast('error', 'วันสิ้นสุดต้องไม่น้อยกว่าวันเริ่มต้น'); return }
     if (addForm.leave_period === 'CUSTOM' && (!addForm.start_time || !addForm.end_time)) { showToast('error', 'กรุณาระบุช่วงเวลา'); return }
-    addMutation.mutate({ employee_id: addForm.employee_id, leave_type: addForm.leave_type, start_date: addForm.start_date, end_date: end, days: Number(addForm.days), reason: addForm.reason || undefined, ...periodBody(addForm) })
+    if (addForm.leave_type === 'OTHER' && !addForm.custom_type_id) { showToast('error', 'กรุณาเลือกประเภทการลา'); return }
+    addMutation.mutate({ employee_id: addForm.employee_id, leave_type: addForm.leave_type, custom_type_id: addForm.leave_type === 'OTHER' ? addForm.custom_type_id : undefined, start_date: addForm.start_date, end_date: end, days: Number(addForm.days), reason: addForm.reason || undefined, ...periodBody(addForm) })
   }
 
   // ── Auto-calc days ────────────────────────────────────────────────────────
@@ -476,11 +486,20 @@ export default function LeaveRequestsTab() {
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ประเภทการลา *</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {LEAVE_TYPES.map(t => (
-                  <button key={t} onClick={() => setAddForm(f => ({ ...f, leave_type: t }))}
+                  <button key={t} onClick={() => setAddForm(f => ({ ...f, leave_type: t, custom_type_id: '' }))}
                     style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${addForm.leave_type === t ? TYPE_CFG[t].color : '#e5e7eb'}`, background: addForm.leave_type === t ? TYPE_CFG[t].bg : '#fff', color: addForm.leave_type === t ? TYPE_CFG[t].color : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                     {TYPE_CFG[t].label}
                   </button>
                 ))}
+                {customLeaveTypes.map(ct => {
+                  const active = addForm.leave_type === 'OTHER' && addForm.custom_type_id === ct.id
+                  return (
+                    <button key={ct.id} onClick={() => setAddForm(f => ({ ...f, leave_type: 'OTHER', custom_type_id: ct.id }))}
+                      style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${active ? ct.color : '#e5e7eb'}`, background: active ? ct.color + '18' : '#fff', color: active ? ct.color : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                      {ct.name}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div>
@@ -596,7 +615,7 @@ export default function LeaveRequestsTab() {
                       : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" hint="ลองปรับเดือน สถานะ หรือตัวกรอง" compact />
                   )}
                   {paginated.map(r => {
-                    const tc = getTypeCfg(r.leave_type, r.reason)
+                    const tc = getTypeCfg(r.leave_type, r.reason, (r as any).custom_type)
                     const sc = STATUS_CFG[r.status]
                     return (
                       <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: selectedIds.has(r.id) ? '#f0fdf4' : undefined }}>
@@ -672,7 +691,7 @@ export default function LeaveRequestsTab() {
                       </td></tr>
                     )}
                     {paginated.map((r, i) => {
-                      const tc = getTypeCfg(r.leave_type, r.reason)
+                      const tc = getTypeCfg(r.leave_type, r.reason, (r as any).custom_type)
                       const sc = STATUS_CFG[r.status]
                       const sel = selectedIds.has(r.id)
                       return (

@@ -17,30 +17,36 @@ export async function listLeaveBalances(tenantId: string, filters: {
         select: { id: true, first_name: true, last_name: true, employee_code: true,
           branch: { select: { id: true, name: true } } },
       },
+      custom_type: { select: { id: true, name: true, color: true } },
     },
     orderBy: [{ employee_id: 'asc' }, { leave_type: 'asc' }],
   })
 }
 
-type LeaveTypeEnum = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
+type LeaveTypeEnum = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
 
 export async function upsertLeaveBalance(
   tenantId: string,
-  data: { employee_id: string; leave_type: LeaveTypeEnum; year: number; total_days: number },
+  data: { employee_id: string; leave_type: LeaveTypeEnum; year: number; total_days: number; custom_type_id?: string | null },
 ) {
-  return prisma.leaveBalance.upsert({
-    where: { employee_id_leave_type_year: { employee_id: data.employee_id, leave_type: data.leave_type, year: data.year } },
-    update: { total_days: data.total_days },
-    create: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, year: data.year, total_days: data.total_days },
+  const custom_type_id = data.leave_type === 'OTHER' ? (data.custom_type_id ?? null) : null
+  const existing = await prisma.leaveBalance.findFirst({
+    where: { employee_id: data.employee_id, leave_type: data.leave_type, custom_type_id, year: data.year },
+  })
+  if (existing) {
+    return prisma.leaveBalance.update({ where: { id: existing.id }, data: { total_days: data.total_days } })
+  }
+  return prisma.leaveBalance.create({
+    data: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, custom_type_id, year: data.year, total_days: data.total_days },
   })
 }
 
 // batch upsert — ใช้สำหรับ apply default / seniority ให้หลายคนพร้อมกัน
 export async function batchUpsertLeaveBalances(
   tenantId: string,
-  items: { employee_id: string; leave_type: LeaveTypeEnum; year: number; total_days: number }[],
+  items: { employee_id: string; leave_type: LeaveTypeEnum; year: number; total_days: number; custom_type_id?: string | null }[],
 ) {
-  await Promise.all(items.map(item => upsertLeaveBalance(tenantId, item)))
+  for (const item of items) await upsertLeaveBalance(tenantId, item)
   return { count: items.length }
 }
 

@@ -134,11 +134,14 @@ export async function findApplicableHolidayToday(tenantId: string, employee: { i
 // ให้วันชดเชย (COMPENSATE) อัตโนมัติเมื่อมาทำงานในวันหยุดที่ควรหยุด — เพิ่มเข้า
 // LeaveBalance.total_days ปีนั้นตรงๆ (ไม่ผ่านคำขอลา เพราะเป็น "ได้สิทธิ์" ไม่ใช่ "ขอลา")
 export async function grantHolidayCompensation(tenantId: string, employeeId: string, compensateDays: number, year: number) {
-  await prisma.leaveBalance.upsert({
-    where: { employee_id_leave_type_year: { employee_id: employeeId, leave_type: 'COMPENSATE', year } },
-    update: { total_days: { increment: compensateDays } },
-    create: { tenant_id: tenantId, employee_id: employeeId, leave_type: 'COMPENSATE', year, total_days: compensateDays },
+  const existing = await prisma.leaveBalance.findFirst({
+    where: { employee_id: employeeId, leave_type: 'COMPENSATE', custom_type_id: null, year },
   })
+  if (existing) {
+    await prisma.leaveBalance.update({ where: { id: existing.id }, data: { total_days: { increment: compensateDays } } })
+  } else {
+    await prisma.leaveBalance.create({ data: { tenant_id: tenantId, employee_id: employeeId, leave_type: 'COMPENSATE', year, total_days: compensateDays } })
+  }
 }
 
 // Alert: ใครทำงานในวันหยุดนักขัตฤกษ์บ้าง (ล่าสุดก่อน) — ให้แอดมินเห็นในหน้าจัดการวันหยุด

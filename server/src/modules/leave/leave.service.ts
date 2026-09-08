@@ -73,6 +73,7 @@ export async function listLeaveRequests(tenantId: string, filters: {
       employee: {
         select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } },
       },
+      custom_type: { select: { id: true, name: true, color: true } },
     },
     orderBy: { created_at: 'desc' },
   })
@@ -115,7 +116,8 @@ export async function createLeaveRequest(
   tenantId: string,
   data: {
     employee_id: string
-    leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'
+    leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
+    custom_type_id?: string | null // เมื่อ leave_type = OTHER
     start_date: string
     end_date: string
     days: number
@@ -128,6 +130,13 @@ export async function createLeaveRequest(
     end_time?: string | null
   },
 ) {
+  // ประเภทการลาที่ tenant กำหนดเอง — ดึงข้อมูลมาเช็ค deducts_quota
+  const customType = data.leave_type === 'OTHER' && data.custom_type_id
+    ? await prisma.tenantLeaveType.findFirst({ where: { id: data.custom_type_id, tenant_id: tenantId, active: true } })
+    : null
+  if (data.leave_type === 'OTHER' && !customType) throw new Error('INVALID_LEAVE_TYPE')
+  const customTypeId = customType?.id ?? null
+
   // gate ด้วย leave cascade (บุคคล→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag()
   // ลาป่วย/ลาคลอด ยื่นได้เสมอแม้ cascade ปิด
   let leaveOverrideBy: string | null = null
@@ -165,15 +174,17 @@ export async function createLeaveRequest(
   })
   if (overlap) throw new Error('LEAVE_OVERLAP')
 
-  // ตรวจสอบ leave balance
-  const balance = await prisma.leaveBalance.findFirst({
+  // ตรวจสอบ leave balance — custom type ที่ deducts_quota=false ไม่ต้องเช็คโควต้า
+  const checkQuota = !customType || customType.deducts_quota
+  const balance = checkQuota ? await prisma.leaveBalance.findFirst({
     where: {
       employee_id: data.employee_id,
       leave_type: data.leave_type,
+      custom_type_id: customTypeId,
       year: new Date().getFullYear(),
       tenant_id: tenantId,
     },
-  })
+  }) : null
 
   if (balance && (balance.used_days + days) > balance.total_days) {
     throw new Error('INSUFFICIENT_BALANCE')
@@ -188,6 +199,7 @@ export async function createLeaveRequest(
       tenant_id: tenantId,
       employee_id: data.employee_id,
       leave_type: data.leave_type,
+      custom_type_id: customTypeId,
       start_date: startDate,
       end_date: endDate,
       days,
@@ -203,9 +215,9 @@ export async function createLeaveRequest(
 
   // autoApprove ข้ามขั้นตอน approveLeaveRequest() ไปเลย ต้องหักวันลาเองตรงนี้แทน
   // (ปกติ used_days จะถูกหักตอนกด "อนุมัติ" เท่านั้น ไม่ใช่ตอนสร้างคำขอ)
-  if (data.autoApprove) {
+  if (data.autoApprove && checkQuota) {
     await prisma.leaveBalance.updateMany({
-      where: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, year: startDate.getFullYear() },
+      where: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, custom_type_id: customTypeId, year: startDate.getFullYear() },
       data: { used_days: { increment: days } },
     })
   }
@@ -275,6 +287,7 @@ export async function approveLeaveRequest(tenantId: string, id: string, reviewer
       tenant_id: tenantId,
       employee_id: req.employee_id,
       leave_type: req.leave_type,
+      custom_type_id: req.custom_type_id,
       year: new Date(req.start_date).getFullYear(),
     },
     data: { used_days: { increment: req.days } },
@@ -357,7 +370,7 @@ export async function deleteLeaveRequest(tenantId: string, id: string) {
   // ถ้าเคย APPROVED → คืนวันลากลับ
   if (req.status === 'APPROVED') {
     await prisma.leaveBalance.updateMany({
-      where: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, year: new Date(req.start_date).getFullYear() },
+      where: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, custom_type_id: req.custom_type_id, year: new Date(req.start_date).getFullYear() },
       data:  { used_days: { decrement: req.days } },
     })
   }

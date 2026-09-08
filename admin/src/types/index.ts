@@ -248,6 +248,8 @@ export interface PlanFeatures {
   probation?: boolean          // ทดลองงาน
   disciplinary?: boolean       // หนังสือเตือน
   resignation?: boolean        // ลาออก (พนักงานยื่นเอง)
+  custom_leave_types?: boolean // ประเภทการลากำหนดเอง
+  leave_accrual?: boolean      // สะสมวันลา + ยกยอด
 }
 
 export interface PlanConfig {
