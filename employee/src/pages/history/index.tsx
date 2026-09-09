@@ -82,7 +82,7 @@ type DayStatus = { label: string; color: string; bg: string; Icon: typeof CheckC
 
 const ST_LEAVE:   Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText,    bubble: 'icon-bubble icon-bubble-blue' }
 const ST_OFF:     Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree,    bubble: 'icon-bubble icon-bubble-purple' }
-const ST_HOLIDAY: Omit<DayStatus, 'label'> = { color: '#be123c', bg: '#ffe4e6', Icon: PartyPopper, bubble: 'icon-bubble icon-bubble-orange' }
+const ST_HOLIDAY: Omit<DayStatus, 'label'> = { color: '#4338ca', bg: '#e0e7ff', Icon: PartyPopper, bubble: 'icon-bubble icon-bubble-purple' }
 const TONE_ST: Record<Tone, Omit<DayStatus, 'label'>> = { leave: ST_LEAVE, off: ST_OFF, holiday: ST_HOLIDAY }
 
 function buildLeaveByDate(recs: LeaveRecord[]): Map<string, { label: string; off: boolean }> {
@@ -196,7 +196,8 @@ export default function HistoryPage() {
   }, [holidayRecs])
 
   // ── เช็คชื่อ ──────────────────────────────────────────────────────
-  // รายการเดือนใน dropdown — รวมทุกแหล่ง (เช็คชื่อ/ลา/หยุด/นอกสถานที่) + 3 เดือนล่าสุดเสมอ
+  // รายการเดือนใน dropdown — ช่วงต่อเนื่องจากเดือนแรกสุดที่มีข้อมูล → เดือนล่าสุด
+  // (เติมเดือนที่ไม่มีข้อมูลด้วย ไม่ให้เดือนหายเป็นช่วง ๆ)
   const months = useMemo(() => {
     const s = new Set<string>()
     for (const r of records)        if (r.date)         s.add(r.date.slice(0, 7))
@@ -204,11 +205,17 @@ export default function HistoryPage() {
     for (const w of dayoffRecords)   s.add(resolveDate(w.week_start, w.day_of_week).slice(0, 7))
     for (const o of offsiteRecords)  if (o.check_in_at)  s.add(o.check_in_at.slice(0, 7))
     for (const h of holidayRecs)     if (h.date)         s.add(h.date.slice(0, 7))
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      s.add(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`)
+    const cur = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
+    s.add(cur)
+    const sorted = [...s].sort()
+    let [y, m]   = sorted[0].split('-').map(Number)
+    const [ey, em] = sorted[sorted.length - 1].split('-').map(Number)
+    const out: string[] = []
+    while ((y < ey || (y === ey && m <= em)) && out.length < 60) {
+      out.push(`${y}-${pad(m)}`)
+      if (++m > 12) { m = 1; y++ }
     }
-    return [...s].sort().reverse()
+    return out.reverse()
   }, [records, leaveRecords, dayoffRecords, offsiteRecords, holidayRecs])
   const allFiltered = records
     .filter(r => r.date.startsWith(selectedMonth))
@@ -382,13 +389,13 @@ export default function HistoryPage() {
                       <div style={{ fontWeight: 800, fontSize: '1.05rem', color: COLOR.textPrimary }}>
                         {d.getDate()} {MONTHS[d.getMonth()]}
                       </div>
-                      {rec ? (
+                      {rec?.check_in_at ? (
                         <div style={{ fontSize: '0.88rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
                           {fmtTime(rec.check_in_at)} → {fmtTime(rec.check_out_at)} · {rec.shift.name}
                         </div>
                       ) : (
                         <div style={{ fontSize: '0.82rem', color: COLOR.textMuted, marginTop: 4, fontWeight: 500 }}>
-                          {DAYS_TH_FULL[d.getDay()]} · ไม่ต้องเช็คอิน
+                          {DAYS_TH_FULL[d.getDay()]} · {rec ? rec.shift.name : 'ไม่ต้องเช็คอิน'}
                         </div>
                       )}
                       {rec?.is_outside_area && (
@@ -401,7 +408,7 @@ export default function HistoryPage() {
                       )}
                     </div>
 
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: st.color, whiteSpace: 'nowrap', background: st.bg, padding: '6px 12px', borderRadius: 12 }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: st.color, background: st.bg, padding: '6px 12px', borderRadius: 12, flexShrink: 0, maxWidth: 140, textAlign: 'right', lineHeight: 1.3, wordBreak: 'break-word' }}>
                       {st.label}
                     </span>
                   </div>

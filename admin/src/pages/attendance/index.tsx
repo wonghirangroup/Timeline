@@ -50,10 +50,11 @@ interface ApiEmployee {
   first_name: string; last_name: string; nickname: string | null
   branch_id: string; branch: { id: string; name: string; group_id?: string | null }
   position_id?: string | null
+  department?: string | null
 }
 
 
-type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT' | 'LEAVE' | 'DAY_OFF'
+type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT' | 'LEAVE' | 'DAY_OFF' | 'HOLIDAY'
 
 interface Row {
   key: string
@@ -72,6 +73,22 @@ const STATUS_CFG: Record<Status, { label: string; color: string; bg: string }> =
   ABSENT:  { label: 'ขาดงาน',            color: '#7f1d1d', bg: '#fef2f2' },
   LEAVE:   { label: 'ลา',                color: '#0369a1', bg: '#e0f2fe' },
   DAY_OFF: { label: 'หยุด',              color: '#475569', bg: '#f1f5f9' },
+  HOLIDAY: { label: 'นักขัตฤกษ์',        color: '#be123c', bg: '#ffe4e6' },
+}
+
+// เช็คว่า holiday แถวนี้ apply กับพนักงานคนนี้ไหม (mirror holidayAppliesTo ฝั่ง server)
+function holidayApplies(
+  h: { target_branches?: string[] | null; target_departments?: string[] | null; employee_includes?: string[] | null; employee_excludes?: string[] | null },
+  emp: { id: string; branch_id: string; department?: string | null },
+): boolean {
+  if ((h.employee_excludes ?? []).includes(emp.id)) return false
+  if ((h.employee_includes ?? []).includes(emp.id)) return true
+  const branches = h.target_branches ?? []
+  const depts    = h.target_departments ?? []
+  const branchOk = branches.length === 0 || branches.includes(emp.branch_id)
+  const empDept  = (emp.department ?? '').slice(0, 2).trim()
+  const deptOk   = depts.length === 0 || depts.some(d => String(d).slice(0, 2).trim() === empDept)
+  return branchOk && deptOk
 }
 const LEAVE_LABEL_TH: Record<string, string> = {
   SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
@@ -245,6 +262,14 @@ export default function AttendancePage() {
     queryKey: ['admin', 'weekly-off', 'APPROVED', branchFilter],
     queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { status: 'APPROVED', ...(branchFilter ? { branchId: branchFilter } : {}) } }).then(r => r.data.data),
   })
+  const { data: holidaysRaw = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'holidays', date.slice(0, 4)],
+    queryFn: () => api.get('/api/v1/super-admin/holidays', { params: { year: Number(date.slice(0, 4)) } }).then(r => r.data.data),
+  })
+  const holidaysToday = useMemo(
+    () => holidaysRaw.filter(h => String(h.date).slice(0, 10) === date),
+    [holidaysRaw, date],
+  )
 
   const leaveByEmp = useMemo(() => {
     const m = new Map<string, { label: string; off: boolean }>()
@@ -387,8 +412,11 @@ export default function AttendancePage() {
       } else {
         // no record → ลา / หยุดประจำสัปดาห์ / ยังไม่เช็ค / ขาด
         const lv = leaveByEmp.get(emp.id)
+        const hol = holidaysToday.find(h => holidayApplies(h, emp))
         if (lv) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: lv.off ? 'DAY_OFF' : 'LEAVE', subLabel: lv.label })
+        } else if (hol) {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'HOLIDAY', subLabel: hol.name })
         } else if (weeklyOffEmps.has(emp.id)) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'หยุดประจำสัปดาห์' })
         } else {
@@ -398,7 +426,7 @@ export default function AttendancePage() {
     }
 
     return result
-  }, [employees, records, date, leaveByEmp, weeklyOffEmps])
+  }, [employees, records, date, leaveByEmp, weeklyOffEmps, holidaysToday])
 
   const filtered = useMemo(() => rows.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false
@@ -421,7 +449,7 @@ export default function AttendancePage() {
     late2:   rows.filter(r => r.status === 'LATE_2').length,
     absent:  rows.filter(r => r.status === 'ABSENT').length,
     pending: rows.filter(r => r.status === 'PENDING').length,
-    leave:   rows.filter(r => r.status === 'LEAVE' || r.status === 'DAY_OFF').length,
+    leave:   rows.filter(r => r.status === 'LEAVE' || r.status === 'DAY_OFF' || r.status === 'HOLIDAY').length,
   }), [rows, employees])
 
   function openEdit(row: Row) {
@@ -641,8 +669,11 @@ export default function AttendancePage() {
                           {row.record && ` · ${row.record.shift.name}`}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-                        <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{row.subLabel ?? s.label}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end', maxWidth: 160 }}>
+                        <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.status === 'HOLIDAY' ? s.label : (row.subLabel ?? s.label)}</span>
+                        {row.status === 'HOLIDAY' && row.subLabel && (
+                          <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textAlign: 'right', lineHeight: 1.3 }}>{row.subLabel}</span>
+                        )}
                         {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.68rem', fontWeight: 600 }}>
                             <MapPin size={9} /> นอกสถานที่
@@ -751,8 +782,11 @@ export default function AttendancePage() {
                             : <span style={{ color: '#d1d5db' }}>—</span>}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
-                            <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{row.subLabel ?? s.label}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', maxWidth: 180 }}>
+                            <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.status === 'HOLIDAY' ? s.label : (row.subLabel ?? s.label)}</span>
+                            {row.status === 'HOLIDAY' && row.subLabel && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>{row.subLabel}</span>
+                            )}
                             {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
                                 <MapPin size={9} /> นอกสถานที่
