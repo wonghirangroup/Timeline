@@ -7,11 +7,11 @@ import { generateTempPassword, setUserDepartments } from '../tenant/user.service
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POSITION_INCLUDE = {
   select: {
-    id: true, name: true,
+    id: true, name: true, booking_enabled: true, leave_enabled: true,
     department: {
       select: {
-        id: true, name: true,
-        division: { select: { id: true, name: true, group: { select: { id: true, name: true } } } },
+        id: true, name: true, booking_enabled: true, leave_enabled: true,
+        division: { select: { id: true, name: true, booking_enabled: true, leave_enabled: true, group: { select: { id: true, name: true } } } },
       },
     },
   },
@@ -60,9 +60,10 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
     include: {
-      branch: { select: { id: true, name: true, group_id: true } },
+      branch: { select: { id: true, name: true, group_id: true, booking_enabled: true, leave_enabled: true, group: { select: { booking_enabled: true, leave_enabled: true } } } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
+      admin_user: { select: { role: true, is_active: true } },
     },
     orderBy: { created_at: 'asc' },
   })

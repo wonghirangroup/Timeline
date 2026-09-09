@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -14,6 +14,7 @@ import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 import OrgStructurePage from '../org-structure'
+import PolicyOverview from './PolicyOverview'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { PlanMeter } from '../../components/shared/PlanUsage'
@@ -129,9 +130,9 @@ export default function EmployeePage() {
   const isReadOnly = useIsReadOnly()
   const navigate = useNavigate()
   // เปิดตรงไปแท็บ "ผังองค์กร" ได้ผ่าน ?tab=org (ใช้กับ redirect จาก /org-structure เดิม)
-  const [activeTab, setActiveTab] = useState<'employee' | 'org'>(() => {
+  const [activeTab, setActiveTab] = useState<'employee' | 'org' | 'policy'>(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    return t === 'org' ? 'org' : 'employee'
+    return t === 'org' ? 'org' : t === 'policy' ? 'policy' : 'employee'
   })
   const swipeHandlers = useSwipePage(
     () => setPage(p => Math.min(totalPages, p + 1)),
@@ -386,6 +387,7 @@ export default function EmployeePage() {
     <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 20, overflowX: 'auto' }}>
       {([
         { id: 'employee', label: 'พนักงาน',   icon: <Users size={15}/>,   color: '#f97316', activeBg: '#fff7ed' },
+        { id: 'policy',   label: 'สิทธิ์วันหยุด/การลา', icon: <CalendarDays size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
         { id: 'org',       label: 'ผังองค์กร', icon: <Network size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
       ] as const).map(t => {
         const isActive = activeTab === t.id
@@ -413,6 +415,14 @@ export default function EmployeePage() {
       <div>
         {tabBar}
         <OrgStructurePage />
+      </div>
+    )
+  }
+  if (activeTab === 'policy') {
+    return (
+      <div>
+        {tabBar}
+        <PolicyOverview />
       </div>
     )
   }
