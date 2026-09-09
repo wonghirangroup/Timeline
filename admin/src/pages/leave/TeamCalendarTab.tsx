@@ -564,7 +564,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <CalendarDays size={13} color="var(--text-muted)" />
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-              วันลา ({activeLeaves.length})
+              วันลา / วันหยุด ({activeLeaves.length})
             </span>
           </div>
           {activeLeaves.map(l => {

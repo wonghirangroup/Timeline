@@ -245,13 +245,19 @@ export default function AttendancePage() {
   })
 
   const leaveByEmp = useMemo(() => {
-    const m = new Map<string, string>()
+    const m = new Map<string, { label: string; off: boolean }>()
     for (const lr of leaveReqs) {
       if (lr.status !== 'APPROVED') continue
       const s = String(lr.start_date).slice(0, 10), e = String(lr.end_date).slice(0, 10)
-      if (date >= s && date <= e) {
-        m.set(lr.employee_id, lr.leave_type === 'OTHER' && lr.custom_type?.name ? lr.custom_type.name : (LEAVE_LABEL_TH[lr.leave_type] ?? 'ลา'))
-      }
+      if (date < s || date > e) continue
+      // reason ขึ้นต้น [หยุด] / [หยุดนักขัตฤกษ์] = จองวันหยุด/ชดเชย ผ่านหน้าจองวันหยุด — โชว์เป็น "หยุด"
+      const bracket = String(lr.reason ?? '').match(/^\[(.+?)\]/)?.[1]
+      const label = bracket
+        ? bracket
+        : lr.leave_type === 'OTHER' && lr.custom_type?.name
+          ? lr.custom_type.name
+          : (LEAVE_LABEL_TH[lr.leave_type] ?? 'ลา')
+      m.set(lr.employee_id, { label, off: !!bracket || lr.leave_type === 'COMPENSATE' })
     }
     return m
   }, [leaveReqs, date])
@@ -346,9 +352,9 @@ export default function AttendancePage() {
         }
       } else {
         // no record → ลา / หยุดประจำสัปดาห์ / ยังไม่เช็ค / ขาด
-        const leaveLabel = leaveByEmp.get(emp.id)
-        if (leaveLabel) {
-          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'LEAVE', subLabel: leaveLabel })
+        const lv = leaveByEmp.get(emp.id)
+        if (lv) {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: lv.off ? 'DAY_OFF' : 'LEAVE', subLabel: lv.label })
         } else if (weeklyOffEmps.has(emp.id)) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'หยุดประจำสัปดาห์' })
         } else {
