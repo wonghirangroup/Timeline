@@ -73,7 +73,7 @@ function resolveDate(weekStart: string, dayOfWeek: number): string {
 // ── สถานะรายวันในแท็บ "เช็คชื่อ" ────────────────────────────────────
 // รวม record จริง + วันลา/วันหยุด (APPROVED) + เสาร์อาทิตย์ + วันธรรมดาที่ผ่านมาแล้ว
 // เพื่อไม่ให้วันที่ลา/หยุด/ขาด แสดงว่า "ไม่มีข้อมูล" เฉยๆ
-type Tone = 'leave' | 'off' | 'holiday'
+type Tone = 'leave' | 'off' | 'holiday' | 'weekend'
 type AttItem =
   | { kind: 'record'; date: string; rec: AttendanceRecord }
   | { kind: 'synthetic'; date: string; label: string; tone: Tone }
@@ -83,7 +83,8 @@ type DayStatus = { label: string; color: string; bg: string; Icon: typeof CheckC
 const ST_LEAVE:   Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText,    bubble: 'icon-bubble icon-bubble-blue' }
 const ST_OFF:     Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree,    bubble: 'icon-bubble icon-bubble-purple' }
 const ST_HOLIDAY: Omit<DayStatus, 'label'> = { color: '#4338ca', bg: '#e0e7ff', Icon: PartyPopper, bubble: 'icon-bubble icon-bubble-purple' }
-const TONE_ST: Record<Tone, Omit<DayStatus, 'label'>> = { leave: ST_LEAVE, off: ST_OFF, holiday: ST_HOLIDAY }
+const ST_WEEKEND: Omit<DayStatus, 'label'> = { color: COLOR.textMuted, bg: '#f8fafc', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
+const TONE_ST: Record<Tone, Omit<DayStatus, 'label'>> = { leave: ST_LEAVE, off: ST_OFF, holiday: ST_HOLIDAY, weekend: ST_WEEKEND }
 
 function buildLeaveByDate(recs: LeaveRecord[]): Map<string, { label: string; off: boolean }> {
   const m = new Map<string, { label: string; off: boolean }>()
@@ -112,6 +113,7 @@ function resolveItemStatus(
   leaveByDate: Map<string, { label: string; off: boolean }>,
   offDates: Set<string>,
   holidayByDate: Map<string, string>,
+  isWeekendOff: (dow: number) => boolean,
   todayStr: string,
 ): DayStatus {
   if (it.kind === 'synthetic')
@@ -126,8 +128,7 @@ function resolveItemStatus(
     }
     return { label: 'ตรงเวลา', color: COLOR.success, bg: COLOR.successBg, Icon: CheckCircle2, bubble: 'icon-bubble icon-bubble-blue' }
   }
-  if (r.is_absent) return { label: 'นับเป็นขาด', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
-
+  // ไม่มีเช็คอิน — เรียงตาม: ลา > นักขัตฤกษ์ > จองหยุด > เสาร์อาทิตย์ที่เป็นวันหยุด > ขาด
   const lv = leaveByDate.get(it.date)
   if (lv) return lv.off ? { label: lv.label, ...ST_OFF } : { label: lv.label, ...ST_LEAVE }
   const hol = holidayByDate.get(it.date)
@@ -135,7 +136,8 @@ function resolveItemStatus(
   if (offDates.has(it.date)) return { label: 'หยุด', ...ST_OFF }
 
   const dow = new Date(it.date + 'T00:00:00').getDay()
-  if (dow === 0 || dow === 6) return { label: 'หยุดสุดสัปดาห์', color: COLOR.textMuted, bg: '#f8fafc', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
+  if (isWeekendOff(dow)) return { label: 'หยุดสุดสัปดาห์', ...ST_WEEKEND }
+  if (r.is_absent) return { label: 'นับเป็นขาด', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
   if (it.date < todayStr) return { label: 'ขาดงาน', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
   return { label: 'ไม่มีข้อมูล', color: COLOR.textMuted, bg: '#f3f4f6', Icon: XCircle, bubble: 'icon-bubble icon-bubble-purple' }
 }
@@ -225,6 +227,18 @@ export default function HistoryPage() {
   const leaveByDate = useMemo(() => buildLeaveByDate(leaveRecords), [leaveRecords])
   const offDates    = useMemo(() => buildOffDates(dayoffRecords), [dayoffRecords])
 
+  // เสาร์/อาทิตย์เป็นวันหยุดไหม — ดูจากสถานะพนักงาน (saturday_rule/sunday_rule)
+  // ไม่ผูกสถานะ หรือ rule ≠ WORK → ถือเป็นวันหยุด (ตรงกับที่คนส่วนใหญ่คาดหวัง);
+  // ตั้ง rule = WORK เมื่อไหร่ วันนั้นกลับเป็นวันทำงานปกติ (สาย/ขาดได้)
+  const isWeekendOff = useMemo(() => {
+    const st = employee?.employee_status_type
+    return (dow: number) => {
+      if (dow === 6) return (st?.saturday_rule ?? 'OFF') !== 'WORK'
+      if (dow === 0) return (st?.sunday_rule   ?? 'OFF') !== 'WORK'
+      return false
+    }
+  }, [employee])
+
   // record จริง + วันลา/หยุด (APPROVED) + วันหยุดนักขัตฤกษ์ ที่ผ่านมาแล้วและไม่มี record ในเดือนที่เลือก
   const attItems = useMemo<AttItem[]>(() => {
     const seen = new Set(allFiltered.map(r => r.date.slice(0, 10)))
@@ -242,10 +256,18 @@ export default function HistoryPage() {
       if (!inMonth(date)) continue
       items.push({ kind: 'synthetic', date, label: 'หยุด', tone: 'off' }); seen.add(date)
     }
+    // เสาร์/อาทิตย์ที่เป็นวันหยุด — เติมทุกวันในเดือน (ที่ผ่านมาแล้ว) ที่ยังไม่มีรายการ
+    const [yy, mm] = selectedMonth.split('-').map(Number)
+    for (let day = 1; day <= new Date(yy, mm, 0).getDate(); day++) {
+      const date = `${yy}-${pad(mm)}-${pad(day)}`
+      const dow = new Date(date + 'T00:00:00').getDay()
+      if (!isWeekendOff(dow) || !inMonth(date)) continue
+      items.push({ kind: 'synthetic', date, label: 'หยุดสุดสัปดาห์', tone: 'weekend' }); seen.add(date)
+    }
     return items.sort((a, b) => b.date.localeCompare(a.date))
-  }, [allFiltered, leaveByDate, offDates, holidayByDate, selectedMonth, todayStr])
+  }, [allFiltered, leaveByDate, offDates, holidayByDate, isWeekendOff, selectedMonth, todayStr])
 
-  const resolved = attItems.map(it => ({ it, st: resolveItemStatus(it, leaveByDate, offDates, holidayByDate, todayStr) }))
+  const resolved = attItems.map(it => ({ it, st: resolveItemStatus(it, leaveByDate, offDates, holidayByDate, isWeekendOff, todayStr) }))
   const cntOnTime = resolved.filter(x => x.st.label === 'ตรงเวลา').length
   const cntLate   = resolved.filter(x => x.it.kind === 'record' && x.it.rec.is_late).length
   const cntAbsent = resolved.filter(x => x.st.label === 'ขาดงาน' || x.st.label === 'นับเป็นขาด').length
