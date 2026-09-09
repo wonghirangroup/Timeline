@@ -118,6 +118,15 @@ export default function PolicyOverview() {
   })
   const patch = (id: string, body: Record<string, unknown>) => { if (!isReadOnly) patchMut.mutate({ id, body }) }
 
+  // dropdown "การจองวันหยุด" รวม 3 ทาง: ปิด / รายสัปดาห์ / รวมทั้งเดือน
+  function setBookingMode(e: PolicyEmployee, resolvedOn: boolean, v: string) {
+    if (v === 'OFF') { patch(e.id, { booking_enabled_override: false }); return }
+    const body: Record<string, unknown> = { weekly_off_mode: v }
+    if (!resolvedOn) body.booking_enabled_override = true         // ถูกปิดอยู่ → เปิดให้จองจริง
+    else if (e.booking_enabled_override === false) body.booking_enabled_override = null
+    patch(e.id, body)
+  }
+
   const orgMap = useMemo(() => buildEmployeeOrgMap(employees as any, positions as any), [employees, positions])
 
   const rows = useMemo(() => {
@@ -137,7 +146,6 @@ export default function PolicyOverview() {
           quota: st?.monthly_off_quota ?? null,
           booking: resolvePolicy(e, 'booking'),
           leave: resolvePolicy(e, 'leave'),
-          bookingInherit: resolvePolicy(e, 'booking', true),
           leaveInherit: resolvePolicy(e, 'leave', true),
           role: e.admin_user?.is_active ? e.admin_user.role : null,
         }
@@ -252,14 +260,14 @@ export default function PolicyOverview() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#fff7ed' }}>
-                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
+                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'การจองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={11} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</td></tr>
+                <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</td></tr>
               )}
               {rows.map((r, i) => (
                 <tr key={r.e.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
@@ -286,14 +294,15 @@ export default function PolicyOverview() {
                   <td style={td}>{r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{r.quota ?? '—'}</td>
                   <td style={td}>
-                    <select value={r.e.weekly_off_mode} disabled={isReadOnly}
-                      onChange={e => patch(r.e.id, { weekly_off_mode: e.target.value })}
-                      style={{ ...cellSel, color: '#334155' }}>
+                    <select value={r.booking ? r.e.weekly_off_mode : 'OFF'} disabled={isReadOnly}
+                      title={!r.booking && r.e.booking_enabled_override !== false ? 'ปิดจากลำดับชั้นนโยบาย (สาขา/กลุ่ม) — เลือกโหมดเพื่อบังคับเปิดให้คนนี้' : undefined}
+                      onChange={e => setBookingMode(r.e, r.booking, e.target.value)}
+                      style={{ ...cellSel, color: r.booking ? '#334155' : '#b91c1c', fontWeight: r.booking ? 400 : 700 }}>
+                      <option value="OFF">ปิดการจอง</option>
                       <option value="WEEKLY">รายสัปดาห์</option>
                       <option value="MONTHLY_BATCH">รวมทั้งเดือน</option>
                     </select>
                   </td>
-                  <td style={td}><OverrideSelect value={r.e.booking_enabled_override} inherit={r.bookingInherit} onChange={v => patch(r.e.id, { booking_enabled_override: v })} /></td>
                   <td style={td}><OverrideSelect value={r.e.leave_enabled_override} inherit={r.leaveInherit} onChange={v => patch(r.e.id, { leave_enabled_override: v })} /></td>
                   <td style={td}>{r.role ? <Pill label={ROLE_TH[r.role]} color="#4338ca" bg="#eef2ff" /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                 </tr>
@@ -333,15 +342,13 @@ export default function PolicyOverview() {
                   {r.quota != null && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>โควต้า {r.quota} ว/ด</span>}
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  โหมดจอง
-                  <select value={r.e.weekly_off_mode} disabled={isReadOnly} onChange={e => patch(r.e.id, { weekly_off_mode: e.target.value })} style={{ ...cellSel, flex: 1, maxWidth: 'none' }}>
+                  การจองวันหยุด
+                  <select value={r.booking ? r.e.weekly_off_mode : 'OFF'} disabled={isReadOnly} onChange={e => setBookingMode(r.e, r.booking, e.target.value)}
+                    style={{ ...cellSel, flex: 1, maxWidth: 'none', color: r.booking ? '#334155' : '#b91c1c', fontWeight: r.booking ? 400 : 700 }}>
+                    <option value="OFF">ปิดการจอง</option>
                     <option value="WEEKLY">รายสัปดาห์</option>
                     <option value="MONTHLY_BATCH">รวมทั้งเดือน</option>
                   </select>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  สิทธิ์จองวันหยุด
-                  <div style={{ flex: 1 }}><OverrideSelect value={r.e.booking_enabled_override} inherit={r.bookingInherit} onChange={v => patch(r.e.id, { booking_enabled_override: v })} /></div>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                   สิทธิ์ยื่นลา
