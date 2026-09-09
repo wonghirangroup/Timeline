@@ -1,5 +1,5 @@
 // employee/src/pages/history/index.tsx
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet, FileText, Palmtree, MapPin, AlertTriangle } from 'lucide-react'
 import { PageLoader, COLOR } from '../../components/ui'
@@ -69,6 +69,66 @@ function resolveDate(weekStart: string, dayOfWeek: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+// ── สถานะรายวันในแท็บ "เช็คชื่อ" ────────────────────────────────────
+// รวม record จริง + วันลา/วันหยุด (APPROVED) + เสาร์อาทิตย์ + วันธรรมดาที่ผ่านมาแล้ว
+// เพื่อไม่ให้วันที่ลา/หยุด/ขาด แสดงว่า "ไม่มีข้อมูล" เฉยๆ
+type AttItem =
+  | { kind: 'record'; date: string; rec: AttendanceRecord }
+  | { kind: 'synthetic'; date: string; label: string; off: boolean }
+
+type DayStatus = { label: string; color: string; bg: string; Icon: typeof CheckCircle2; bubble: string }
+
+const ST_LEAVE: Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText, bubble: 'icon-bubble icon-bubble-blue' }
+const ST_OFF:   Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
+
+function buildLeaveByDate(recs: LeaveRecord[]): Map<string, { label: string; off: boolean }> {
+  const m = new Map<string, { label: string; off: boolean }>()
+  for (const l of recs) {
+    if (l.status !== 'APPROVED') continue
+    const bracket = String(l.reason ?? '').match(/^\[(.+?)\]/)?.[1]
+    const label = bracket ?? LEAVE_TYPE_CFG[l.leave_type]?.label ?? l.leave_type
+    const off = !!bracket || l.leave_type === 'COMPENSATE'
+    const start = new Date(l.start_date.slice(0, 10) + 'T00:00:00')
+    const end   = new Date(l.end_date.slice(0, 10) + 'T00:00:00')
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0 || d.getDay() === 6) continue
+      m.set(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, { label, off })
+    }
+  }
+  return m
+}
+function buildOffDates(recs: WeeklyOffRecord[]): Set<string> {
+  const s = new Set<string>()
+  for (const w of recs) if (w.status === 'APPROVED') s.add(resolveDate(w.week_start, w.day_of_week))
+  return s
+}
+
+function resolveItemStatus(
+  it: AttItem,
+  leaveByDate: Map<string, { label: string; off: boolean }>,
+  offDates: Set<string>,
+  todayStr: string,
+): DayStatus {
+  if (it.kind === 'synthetic')
+    return it.off ? { label: it.label, ...ST_OFF } : { label: it.label, ...ST_LEAVE }
+
+  const r = it.rec
+  if (r.check_in_at) {
+    if (r.is_late) return { label: `สาย ${r.late_minutes} น.`, color: COLOR.warning, bg: COLOR.warningBg, Icon: Clock, bubble: 'icon-bubble icon-bubble-orange' }
+    return { label: 'ตรงเวลา', color: COLOR.success, bg: COLOR.successBg, Icon: CheckCircle2, bubble: 'icon-bubble icon-bubble-blue' }
+  }
+  if (r.is_absent) return { label: 'นับเป็นขาด', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
+
+  const lv = leaveByDate.get(it.date)
+  if (lv) return lv.off ? { label: lv.label, ...ST_OFF } : { label: lv.label, ...ST_LEAVE }
+  if (offDates.has(it.date)) return { label: 'หยุด', ...ST_OFF }
+
+  const dow = new Date(it.date + 'T00:00:00').getDay()
+  if (dow === 0 || dow === 6) return { label: 'หยุดสุดสัปดาห์', color: COLOR.textMuted, bg: '#f8fafc', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
+  if (it.date < todayStr) return { label: 'ขาดงาน', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
+  return { label: 'ไม่มีข้อมูล', color: COLOR.textMuted, bg: '#f3f4f6', Icon: XCircle, bubble: 'icon-bubble icon-bubble-purple' }
+}
+
 const ConflictBadge = () => (
   <span title="มีพนักงานตำแหน่งเดียวกันจอง/ลาวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.62rem', fontWeight: 700 }}>
     <AlertTriangle size={9} /> ชนตำแหน่ง
@@ -96,13 +156,13 @@ export default function HistoryPage() {
   const { data: leaveRecords = [], isLoading: loadingLeave } = useQuery<LeaveRecord[]>({
     queryKey: ['employee', 'leave-requests', employee?.id],
     queryFn: () => api.get('/employee/leave-requests', { params: { employeeId: employee?.id } }).then(r => r.data.data),
-    enabled: !!employee?.id && recordType === 'leave',
+    enabled: !!employee?.id && (recordType === 'leave' || recordType === 'attendance'),
   })
 
   const { data: dayoffRecords = [], isLoading: loadingDayoff } = useQuery<WeeklyOffRecord[]>({
     queryKey: ['employee', 'weekly-off-history', employee?.id],
     queryFn: () => api.get('/employee/weekly-off', { params: { employeeId: employee?.id } }).then(r => r.data.data),
-    enabled: !!employee?.id && recordType === 'dayoff',
+    enabled: !!employee?.id && (recordType === 'dayoff' || recordType === 'attendance'),
   })
 
   const { data: offsiteRecords = [], isLoading: loadingOffsite } = useQuery<OffsiteRecord[]>({
@@ -117,15 +177,35 @@ export default function HistoryPage() {
     .filter(r => r.date.startsWith(selectedMonth))
     .sort((a, b) => b.date.localeCompare(a.date))
 
-  const onTime    = allFiltered.filter(r => r.check_in_at && !r.is_late).length
-  const late      = allFiltered.filter(r => r.is_late).length
-  const noCheckIn = allFiltered.filter(r => !r.check_in_at).length
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const leaveByDate = useMemo(() => buildLeaveByDate(leaveRecords), [leaveRecords])
+  const offDates    = useMemo(() => buildOffDates(dayoffRecords), [dayoffRecords])
 
-  const filtered = filterTab === 'ontime'
-    ? allFiltered.filter(r => r.check_in_at && !r.is_late)
-    : filterTab === 'late'
-    ? allFiltered.filter(r => r.is_late || !r.check_in_at)
-    : allFiltered
+  // record จริง + วันลา/หยุด (APPROVED) ที่ยังไม่ผ่านมาแล้วและไม่มี record ในเดือนที่เลือก
+  const attItems = useMemo<AttItem[]>(() => {
+    const seen = new Set(allFiltered.map(r => r.date.slice(0, 10)))
+    const items: AttItem[] = allFiltered.map(r => ({ kind: 'record' as const, date: r.date.slice(0, 10), rec: r }))
+    for (const [date, info] of leaveByDate) {
+      if (date.slice(0, 7) !== selectedMonth || date > todayStr || seen.has(date)) continue
+      items.push({ kind: 'synthetic', date, label: info.label, off: info.off }); seen.add(date)
+    }
+    for (const date of offDates) {
+      if (date.slice(0, 7) !== selectedMonth || date > todayStr || seen.has(date)) continue
+      items.push({ kind: 'synthetic', date, label: 'หยุด', off: true }); seen.add(date)
+    }
+    return items.sort((a, b) => b.date.localeCompare(a.date))
+  }, [allFiltered, leaveByDate, offDates, selectedMonth, todayStr])
+
+  const resolved = attItems.map(it => ({ it, st: resolveItemStatus(it, leaveByDate, offDates, todayStr) }))
+  const cntOnTime = resolved.filter(x => x.st.label === 'ตรงเวลา').length
+  const cntLate   = resolved.filter(x => x.it.kind === 'record' && x.it.rec.is_late).length
+  const cntAbsent = resolved.filter(x => x.st.label === 'ขาดงาน' || x.st.label === 'นับเป็นขาด').length
+
+  const displayItems = resolved.filter(({ it, st }) => {
+    if (filterTab === 'ontime') return st.label === 'ตรงเวลา'
+    if (filterTab === 'late')   return it.kind === 'record' && (it.rec.is_late || st.label === 'ขาดงาน' || st.label === 'นับเป็นขาด')
+    return true
+  })
 
   const displayMonths = months.length > 0 ? months : [`${now.getFullYear()}-${pad(now.getMonth() + 1)}`]
 
@@ -183,11 +263,11 @@ export default function HistoryPage() {
           <div className="header-stat-row">
             <div className="header-stat-col">
               <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> ตรงเวลา</div>
-              <div className="header-stat-value">{onTime} วัน</div>
+              <div className="header-stat-value">{cntOnTime} วัน</div>
             </div>
             <div className="header-stat-col">
               <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={13} /> มาสาย</div>
-              <div className="header-stat-value">{late} วัน</div>
+              <div className="header-stat-value">{cntLate} วัน</div>
             </div>
           </div>
         )}
@@ -221,9 +301,9 @@ export default function HistoryPage() {
         {recordType === 'attendance' && (
           <div className="fw-tabs" style={{ background: COLOR.pageBg, padding: 6, borderRadius: 16 }}>
             {([
-              { key: 'all',    label: `ทั้งหมด (${allFiltered.length})` },
-              { key: 'ontime', label: `ตรงเวลา (${onTime})` },
-              { key: 'late',   label: `สาย/ขาด (${late + noCheckIn})` },
+              { key: 'all',    label: `ทั้งหมด (${resolved.length})` },
+              { key: 'ontime', label: `ตรงเวลา (${cntOnTime})` },
+              { key: 'late',   label: `สาย/ขาด (${cntLate + cntAbsent})` },
             ] as { key: FilterTab; label: string }[]).map(t => (
               <button key={t.key} className={`fw-tab${filterTab === t.key ? ' active' : ''}`} onClick={() => setFilterTab(t.key)}>
                 {t.label}
@@ -237,30 +317,22 @@ export default function HistoryPage() {
 
         {/* ── เช็คชื่อ ──────────────────────────────────────────── */}
         {!isLoading && recordType === 'attendance' && (
-          filtered.length === 0 ? (
+          displayItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '64px 0' }}>
               <ClipboardList size={48} style={{ opacity: 0.4, marginBottom: 16 }} color={COLOR.textMuted} />
               <div style={{ fontWeight: 600, fontSize: '1rem', color: COLOR.textMuted }}>ไม่มีข้อมูลในเดือนนี้</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
-              {filtered.map((r, i) => {
-                const d = new Date(r.date)
-                const isNoData = !r.check_in_at
-                const totalFine = Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
-
-                const iconBubbleClass = isNoData ? 'icon-bubble icon-bubble-purple'
-                  : r.is_absent ? 'icon-bubble icon-bubble-orange'
-                  : r.is_late ? 'icon-bubble icon-bubble-orange'
-                  : 'icon-bubble icon-bubble-blue'
-
-                const StatusIcon = isNoData ? XCircle : r.is_absent ? Ban : r.is_late ? Clock : CheckCircle2
-                const statusColor = isNoData ? COLOR.textMuted : r.is_absent ? COLOR.error : r.is_late ? COLOR.warning : COLOR.success
-                const statusLabel = isNoData ? 'ไม่มีข้อมูล' : r.is_absent ? 'นับเป็นขาด' : r.is_late ? `สาย ${r.late_minutes} น.` : 'ตรงเวลา'
+              {displayItems.map(({ it, st }, i) => {
+                const d = new Date(it.date + 'T00:00:00')
+                const rec = it.kind === 'record' ? it.rec : null
+                const totalFine = rec ? Number(rec.fine ?? 0) + Number(rec.carried_fine ?? 0) : 0
+                const StatusIcon = st.Icon
 
                 return (
-                  <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
-                    <div className={iconBubbleClass}>
+                  <div key={it.kind === 'record' ? it.rec.id : `syn-${it.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                    <div className={st.bubble}>
                       <StatusIcon size={22} strokeWidth={2} />
                     </div>
 
@@ -268,10 +340,16 @@ export default function HistoryPage() {
                       <div style={{ fontWeight: 800, fontSize: '1.05rem', color: COLOR.textPrimary }}>
                         {d.getDate()} {MONTHS[d.getMonth()]}
                       </div>
-                      <div style={{ fontSize: '0.88rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
-                        {fmtTime(r.check_in_at)} → {fmtTime(r.check_out_at)} · {r.shift.name}
-                      </div>
-                      {r.is_outside_area && (
+                      {rec ? (
+                        <div style={{ fontSize: '0.88rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
+                          {fmtTime(rec.check_in_at)} → {fmtTime(rec.check_out_at)} · {rec.shift.name}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.82rem', color: COLOR.textMuted, marginTop: 4, fontWeight: 500 }}>
+                          วัน{DAYS_TH[d.getDay()]} · ไม่ต้องเช็คอิน
+                        </div>
+                      )}
+                      {rec?.is_outside_area && (
                         <span style={{ fontSize: '0.75rem', background: COLOR.warningBg, color: COLOR.warning, border: `1px solid ${COLOR.warningBorder}`, borderRadius: 99, padding: '2px 10px', fontWeight: 700, marginTop: 6, display: 'inline-block' }}>นอกพื้นที่</span>
                       )}
                       {totalFine > 0 && (
@@ -281,8 +359,8 @@ export default function HistoryPage() {
                       )}
                     </div>
 
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: statusColor, whiteSpace: 'nowrap', background: isNoData ? '#f3f4f6' : r.is_absent ? COLOR.errorBg : r.is_late ? COLOR.warningBg : COLOR.successBg, padding: '6px 12px', borderRadius: 12 }}>
-                      {statusLabel}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: st.color, whiteSpace: 'nowrap', background: st.bg, padding: '6px 12px', borderRadius: 12 }}>
+                      {st.label}
                     </span>
                   </div>
                 )
