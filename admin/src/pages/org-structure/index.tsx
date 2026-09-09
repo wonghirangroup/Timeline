@@ -4,7 +4,7 @@
 // ที่อยู่ของ policy cascade (booking_enabled) ด้วย ไม่ใช่แค่ label เฉยๆ แบบเวอร์ชันก่อน
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned } from 'lucide-react'
+import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { PlanMeter } from '../../components/shared/PlanUsage'
@@ -378,9 +378,9 @@ const NODE_CFG: Record<Level, { color: string }> = {
   division: { color: '#6366f1' }, department: { color: '#0891b2' }, position: { color: '#16a34a' },
 }
 
-function TreeNode({ level, name, subtitle, badge, onEdit, onDelete, children }: {
+function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, children }: {
   level: Level; name: string; subtitle: string; badge?: React.ReactNode
-  onEdit: () => void; onDelete: () => void; children?: React.ReactNode
+  onView: () => void; onEdit: () => void; onDelete: () => void; children?: React.ReactNode
 }) {
   const [hovered, setHovered] = useState(false)
   const cfg = NODE_CFG[level]
@@ -392,12 +392,13 @@ function TreeNode({ level, name, subtitle, badge, onEdit, onDelete, children }: 
           <span style={{ display: 'flex', color: cfg.color }}>{LEVEL_ICON[level]}</span>
           <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#111827', whiteSpace: 'nowrap' }}>{name}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 3, cursor: 'pointer' }} onClick={onView}>
           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{subtitle}</span>
           {badge}
         </div>
         {hovered && (
           <div style={{ position: 'absolute', top: -9, right: -7, display: 'flex', gap: 3 }}>
+            <button onClick={onView} title="ดูรายละเอียด" style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Eye size={10}/></button>
             <button onClick={onEdit} style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Pencil size={10}/></button>
             <button onClick={onDelete} style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Trash2 size={10}/></button>
           </div>
@@ -409,10 +410,88 @@ function TreeNode({ level, name, subtitle, badge, onEdit, onDelete, children }: 
 }
 
 // ── Org Tree Tab (ผังของกลุ่มที่เลือก) ───────────────────────────────────────
+// ── รายละเอียดนโยบายของ node (กด "ดู") — โชว์ค่าที่ตั้งเอง + ค่าที่มีผลจริง + มาจากไหน ──
+const RULE_TH: Record<string, string> = { WORK: 'ทำงาน', OFF: 'หยุด', OFFSITE: 'นอกสถานที่' }
+function NodeDetailModal({ level, row, tree, grp, onClose }: {
+  level: Level; row: any; tree: TreeDiv[]; grp?: GroupT; onClose: () => void
+}) {
+  // ancestor chain — เจาะจงสุด → กลุ่ม
+  const chain: { label: string; n: any }[] = []
+  if (level === 'division') {
+    chain.push({ label: LEVEL_LABEL.division, n: row })
+  } else if (level === 'department') {
+    const dv = tree.find(d => d.departments.some(x => x.id === row.id))
+    chain.push({ label: LEVEL_LABEL.department, n: row }, { label: LEVEL_LABEL.division, n: dv })
+  } else {
+    let dv: any, dt: any
+    for (const d of tree) for (const x of d.departments) if (x.positions.some((p: any) => p.id === row.id)) { dv = d; dt = x }
+    chain.push({ label: LEVEL_LABEL.position, n: row }, { label: LEVEL_LABEL.department, n: dt }, { label: LEVEL_LABEL.division, n: dv })
+  }
+  chain.push({ label: 'กลุ่ม', n: grp })
+
+  // field → { own, effVal, effSource }
+  function resolve(key: string, fmt: (v: any) => string) {
+    const own = row[key]
+    let effVal: any = null, effSource = ''
+    for (const c of chain) {
+      const v = c.n?.[key]
+      if (v !== null && v !== undefined) { effVal = v; effSource = c.label; break }
+    }
+    return {
+      own: own === null || own === undefined ? '—' : fmt(own),
+      eff: effVal === null || effVal === undefined ? '—' : fmt(effVal),
+      from: effSource,
+    }
+  }
+  const bool = (v: any) => (v ? 'เปิด' : 'ปิด')
+  const rows = [
+    { label: 'สิทธิ์จองวันหยุด', ...resolve('booking_enabled', bool) },
+    { label: 'สิทธิ์การลา',      ...resolve('leave_enabled', bool) },
+    { label: 'วันเสาร์',         ...resolve('saturday_rule', v => RULE_TH[v] ?? v) },
+    { label: 'วันอาทิตย์',       ...resolve('sunday_rule', v => RULE_TH[v] ?? v) },
+    { label: 'จองวันหยุด/เดือน', ...resolve('booking_quota', v => `${v} วัน`) },
+  ]
+
+  return (
+    <div style={modalOverlay} onClick={onClose}>
+      <div style={{ ...modalBox, width: 420 }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>{LEVEL_LABEL[level]}: {row.name}</h3>
+        <p style={{ margin: '0 0 14px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+          สายการสืบทอด: {chain.map(c => c.n?.name ?? c.label).join(' → ')}
+        </p>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ color: '#9ca3af', textAlign: 'left' }}>
+              <th style={{ padding: '5px 6px', fontWeight: 700 }}>รายการ</th>
+              <th style={{ padding: '5px 6px', fontWeight: 700 }}>ตั้งที่นี่</th>
+              <th style={{ padding: '5px 6px', fontWeight: 700 }}>มีผลจริง</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.label} style={{ borderTop: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '7px 6px', color: '#374151' }}>{r.label}</td>
+                <td style={{ padding: '7px 6px', color: r.own === '—' ? '#cbd5e1' : '#111827', fontWeight: r.own === '—' ? 400 : 700 }}>{r.own}</td>
+                <td style={{ padding: '7px 6px' }}>
+                  <span style={{ fontWeight: 700, color: '#111827' }}>{r.eff}</span>
+                  {r.from && r.own === '—' && <span style={{ color: '#9ca3af', fontSize: '10.5px' }}> · จาก{r.from}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={{ margin: '12px 0 0', fontSize: '10.5px', color: '#9ca3af' }}>"ตั้งที่นี่" = "—" หมายถึงใช้ค่าจากชั้นบน · สาขาที่พนักงานสังกัดก็ override ได้อีกชั้น</p>
+        <button onClick={onClose} style={{ ...btnPrimary, width: '100%', justifyContent: 'center', marginTop: 14 }}>ปิด</button>
+      </div>
+    </div>
+  )
+}
+
 function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [addModal, setAddModal] = useState<Level | null>(null)
+  const [viewTarget, setViewTarget] = useState<{ level: Level; row: any } | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
   const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string }>({ name: '', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
@@ -420,6 +499,8 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
   const { data: divs  = [], isLoading } = useQuery<Div[]>({ queryKey: ['divisions', groupId], queryFn: () => api.get('/api/v1/admin/divisions', { params: { group_id: groupId } }).then(r => r.data.data) })
   const { data: depts = [] } = useQuery<Dept[]>({ queryKey: ['departments', groupId], queryFn: () => api.get('/api/v1/admin/departments').then(r => r.data.data) })
   const { data: tree  = [] } = useQuery<TreeDiv[]>({ queryKey: ['org-tree', groupId], queryFn: () => api.get('/api/v1/admin/org-structure/tree', { params: { group_id: groupId } }).then(r => r.data.data) })
+  const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
+  const grp = groups.find(g => g.id === groupId)
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['divisions'] })
@@ -487,12 +568,15 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
                   <ul>
                     {tree.map(dv => (
                       <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
+                        onView={() => setViewTarget({ level: 'division', row: dv })}
                         onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
                         {dv.departments.length > 0 ? dv.departments.map(dt => (
                           <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
+                            onView={() => setViewTarget({ level: 'department', row: dt })}
                             onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
                             {dt.positions.map(p => (
                               <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
+                                onView={() => setViewTarget({ level: 'position', row: p })}
                                 onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
                             ))}
                           </TreeNode>
@@ -508,6 +592,8 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
       </div>
 
       {addModal && <AddEntityModal level={addModal} groupId={groupId} divs={divs} depts={depts} onClose={() => setAddModal(null)} />}
+
+      {viewTarget && <NodeDetailModal level={viewTarget.level} row={viewTarget.row} tree={tree} grp={grp} onClose={() => setViewTarget(null)} />}
 
       {editModal && (
         <div style={modalOverlay} onClick={() => setEditModal(null)}>
