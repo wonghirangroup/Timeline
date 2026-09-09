@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
 import { listHolidays, holidayAppliesTo } from '../tenant/holiday.service'
-import { resolveBookingEnabled, resolveLeaveEnabled } from '../group/group.service'
+import { resolveHolidayPolicy } from '../group/group.service'
 import { isFeatureEnabled } from '../../common/utils/features'
 
 export async function employeeMeRoutes(app: FastifyInstance) {
@@ -40,17 +40,17 @@ export async function employeeMeRoutes(app: FastifyInstance) {
 
     // สิทธิ์จอง/ลา — cascade 6 ชั้น กลุ่ม→สาขา→ฝ่าย→แผนก→ตำแหน่ง→บุคคล (ดู group.service.ts)
     // ใช้ซ่อน UI ฝั่ง LIFF เมื่อปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
-    const [booking_enabled, leave_enabled, tenant] = await Promise.all([
-      resolveBookingEnabled(req.tenantId, employeeId),
-      resolveLeaveEnabled(req.tenantId, employeeId),
+    const [policy, tenant] = await Promise.all([
+      resolveHolidayPolicy(req.tenantId, employeeId),
       prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
+    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota } = policy
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const { admin_user, ...empRest } = employee as any
     const admin_access = !!admin_user?.is_active
     const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
-    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
+    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
   })
 
   // PATCH /api/v1/employee/photo — พนักงานตั้ง/ลบรูปโปรไฟล์ตัวเองผ่าน LIFF

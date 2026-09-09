@@ -231,10 +231,12 @@ export default function HistoryPage() {
   // ไม่ผูกสถานะ หรือ rule ≠ WORK → ถือเป็นวันหยุด (ตรงกับที่คนส่วนใหญ่คาดหวัง);
   // ตั้ง rule = WORK เมื่อไหร่ วันนั้นกลับเป็นวันทำงานปกติ (สาย/ขาดได้)
   const isWeekendOff = useMemo(() => {
-    const st = employee?.employee_status_type
+    // resolve จาก cascade 6 ชั้น ฝั่ง server (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม) — default OFF
+    const sat = employee?.saturday_rule ?? 'OFF'
+    const sun = employee?.sunday_rule ?? 'OFF'
     return (dow: number) => {
-      if (dow === 6) return (st?.saturday_rule ?? 'OFF') !== 'WORK'
-      if (dow === 0) return (st?.sunday_rule   ?? 'OFF') !== 'WORK'
+      if (dow === 6) return sat !== 'WORK'
+      if (dow === 0) return sun !== 'WORK'
       return false
     }
   }, [employee])

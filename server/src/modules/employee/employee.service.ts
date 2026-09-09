@@ -5,13 +5,14 @@ import { assertPlanCapacity } from '../tenant/tenant.service'
 import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
+const POLICY_FIELDS = { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } as const
 const POSITION_INCLUDE = {
   select: {
-    id: true, name: true, booking_enabled: true, leave_enabled: true,
+    id: true, name: true, ...POLICY_FIELDS,
     department: {
       select: {
-        id: true, name: true, booking_enabled: true, leave_enabled: true,
-        division: { select: { id: true, name: true, booking_enabled: true, leave_enabled: true, group: { select: { id: true, name: true } } } },
+        id: true, name: true, ...POLICY_FIELDS,
+        division: { select: { id: true, name: true, ...POLICY_FIELDS, group: { select: { id: true, name: true } } } },
       },
     },
   },
@@ -60,7 +61,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
     include: {
-      branch: { select: { id: true, name: true, group_id: true, booking_enabled: true, leave_enabled: true, group: { select: { booking_enabled: true, leave_enabled: true } } } },
+      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: { select: { role: true, is_active: true } },
@@ -80,7 +81,7 @@ export async function getEmployee(tenantId: string, id: string) {
   return prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
     include: {
-      branch: { select: { id: true, name: true, group_id: true } },
+      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: ADMIN_USER_INCLUDE,

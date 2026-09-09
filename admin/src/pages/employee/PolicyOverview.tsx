@@ -14,7 +14,10 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 type DayRule = 'WORK' | 'OFF' | 'OFFSITE'
-type PolicyNode = { booking_enabled?: boolean | null; leave_enabled?: boolean | null }
+type PolicyNode = {
+  booking_enabled?: boolean | null; leave_enabled?: boolean | null
+  saturday_rule?: DayRule | null; sunday_rule?: DayRule | null; booking_quota?: number | null
+}
 
 interface PolicyEmployee {
   id: string
@@ -59,6 +62,22 @@ function resolvePolicy(e: PolicyEmployee, flag: 'booking' | 'leave', ignoreOverr
   return true
 }
 
+// port ของ resolveWeekendRuleFromChain / resolveBookingQuotaFromChain (group.service.ts)
+// chain: สถานะพนักงาน → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม
+function weekendChain(e: PolicyEmployee) {
+  return [e.employee_status_type, e.position, e.position?.department, e.position?.department?.division, e.branch, e.branch?.group]
+}
+function resolveWeekend(e: PolicyEmployee, day: 'saturday' | 'sunday'): DayRule {
+  const k = day === 'saturday' ? 'saturday_rule' : 'sunday_rule'
+  for (const n of weekendChain(e)) { const v = (n as any)?.[k]; if (v != null) return v }
+  return 'OFF'
+}
+function resolveQuota(e: PolicyEmployee): number {
+  const chain = [e.employee_status_type?.monthly_off_quota, e.position?.booking_quota, e.position?.department?.booking_quota, e.position?.department?.division?.booking_quota, e.branch?.booking_quota, e.branch?.group?.booking_quota]
+  for (const v of chain) if (v != null) return v
+  return 5
+}
+
 const RULE_CFG: Record<DayRule, { label: string; color: string; bg: string }> = {
   WORK:    { label: 'ทำงาน',      color: '#b45309', bg: '#fef3c7' },
   OFF:     { label: 'หยุด',       color: '#15803d', bg: '#dcfce7' },
@@ -68,7 +87,6 @@ const ROLE_TH: Record<string, string> = {
   ADMIN: 'แอดมิน', MANAGER: 'ผู้จัดการ', EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
 }
 const MODE_TH = { WEEKLY: 'รายสัปดาห์', MONTHLY_BATCH: 'รวมทั้งเดือน' } as const
-const DEFAULT_RULE: DayRule = 'OFF' // ยังไม่ผูกสถานะ → ปฏิทิน LIFF ถือว่าหยุดเสาร์-อาทิตย์
 
 function Pill({ label, color, bg, title }: { label: string; color: string; bg: string; title?: string }) {
   return <span title={title} style={{ fontSize: '0.72rem', fontWeight: 700, color, background: bg, padding: '2px 9px', borderRadius: 99, whiteSpace: 'nowrap' }}>{label}</span>
@@ -140,10 +158,10 @@ export default function PolicyOverview() {
         return {
           e,
           statusName: st?.name ?? 'ยังไม่กำหนด',
-          sat: st?.saturday_rule ?? DEFAULT_RULE,
-          sun: st?.sunday_rule ?? DEFAULT_RULE,
+          sat: resolveWeekend(e, 'saturday'),
+          sun: resolveWeekend(e, 'sunday'),
           pubHoliday: st ? st.off_on_public_holiday : true,
-          quota: st?.monthly_off_quota ?? null,
+          quota: resolveQuota(e),
           booking: resolvePolicy(e, 'booking'),
           leave: resolvePolicy(e, 'leave'),
           leaveInherit: resolvePolicy(e, 'leave', true),
@@ -205,7 +223,8 @@ export default function PolicyOverview() {
     <div>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
         แก้ inline ได้: <b>สถานะพนักงาน · โหมดจอง · สิทธิ์จอง/ลา</b> —
-        เสาร์-อาทิตย์ &amp; นักขัตฤกษ์ &amp; โควต้า มาจาก <b>สถานะพนักงาน</b> (แก้ค่าในตัวสถานะที่ ผังองค์กร → สถานะพนักงาน)
+เสาร์-อาทิตย์ &amp; โควต้า เป็นค่า <b>resolved</b> จาก cascade 6 ชั้น (สถานะพนักงาน → ตำแหน่ง → … → กลุ่ม) —
+        แก้ที่ ผังองค์กร (กลุ่ม/ฝ่าย/แผนก/ตำแหน่ง) หรือ สถานะพนักงาน · นักขัตฤกษ์มาจากสถานะพนักงาน
       </p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -289,8 +308,8 @@ export default function PolicyOverview() {
                       {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
                     </select>
                   </td>
-                  <td style={td}><Pill {...RULE_CFG[r.sat]} title="แก้ที่สถานะพนักงาน" /></td>
-                  <td style={td}><Pill {...RULE_CFG[r.sun]} title="แก้ที่สถานะพนักงาน" /></td>
+                  <td style={td}><Pill {...RULE_CFG[r.sat]} title="ค่า resolved — แก้ที่กลุ่ม/ฝ่าย/แผนก/ตำแหน่ง หรือสถานะพนักงาน" /></td>
+                  <td style={td}><Pill {...RULE_CFG[r.sun]} title="ค่า resolved — แก้ที่กลุ่ม/ฝ่าย/แผนก/ตำแหน่ง หรือสถานะพนักงาน" /></td>
                   <td style={td}>{r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{r.quota ?? '—'}</td>
                   <td style={td}>

@@ -33,11 +33,12 @@ const modalOverlay: React.CSSProperties = { position: 'fixed', inset: 0, backgro
 const modalBox: React.CSSProperties = { background: '#fff', borderRadius: 16, width: 400, maxWidth: '92vw', padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }
 const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
 
-interface GroupT { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
+type WeekendQuota = { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null }
+interface GroupT extends WeekendQuota { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
 interface BranchT { id: string; name: string; group_id: string | null }
-interface Div  { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
-interface Dept { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
-interface Pos  { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { employees: number } }
+interface Div  extends WeekendQuota { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
+interface Dept extends WeekendQuota { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
+interface Pos  extends WeekendQuota { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { employees: number } }
 
 interface TreePos extends Pos {}
 interface TreeDept extends Dept { positions: TreePos[] }
@@ -91,12 +92,40 @@ const GroupToggle = ({ value, onChange, kind }: { value: boolean; onChange: (v: 
   </div>
 )
 
+// ── นโยบายวันหยุด (เสาร์/อาทิตย์ + โควต้าจอง) — cascade เดียวกัน ─────────────
+const DAY_RULE_OPTS: { v: DayRule; label: string; color: string; bg: string }[] = [
+  { v: 'OFF',     label: 'หยุด',       color: '#16a34a', bg: '#f0fdf4' },
+  { v: 'WORK',    label: 'ทำงาน',      color: '#dc2626', bg: '#fef2f2' },
+  { v: 'OFFSITE', label: 'นอกสถานที่', color: '#2563eb', bg: '#eff6ff' },
+]
+// 3-state (กลุ่ม) — non-null
+const DayRuleGroup = ({ value, onChange }: { value: DayRule; onChange: (v: DayRule) => void }) => (
+  <div style={{ display: 'flex', gap: 4 }}>
+    {DAY_RULE_OPTS.map(o => {
+      const active = value === o.v
+      return <button key={o.v} type="button" onClick={() => onChange(o.v)}
+        style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${active ? o.color : '#e5e7eb'}`, background: active ? o.bg : '#fff', color: active ? o.color : '#9ca3af', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>{o.label}</button>
+    })}
+  </div>
+)
+// 4-state (ชั้นล่าง) — null = inherit
+const DayRuleInherit = ({ value, onChange, inheritLabel }: { value: DayRule | null; onChange: (v: DayRule | null) => void; inheritLabel: string }) => (
+  <div style={{ display: 'flex', gap: 4 }}>
+    {([{ v: null, label: inheritLabel, color: '#6b7280', bg: '#f9fafb' }, ...DAY_RULE_OPTS] as { v: DayRule | null; label: string; color: string; bg: string }[]).map(o => {
+      const active = value === o.v
+      return <button key={String(o.v)} type="button" onClick={() => onChange(o.v)}
+        style={{ flex: 1, padding: '7px 3px', borderRadius: 8, border: `1.5px solid ${active ? o.color : '#e5e7eb'}`, background: active ? o.bg : '#fff', color: active ? o.color : '#9ca3af', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}>{o.label}</button>
+    })}
+  </div>
+)
+const quotaInputStyle: React.CSSProperties = { ...inputStyle, width: 90 }
+
 // ── กลุ่ม (บริษัท) Tab ───────────────────────────────────────────────────────
 function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string; onSelectGroup: (id: string) => void }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
-  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true })
+  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5' })
   const [deleteTarget, setDeleteTarget] = useState<GroupT | null>(null)
   const [assignBranchGroup, setAssignBranchGroup] = useState<Record<string, string>>({})
 
@@ -126,12 +155,13 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
     onError: () => showToast('error', 'ผูกไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true }); setModal({}) }
-  const openEdit = (g: GroupT) => { setForm({ name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled }); setModal({ edit: g }) }
+  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF', sunday_rule: 'OFF', booking_quota: '5' }); setModal({}) }
+  const openEdit = (g: GroupT) => { setForm({ name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled, saturday_rule: g.saturday_rule ?? 'OFF', sunday_rule: g.sunday_rule ?? 'OFF', booking_quota: String(g.booking_quota ?? 5) }); setModal({ edit: g }) }
   const handleSave = () => {
     if (!modal || !form.name.trim()) return
-    if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body: form })
-    else createMutation.mutate(form)
+    const body = { ...form, booking_quota: parseInt(form.booking_quota) || 0 }
+    if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body })
+    else createMutation.mutate(body)
   }
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
@@ -168,6 +198,9 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: g.leave_enabled ? '#16a34a' : '#dc2626', background: g.leave_enabled ? '#f0fdf4' : '#fef2f2', padding: '4px 10px', borderRadius: 99 }}>
                   {g.leave_enabled ? 'ลาได้' : 'ลาไม่ได้'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 10px', borderRadius: 99 }}>
+                  ส {g.saturday_rule === 'WORK' ? 'ทำงาน' : g.saturday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · อา {g.sunday_rule === 'WORK' ? 'ทำงาน' : g.sunday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · จอง {g.booking_quota ?? 5}/ด
                 </span>
                 <button onClick={() => onSelectGroup(g.id)} style={{ ...btnGhost('#f97316', '#fff7ed'), border: isSelected ? '1.5px solid #f97316' : '1px dashed #f9731655' }}>
                   {isSelected ? '✓ กำลังดูผังกลุ่มนี้' : 'ดูผังองค์กร'}
@@ -208,10 +241,23 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>{modal.edit ? 'แก้ไขกลุ่ม' : 'เพิ่มกลุ่มใหม่'}</h3>
             <label style={label}>ชื่อกลุ่ม</label>
             <input autoFocus style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น วงษ์, สมาร์ทจิ๊กซอว์" />
-            <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์จองวันหยุด (ค่าเริ่มต้นของทุกอย่างในกลุ่มนี้)</label>
+            <p style={{ fontSize: '11px', color: '#9ca3af', margin: '14px 0 6px', fontWeight: 700 }}>ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/ตำแหน่ง/คนในกลุ่มนี้ (ชั้นล่าง/สถานะพนักงาน override ได้)</p>
+            <label style={{ ...label, margin: '10px 0 6px' }}>สิทธิ์จองวันหยุด</label>
             <GroupToggle value={form.booking_enabled} onChange={v => setForm(f => ({ ...f, booking_enabled: v }))} kind="booking" />
-            <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา (ค่าเริ่มต้นของทุกอย่างในกลุ่มนี้)</label>
+            <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา</label>
             <GroupToggle value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} kind="leave" />
+            <div style={{ display: 'flex', gap: 10, margin: '12px 0 6px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={label}>วันเสาร์</label>
+                <DayRuleGroup value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={label}>วันอาทิตย์</label>
+                <DayRuleGroup value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+              </div>
+            </div>
+            <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุดได้กี่วัน/เดือน</label>
+            <input type="number" min={0} max={31} style={quotaInputStyle} value={form.booking_quota} onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} />
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
@@ -368,7 +414,7 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
   const { showToast } = useToast()
   const [addModal, setAddModal] = useState<Level | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
-  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null }>({ name: '', booking_enabled: null, leave_enabled: null })
+  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string }>({ name: '', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
 
   const { data: divs  = [], isLoading } = useQuery<Div[]>({ queryKey: ['divisions', groupId], queryFn: () => api.get('/api/v1/admin/divisions', { params: { group_id: groupId } }).then(r => r.data.data) })
@@ -394,12 +440,14 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
     onError: (err: any) => showToast('error', err.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
   })
 
-  const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null }); setEditModal({ level, row }) }
+  const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota) }); setEditModal({ level, row }) }
   const handleEditSave = () => {
     if (!editModal || !editForm.name.trim()) return
-    // ทุกชั้น (รวมตำแหน่ง) รับ booking_enabled/leave_enabled แล้ว
+    // ทุกชั้น (รวมตำแหน่ง) รับ policy fields แล้ว — null/'' = inherit
     updateMutation.mutate({ level: editModal.level, id: editModal.row.id, body: {
       name: editForm.name, booking_enabled: editForm.booking_enabled, leave_enabled: editForm.leave_enabled,
+      saturday_rule: editForm.saturday_rule, sunday_rule: editForm.sunday_rule,
+      booking_quota: editForm.booking_quota.trim() === '' ? null : (parseInt(editForm.booking_quota) || 0),
     } })
   }
   const policyBadge = (v: boolean | null, on: string, off: string) => v === null ? null : (
@@ -475,6 +523,12 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
                   <PolicyToggle kind="booking" value={editForm.booking_enabled} onChange={v => setEditForm(f => ({ ...f, booking_enabled: v }))} inheritLabel={inheritLabel} />
                   <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา</label>
                   <PolicyToggle kind="leave" value={editForm.leave_enabled} onChange={v => setEditForm(f => ({ ...f, leave_enabled: v }))} inheritLabel={inheritLabel} />
+                  <label style={{ ...label, margin: '12px 0 6px' }}>วันเสาร์</label>
+                  <DayRuleInherit value={editForm.saturday_rule} onChange={v => setEditForm(f => ({ ...f, saturday_rule: v }))} inheritLabel={inheritLabel} />
+                  <label style={{ ...label, margin: '12px 0 6px' }}>วันอาทิตย์</label>
+                  <DayRuleInherit value={editForm.sunday_rule} onChange={v => setEditForm(f => ({ ...f, sunday_rule: v }))} inheritLabel={inheritLabel} />
+                  <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุด/เดือน <span style={{ fontWeight: 400, color: '#9ca3af' }}>(ว่าง = {inheritLabel})</span></label>
+                  <input type="number" min={0} max={31} style={quotaInputStyle} value={editForm.booking_quota} placeholder="—" onChange={e => setEditForm(f => ({ ...f, booking_quota: e.target.value }))} />
                 </>
               )
             })()}

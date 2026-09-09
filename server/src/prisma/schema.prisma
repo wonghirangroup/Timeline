@@ -323,6 +323,9 @@ model Group {
   name            String
   booking_enabled Boolean   @default(true)
   leave_enabled   Boolean   @default(true) // ค่าเริ่มต้นของสิทธิ์ยื่นคำขอลาสำหรับทุกอย่างในกลุ่มนี้
+  saturday_rule   DayRule   @default(OFF) // ค่าเริ่มต้นวันเสาร์ของทุกอย่างในกลุ่ม (ชั้นล่าง/สถานะพนักงาน override ได้)
+  sunday_rule     DayRule   @default(OFF) // ค่าเริ่มต้นวันอาทิตย์
+  booking_quota   Int       @default(5) // จองวันหยุดได้กี่วัน/เดือน (ทั้ง 2 โหมด) — ชั้นล่าง override ได้
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -347,6 +350,9 @@ model Division {
   name            String
   booking_enabled Boolean? // null = inherit จาก Group.booking_enabled
   leave_enabled   Boolean? // null = inherit จาก Group.leave_enabled
+  saturday_rule   DayRule? // null = inherit จาก Group
+  sunday_rule     DayRule? // null = inherit จาก Group
+  booking_quota   Int? // null = inherit จาก Group
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -368,6 +374,9 @@ model Department {
   name            String
   booking_enabled Boolean? // null = inherit จาก Division.booking_enabled (หรือต่อไปที่ Group ถ้า Division ก็ null)
   leave_enabled   Boolean? // null = inherit จาก Division.leave_enabled
+  saturday_rule   DayRule? // null = inherit
+  sunday_rule     DayRule? // null = inherit
+  booking_quota   Int? // null = inherit
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -390,6 +399,9 @@ model Position {
   name            String
   booking_enabled Boolean? // null = inherit จาก Department.booking_enabled
   leave_enabled   Boolean? // null = inherit จาก Department.leave_enabled
+  saturday_rule   DayRule? // null = inherit
+  sunday_rule     DayRule? // null = inherit
+  booking_quota   Int? // null = inherit
   is_active       Boolean   @default(true)
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -447,6 +459,9 @@ model Branch {
   name            String
   booking_enabled Boolean? // null = inherit จาก Group ของสาขานี้ (ดู resolvePolicyFlag())
   leave_enabled   Boolean? // null = inherit จาก Group ของสาขานี้
+  saturday_rule   DayRule? // null = inherit จาก Group
+  sunday_rule     DayRule? // null = inherit จาก Group
+  booking_quota   Int? // null = inherit จาก Group
   location        String?
   lat             Decimal?  @db.Decimal(10, 8)
   lng             Decimal?  @db.Decimal(11, 8)

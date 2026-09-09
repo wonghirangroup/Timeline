@@ -27,6 +27,9 @@ interface ApiBranch {
   group_id?: string | null
   booking_enabled?: boolean | null
   leave_enabled?: boolean | null
+  saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
+  sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
+  booking_quota?: number | null
   _count: { employees: number; shifts: number }
 }
 interface ApiGroup { id: string; name: string }
@@ -141,6 +144,28 @@ const BranchPolicyToggle = ({ value, onChange, kind }: { value: boolean | null; 
         <button key={String(opt.v)} type="button" onClick={() => onChange(opt.v)}
           style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: `1.5px solid ${active ? opt.color : '#e5e7eb'}`, background: active ? opt.bg : '#fff', color: active ? opt.color : '#9ca3af', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           {opt.label}
+        </button>
+      )
+    })}
+  </div>
+)
+
+// เสาร์/อาทิตย์ 4-state (null = ใช้ค่าจากกลุ่ม) + โควต้าจอง
+type BrDayRule = 'WORK' | 'OFF' | 'OFFSITE'
+const BR_DAY_OPTS: { v: BrDayRule | null; label: string; color: string; bg: string }[] = [
+  { v: null,      label: 'จากกลุ่ม',   color: '#6b7280', bg: '#f9fafb' },
+  { v: 'OFF',     label: 'หยุด',       color: '#16a34a', bg: '#f0fdf4' },
+  { v: 'WORK',    label: 'ทำงาน',      color: '#dc2626', bg: '#fef2f2' },
+  { v: 'OFFSITE', label: 'นอกสถานที่', color: '#2563eb', bg: '#eff6ff' },
+]
+const BranchDayRuleToggle = ({ value, onChange }: { value: BrDayRule | null; onChange: (v: BrDayRule | null) => void }) => (
+  <div style={{ display: 'flex', gap: 4 }}>
+    {BR_DAY_OPTS.map(o => {
+      const active = value === o.v
+      return (
+        <button key={String(o.v)} type="button" onClick={() => onChange(o.v)}
+          style={{ flex: 1, padding: '7px 3px', borderRadius: 8, border: `1.5px solid ${active ? o.color : '#e5e7eb'}`, background: active ? o.bg : '#fff', color: active ? o.color : '#9ca3af', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          {o.label}
         </button>
       )
     })}
@@ -356,7 +381,7 @@ export default function BranchPage() {
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
-  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null })
+  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null, saturday_rule: null as BrDayRule | null, sunday_rule: null as BrDayRule | null, booking_quota: '' })
 
   const [tourActive, setTourActive] = React.useState(false)
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
@@ -469,7 +494,7 @@ export default function BranchPage() {
   }
 
   const openAdd = () => {
-    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null })
+    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
     setEditTarget(null)
     setStep(1)
     setShowInfo(false)
@@ -479,7 +504,7 @@ export default function BranchPage() {
   }
 
   const openEdit = (b: ApiBranch) => {
-    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null })
+    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null, saturday_rule: b.saturday_rule ?? null, sunday_rule: b.sunday_rule ?? null, booking_quota: b.booking_quota == null ? '' : String(b.booking_quota) })
     setEditTarget(b)
     setStep(1)
     setShowInfo(false)
@@ -579,6 +604,9 @@ export default function BranchPage() {
       geo_mode: form.geo_mode,
       booking_enabled: form.booking_enabled,
       leave_enabled: form.leave_enabled,
+      saturday_rule: form.saturday_rule,
+      sunday_rule: form.sunday_rule,
+      booking_quota: form.booking_quota.trim() === '' ? null : (parseInt(form.booking_quota) || 0),
     }
     if (modal === 'add') {
       createMutation.mutate(body)
@@ -924,6 +952,21 @@ export default function BranchPage() {
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>สิทธิ์การลา</label>
                       <BranchPolicyToggle kind="leave" value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>วันเสาร์</label>
+                        <BranchDayRuleToggle value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>วันอาทิตย์</label>
+                        <BranchDayRuleToggle value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>จองวันหยุด/เดือน <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(ว่าง = ใช้ค่าจากกลุ่ม)</span></label>
+                      <input type="number" min={0} max={31} value={form.booking_quota} placeholder="—"
+                        onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} style={{ ...inputStyle, width: 120 }} />
                     </div>
                   </>
                 )}

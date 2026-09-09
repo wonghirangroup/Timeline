@@ -148,8 +148,17 @@ const todayLocalStr = () => {
 // ลา/วันหยุดจริง (จาก LeaveRequest/WeeklyOffRequest ที่ APPROVED) > นอกสถานที่ (มี
 // OffsiteCheckin วันนั้นแต่ไม่มีเช็คอินสาขา) > note-text เก่าจาก Firebase (fallback) >
 // เสาร์-อาทิตย์ > (วันธรรมดาที่ผ่านมาแล้ว ไม่มีอะไรเลย) ขาดงาน > ไม่มีข้อมูล
+// resolve เสาร์/อาทิตย์จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
+function weekendRuleOf(emp: any, dow: number): 'WORK' | 'OFF' | 'OFFSITE' {
+  if (dow !== 0 && dow !== 6) return 'WORK'
+  const k = dow === 6 ? 'saturday_rule' : 'sunday_rule'
+  const chain = [emp?.employee_status_type, emp?.position, emp?.position?.department, emp?.position?.department?.division, emp?.branch, emp?.branch?.group]
+  for (const n of chain) { const v = n?.[k]; if (v != null) return v }
+  return 'OFF'
+}
+
 function resolveDayStatus(params: {
-  recs?: any[]; dow: number; leaveLabel?: string; holidayName?: string; isDayOff?: boolean; isOffsite?: boolean; isPast?: boolean
+  recs?: any[]; dow: number; leaveLabel?: string; holidayName?: string; isDayOff?: boolean; isOffsite?: boolean; isPast?: boolean; weekendRule?: 'WORK' | 'OFF' | 'OFFSITE'
 }): { label: string; color: string; bg: string } {
   const r = params.recs?.[0]
   const note = r?.note ?? ''
@@ -169,8 +178,12 @@ function resolveDayStatus(params: {
   if (params.isDayOff)   return { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }
   if (params.isOffsite)  return { label: 'นอกสถานที่', color: '#9333ea', bg: '#faf5ff' }
   for (const [key, status] of NOTE_STATUS_FALLBACK) if (note.includes(key)) return status
-  if (params.dow === 0 || params.dow === 6) return { label: 'เสาร์/อาทิตย์', color: '#94a3b8', bg: '#fafafa' }
-  // วันธรรมดาที่ผ่านมาแล้ว ไม่มี record / ไม่มีลา / ไม่มีวันหยุด = ไม่ได้มาทำงาน
+  if (params.dow === 0 || params.dow === 6) {
+    const wr = params.weekendRule ?? 'OFF'
+    if (wr !== 'WORK') return { label: 'เสาร์/อาทิตย์', color: '#94a3b8', bg: '#fafafa' }
+    // เสาร์/อาทิตย์ที่ต้องทำงาน (rule = WORK) → ตกไปเกณฑ์ขาดงานเหมือนวันธรรมดา
+  }
+  // วันธรรมดา (หรือเสาร์-อาทิตย์ที่ต้องทำงาน) ที่ผ่านมาแล้ว ไม่มี record / ลา / หยุด = ไม่ได้มาทำงาน
   if (params.isPast) return { label: 'ขาดงาน', color: '#dc2626', bg: '#fee2e2' }
   return { label: '—', color: '#94a3b8', bg: '#fff' }
 }
@@ -323,7 +336,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             const dateStr0 = (r.date ?? '').slice(0, 10)
             const dow0 = new Date(dateStr0 + 'T00:00:00').getDay()
             const { label, color, bg } = resolveDayStatus({
-              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), holidayName: holidayByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
+              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), holidayName: holidayByDate.get(dateStr0), weekendRule: weekendRuleOf(emp, dow0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
             })
             const dateStr = (r.date ?? '').slice(0, 10)
             const d = new Date(dateStr + 'T00:00:00')
@@ -407,7 +420,7 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
       for (const r of recs ?? []) fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
       const status = resolveDayStatus({
         recs, dow: new Date(dateKey).getDay(),
-        leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+        leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleOf(emp, new Date(dateKey).getDay()), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
       })
       if (status.label === 'ขาด' || status.label === 'ขาดงาน') absent++
       else if (holidayByDate.get(dateKey) === status.label || ['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
@@ -483,7 +496,7 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
             const { label, color, bg } = resolveDayStatus({
-              recs, dow, leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+              recs, dow, leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleOf(emp, dow), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
             })
             return (
               <div key={dateKey} style={{

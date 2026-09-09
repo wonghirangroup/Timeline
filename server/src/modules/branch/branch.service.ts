@@ -30,6 +30,9 @@ export async function createBranch(tenantId: string, data: {
   geo_mode?: 'WARN' | 'BLOCK'
   booking_enabled?: boolean | null
   leave_enabled?: boolean | null
+  saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
+  sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
+  booking_quota?: number | null
 }) {
   await assertPlanCapacity(tenantId, 'branches')
   return prisma.branch.create({
@@ -43,6 +46,9 @@ export async function createBranch(tenantId: string, data: {
       geo_mode: data.geo_mode ?? 'WARN',
       booking_enabled: data.booking_enabled ?? null,
       leave_enabled: data.leave_enabled ?? null,
+      saturday_rule: data.saturday_rule ?? null,
+      sunday_rule: data.sunday_rule ?? null,
+      booking_quota: data.booking_quota ?? null,
     },
   })
 }
@@ -61,7 +67,7 @@ export async function getBranchQrUrl(tenantId: string, branchId: string): Promis
 export async function updateBranch(
   tenantId: string,
   id: string,
-  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null },
+  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null; saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null },
 ) {
   const count = await prisma.branch.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },

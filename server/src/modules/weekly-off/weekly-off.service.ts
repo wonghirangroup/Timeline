@@ -1,7 +1,6 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
-import { resolveBookingEnabled } from '../group/group.service'
-import { bangkokDateStr } from '../../common/utils/time'
+import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -28,6 +27,23 @@ function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string {
   const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
   d.setUTCDate(d.getUTCDate() + offset)
   return d.toISOString().slice(0, 10)
+}
+
+// นับวันหยุดที่พนักงานจองไว้แล้ว (PENDING+APPROVED) ในเดือนหนึ่ง — ใช้เช็คโควต้าจอง/เดือน
+async function countMonthOffRequests(tenantId: string, employeeId: string, month: string, excludeId?: string): Promise<number> {
+  const [y, m] = month.split('-').map(Number)
+  const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+  const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
+  const rows = await prisma.weeklyOffRequest.findMany({
+    where: {
+      tenant_id: tenantId, employee_id: employeeId,
+      status: { in: ['PENDING', 'APPROVED'] },
+      week_start: { gte: rangeStart, lte: rangeEnd },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { week_start: true, day_of_week: true },
+  })
+  return rows.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === month).length
 }
 
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
@@ -103,6 +119,13 @@ export async function createWeeklyOff(tenantId: string, data: {
     where: { employee_id_week_start: { employee_id: data.employee_id, week_start: monday } },
   })
   if (existing) throw new Error('ALREADY_REQUESTED')
+
+  // โควต้าจอง/เดือน — cascade 6 ชั้น (default 5) · แอดมิน force ข้ามได้
+  if (!overrideBy) {
+    const actualMonth = resolveActualDateStr(monday, data.day_of_week).slice(0, 7)
+    const quota = await resolveBookingQuota(tenantId, data.employee_id)
+    if (await countMonthOffRequests(tenantId, data.employee_id, actualMonth) >= quota) throw new Error('OVER_QUOTA')
+  }
 
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
   const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, monday, data.day_of_week)
@@ -185,30 +208,8 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
 }
 
 // ── Monthly Batch Off (weekly_off_mode = MONTHLY_BATCH) ──────────────────────
-// พนักงาน mode นี้ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว (1 วัน/สัปดาห์ x 4-5 สัปดาห์)
-// ไม่บังคับจำนวนตายตัวเป็น 4 — คำนวณจากจำนวนวันจันทร์จริงในเดือนนั้น (บางเดือนมี 5)
-
-const getTodayStrBangkok = bangkokDateStr // ดู common/utils/time.ts
-
-// สัปดาห์ที่ "ต้องเลือกให้ครบ" จริง — ไม่นับสัปดาห์ที่ผ่านไปแล้วทั้งสัปดาห์ (mirror ของ
-// getWeeksOfMonth ฝั่ง frontend employee/src/pages/leave/index.tsx) กันเคส user เปิดดู
-// เดือนปัจจุบันตอนผ่านไปแล้วบางส่วน แล้วติด deadlock เลือกวันในสัปดาห์ที่ผ่านไปแล้วไม่ได้
-// แต่ระบบยังบังคับให้ครบทุกสัปดาห์รวมสัปดาห์เก่าด้วย
-function getWeeksOfMonth(month: string): string[] {
-  const [y, m] = month.split('-').map(Number)
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
-  const mondays = new Set<string>()
-  for (let day = 1; day <= lastDay; day++) {
-    const dateStr = `${month}-${String(day).padStart(2, '0')}`
-    mondays.add(getMondayOf(dateStr).toISOString().slice(0, 10))
-  }
-  const today = getTodayStrBangkok()
-  return [...mondays].filter(monday => {
-    const sunday = new Date(monday + 'T00:00:00Z')
-    sunday.setUTCDate(sunday.getUTCDate() + 6)
-    return sunday.toISOString().slice(0, 10) >= today
-  }).sort()
-}
+// โหมดโควต้า: เลือกวันไหนก็ได้ในเดือน ไม่เกิน booking_quota (resolve จาก cascade 6 ชั้น, default 5)
+// (เดิมมีโหมด "ต้องครบทุกสัปดาห์" สำหรับคนไม่ผูกสถานะพนักงาน — เลิกใช้แล้ว ทุกคนมีโควต้าจากกลุ่ม)
 
 // ตำแหน่งเดียวกัน + วันเดียวกัน (week_start+day_of_week) ถูกจองไว้แล้วโดยคนอื่นไหม (PENDING/APPROVED)
 // ไม่บล็อคการจอง — แค่คืนค่าไว้ set has_conflict ให้แอดมินเห็นตอนอนุมัติ ตาม spec
@@ -237,7 +238,7 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
 
   const employee = await prisma.employee.findFirst({
     where: { id: data.employee_id, tenant_id: tenantId },
-    select: { position_id: true, employee_status_type_id: true, employee_status_type: { select: { monthly_off_quota: true } } },
+    select: { position_id: true },
   })
 
   const picked = data.dates.map(dateStr => ({
@@ -245,22 +246,11 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
     weekStart: getMondayOf(dateStr).toISOString().slice(0, 10),
   }))
 
-  // มีสถานะพนักงานผูกโควต้าแล้ว → โหมดโควต้า: เลือกกี่วันก็ได้ในเดือน ไม่เกินโควต้า
-  // ไม่บังคับครบทุกสัปดาห์/ไม่บังคับ 1 วันต่อสัปดาห์อีกต่อไป (ตาม spec สถานะพนักงานกำหนดจำนวนวัน)
-  if (employee?.employee_status_type_id && employee.employee_status_type) {
-    const quota = employee.employee_status_type.monthly_off_quota
-    const uniqueDates = new Set(picked.map(p => p.dateStr))
-    if (uniqueDates.size !== picked.length) throw new Error('DUPLICATE_DATE')
-    if (picked.length > quota) throw new Error('OVER_QUOTA')
-  } else {
-    // ยังไม่ได้ผูกสถานะพนักงาน → fallback พฤติกรรมเดิม: ต้องครบทุกสัปดาห์ของเดือน (1 วัน/สัปดาห์)
-    const requiredWeeks = getWeeksOfMonth(data.month)
-    const pickedWeeks = new Set(picked.map(p => p.weekStart))
-    if (pickedWeeks.size !== picked.length) throw new Error('DUPLICATE_WEEK')
-    if (picked.length !== requiredWeeks.length || requiredWeeks.some(w => !pickedWeeks.has(w))) {
-      throw new Error('INCOMPLETE_MONTH')
-    }
-  }
+  // โหมดโควต้า (ทุกคน): เลือกวันไหนก็ได้ในเดือน ไม่เกินโควต้าที่ resolve จาก cascade 6 ชั้น (default 5)
+  const quota = await resolveBookingQuota(tenantId, data.employee_id)
+  const uniqueDates = new Set(picked.map(p => p.dateStr))
+  if (uniqueDates.size !== picked.length) throw new Error('DUPLICATE_DATE')
+  if (picked.length > quota) throw new Error('OVER_QUOTA')
 
   try {
     return await prisma.$transaction(async tx => {

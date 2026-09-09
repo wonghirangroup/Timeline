@@ -45,12 +45,25 @@ interface ApiRecord {
   shift: ApiShift
 }
 
+type DayRuleT = 'WORK' | 'OFF' | 'OFFSITE'
+type WQNode = { saturday_rule?: DayRuleT | null; sunday_rule?: DayRuleT | null }
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
-  branch_id: string; branch: { id: string; name: string; group_id?: string | null }
+  branch_id: string; branch: { id: string; name: string; group_id?: string | null } & WQNode & { group?: WQNode | null }
   position_id?: string | null
   department?: string | null
+  employee_status_type?: WQNode | null
+  position?: (WQNode & { department?: (WQNode & { division?: WQNode | null }) | null }) | null
+}
+
+// resolve เสาร์/อาทิตย์จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
+function weekendRuleOf(e: ApiEmployee, dow: number): DayRuleT {
+  if (dow !== 0 && dow !== 6) return 'WORK'
+  const k = dow === 6 ? 'saturday_rule' : 'sunday_rule'
+  const chain: (WQNode | null | undefined)[] = [e.employee_status_type, e.position, e.position?.department, e.position?.department?.division, e.branch, e.branch?.group]
+  for (const n of chain) { const v = n?.[k]; if (v != null) return v }
+  return 'OFF'
 }
 
 
@@ -311,7 +324,7 @@ export default function AttendancePage() {
     queryKey: ['positions'],
     queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
-  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees as any, positions), [employees, positions])
 
   const loading = empLoading || recLoading
 
@@ -401,6 +414,7 @@ export default function AttendancePage() {
     }
 
     const result: Row[] = []
+    const dow = new Date(date + 'T00:00:00').getDay()
 
     for (const emp of employees) {
       const empRecords = byEmp[emp.id] ?? []
@@ -419,6 +433,8 @@ export default function AttendancePage() {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'HOLIDAY', subLabel: hol.name })
         } else if (weeklyOffEmps.has(emp.id)) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'หยุดประจำสัปดาห์' })
+        } else if (weekendRuleOf(emp, dow) !== 'WORK') {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: dow === 6 ? 'หยุดเสาร์' : 'หยุดอาทิตย์' })
         } else {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: deriveStatus(null, date) })
         }

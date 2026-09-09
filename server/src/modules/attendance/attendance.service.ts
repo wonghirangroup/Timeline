@@ -2,6 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
+import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { bangkokToday } from '../../common/utils/time'
 
@@ -24,10 +25,11 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
   })
   const st = employee?.employee_status_type
 
-  if (st) {
-    const dow = date.getUTCDay()
-    if (dow === 6 && st.saturday_rule !== 'WORK') return { rule: st.saturday_rule as 'OFF' | 'OFFSITE' }
-    if (dow === 0 && st.sunday_rule   !== 'WORK') return { rule: st.sunday_rule as 'OFF' | 'OFFSITE' }
+  // เสาร์/อาทิตย์ — resolve จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
+  const dow = date.getUTCDay()
+  if (dow === 6 || dow === 0) {
+    const wr = await resolveWeekendRule(tenantId, employeeId, dow === 6 ? 'saturday' : 'sunday')
+    if (wr !== 'WORK') return { rule: wr }
   }
 
   // เช็ควันหยุดนักขัตฤกษ์เสมอ ไม่ผูกกับว่ามีสถานะพนักงานหรือไม่ (เดิมอยู่ใน

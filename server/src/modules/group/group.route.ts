@@ -7,6 +7,11 @@ import { ok, fail }         from '../../common/utils/response'
 import * as svc from './group.service'
 
 const TAG = 'Admin'
+const DAY_RULE = { type: 'string', enum: ['WORK', 'OFF', 'OFFSITE'] }
+const HOLIDAY_POLICY_PROPS = {
+  saturday_rule: DAY_RULE, sunday_rule: DAY_RULE,
+  booking_quota: { type: 'integer', minimum: 0, maximum: 31 },
+}
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
 const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'] as const
 
@@ -20,7 +25,7 @@ export async function groupRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
       tags: [TAG], summary: 'สร้างกลุ่มใหม่ (จำกัดจำนวนตาม package)', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' } } },
+      body: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, ...HOLIDAY_POLICY_PROPS } },
     },
   }, async (req: any, reply) => {
     try {
@@ -37,7 +42,7 @@ export async function groupRoutes(app: FastifyInstance) {
     schema: {
       tags: [TAG], summary: 'แก้ไขกลุ่ม (booking_enabled/leave_enabled = ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/คนในกลุ่มนี้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, is_active: { type: 'boolean' }, ...HOLIDAY_POLICY_PROPS } },
     },
   }, async (req: any, reply) => {
     const g = await svc.updateGroup(req.tenantId, req.params.id, req.body)

@@ -460,8 +460,9 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const [picks, setPicks] = useState<Record<string, string>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const quota    = employee?.employee_status_type?.monthly_off_quota ?? 0
-  const hasQuota = !!employee?.employee_status_type
+  // โควต้าจอง/เดือน — resolve จาก cascade 6 ชั้น ฝั่ง server (default 5) · ทุกคนเป็นโหมดโควต้า
+  const quota    = employee?.booking_quota ?? employee?.employee_status_type?.monthly_off_quota ?? 5
+  const hasQuota = true
 
   const requiredWeeks = getWeeksOfMonth(month, todayStr)
   const daysInMonth   = getDaysInMonth(month)
@@ -702,6 +703,8 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
 
 function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
   const qc          = useQueryClient()
+  const employee    = useAuthStore(s => s.employee)
+  const quota       = employee?.booking_quota ?? 5
   const thisMonday  = getThisWeekMonday()
   const [weekStart, setWeekStart] = useState(thisMonday)
   const [selDow,    setSelDow]    = useState<number | null>(null)
@@ -745,6 +748,9 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
   const mondayMonth = new Date(weekStart + 'T00:00:00Z').getUTCMonth()
   const thisWeekOwn = allOwn.find(r => r.week_start.slice(0, 10) === weekStart)
   const colleagues  = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
+  // โควต้าจอง/เดือน — นับวันที่จองไว้แล้ว (จริง) ในเดือนของสัปดาห์นี้
+  const monthUsed  = allOwn.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month && r.status !== 'REJECTED').length
+  const quotaFull  = monthUsed >= quota
 
   const submitMutation = useMutation({
     mutationFn: () => api.post('/employee/weekly-off', { employee_id: employeeId, week_start: weekStart, day_of_week: selDow }),
@@ -754,8 +760,10 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
       setSubmitted(true); setErrorMsg(null)
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.error?.code === 'ALREADY_REQUESTED'
-        ? 'คุณจองวันหยุดสัปดาห์นี้แล้ว' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      const code = err.response?.data?.error?.code
+      setErrorMsg(code === 'ALREADY_REQUESTED' ? 'คุณจองวันหยุดสัปดาห์นี้แล้ว'
+        : code === 'OVER_QUOTA' ? `จองวันหยุดครบโควต้าของเดือนนี้แล้ว (${quota} วัน/เดือน)`
+        : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })
   const cancelMutation = useMutation({
@@ -767,7 +775,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
     },
   })
 
-  const canBook = isCurrentWeek && isOpen && !thisWeekOwn && !submitted
+  const canBook = isCurrentWeek && isOpen && !thisWeekOwn && !submitted && !quotaFull
 
   return (
     <div>
@@ -836,6 +844,15 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
           <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองสัปดาห์นี้</div>
           <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: 4 }}>รอประกาศจากผู้จัดการก่อนนะ</div>
+        </div>
+      )}
+
+      {/* ── Quota full (current week, open, not booked yet) ─────── */}
+      {isCurrentWeek && isOpen && !thisWeekOwn && !submitted && quotaFull && (
+        <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
+          <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
+          <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>จองวันหยุดครบโควต้าของเดือนนี้แล้ว</div>
+          <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: 4 }}>โควต้า {quota} วัน/เดือน (ใช้ไป {monthUsed})</div>
         </div>
       )}
 

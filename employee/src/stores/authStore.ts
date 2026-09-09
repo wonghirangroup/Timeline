@@ -18,6 +18,10 @@ export interface EmployeeProfile {
   booking_enabled?: boolean
   // สิทธิ์การลา — cascade เดียวกัน false = ยื่นคำขอลาไม่ได้ (ล็อกแท็บขอลา + พักร้อน/ชดเชย)
   leave_enabled?: boolean
+  // นโยบายวันหยุด — resolve จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม) ฝั่ง server
+  saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
+  sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
+  booking_quota?: number // จองวันหยุดได้กี่วัน/เดือน (ทั้ง 2 โหมด)
   // ยื่นลาผ่าน LIFF ย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — ตั้งที่ admin การตั้งค่า → นโยบายการลา
   leave_backdate_days?: number | null
   feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม

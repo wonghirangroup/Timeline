@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { ok, fail }        from '../../common/utils/response'
 import { getTenantByChannelId, verifyLiffIdToken } from '../line/line.service'
 import { prisma } from '../../common/utils/prisma'
-import { resolveBookingEnabled, resolveLeaveEnabled } from '../group/group.service'
+import { resolveHolidayPolicy } from '../group/group.service'
 import { isFeatureEnabled } from '../../common/utils/features'
 
 // URL เว็บแอดมิน — สำหรับพนักงานที่ได้สิทธิ์แอดมิน กด "สลับไปเว็บแอดมิน" ใน LIFF
@@ -64,15 +64,15 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
 
     // สิทธิ์จอง/ลา — cascade 6 ชั้น กลุ่ม→สาขา→ฝ่าย→แผนก→ตำแหน่ง→บุคคล (ดู group.service.ts)
     // ใช้ซ่อน UI ฝั่ง LIFF เมื่อปิด (เช่น สมาร์ทจิ๊กซอว์ หยุดได้แค่เสาร์-อาทิตย์ตายตัว)
-    const [booking_enabled, leave_enabled, tenant] = await Promise.all([
-      resolveBookingEnabled(config.tenant.id, employee.id),
-      resolveLeaveEnabled(config.tenant.id, employee.id),
+    const [policy, tenant] = await Promise.all([
+      resolveHolidayPolicy(config.tenant.id, employee.id),
       prisma.tenant.findFirst({ where: { id: config.tenant.id }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
+    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota } = policy
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const admin_access = !!employee.admin_user?.is_active
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/list?line_channel_id=xxx
