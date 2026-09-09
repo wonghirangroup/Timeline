@@ -4,6 +4,7 @@
 //   • role="dialog" + aria-modal  • ล็อก scroll พื้นหลัง  • คลิก backdrop ปิด (ปิดได้)
 // z-index มาจาก scale เดียว (z.ts) — เลิกใส่เลขมั่ว
 import { useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Z } from './z'
 
 interface ModalProps {
@@ -50,7 +51,9 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
     }
   }, [onClose, dismissable])
 
-  return (
+  // portal ไป document.body — modal ไม่โดนซ่อนถ้า ancestor เป็น display:none
+  // (เช่น แท็บที่ไม่ได้ active ในหน้าการลา ที่ mount ไว้ตลอดด้วย display:none)
+  return createPortal((
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z.modal, padding: 16 }}
       onClick={dismissable ? onClose : undefined}
@@ -69,5 +72,5 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
         {children}
       </div>
     </div>
-  )
+  ), document.body)
 }
