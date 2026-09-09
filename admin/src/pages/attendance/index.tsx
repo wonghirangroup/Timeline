@@ -204,6 +204,8 @@ export default function AttendancePage() {
   const [manualStatusTouched, setManualStatusTouched] = useState(false)
   const [manualFineTouched,   setManualFineTouched]   = useState(false)
   const [manualNoteError,     setManualNoteError]     = useState(false)
+  const [manualMode, setManualMode] = useState<'work' | 'leave' | 'off'>('work')
+  const [manualLeaveType, setManualLeaveType] = useState<'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE'>('SICK')
 
   const { data: branches = [] } = useQuery<ApiBranch[]>({
     queryKey: ['admin', 'branches'],
@@ -319,6 +321,38 @@ export default function AttendancePage() {
     },
   })
 
+  const manualLeaveMut = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/leave-requests', body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
+      showToast('success', `ลงวันลาให้ ${manualTarget?.first_name} แล้ว`)
+      setManualTarget(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'INSUFFICIENT_BALANCE') showToast('error', 'วันลาคงเหลือไม่พอ')
+      else if (code === 'LEAVE_DISABLED') showToast('error', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์การลา')
+      else if (code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว')
+      else showToast('error', 'ลงวันลาไม่สำเร็จ')
+    },
+  })
+  const manualOffMut = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/weekly-off', body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
+      showToast('success', `ลงวันหยุดให้ ${manualTarget?.first_name} แล้ว`)
+      setManualTarget(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      if (code === 'ALREADY_REQUESTED') showToast('error', 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว')
+      else if (code === 'BOOKING_DISABLED') showToast('error', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์จองวันหยุด')
+      else showToast('error', 'ลงวันหยุดไม่สำเร็จ')
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       api.delete(`/api/v1/admin/attendance/${id}`).then(r => r.data),
@@ -330,7 +364,7 @@ export default function AttendancePage() {
     onError: () => showToast('error', 'รีเซ็ตไม่สำเร็จ'),
   })
 
-  const saving = editMutation.isPending || manualMutation.isPending || deleteMutation.isPending
+  const saving = editMutation.isPending || manualMutation.isPending || deleteMutation.isPending || manualLeaveMut.isPending || manualOffMut.isPending
 
   // ── Merge employees + records ────────────────────────────────────────
   const rows = useMemo<Row[]>(() => {
@@ -460,6 +494,8 @@ export default function AttendancePage() {
     setManualStatusTouched(false)
     setManualFineTouched(false)
     setManualNoteError(false)
+    setManualMode('work')
+    setManualLeaveType('SICK')
     setManualTarget(emp)
   }
 
@@ -473,7 +509,34 @@ export default function AttendancePage() {
   }
 
   function handleManual() {
-    if (!manualTarget || !manualForm.shift_id || !manualForm.check_in_at) {
+    if (!manualTarget) return
+
+    // ── ลา ──
+    if (manualMode === 'leave') {
+      if (!manualForm.note.trim()) { setManualNoteError(true); showToast('error', 'กรุณากรอกหมายเหตุ'); return }
+      manualLeaveMut.mutate({
+        employee_id: manualTarget.id,
+        leave_type: manualLeaveType,
+        start_date: date, end_date: date, days: 1, leave_period: 'FULL',
+        reason: manualForm.note.trim(),
+      })
+      return
+    }
+    // ── หยุด (weekly-off ของวันที่เลือก) ──
+    if (manualMode === 'off') {
+      const d = new Date(date + 'T00:00:00.000Z')
+      const monday = new Date(d)
+      monday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)) // ย้อนไปวันจันทร์
+      manualOffMut.mutate({
+        employee_id: manualTarget.id,
+        week_start: monday.toISOString().slice(0, 10),
+        day_of_week: d.getUTCDay(),
+      })
+      return
+    }
+
+    // ── มาทำงาน (ลงเวลาปกติ) ──
+    if (!manualForm.shift_id || !manualForm.check_in_at) {
       showToast('error', 'กรุณาเลือกกะและกรอกเวลาเข้างาน')
       return
     }
@@ -615,7 +678,7 @@ export default function AttendancePage() {
                             <button onClick={() => setResetTarget(row)} aria-label={`รีเซ็ตเวลาของ ${row.employee.first_name} ${row.employee.last_name}`} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
                           </>
                         ) : (
-                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงเวลา</button>
+                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงบันทึก</button>
                         )}
                       </div>
                     </div>
@@ -710,7 +773,7 @@ export default function AttendancePage() {
                               <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต" aria-label="รีเซ็ตเวลา"><Trash2 size={13}/></button>
                             </div>
                           ) : (
-                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงเวลา</button>
+                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #f97316', background: '#fff7ed', color: '#f97316', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงบันทึก</button>
                           )}
                         </td>
                       </tr>
@@ -859,11 +922,25 @@ export default function AttendancePage() {
           onClick={() => setManualTarget(null)}>
           <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
             onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงเวลาแทนพนักงาน</h3>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงบันทึกแทนพนักงาน</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {manualTarget.first_name} {manualTarget.last_name} · {manualTarget.branch.name} · {date}
             </p>
+
+            {/* โหมด: มาทำงาน / ลา / หยุด */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#f1f5f9', padding: 4, borderRadius: 10 }}>
+              {([['work', 'มาทำงาน'], ['leave', 'ลา'], ['off', 'หยุด']] as const).map(([m, label]) => (
+                <button key={m} onClick={() => { setManualMode(m); setManualNoteError(false) }}
+                  style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit',
+                    background: manualMode === m ? '#fff' : 'transparent', color: manualMode === m ? '#0f172a' : '#64748b',
+                    boxShadow: manualMode === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {manualMode === 'work' && <>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
                 <select value={manualForm.shift_id} onChange={e => setManualForm(f => manualRecalc({ ...f, shift_id: e.target.value }))} style={inp}>
@@ -915,20 +992,45 @@ export default function AttendancePage() {
                   กำหนดสถานะ/ค่าปรับเองด้วยมือ — ระบบจะไม่คำนวณใหม่
                 </p>
               )}
+              </>}
 
+              {manualMode === 'leave' && (
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>ประเภทการลา</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {([['SICK', 'ลาป่วย'], ['PERSONAL', 'ลากิจ'], ['VACATION', 'ลาพักร้อน'], ['MATERNITY', 'ลาคลอด'], ['COMPENSATE', 'หยุดชดเชย']] as const).map(([t, label]) => (
+                      <button key={t} onClick={() => setManualLeaveType(t)}
+                        style={{ padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${manualLeaveType === t ? '#0891b2' : '#e5e7eb'}`, background: manualLeaveType === t ? '#e0f2fe' : '#fff', color: manualLeaveType === t ? '#0e7490' : '#64748b', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ margin: '8px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>ลงให้ 1 วัน ({date}) · อนุมัติทันที · หักโควต้าวันลาของประเภทนั้น</p>
+                </div>
+              )}
+
+              {manualMode === 'off' && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6, background: '#f8fafc', borderRadius: 10, padding: '12px 14px' }}>
+                  ลงวันหยุดประจำสัปดาห์ให้ <b>{manualTarget.first_name}</b> ในวันที่ <b>{date}</b> — อนุมัติทันที ไม่หักโควต้าวันลา
+                  <br /><span style={{ fontSize: '0.72rem' }}>(ถ้าพนักงานมีวันหยุดในสัปดาห์นี้อยู่แล้ว จะลงซ้ำไม่ได้)</span>
+                </p>
+              )}
+
+              {manualMode !== 'off' && (
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> หมายเหตุ</label>
                 <textarea value={manualForm.note}
                   onChange={e => { setManualForm(f => ({ ...f, note: e.target.value })); if (manualNoteError && e.target.value.trim()) setManualNoteError(false) }}
-                  placeholder="เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย" rows={2}
+                  placeholder={manualMode === 'leave' ? 'เหตุผลการลา' : 'เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย'} rows={2}
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', borderColor: manualNoteError ? '#ef4444' : undefined }} />
                 {manualNoteError && <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#ef4444' }}>ต้องกรอกหมายเหตุก่อนบันทึก</p>}
               </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setManualTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'กำลังบันทึก...' : 'ลงเวลา'}
+                {saving ? 'กำลังบันทึก...' : manualMode === 'leave' ? 'ลงวันลา' : manualMode === 'off' ? 'ลงวันหยุด' : 'ลงเวลา'}
               </button>
             </div>
           </div>
