@@ -32,6 +32,7 @@ export async function settingsRoutes(app: FastifyInstance) {
           logo_url:      { type: ['string', 'null'] },
           primary_color: { type: ['string', 'null'], description: '#RRGGBB' },
           leave_backdate_days: { type: ['integer', 'null'], minimum: 0, description: 'null = ยื่นลาย้อนหลังได้ไม่จำกัด' },
+          self_resignation_enabled: { type: 'boolean', description: 'เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF' },
         },
       },
     },

@@ -119,7 +119,7 @@ export async function assertPlanCapacity(tenantId: string, kind: 'employees' | '
 // ── การตั้งค่าที่ Admin ของ tenant แก้ได้เอง (แยกจาก max_* / plan ที่เป็นของ Super Admin) ──
 const TENANT_SETTINGS_SELECT = {
   name: true, address: true, tax_id: true, logo_url: true, primary_color: true,
-  leave_backdate_days: true, plan: true,
+  leave_backdate_days: true, self_resignation_enabled: true, plan: true,
 } as const
 
 export async function getTenantSettings(tenantId: string) {
@@ -133,6 +133,7 @@ export async function updateTenantSettings(tenantId: string, data: {
   logo_url?: string | null
   primary_color?: string | null
   leave_backdate_days?: number | null
+  self_resignation_enabled?: boolean
 }) {
   const count = await prisma.tenant.updateMany({ where: { id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null

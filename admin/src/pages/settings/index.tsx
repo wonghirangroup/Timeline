@@ -261,7 +261,7 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; plan: string }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()
@@ -326,14 +326,16 @@ function LeavePolicyTab() {
   const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
   const [unlimited, setUnlimited] = useState(true)
   const [days, setDays] = useState(3)
+  const [selfResign, setSelfResign] = useState(true)
   useEffect(() => {
     if (!data) return
     setUnlimited(data.leave_backdate_days == null)
     setDays(data.leave_backdate_days ?? 3)
+    setSelfResign(data.self_resignation_enabled !== false)
   }, [data])
 
   const mut = useMutation({
-    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', { leave_backdate_days: unlimited ? null : Math.max(0, days) }),
+    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', { leave_backdate_days: unlimited ? null : Math.max(0, days), self_resignation_enabled: selfResign }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
   })
@@ -360,6 +362,15 @@ function LeavePolicyTab() {
           วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
         </div>
       )}
+      <div style={{ borderTop: '1px solid #f1f5f9', margin: '16px 0 0', paddingTop: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer' }}>
+          <input type="checkbox" checked={selfResign} disabled={readOnly} onChange={e => setSelfResign(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            <span style={{ fontWeight: 600 }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
+          </span>
+        </label>
+      </div>
       {!readOnly && (
         <Button variant="primary" loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
       )}

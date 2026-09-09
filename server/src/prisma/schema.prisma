@@ -22,6 +22,7 @@ model Tenant {
   logo_url              String? // white-label — โลโก้บริษัท (URL)
   primary_color         String? // white-label — สีหลัก (#RRGGBB)
   leave_backdate_days   Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
+  self_resignation_enabled Boolean @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
   plan                  TenantPlan @default(FREE)
   max_employees         Int        @default(5)
   max_branches          Int        @default(1)

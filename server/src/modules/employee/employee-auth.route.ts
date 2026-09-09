@@ -67,12 +67,12 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     const [booking_enabled, leave_enabled, tenant] = await Promise.all([
       resolveBookingEnabled(config.tenant.id, employee.id),
       resolveLeaveEnabled(config.tenant.id, employee.id),
-      prisma.tenant.findFirst({ where: { id: config.tenant.id }, select: { leave_backdate_days: true, enabled_features: true } }),
+      prisma.tenant.findFirst({ where: { id: config.tenant.id }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const admin_access = !!employee.admin_user?.is_active
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/list?line_channel_id=xxx

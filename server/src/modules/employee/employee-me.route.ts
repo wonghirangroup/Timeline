@@ -43,14 +43,14 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     const [booking_enabled, leave_enabled, tenant] = await Promise.all([
       resolveBookingEnabled(req.tenantId, employeeId),
       resolveLeaveEnabled(req.tenantId, employeeId),
-      prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true } }),
+      prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const { admin_user, ...empRest } = employee as any
     const admin_access = !!admin_user?.is_active
     const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
-    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
+    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
   })
 
   // PATCH /api/v1/employee/photo — พนักงานตั้ง/ลบรูปโปรไฟล์ตัวเองผ่าน LIFF

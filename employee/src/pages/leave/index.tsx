@@ -52,22 +52,16 @@ const STATUS_CFG = {
   APPROVED: { label: 'อนุมัติแล้ว', color: '#16A34A', bg: 'rgba(22,163,74,0.1)' },
   REJECTED: { label: 'ไม่อนุมัติ',  color: '#DC2626', bg: 'rgba(220,38,38,0.1)' },
 }
-// 4 ประเภทที่พนักงานขอผ่านฟอร์มนี้ได้จริง (ตรงกับ leave_type enum ที่
-// POST /employee/leave-requests รับ)
+// ประเภทมาตรฐานที่พนักงานขอผ่านฟอร์มนี้ได้ (ตรงกับ enum ที่ POST /employee/leave-requests รับ)
+// COMPENSATE (วันหยุดชดเชย) เปิดให้ยื่นเองได้แล้ว — ใช้โควต้าชดเชยที่แอดมินกำหนด/ได้จากมาทำงานวันหยุด
 const LEAVE_TYPES = [
-  { code: 'SICK',      label: 'ลาป่วย',    color: '#3B82F6' },
-  { code: 'PERSONAL',  label: 'ลากิจ',     color: '#8B5CF6' },
-  { code: 'VACATION',  label: 'ลาพักร้อน', color: '#F59E0B' },
-  { code: 'MATERNITY', label: 'ลาคลอด',   color: '#EC4899' },
-]
-// + COMPENSATE (วันหยุดชดเชย) — Admin เป็นคนกำหนดโควต้าให้เท่านั้น (เช่น
-// ชดเชยวันที่มาทำงานในวันหยุดนักขัตฤกษ์) พนักงานขอผ่านฟอร์มนี้ไม่ได้ (backend
-// ปฏิเสธ leave_type นี้ตอนสร้างคำขอ) — แยก list ไว้ต่างหาก ใช้แค่โชว์ label/
-// สีตอนแสดงยอดคงเหลือ ไม่เอาไปรวมกับปุ่มเลือกประเภทตอนขอลา
-const DISPLAY_LEAVE_TYPES = [
-  ...LEAVE_TYPES,
+  { code: 'SICK',       label: 'ลาป่วย',       color: '#3B82F6' },
+  { code: 'PERSONAL',   label: 'ลากิจ',        color: '#8B5CF6' },
+  { code: 'VACATION',   label: 'ลาพักร้อน',    color: '#F59E0B' },
+  { code: 'MATERNITY',  label: 'ลาคลอด',      color: '#EC4899' },
   { code: 'COMPENSATE', label: 'วันหยุดชดเชย', color: '#10B981' },
 ]
+const DISPLAY_LEAVE_TYPES = LEAVE_TYPES
 const MONTHS_TH   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
@@ -1432,30 +1426,38 @@ export default function LeavePage() {
                   สาขาของคุณปิดการลากิจ/พักร้อน — ยื่นได้เฉพาะลาป่วยและลาคลอด
                 </div>
               )}
-              {/* Leave type */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>ประเภทการลา</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {availableLeaveTypes.map(lt => {
-                    const active = form.leaveType === lt.code
-                    return (
-                      <button key={lt.code} onClick={() => setForm(f => ({ ...f, leaveType: lt.code, customTypeId: '' }))}
-                        style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? lt.color : 'transparent'}`, cursor: 'pointer', background: active ? `${lt.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? lt.color : '#6B7280' }}>{lt.label}</div>
-                      </button>
-                    )
-                  })}
-                  {!leaveRestricted && customLeaveTypes.map(ct => {
-                    const active = form.leaveType === 'OTHER' && form.customTypeId === ct.id
-                    return (
-                      <button key={ct.id} onClick={() => setForm(f => ({ ...f, leaveType: 'OTHER', customTypeId: ct.id }))}
-                        style={{ flex: '1 0 40%', padding: '10px 6px', borderRadius: 12, border: `2px solid ${active ? ct.color : 'transparent'}`, cursor: 'pointer', background: active ? `${ct.color}15` : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: active ? ct.color : '#6B7280' }}>{ct.name}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              {/* Leave type — dropdown (รองรับประเภทมาตรฐาน + ของบริษัทได้ไม่จำกัด) */}
+              {(() => {
+                const selColor = form.leaveType === 'OTHER'
+                  ? (customLeaveTypes.find(c => c.id === form.customTypeId)?.color ?? '#6B7280')
+                  : (LEAVE_TYPES.find(t => t.code === form.leaveType)?.color ?? '#6B7280')
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 8 }}>ประเภทการลา</div>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: selColor, pointerEvents: 'none' }} />
+                      <select
+                        value={form.leaveType === 'OTHER' ? `custom:${form.customTypeId}` : form.leaveType}
+                        onChange={e => {
+                          const v = e.target.value
+                          if (v.startsWith('custom:')) setForm(f => ({ ...f, leaveType: 'OTHER', customTypeId: v.slice(7) }))
+                          else setForm(f => ({ ...f, leaveType: v, customTypeId: '' }))
+                        }}
+                        style={{ width: '100%', padding: '13px 36px 13px 32px', borderRadius: 12, border: `1.5px solid ${selColor}55`, fontSize: '0.92rem', fontWeight: 700, color: '#1A2B3C', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none' }}>
+                        <optgroup label="ประเภทมาตรฐาน">
+                          {availableLeaveTypes.map(lt => <option key={lt.code} value={lt.code}>{lt.label}</option>)}
+                        </optgroup>
+                        {!leaveRestricted && customLeaveTypes.length > 0 && (
+                          <optgroup label="ประเภทของบริษัท">
+                            {customLeaveTypes.map(ct => <option key={ct.id} value={`custom:${ct.id}`}>{ct.name}</option>)}
+                          </optgroup>
+                        )}
+                      </select>
+                      <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9CA3AF', fontSize: '0.7rem' }}>▼</span>
+                    </div>
+                  </div>
+                )
+              })()}
               {/* Leave balance — field แยกต่างหาก อัปเดตตามประเภทที่เลือกอยู่ */}
               {form.leaveType !== 'OTHER' && (() => {
                 const selCfg = LEAVE_TYPES.find(t => t.code === form.leaveType)!
