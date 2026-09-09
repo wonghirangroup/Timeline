@@ -1,7 +1,7 @@
 // employee/src/pages/history/index.tsx
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet, FileText, Palmtree, MapPin, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet, FileText, Palmtree, MapPin, AlertTriangle, PartyPopper } from 'lucide-react'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -33,6 +33,7 @@ interface OffsiteRecord {
   id: string; check_in_at: string; check_in_address: string | null
   check_out_at: string | null; check_out_address: string | null; note: string | null
 }
+interface HolidayRec { date: string; name: string }
 
 const MONTHS   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const DAYS_TH_FULL = ['วันอาทิตย์','วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์']
@@ -72,14 +73,17 @@ function resolveDate(weekStart: string, dayOfWeek: number): string {
 // ── สถานะรายวันในแท็บ "เช็คชื่อ" ────────────────────────────────────
 // รวม record จริง + วันลา/วันหยุด (APPROVED) + เสาร์อาทิตย์ + วันธรรมดาที่ผ่านมาแล้ว
 // เพื่อไม่ให้วันที่ลา/หยุด/ขาด แสดงว่า "ไม่มีข้อมูล" เฉยๆ
+type Tone = 'leave' | 'off' | 'holiday'
 type AttItem =
   | { kind: 'record'; date: string; rec: AttendanceRecord }
-  | { kind: 'synthetic'; date: string; label: string; off: boolean }
+  | { kind: 'synthetic'; date: string; label: string; tone: Tone }
 
 type DayStatus = { label: string; color: string; bg: string; Icon: typeof CheckCircle2; bubble: string }
 
-const ST_LEAVE: Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText, bubble: 'icon-bubble icon-bubble-blue' }
-const ST_OFF:   Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
+const ST_LEAVE:   Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText,    bubble: 'icon-bubble icon-bubble-blue' }
+const ST_OFF:     Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree,    bubble: 'icon-bubble icon-bubble-purple' }
+const ST_HOLIDAY: Omit<DayStatus, 'label'> = { color: '#be123c', bg: '#ffe4e6', Icon: PartyPopper, bubble: 'icon-bubble icon-bubble-orange' }
+const TONE_ST: Record<Tone, Omit<DayStatus, 'label'>> = { leave: ST_LEAVE, off: ST_OFF, holiday: ST_HOLIDAY }
 
 function buildLeaveByDate(recs: LeaveRecord[]): Map<string, { label: string; off: boolean }> {
   const m = new Map<string, { label: string; off: boolean }>()
@@ -107,10 +111,11 @@ function resolveItemStatus(
   it: AttItem,
   leaveByDate: Map<string, { label: string; off: boolean }>,
   offDates: Set<string>,
+  holidayByDate: Map<string, string>,
   todayStr: string,
 ): DayStatus {
   if (it.kind === 'synthetic')
-    return it.off ? { label: it.label, ...ST_OFF } : { label: it.label, ...ST_LEAVE }
+    return { label: it.label, ...TONE_ST[it.tone] }
 
   const r = it.rec
   if (r.check_in_at) {
@@ -125,6 +130,8 @@ function resolveItemStatus(
 
   const lv = leaveByDate.get(it.date)
   if (lv) return lv.off ? { label: lv.label, ...ST_OFF } : { label: lv.label, ...ST_LEAVE }
+  const hol = holidayByDate.get(it.date)
+  if (hol) return { label: hol, ...ST_HOLIDAY }
   if (offDates.has(it.date)) return { label: 'หยุด', ...ST_OFF }
 
   const dow = new Date(it.date + 'T00:00:00').getDay()
@@ -175,6 +182,19 @@ export default function HistoryPage() {
     enabled: !!employee?.id,
   })
 
+  const selYear = Number(selectedMonth.slice(0, 4)) || now.getFullYear()
+  const { data: holidayRecs = [] } = useQuery<HolidayRec[]>({
+    queryKey: ['employee', 'holidays', employee?.id, selYear],
+    queryFn: () => api.get('/employee/holidays', { params: { year: selYear } })
+      .then(r => (r.data.data as any[]).map(h => ({ date: String(h.date ?? '').slice(0, 10), name: h.name }))),
+    enabled: !!employee?.id,
+  })
+  const holidayByDate = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const h of holidayRecs) if (h.date) m.set(h.date, h.name)
+    return m
+  }, [holidayRecs])
+
   // ── เช็คชื่อ ──────────────────────────────────────────────────────
   // รายการเดือนใน dropdown — รวมทุกแหล่ง (เช็คชื่อ/ลา/หยุด/นอกสถานที่) + 3 เดือนล่าสุดเสมอ
   const months = useMemo(() => {
@@ -183,12 +203,13 @@ export default function HistoryPage() {
     for (const l of leaveRecords)    if (l.start_date)   s.add(l.start_date.slice(0, 7))
     for (const w of dayoffRecords)   s.add(resolveDate(w.week_start, w.day_of_week).slice(0, 7))
     for (const o of offsiteRecords)  if (o.check_in_at)  s.add(o.check_in_at.slice(0, 7))
+    for (const h of holidayRecs)     if (h.date)         s.add(h.date.slice(0, 7))
     for (let i = 0; i < 3; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       s.add(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`)
     }
     return [...s].sort().reverse()
-  }, [records, leaveRecords, dayoffRecords, offsiteRecords])
+  }, [records, leaveRecords, dayoffRecords, offsiteRecords, holidayRecs])
   const allFiltered = records
     .filter(r => r.date.startsWith(selectedMonth))
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -197,22 +218,27 @@ export default function HistoryPage() {
   const leaveByDate = useMemo(() => buildLeaveByDate(leaveRecords), [leaveRecords])
   const offDates    = useMemo(() => buildOffDates(dayoffRecords), [dayoffRecords])
 
-  // record จริง + วันลา/หยุด (APPROVED) ที่ยังไม่ผ่านมาแล้วและไม่มี record ในเดือนที่เลือก
+  // record จริง + วันลา/หยุด (APPROVED) + วันหยุดนักขัตฤกษ์ ที่ผ่านมาแล้วและไม่มี record ในเดือนที่เลือก
   const attItems = useMemo<AttItem[]>(() => {
     const seen = new Set(allFiltered.map(r => r.date.slice(0, 10)))
     const items: AttItem[] = allFiltered.map(r => ({ kind: 'record' as const, date: r.date.slice(0, 10), rec: r }))
+    const inMonth = (date: string) => date.slice(0, 7) === selectedMonth && date <= todayStr && !seen.has(date)
     for (const [date, info] of leaveByDate) {
-      if (date.slice(0, 7) !== selectedMonth || date > todayStr || seen.has(date)) continue
-      items.push({ kind: 'synthetic', date, label: info.label, off: info.off }); seen.add(date)
+      if (!inMonth(date)) continue
+      items.push({ kind: 'synthetic', date, label: info.label, tone: info.off ? 'off' : 'leave' }); seen.add(date)
+    }
+    for (const [date, name] of holidayByDate) {
+      if (!inMonth(date)) continue
+      items.push({ kind: 'synthetic', date, label: name, tone: 'holiday' }); seen.add(date)
     }
     for (const date of offDates) {
-      if (date.slice(0, 7) !== selectedMonth || date > todayStr || seen.has(date)) continue
-      items.push({ kind: 'synthetic', date, label: 'หยุด', off: true }); seen.add(date)
+      if (!inMonth(date)) continue
+      items.push({ kind: 'synthetic', date, label: 'หยุด', tone: 'off' }); seen.add(date)
     }
     return items.sort((a, b) => b.date.localeCompare(a.date))
-  }, [allFiltered, leaveByDate, offDates, selectedMonth, todayStr])
+  }, [allFiltered, leaveByDate, offDates, holidayByDate, selectedMonth, todayStr])
 
-  const resolved = attItems.map(it => ({ it, st: resolveItemStatus(it, leaveByDate, offDates, todayStr) }))
+  const resolved = attItems.map(it => ({ it, st: resolveItemStatus(it, leaveByDate, offDates, holidayByDate, todayStr) }))
   const cntOnTime = resolved.filter(x => x.st.label === 'ตรงเวลา').length
   const cntLate   = resolved.filter(x => x.it.kind === 'record' && x.it.rec.is_late).length
   const cntAbsent = resolved.filter(x => x.st.label === 'ขาดงาน' || x.st.label === 'นับเป็นขาด').length
