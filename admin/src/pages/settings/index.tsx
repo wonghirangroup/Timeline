@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Button from '../../components/ui/Button'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import { useIsReadOnly } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
@@ -124,9 +125,7 @@ function UserManagementSettings() {
             </p>
           </div>
         </div>
-        <button onClick={openAdd} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, flexShrink: 0 }}>
-          <Plus size={14}/> เพิ่มผู้ใช้งาน
-        </button>
+        <Button variant="primary" icon={<Plus size={14}/>} onClick={openAdd} style={{ flexShrink: 0 }}>เพิ่มผู้ใช้งาน</Button>
       </div>
 
       {isLoading ? (
@@ -143,8 +142,8 @@ function UserManagementSettings() {
                   <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{u.email}</p>
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '3px 9px', borderRadius: 99 }}>{ROLE_LABEL[u.role] ?? u.role}</span>
-                <button onClick={() => openEdit(u)} style={{ padding: 6, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={13}/></button>
-                <button onClick={() => setDeleteTarget(u)} style={{ padding: 6, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={13}/></button>
+                <Button variant="secondary" size="sm" icon={<Pencil size={13}/>} onClick={() => openEdit(u)} aria-label="แก้ไข" />
+                <Button variant="danger-soft" size="sm" icon={<Trash2 size={13}/>} onClick={() => setDeleteTarget(u)} aria-label="ลบ" />
               </div>
             )
           })}
@@ -208,10 +207,8 @@ function UserManagementSettings() {
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-              <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleSave} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
-                {modal.edit ? 'บันทึก' : 'สร้าง'}
-              </button>
+              <Button variant="ghost" block onClick={() => setModal(null)}>ยกเลิก</Button>
+              <Button variant="primary" block onClick={handleSave}>{modal.edit ? 'บันทึก' : 'สร้าง'}</Button>
             </div>
           </div>
         </div>
@@ -255,10 +252,9 @@ function SelfPasswordCard() {
         <div><label style={fieldLabel}>รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label><input type="password" style={inputStyle} value={next} onChange={e => setNext(e.target.value)} /></div>
         <div><label style={fieldLabel}>ยืนยันรหัสผ่านใหม่</label><input type="password" style={inputStyle} value={confirm} onChange={e => setConfirm(e.target.value)} /></div>
         {confirm && next !== confirm && <p style={{ fontSize: '11.5px', color: '#dc2626', margin: 0 }}>รหัสผ่านใหม่ไม่ตรงกัน</p>}
-        <button onClick={() => mut.mutate()} disabled={!valid || mut.isPending}
-          style={{ justifySelf: 'start', marginTop: 2, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed', opacity: valid ? 1 : 0.5 }}>
-          {mut.isPending ? 'กำลังบันทึก…' : 'เปลี่ยนรหัสผ่าน'}
-        </button>
+        <Button variant="primary" disabled={!valid} loading={mut.isPending} onClick={() => mut.mutate()} style={{ justifySelf: 'start', marginTop: 2 }}>
+          เปลี่ยนรหัสผ่าน
+        </Button>
       </div>
     </div>
   )
@@ -316,10 +312,7 @@ function CompanyProfileTab() {
         </div>
       )}
       {!readOnly && (
-        <button onClick={() => mut.mutate()} disabled={!form.name.trim() || mut.isPending}
-          style={{ marginTop: 16, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: form.name.trim() ? 1 : 0.5 }}>
-          {mut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
-        </button>
+        <Button variant="primary" disabled={!form.name.trim()} loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
       )}
     </div>
   )
@@ -368,10 +361,7 @@ function LeavePolicyTab() {
         </div>
       )}
       {!readOnly && (
-        <button onClick={() => mut.mutate()} disabled={mut.isPending}
-          style={{ marginTop: 16, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          {mut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
-        </button>
+        <Button variant="primary" loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
       )}
     </div>
   )

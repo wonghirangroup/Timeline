@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 
@@ -298,12 +299,7 @@ export default function AnnouncementPage() {
               <div style={{ background: '#eff6ff', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <Smartphone size={14} style={{ marginTop: 1, flexShrink: 0 }}/>ประกาศจะถูกส่งผ่าน <strong>Line OA</strong> ไปยังพนักงานที่เลือก
               </div>
-              <button
-                onClick={sendBroadcast}
-                style={{ padding: '11px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-              >
-                <Send size={15}/>ส่งประกาศ
-              </button>
+              <Button variant="primary" size="lg" icon={<Send size={15}/>} onClick={sendBroadcast}>ส่งประกาศ</Button>
             </div>
           </div>
 
@@ -369,13 +365,7 @@ export default function AnnouncementPage() {
               <div style={{ background: '#fefce8', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#854d0e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <AlertTriangle size={14} style={{ marginTop: 1, flexShrink: 0 }}/>พนักงานต้องผูก Line account กับระบบก่อน จึงจะรับข้อความได้
               </div>
-              <button
-                onClick={sendDirect}
-                disabled={directMutation.isPending}
-                style={{ padding: '11px 24px', borderRadius: 8, border: 'none', cursor: directMutation.isPending ? 'not-allowed' : 'pointer', background: directMutation.isPending ? '#fdba74' : '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-              >
-                <Send size={15}/>{directMutation.isPending ? 'กำลังส่ง...' : 'ส่งข้อความ'}
-              </button>
+              <Button variant="primary" size="lg" icon={<Send size={15}/>} loading={directMutation.isPending} onClick={sendDirect}>ส่งข้อความ</Button>
             </div>
           </div>
         </div>
@@ -489,12 +479,14 @@ export default function AnnouncementPage() {
                 <textarea value={tplForm.content} onChange={e => setTplForm(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="เนื้อหา (default)" style={{ ...inputStyle, resize: 'vertical' }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   {tplForm.id && (
-                    <button onClick={() => setTplForm({ id: null, name: '', title: '', content: '' })} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}>ยกเลิกแก้ไข</button>
+                    <Button variant="ghost" size="sm" onClick={() => setTplForm({ id: null, name: '', title: '', content: '' })}>ยกเลิกแก้ไข</Button>
                   )}
-                  <button onClick={() => saveTemplateMutation.mutate()} disabled={!tplForm.name.trim() || !tplForm.title.trim() || !tplForm.content.trim() || saveTemplateMutation.isPending}
-                    style={{ flex: 1, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Plus size={13} /> {tplForm.id ? 'บันทึกการแก้ไข' : 'สร้างเทมเพลต'}
-                  </button>
+                  <Button variant="primary" size="sm" block icon={<Plus size={13} />}
+                    disabled={!tplForm.name.trim() || !tplForm.title.trim() || !tplForm.content.trim()}
+                    loading={saveTemplateMutation.isPending}
+                    onClick={() => saveTemplateMutation.mutate()}>
+                    {tplForm.id ? 'บันทึกการแก้ไข' : 'สร้างเทมเพลต'}
+                  </Button>
                 </div>
               </div>
             </div>

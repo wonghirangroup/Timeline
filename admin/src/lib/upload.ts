@@ -33,6 +33,18 @@ export async function uploadImage(file: File): Promise<string> {
   return json.secure_url as string
 }
 
+// อัปโหลดไฟล์ใดๆ (PDF / รูป / เอกสาร) — ไม่ย่อ, ใช้ resource_type auto
+export async function uploadFile(file: File, folder = 'timeline/documents'): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('upload_preset', UPLOAD_PRESET)
+  fd.append('folder', folder)
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: fd })
+  if (!res.ok) throw new Error('UPLOAD_FAILED')
+  const json = await res.json()
+  return json.secure_url as string
+}
+
 // URL รูปโปรไฟล์แบบ optimize สำหรับแสดงผล (q_auto,f_auto + ครอปสี่เหลี่ยมจัตุรัส)
 export function avatarUrl(url: string | null | undefined, size = 160): string | null {
   if (!url) return null

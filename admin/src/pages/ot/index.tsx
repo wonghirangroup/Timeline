@@ -9,6 +9,7 @@ import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
+import Button from '../../components/ui/Button'
 import { useBulkSelect } from '../../hooks/useBulkSelect'
 import { api } from '../../lib/axios'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
@@ -476,8 +477,8 @@ export default function OtPage() {
                     <span style={{ fontSize: '0.78rem', color: '#374151' }}>× {r.multiplier}</span>
                     {r.status === 'PENDING' && !isReadOnly && (
                       <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                        <button onClick={() => openApprove(r)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={12} /> อนุมัติ</button>
-                        <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center' }}><X size={12} /></button>
+                        <Button variant="success" size="sm" icon={<Check size={12} />} onClick={() => openApprove(r)}>อนุมัติ</Button>
+                        <Button variant="danger-soft" size="sm" icon={<X size={12} />} onClick={() => { setRejectTarget(r); setRejectNote('') }} aria-label="ไม่อนุมัติ" />
                       </div>
                     )}
                     {r.status === 'APPROVED' && !isReadOnly && (
@@ -564,8 +565,8 @@ export default function OtPage() {
                       <td style={{ padding: '11px 14px' }}>
                         {r.status === 'PENDING' && !isReadOnly ? (
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => openApprove(r)} style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#15803d', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={11} /> อนุมัติ</button>
-                            <button onClick={() => { setRejectTarget(r); setRejectNote('') }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>ไม่อนุมัติ</button>
+                            <Button variant="success" size="sm" icon={<Check size={11} />} onClick={() => openApprove(r)}>อนุมัติ</Button>
+                            <Button variant="danger-soft" size="sm" onClick={() => { setRejectTarget(r); setRejectNote('') }}>ไม่อนุมัติ</Button>
                           </div>
                         ) : r.status === 'APPROVED' && !isReadOnly ? (
                           <button onClick={() => openPay(r)} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#7c3aed', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -736,8 +737,8 @@ export default function OtPage() {
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setApproveTarget(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={doApprove} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Check size={14} /> อนุมัติ OT</button>
+              <Button variant="ghost" block onClick={() => setApproveTarget(null)}>ยกเลิก</Button>
+              <Button variant="success" block icon={<Check size={14} />} onClick={doApprove}>อนุมัติ OT</Button>
             </div>
           </div>
         </div>
@@ -1089,8 +1090,8 @@ export default function OtPage() {
               />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setRejectTarget(null)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={doReject} style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>ยืนยันไม่อนุมัติ</button>
+              <Button variant="ghost" block onClick={() => setRejectTarget(null)}>ยกเลิก</Button>
+              <Button variant="danger" block onClick={doReject}>ยืนยันไม่อนุมัติ</Button>
             </div>
           </div>
         </div>

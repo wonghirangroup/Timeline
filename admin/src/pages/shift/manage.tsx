@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
+import Button from '../../components/ui/Button'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
@@ -602,9 +603,7 @@ export default function ShiftPage() {
         >
           <HelpCircle size={14} /> วิธีใช้
         </button>
-        <button data-tour="shift-add-btn" onClick={openAdd} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
-          + เพิ่มกะ
-        </button>
+        <Button data-tour="shift-add-btn" variant="primary" size="lg" icon={<Plus size={14} />} onClick={openAdd}>เพิ่มกะ</Button>
       </div>
 
       {/* KPI row */}
@@ -741,8 +740,8 @@ export default function ShiftPage() {
                 >
                   <Users size={13}/> พนักงาน{empCnt > 0 ? ` (${empCnt})` : ''}
                 </button>
-                <button onClick={() => openEdit(s)} style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Pencil size={13}/> แก้ไข</button>
-                <button onClick={() => setDeleteTarget(s)} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}><Trash2 size={13}/></button>
+                <Button variant="secondary" size="sm" block icon={<Pencil size={13}/>} onClick={() => openEdit(s)}>แก้ไข</Button>
+                <Button variant="danger-soft" size="sm" icon={<Trash2 size={13}/>} onClick={() => setDeleteTarget(s)} aria-label="ลบ" />
               </div>
             </div>
             )
@@ -1003,11 +1002,10 @@ export default function ShiftPage() {
             </div>
 
             <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
-              <button onClick={() => setModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleSave} disabled={saving}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {saving ? <><Loader2 size={14} className="animate-spin" /> กำลังบันทึก...</> : modal.mode === 'add' ? <><Plus size={14} /> เพิ่มกะ</> : <><Save size={14} /> บันทึก</>}
-              </button>
+              <Button variant="ghost" onClick={() => setModal(null)}>ยกเลิก</Button>
+              <Button variant="primary" loading={saving} icon={modal.mode === 'add' ? <Plus size={14} /> : <Save size={14} />} onClick={handleSave}>
+                {modal.mode === 'add' ? 'เพิ่มกะ' : 'บันทึก'}
+              </Button>
             </div>
           </div>
         </div>

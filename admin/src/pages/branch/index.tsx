@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
+import Button from '../../components/ui/Button'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
@@ -659,10 +660,7 @@ export default function BranchPage() {
         >
           <HelpCircle size={14} /> วิธีใช้
         </button>
-        <button data-tour="branch-add-btn" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontWeight: 700, fontSize: '0.875rem', boxShadow: '0 2px 8px rgba(249,115,22,0.3)', whiteSpace: 'nowrap' }}>
-          <Plus size={14} />
-          เพิ่มสาขา
-        </button>
+        <Button data-tour="branch-add-btn" variant="primary" size="lg" icon={<Plus size={14} />} onClick={openAdd}>เพิ่มสาขา</Button>
         </div>
       </div>
 
@@ -803,14 +801,8 @@ export default function BranchPage() {
                   <QrCode size={13} />
                   QR
                 </button>
-                <button onClick={() => openEdit(b)}
-                  style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                  แก้ไข
-                </button>
-                <button onClick={() => setDeleteTarget(b)}
-                  style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                  ลบ
-                </button>
+                <Button variant="secondary" size="sm" block icon={<Pencil size={12} />} onClick={() => openEdit(b)}>แก้ไข</Button>
+                <Button variant="danger-soft" size="sm" onClick={() => setDeleteTarget(b)}>ลบ</Button>
               </div>
             </div>
           ))}
@@ -1136,12 +1128,10 @@ export default function BranchPage() {
 
               {/* Footer nav */}
               <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <button onClick={step === 1 ? () => setModal(null) : () => setStep(s => s - 1)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
-                  {step === 1 ? 'ยกเลิก' : (
-                    <><ChevronLeft size={14} /> ก่อนหน้า</>
-                  )}
-                </button>
+                <Button variant={step === 1 ? 'ghost' : 'secondary'} icon={step === 1 ? undefined : <ChevronLeft size={14} />}
+                  onClick={step === 1 ? () => setModal(null) : () => setStep(s => s - 1)}>
+                  {step === 1 ? 'ยกเลิก' : 'ก่อนหน้า'}
+                </Button>
 
                 <div style={{ display: 'flex', gap: 4 }}>
                   {Array.from({ length: maxStep }, (_, i) => i + 1).map(n => (
@@ -1150,15 +1140,14 @@ export default function BranchPage() {
                 </div>
 
                 {step < maxStep ? (
-                  <button onClick={() => { if (step === 1 && !form.name.trim()) { showToast('error', 'กรุณาระบุชื่อสาขาก่อน'); return }; setStep(s => s + 1) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                    ถัดไป <ChevronRight size={14} />
-                  </button>
+                  <Button variant="primary" iconRight={<ChevronRight size={14} />}
+                    onClick={() => { if (step === 1 && !form.name.trim()) { showToast('error', 'กรุณาระบุชื่อสาขาก่อน'); return }; setStep(s => s + 1) }}>
+                    ถัดไป
+                  </Button>
                 ) : (
-                  <button onClick={handleSave} disabled={saving}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-                    {saving ? 'กำลังบันทึก...' : (modal === 'add' ? `เพิ่มสาขา${pendingShifts.length > 0 ? ` + ${pendingShifts.length} กะ` : ''}` : 'บันทึก')}
-                  </button>
+                  <Button variant="primary" loading={saving} onClick={handleSave}>
+                    {modal === 'add' ? `เพิ่มสาขา${pendingShifts.length > 0 ? ` + ${pendingShifts.length} กะ` : ''}` : 'บันทึก'}
+                  </Button>
                 )}
               </div>
             </div>
@@ -1194,10 +1183,7 @@ export default function BranchPage() {
                   <div style={{ flex: 1, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, fontSize: '12px', color: '#15803d', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 5 }}>
                     <Check size={13} /> {pickedCoords.lat.toFixed(6)}, {pickedCoords.lng.toFixed(6)}
                   </div>
-                  <button onClick={applyPickedCoords}
-                    style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    ใช้พิกัดนี้
-                  </button>
+                  <Button variant="primary" onClick={applyPickedCoords}>ใช้พิกัดนี้</Button>
                 </div>
               ) : (
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
@@ -1444,12 +1430,10 @@ export default function BranchPage() {
 
             {/* Footer */}
             <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-              <button onClick={() => setAddShiftBranch(null)}
-                style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>
-                ยกเลิก
-              </button>
-              <button
-                disabled={shiftSaving}
+              <Button variant="ghost" onClick={() => setAddShiftBranch(null)}>ยกเลิก</Button>
+              <Button
+                variant="primary"
+                loading={shiftSaving}
                 onClick={() => {
                   if (!shiftForm.name.trim()) { showToast('error', 'กรุณากรอกชื่อกะ'); return }
                   setShiftSaving(true)
@@ -1468,10 +1452,9 @@ export default function BranchPage() {
                     shift_type: shiftForm.shift_type,
                     gps_radius: shiftForm.gps_radius !== '' ? Number(shiftForm.gps_radius) : null,
                   })
-                }}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: shiftSaving ? 'not-allowed' : 'pointer', opacity: shiftSaving ? 0.7 : 1 }}>
-                {shiftSaving ? 'กำลังบันทึก...' : '+ เพิ่มกะ'}
-              </button>
+                }}>
+                + เพิ่มกะ
+              </Button>
             </div>
           </div>
         </div>

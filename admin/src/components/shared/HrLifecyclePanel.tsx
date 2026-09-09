@@ -1,13 +1,15 @@
 // admin/src/components/shared/HrLifecyclePanel.tsx
 // เอกสาร / ทดลองงาน / หนังสือเตือน ของพนักงาน 1 คน — โผล่แต่ละส่วนตาม feature ที่เปิด
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, Plus, Trash2, Target, AlertTriangle, CheckCircle2, X } from 'lucide-react'
+import { FileText, Plus, Trash2, Target, AlertTriangle, CheckCircle2, X, Upload, Loader2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../ui/Toast'
 import { useAuthStore } from '../../stores/authStore'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import Modal from '../ui/Modal'
+import Button from '../ui/Button'
+import { uploadFile } from '../../lib/upload'
 
 const DOC_TYPE_LABEL: Record<string, string> = {
   CONTRACT: 'สัญญาจ้าง', ID_CARD: 'บัตรประชาชน', HOUSE_REG: 'ทะเบียนบ้าน', WORK_PERMIT: 'ใบอนุญาตทำงาน',
@@ -88,8 +90,8 @@ function ProbationSection({ employeeId, emp, readOnly }: { employeeId: string; e
             </div>
             <div><label style={lbl}>บันทึกผลประเมิน</label><textarea rows={2} style={{ ...inp, resize: 'none' }} value={form.probation_note} onChange={e => setForm(f => ({ ...f, probation_note: e.target.value }))} /></div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setEdit(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={() => mut.mutate()} disabled={mut.isPending} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>บันทึก</button>
+              <Button variant="ghost" size="sm" onClick={() => setEdit(false)}>ยกเลิก</Button>
+              <Button variant="primary" size="sm" loading={mut.isPending} onClick={() => mut.mutate()}>บันทึก</Button>
             </div>
           </div>
         )}
@@ -104,7 +106,21 @@ function DocumentsSection({ employeeId, readOnly }: { employeeId: string; readOn
   const [add, setAdd] = useState(false)
   const [del, setDel] = useState<any>(null)
   const [form, setForm] = useState({ type: 'CONTRACT', name: '', file_url: '', issued_date: '', expiry_date: '', note: '' })
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const { data: docs = [] } = useQuery<any[]>({ queryKey: ['emp-docs', employeeId], queryFn: () => api.get(`/api/v1/admin/employees/${employeeId}/documents`).then(r => r.data.data) })
+
+  async function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    if (file.size > 15 * 1024 * 1024) { showToast('error', 'ไฟล์ใหญ่เกิน 15MB'); return }
+    setUploading(true)
+    try {
+      const url = await uploadFile(file)
+      setForm(f => ({ ...f, file_url: url, name: f.name || file.name.replace(/\.[^.]+$/, '') }))
+      showToast('success', 'อัปโหลดไฟล์แล้ว')
+    } catch { showToast('error', 'อัปโหลดไม่สำเร็จ') } finally { setUploading(false) }
+  }
   const reset = () => setForm({ type: 'CONTRACT', name: '', file_url: '', issued_date: '', expiry_date: '', note: '' })
   const addMut = useMutation({
     mutationFn: () => api.post(`/api/v1/admin/employees/${employeeId}/documents`, {
@@ -154,14 +170,23 @@ function DocumentsSection({ employeeId, readOnly }: { employeeId: string; readOn
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div><label style={lbl}>ประเภท</label><select style={inp} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{Object.entries(DOC_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
               <div><label style={lbl}>ชื่อเอกสาร *</label><input style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น สัญญาจ้าง 2569" /></div>
-              <div><label style={lbl}>ลิงก์ไฟล์ (URL) *</label><input style={inp} value={form.file_url} onChange={e => setForm(f => ({ ...f, file_url: e.target.value }))} placeholder="https://drive.google.com/..." /></div>
+              <div>
+                <label style={lbl}>ไฟล์เอกสาร *</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Button variant="secondary" size="sm" icon={uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} disabled={uploading} onClick={() => fileRef.current?.click()}>
+                    {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลดไฟล์'}
+                  </Button>
+                  {form.file_url && <a href={form.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={12} /> อัปโหลดแล้ว</a>}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={pickFile} hidden />
+                <input style={{ ...inp, marginTop: 6, fontSize: '12px' }} value={form.file_url} onChange={e => setForm(f => ({ ...f, file_url: e.target.value }))} placeholder="หรือวางลิงก์ URL (Google Drive ฯลฯ)" />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div><label style={lbl}>วันออก</label><input type="date" style={inp} value={form.issued_date} onChange={e => setForm(f => ({ ...f, issued_date: e.target.value }))} /></div>
                 <div><label style={lbl}>วันหมดอายุ</label><input type="date" style={inp} value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} /></div>
               </div>
               <div><label style={lbl}>หมายเหตุ</label><input style={inp} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
-              <button onClick={() => addMut.mutate()} disabled={!form.name.trim() || !form.file_url.trim() || addMut.isPending}
-                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: (!form.name.trim() || !form.file_url.trim()) ? 0.5 : 1 }}>บันทึก</button>
+              <Button variant="primary" block loading={addMut.isPending} disabled={!form.name.trim() || !form.file_url.trim()} onClick={() => addMut.mutate()} style={{ marginTop: 4 }}>บันทึก</Button>
             </div>
           </div>
         </Modal>
@@ -229,8 +254,7 @@ function DisciplinarySection({ employeeId, readOnly }: { employeeId: string; rea
               </div>
               <div><label style={lbl}>วันที่เกิดเหตุ *</label><input type="date" style={inp} value={form.incident_date} onChange={e => setForm(f => ({ ...f, incident_date: e.target.value }))} /></div>
               <div><label style={lbl}>รายละเอียด *</label><textarea rows={3} style={{ ...inp, resize: 'none' }} value={form.detail} onChange={e => setForm(f => ({ ...f, detail: e.target.value }))} placeholder="อธิบายเหตุการณ์และข้อตักเตือน" /></div>
-              <button onClick={() => addMut.mutate()} disabled={!form.detail.trim() || addMut.isPending}
-                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.detail.trim() ? 0.5 : 1 }}>ออกหนังสือเตือน</button>
+              <Button variant="danger" block disabled={!form.detail.trim()} loading={addMut.isPending} onClick={() => addMut.mutate()} style={{ marginTop: 4 }}>ออกหนังสือเตือน</Button>
             </div>
           </div>
         </Modal>
