@@ -35,7 +35,7 @@ interface OffsiteRecord {
 }
 
 const MONTHS   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
-const DAYS_TH  = ['อา','จ','อ','พ','พฤ','ศ','ส']
+const DAYS_TH_FULL = ['วันอาทิตย์','วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์']
 
 const LEAVE_TYPE_CFG: Record<string, { label: string; color: string }> = {
   SICK:       { label: 'ลาป่วย',       color: '#3B82F6' },
@@ -346,7 +346,7 @@ export default function HistoryPage() {
                         </div>
                       ) : (
                         <div style={{ fontSize: '0.82rem', color: COLOR.textMuted, marginTop: 4, fontWeight: 500 }}>
-                          วัน{DAYS_TH[d.getDay()]} · ไม่ต้องเช็คอิน
+                          {DAYS_TH_FULL[d.getDay()]} · ไม่ต้องเช็คอิน
                         </div>
                       )}
                       {rec?.is_outside_area && (
@@ -425,7 +425,7 @@ export default function HistoryPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        วัน{DAYS_TH[r.day_of_week]} {fmtDateShort(date)}
+                        {DAYS_TH_FULL[r.day_of_week]} {fmtDateShort(date)}
                         {r.has_conflict && <ConflictBadge />}
                       </div>
                       {r.status === 'REJECTED' && r.reject_note && (
