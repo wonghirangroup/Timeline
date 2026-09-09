@@ -35,6 +35,7 @@ import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
 import { hrLifecycleRoutes } from './modules/hr-lifecycle/hr-lifecycle.route'
 import { leaveTypesRoutes } from './modules/leave-types/leave-types.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
+import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -151,6 +152,7 @@ const start = async () => {
     await app.listen({ port: Number(process.env.PORT) || 3000, host: '0.0.0.0' })
     console.log(`🚀 TimeLine Server → http://localhost:${process.env.PORT || 3000}`)
     startFirebaseSyncCron()
+    startLeaveAccrualCron()
   } catch (err) {
     app.log.error(err)
     process.exit(1)

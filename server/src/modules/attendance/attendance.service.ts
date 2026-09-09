@@ -131,7 +131,7 @@ export async function getAttendanceReport(tenantId: string, filters: {
       employee: {
         select: {
           id: true, first_name: true, last_name: true, nickname: true,
-          employee_code: true,
+          employee_code: true, photo_url: true,
           branch: { select: { id: true, name: true } },
         },
       },

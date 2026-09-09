@@ -135,7 +135,7 @@ function Accrual({ readOnly, customEnabled }: { readOnly: boolean; customEnabled
           style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}><Plus size={13} /> เพิ่มกติกา</button>}
       </div>
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 12px' }}>
-        สะสม X วัน/เดือน เข้าโควต้าพนักงาน · <b>ยังไม่มี cron อัตโนมัติ</b> — กดปุ่ม "ประมวลผลเดือนนี้" เอง (กันรันซ้ำเดือนเดิม)
+        สะสม X วัน/เดือน เข้าโควต้าพนักงาน · <b>รันอัตโนมัติทุกวันที่ 1 ของเดือน</b> (กันรันซ้ำเดือนเดิม) — ปุ่มด้านล่างใช้รันย้อนให้ทันทีได้
       </p>
 
       {rules.length === 0 ? (

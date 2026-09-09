@@ -12,6 +12,7 @@ import { PlanUsageRow } from '../../components/shared/PlanUsage'
 import SetupChecklist from '../../components/shared/SetupChecklist'
 import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
+import { avatarUrl } from '../../lib/upload'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -197,13 +198,13 @@ interface ApiRecord {
   is_absent:    boolean
   employee: {
     id: string; first_name: string; last_name: string
-    nickname: string | null; employee_code: string
+    nickname: string | null; employee_code: string; photo_url?: string | null
     branch: { id: string; name: string }
   }
   shift: { id: string; name: string; late_threshold_2: string | null }
 }
 interface ApiBranch   { id: string; name: string }
-interface ApiEmployee { id: string; branch_id: string; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null }
+interface ApiEmployee { id: string; branch_id: string; photo_url?: string | null; first_name?: string; last_name?: string; nickname?: string | null; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null }
 interface ApiLeave    { id: string; status: string }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
@@ -307,7 +308,7 @@ export default function DashboardPage() {
       byEmpId[r.employee_id].push(r)
     }
 
-    const rows: { key: string; empId: string; name: string; nickname: string | null; branch: { id: string; name: string }; record: ApiRecord | null; status: DashStatus }[] = []
+    const rows: { key: string; empId: string; name: string; nickname: string | null; photo_url?: string | null; branch: { id: string; name: string }; record: ApiRecord | null; status: DashStatus }[] = []
 
     // employees with records
     for (const r of records) {
@@ -315,6 +316,7 @@ export default function DashboardPage() {
         key: r.id, empId: r.employee_id,
         name: `${r.employee.first_name} ${r.employee.last_name}`,
         nickname: r.employee.nickname,
+        photo_url: r.employee.photo_url,
         branch: r.employee.branch,
         record: r, status: deriveStatus(r),
       })
@@ -328,6 +330,7 @@ export default function DashboardPage() {
           key: `no-${e.id}`, empId: e.id,
           name: (e as any).first_name ? `${(e as any).first_name} ${(e as any).last_name}` : e.id,
           nickname: (e as any).nickname ?? null,
+          photo_url: e.photo_url,
           branch: e.branch,
           record: null, status: 'PENDING',
         })
@@ -544,8 +547,10 @@ export default function DashboardPage() {
                       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#f8fafc' }}
                       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-card)' }}
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: `linear-gradient(135deg, hsl(${(i * 47) % 360},60%,60%), hsl(${(i * 47 + 30) % 360},70%,45%))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: '#fff' }}>
-                        {row.name.charAt(0)}
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: row.photo_url ? '#e2e8f0' : `linear-gradient(135deg, hsl(${(i * 47) % 360},60%,60%), hsl(${(i * 47 + 30) % 360},70%,45%))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: '#fff' }}>
+                        {row.photo_url
+                          ? <img src={avatarUrl(row.photo_url, 72) ?? row.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : row.name.charAt(0)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
