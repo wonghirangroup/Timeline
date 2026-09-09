@@ -1,12 +1,15 @@
-// สรุปสิทธิ์วันหยุด / การลา ต่อพนักงาน — เห็นทีเดียวทั้งบริษัทว่าใครหยุดเสาร์-อาทิตย์,
-// โควต้าจองวันหยุด, สิทธิ์จอง/ลา (cascade 6 ชั้น), บทบาทแอดมิน
+// สรุป + ตั้งค่าสิทธิ์วันหยุด / การลา ต่อพนักงาน — เห็นทีเดียวทั้งบริษัทว่าใครหยุดเสาร์-อาทิตย์,
+// โควต้าจองวันหยุด, สิทธิ์จอง/ลา (cascade 6 ชั้น), บทบาทแอดมิน + แก้ inline ได้
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, Download } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useIsReadOnly } from '../../stores/authStore'
+import { useToast } from '../../components/ui/Toast'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -23,6 +26,7 @@ interface PolicyEmployee {
   is_active: boolean
   photo_url?: string | null
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
+  employee_status_type_id?: string | null
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
   branch: { id: string; name: string; group_id?: string | null } & PolicyNode & { group?: PolicyNode | null }
@@ -33,23 +37,18 @@ interface PolicyEmployee {
   } | null
   admin_user?: { role: 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'; is_active: boolean } | null
 }
-
-interface ApiPositionLite {
-  id: string; name: string
-  department?: { id: string; name: string; division?: { id: string; name: string; group_id: string } | null } | null
-}
+interface ApiStatusType { id: string; name: string; monthly_off_quota: number; saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean }
+interface ApiPositionLite { id: string; name: string; department?: { id: string; name: string; division?: { id: string; name: string; group_id: string } | null } | null }
 
 const pick = (v: boolean | null | undefined) => (v === null || v === undefined ? null : v)
 
 // port ของ resolvePolicyFromChain ฝั่ง server (group.service.ts) — เจาะจงกว่าชนะ, null ทั้งสาย → true
-function resolvePolicy(e: PolicyEmployee, flag: 'booking' | 'leave'): boolean {
+// ignoreOverride: ข้ามชั้น "บุคคล" เพื่อดูว่าถ้าไม่ override แล้วจะได้ค่าอะไร (ใช้โชว์ label)
+function resolvePolicy(e: PolicyEmployee, flag: 'booking' | 'leave', ignoreOverride = false): boolean {
   const b = flag === 'booking'
-  const pos = e.position
-  const dept = pos?.department
-  const div = dept?.division
-  const br = e.branch
+  const pos = e.position, dept = pos?.department, div = dept?.division, br = e.branch
   const chain: (boolean | null)[] = [
-    pick(b ? e.booking_enabled_override : e.leave_enabled_override),
+    ignoreOverride ? null : pick(b ? e.booking_enabled_override : e.leave_enabled_override),
     pick(b ? pos?.booking_enabled : pos?.leave_enabled),
     pick(b ? dept?.booking_enabled : dept?.leave_enabled),
     pick(b ? div?.booking_enabled : div?.leave_enabled),
@@ -68,16 +67,12 @@ const RULE_CFG: Record<DayRule, { label: string; color: string; bg: string }> = 
 const ROLE_TH: Record<string, string> = {
   ADMIN: 'แอดมิน', MANAGER: 'ผู้จัดการ', EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
 }
-
-// พนักงานที่ยังไม่ผูกสถานะ — ปฏิทิน LIFF ถือว่าหยุดเสาร์-อาทิตย์เป็นค่าเริ่มต้น
-const DEFAULT_RULE: DayRule = 'OFF'
+const MODE_TH = { WEEKLY: 'รายสัปดาห์', MONTHLY_BATCH: 'รวมทั้งเดือน' } as const
+const DEFAULT_RULE: DayRule = 'OFF' // ยังไม่ผูกสถานะ → ปฏิทิน LIFF ถือว่าหยุดเสาร์-อาทิตย์
 
 function Pill({ label, color, bg, title }: { label: string; color: string; bg: string; title?: string }) {
-  return (
-    <span title={title} style={{ fontSize: '0.72rem', fontWeight: 700, color, background: bg, padding: '2px 9px', borderRadius: 99, whiteSpace: 'nowrap' }}>{label}</span>
-  )
+  return <span title={title} style={{ fontSize: '0.72rem', fontWeight: 700, color, background: bg, padding: '2px 9px', borderRadius: 99, whiteSpace: 'nowrap' }}>{label}</span>
 }
-
 function Avatar({ url, name }: { url?: string | null; name: string }) {
   return (
     <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: url ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontSize: 12, fontWeight: 800 }}>
@@ -86,13 +81,21 @@ function Avatar({ url, name }: { url?: string | null; name: string }) {
   )
 }
 
-const MODE_TH = { WEEKLY: 'รายสัปดาห์', MONTHLY_BATCH: 'รวมทั้งเดือน' } as const
+const cellSel: React.CSSProperties = {
+  fontFamily: 'inherit', fontSize: '0.78rem', padding: '4px 6px', borderRadius: 7,
+  border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', maxWidth: 168,
+}
 
 export default function PolicyOverview() {
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
+  const { showToast } = useToast()
+  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [onlyActive, setOnlyActive] = useState(true)
+  const [bulkType, setBulkType] = useState('')
+  const [bulkConfirm, setBulkConfirm] = useState(false)
 
   const { data: employees = [], isLoading } = useQuery<PolicyEmployee[]>({
     queryKey: ['employees'],
@@ -102,6 +105,18 @@ export default function PolicyOverview() {
     queryKey: ['positions'],
     queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
   })
+  const { data: statusTypes = [] } = useQuery<ApiStatusType[]>({
+    queryKey: ['employee-status-types'],
+    queryFn: () => api.get('/api/v1/admin/employee-status-types').then(r => r.data.data),
+  })
+
+  const patchMut = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      api.patch(`/api/v1/admin/employees/${id}`, body).then(r => r.data.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); showToast('success', 'บันทึกแล้ว') },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+  const patch = (id: string, body: Record<string, unknown>) => { if (!isReadOnly) patchMut.mutate({ id, body }) }
 
   const orgMap = useMemo(() => buildEmployeeOrgMap(employees as any, positions as any), [employees, positions])
 
@@ -120,9 +135,10 @@ export default function PolicyOverview() {
           sun: st?.sunday_rule ?? DEFAULT_RULE,
           pubHoliday: st ? st.off_on_public_holiday : true,
           quota: st?.monthly_off_quota ?? null,
-          mode: e.weekly_off_mode,
           booking: resolvePolicy(e, 'booking'),
           leave: resolvePolicy(e, 'leave'),
+          bookingInherit: resolvePolicy(e, 'booking', true),
+          leaveInherit: resolvePolicy(e, 'leave', true),
           role: e.admin_user?.is_active ? e.admin_user.role : null,
         }
       })
@@ -138,12 +154,22 @@ export default function PolicyOverview() {
     leaveOff: rows.filter(r => !r.leave).length,
   }), [rows])
 
+  const noStatusRows = useMemo(() => rows.filter(r => !r.e.employee_status_type_id), [rows])
+
+  function runBulk() {
+    setBulkConfirm(false)
+    if (!bulkType) return
+    noStatusRows.forEach(r => patchMut.mutate({ id: r.e.id, body: { employee_status_type_id: bulkType } }))
+    showToast('success', `กำลังตั้งสถานะให้ ${noStatusRows.length} คน`)
+    setBulkType('')
+  }
+
   function exportCsv() {
     const head = ['รหัส', 'ชื่อ', 'สาขา', 'แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้าจอง/เดือน', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน']
     const lines = rows.map(r => [
       r.e.employee_code, `${r.e.first_name} ${r.e.last_name}`, r.e.branch.name, deptName(r.e.department) || '-',
       r.statusName, RULE_CFG[r.sat].label, RULE_CFG[r.sun].label, r.pubHoliday ? 'หยุด' : 'ไม่หยุด',
-      r.quota ?? '-', MODE_TH[r.mode], r.booking ? 'เปิด' : 'ปิด', r.leave ? 'เปิด' : 'ปิด', r.role ? ROLE_TH[r.role] : '-',
+      r.quota ?? '-', MODE_TH[r.e.weekly_off_mode], r.booking ? 'เปิด' : 'ปิด', r.leave ? 'เปิด' : 'ปิด', r.role ? ROLE_TH[r.role] : '-',
     ])
     const csv = '﻿' + [head, ...lines].map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -156,14 +182,24 @@ export default function PolicyOverview() {
   const th: React.CSSProperties = { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#c2410c', fontSize: '0.76rem', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: '0.82rem', verticalAlign: 'middle' }
 
+  // เซลล์ override 3 สถานะ (ตามลำดับชั้น / บังคับเปิด / บังคับปิด)
+  const OverrideSelect = ({ value, inherit, onChange }: { value: boolean | null | undefined; inherit: boolean; onChange: (v: boolean | null) => void }) => (
+    <select value={value == null ? '' : value ? 'on' : 'off'} disabled={isReadOnly}
+      onChange={e => onChange(e.target.value === '' ? null : e.target.value === 'on')}
+      style={{ ...cellSel, color: value == null ? '#64748b' : value ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
+      <option value="">ตามลำดับชั้น ({inherit ? 'เปิด' : 'ปิด'})</option>
+      <option value="on">บังคับเปิด</option>
+      <option value="off">บังคับปิด</option>
+    </select>
+  )
+
   return (
     <div>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
-        กฎวันหยุด/สิทธิ์ของพนักงานแต่ละคน — เสาร์-อาทิตย์ &amp; นักขัตฤกษ์มาจาก <b>สถานะพนักงาน</b> (ตั้งที่ ผังองค์กร → สถานะพนักงาน),
-        สิทธิ์จอง/ลามาจากลำดับชั้นนโยบาย 6 ชั้น (บุคคล → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม)
+        แก้ inline ได้: <b>สถานะพนักงาน · โหมดจอง · สิทธิ์จอง/ลา</b> —
+        เสาร์-อาทิตย์ &amp; นักขัตฤกษ์ &amp; โควต้า มาจาก <b>สถานะพนักงาน</b> (แก้ค่าในตัวสถานะที่ ผังองค์กร → สถานะพนักงาน)
       </p>
 
-      {/* summary chips */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         {[
           { label: 'ทั้งหมด', value: summary.total, color: '#4338ca', bg: '#eef2ff' },
@@ -173,13 +209,10 @@ export default function PolicyOverview() {
           { label: 'ปิดสิทธิ์จอง', value: summary.bookingOff, color: '#b91c1c', bg: '#fee2e2' },
           { label: 'ปิดสิทธิ์ลา', value: summary.leaveOff, color: '#b91c1c', bg: '#fee2e2' },
         ].map(s => (
-          <span key={s.label} style={{ fontSize: '0.76rem', fontWeight: 700, color: s.color, background: s.bg, padding: '5px 11px', borderRadius: 99 }}>
-            {s.label} {s.value}
-          </span>
+          <span key={s.label} style={{ fontSize: '0.76rem', fontWeight: 700, color: s.color, background: s.bg, padding: '5px 11px', borderRadius: 99 }}>{s.label} {s.value}</span>
         ))}
       </div>
 
-      {/* filters */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
         {!isMobile && <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -195,6 +228,21 @@ export default function PolicyOverview() {
             <Download size={14} /> CSV
           </button>
         </div>
+
+        {/* bulk assign สถานะให้คนที่ยังไม่ตั้ง (ในรายการที่กรองอยู่) */}
+        {!isReadOnly && noStatusRows.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '9px 12px' }}>
+            <span style={{ fontSize: '0.8rem', color: '#92400e', fontWeight: 600 }}>ยังไม่ตั้งสถานะ {noStatusRows.length} คนในรายการนี้ —</span>
+            <select value={bulkType} onChange={e => setBulkType(e.target.value)} style={{ ...filterInput, borderRadius: 8, fontSize: '0.8rem', cursor: 'pointer' }}>
+              <option value="">เลือกสถานะพนักงาน…</option>
+              {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button disabled={!bulkType} onClick={() => setBulkConfirm(true)}
+              style={{ fontFamily: 'inherit', fontSize: '0.8rem', fontWeight: 700, padding: '7px 14px', borderRadius: 8, border: 'none', cursor: bulkType ? 'pointer' : 'not-allowed', background: bulkType ? '#f59e0b' : '#e5e7eb', color: bulkType ? '#fff' : '#9ca3af' }}>
+              ตั้งให้ทั้งหมด
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
@@ -204,7 +252,7 @@ export default function PolicyOverview() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#fff7ed' }}>
-                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้าจอง/เดือน', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
+                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
               </tr>
@@ -225,25 +273,29 @@ export default function PolicyOverview() {
                     </div>
                   </td>
                   <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{r.e.branch.name}<br />{deptName(r.e.department) || '—'}</td>
-                  <td style={td}>{r.statusName === 'ยังไม่กำหนด'
-                    ? <Pill label="ยังไม่กำหนด" color="#b45309" bg="#fef3c7" title="ใช้ค่าเริ่มต้น: หยุดเสาร์-อาทิตย์ + หยุดนักขัตฤกษ์" />
-                    : <span style={{ fontWeight: 600 }}>{r.statusName}</span>}</td>
-                  <td style={td}><Pill {...RULE_CFG[r.sat]} /></td>
-                  <td style={td}><Pill {...RULE_CFG[r.sun]} /></td>
-                  <td style={td}>{r.pubHoliday
-                    ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" />
-                    : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}</td>
+                  <td style={td}>
+                    <select value={r.e.employee_status_type_id ?? ''} disabled={isReadOnly}
+                      onChange={e => patch(r.e.id, { employee_status_type_id: e.target.value || null })}
+                      style={{ ...cellSel, fontWeight: 600, color: r.e.employee_status_type_id ? '#0f172a' : '#b45309', background: r.e.employee_status_type_id ? '#fff' : '#fff7ed' }}>
+                      <option value="">ยังไม่กำหนด</option>
+                      {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
+                    </select>
+                  </td>
+                  <td style={td}><Pill {...RULE_CFG[r.sat]} title="แก้ที่สถานะพนักงาน" /></td>
+                  <td style={td}><Pill {...RULE_CFG[r.sun]} title="แก้ที่สถานะพนักงาน" /></td>
+                  <td style={td}>{r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{r.quota ?? '—'}</td>
-                  <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{MODE_TH[r.mode]}</td>
-                  <td style={td}>{r.booking
-                    ? <Pill label="เปิด" color="#15803d" bg="#dcfce7" />
-                    : <Pill label="ปิด" color="#b91c1c" bg="#fee2e2" title="ปิดสิทธิ์จองวันหยุดตามลำดับชั้นนโยบาย" />}</td>
-                  <td style={td}>{r.leave
-                    ? <Pill label="เปิด" color="#15803d" bg="#dcfce7" />
-                    : <Pill label="ปิด" color="#b91c1c" bg="#fee2e2" title="ปิดสิทธิ์ยื่นคำขอลาตามลำดับชั้นนโยบาย" />}</td>
-                  <td style={td}>{r.role
-                    ? <Pill label={ROLE_TH[r.role]} color="#4338ca" bg="#eef2ff" />
-                    : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
+                  <td style={td}>
+                    <select value={r.e.weekly_off_mode} disabled={isReadOnly}
+                      onChange={e => patch(r.e.id, { weekly_off_mode: e.target.value })}
+                      style={{ ...cellSel, color: '#334155' }}>
+                      <option value="WEEKLY">รายสัปดาห์</option>
+                      <option value="MONTHLY_BATCH">รวมทั้งเดือน</option>
+                    </select>
+                  </td>
+                  <td style={td}><OverrideSelect value={r.e.booking_enabled_override} inherit={r.bookingInherit} onChange={v => patch(r.e.id, { booking_enabled_override: v })} /></td>
+                  <td style={td}><OverrideSelect value={r.e.leave_enabled_override} inherit={r.leaveInherit} onChange={v => patch(r.e.id, { leave_enabled_override: v })} /></td>
+                  <td style={td}>{r.role ? <Pill label={ROLE_TH[r.role]} color="#4338ca" bg="#eef2ff" /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -264,23 +316,52 @@ export default function PolicyOverview() {
                 </div>
                 {r.role && <Pill label={ROLE_TH[r.role]} color="#4338ca" bg="#eef2ff" />}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                {r.statusName === 'ยังไม่กำหนด'
-                  ? <Pill label="สถานะ: ยังไม่กำหนด" color="#b45309" bg="#fef3c7" />
-                  : <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155', background: '#f1f5f9', padding: '2px 9px', borderRadius: 99 }}>{r.statusName}</span>}
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>เสาร์</span><Pill {...RULE_CFG[r.sat]} />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>อาทิตย์</span><Pill {...RULE_CFG[r.sun]} />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>นักขัตฤกษ์</span>
-                {r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>จอง</span>
-                {r.booking ? <Pill label="เปิด" color="#15803d" bg="#dcfce7" /> : <Pill label="ปิด" color="#b91c1c" bg="#fee2e2" />}
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ลา</span>
-                {r.leave ? <Pill label="เปิด" color="#15803d" bg="#dcfce7" /> : <Pill label="ปิด" color="#b91c1c" bg="#fee2e2" />}
-                {r.quota != null && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>โควต้า {r.quota} ว/ด ({MODE_TH[r.mode]})</span>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  สถานะพนักงาน
+                  <select value={r.e.employee_status_type_id ?? ''} disabled={isReadOnly} onChange={e => patch(r.e.id, { employee_status_type_id: e.target.value || null })}
+                    style={{ ...cellSel, flex: 1, maxWidth: 'none', fontWeight: 600 }}>
+                    <option value="">ยังไม่กำหนด</option>
+                    {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
+                  </select>
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>เสาร์</span><Pill {...RULE_CFG[r.sat]} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>อาทิตย์</span><Pill {...RULE_CFG[r.sun]} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>นักขัตฤกษ์</span>
+                  {r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}
+                  {r.quota != null && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>โควต้า {r.quota} ว/ด</span>}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  โหมดจอง
+                  <select value={r.e.weekly_off_mode} disabled={isReadOnly} onChange={e => patch(r.e.id, { weekly_off_mode: e.target.value })} style={{ ...cellSel, flex: 1, maxWidth: 'none' }}>
+                    <option value="WEEKLY">รายสัปดาห์</option>
+                    <option value="MONTHLY_BATCH">รวมทั้งเดือน</option>
+                  </select>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  สิทธิ์จองวันหยุด
+                  <div style={{ flex: 1 }}><OverrideSelect value={r.e.booking_enabled_override} inherit={r.bookingInherit} onChange={v => patch(r.e.id, { booking_enabled_override: v })} /></div>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  สิทธิ์ยื่นลา
+                  <div style={{ flex: 1 }}><OverrideSelect value={r.e.leave_enabled_override} inherit={r.leaveInherit} onChange={v => patch(r.e.id, { leave_enabled_override: v })} /></div>
+                </label>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {bulkConfirm && (
+        <ConfirmDialog
+          title="ตั้งสถานะพนักงาน"
+          message={`ตั้งสถานะ "${statusTypes.find(t => t.id === bulkType)?.name ?? ''}" ให้พนักงาน ${noStatusRows.length} คนที่ยังไม่ได้กำหนด?`}
+          confirmLabel="ตั้งให้ทั้งหมด"
+          variant="warning"
+          onConfirm={runBulk}
+          onCancel={() => setBulkConfirm(false)}
+        />
       )}
     </div>
   )
