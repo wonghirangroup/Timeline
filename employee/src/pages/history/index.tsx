@@ -16,7 +16,7 @@ interface AttendanceRecord {
   fine:         string
   carried_fine: string
   is_outside_area: boolean
-  shift: { name: string; start_time: string }
+  shift: { name: string; start_time: string; fine_mode?: 'TIER' | 'PER_MINUTE' | null }
 }
 
 type ReqStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -114,7 +114,11 @@ function resolveItemStatus(
 
   const r = it.rec
   if (r.check_in_at) {
-    if (r.is_late) return { label: `สาย ${r.late_minutes} น.`, color: COLOR.warning, bg: COLOR.warningBg, Icon: Clock, bubble: 'icon-bubble icon-bubble-orange' }
+    if (r.is_late) {
+      // โชว์จำนวนนาทีเฉพาะกะที่คิดค่าปรับแบบรายนาที — กะปกติ (คงที่ตามระดับ) โชว์แค่ "มาสาย"
+      const lateLabel = r.shift.fine_mode === 'PER_MINUTE' ? `สาย ${r.late_minutes} นาที` : 'มาสาย'
+      return { label: lateLabel, color: COLOR.warning, bg: COLOR.warningBg, Icon: Clock, bubble: 'icon-bubble icon-bubble-orange' }
+    }
     return { label: 'ตรงเวลา', color: COLOR.success, bg: COLOR.successBg, Icon: CheckCircle2, bubble: 'icon-bubble icon-bubble-blue' }
   }
   if (r.is_absent) return { label: 'นับเป็นขาด', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }

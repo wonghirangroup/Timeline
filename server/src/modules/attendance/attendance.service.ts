@@ -935,7 +935,7 @@ export async function getEmployeeHistory(tenantId: string, employeeId: string, m
   }
   return prisma.attendanceRecord.findMany({
     where,
-    include: { shift: { select: { id: true, name: true, start_time: true, end_time: true } } },
+    include: { shift: { select: { id: true, name: true, start_time: true, end_time: true, fine_mode: true } } },
     orderBy: { date: 'desc' },
     ...(where.date ? {} : { take: 400 }),
   })
