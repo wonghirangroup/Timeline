@@ -156,23 +156,35 @@ export default function HistoryPage() {
   const { data: leaveRecords = [], isLoading: loadingLeave } = useQuery<LeaveRecord[]>({
     queryKey: ['employee', 'leave-requests', employee?.id],
     queryFn: () => api.get('/employee/leave-requests', { params: { employeeId: employee?.id } }).then(r => r.data.data),
-    enabled: !!employee?.id && (recordType === 'leave' || recordType === 'attendance'),
+    enabled: !!employee?.id,
   })
 
   const { data: dayoffRecords = [], isLoading: loadingDayoff } = useQuery<WeeklyOffRecord[]>({
     queryKey: ['employee', 'weekly-off-history', employee?.id],
     queryFn: () => api.get('/employee/weekly-off', { params: { employeeId: employee?.id } }).then(r => r.data.data),
-    enabled: !!employee?.id && (recordType === 'dayoff' || recordType === 'attendance'),
+    enabled: !!employee?.id,
   })
 
   const { data: offsiteRecords = [], isLoading: loadingOffsite } = useQuery<OffsiteRecord[]>({
     queryKey: ['employee', 'offsite-history', employee?.id],
     queryFn: () => api.get('/employee/offsite-checkins', { params: { employeeId: employee?.id } }).then(r => r.data.data),
-    enabled: !!employee?.id && recordType === 'offsite',
+    enabled: !!employee?.id,
   })
 
   // ── เช็คชื่อ ──────────────────────────────────────────────────────
-  const months = [...new Set(records.map(r => r.date.slice(0, 7)))].sort().reverse()
+  // รายการเดือนใน dropdown — รวมทุกแหล่ง (เช็คชื่อ/ลา/หยุด/นอกสถานที่) + 3 เดือนล่าสุดเสมอ
+  const months = useMemo(() => {
+    const s = new Set<string>()
+    for (const r of records)        if (r.date)         s.add(r.date.slice(0, 7))
+    for (const l of leaveRecords)    if (l.start_date)   s.add(l.start_date.slice(0, 7))
+    for (const w of dayoffRecords)   s.add(resolveDate(w.week_start, w.day_of_week).slice(0, 7))
+    for (const o of offsiteRecords)  if (o.check_in_at)  s.add(o.check_in_at.slice(0, 7))
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      s.add(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`)
+    }
+    return [...s].sort().reverse()
+  }, [records, leaveRecords, dayoffRecords, offsiteRecords])
   const allFiltered = records
     .filter(r => r.date.startsWith(selectedMonth))
     .sort((a, b) => b.date.localeCompare(a.date))

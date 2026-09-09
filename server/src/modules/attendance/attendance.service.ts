@@ -923,11 +923,20 @@ export async function getTodayAttendance(tenantId: string, employeeId: string) {
   })
 }
 
-export async function getEmployeeHistory(tenantId: string, employeeId: string) {
+export async function getEmployeeHistory(tenantId: string, employeeId: string, month?: string) {
+  // month = 'YYYY-MM' → คืนทั้งเดือนนั้น (ไม่จำกัดจำนวน) เพื่อให้ dropdown เลือกเดือนย้อนหลังได้จริง
+  // ไม่ส่ง month → คืนล่าสุด ~14 เดือน สำหรับ first paint + สร้างรายการเดือนใน dropdown
+  const where: any = { tenant_id: tenantId, employee_id: employeeId }
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [y, m] = month.split('-').map(Number)
+    const start = new Date(Date.UTC(y, m - 1, 1))
+    const end   = new Date(Date.UTC(y, m, 1))
+    where.date = { gte: start, lt: end }
+  }
   return prisma.attendanceRecord.findMany({
-    where: { tenant_id: tenantId, employee_id: employeeId },
+    where,
     include: { shift: { select: { id: true, name: true, start_time: true, end_time: true } } },
     orderBy: { date: 'desc' },
-    take: 30,
+    ...(where.date ? {} : { take: 400 }),
   })
 }

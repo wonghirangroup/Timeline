@@ -461,16 +461,19 @@ export async function attendanceRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware],
     schema: {
       tags: ['Employee'],
-      summary: 'ประวัติการเช็คชื่อ 30 วันล่าสุด (LIFF)',
+      summary: 'ประวัติการเช็คชื่อ (LIFF) — ส่ง month=YYYY-MM เพื่อดูย้อนหลังทั้งเดือน',
       security: [{ oauth2: [] }],
       querystring: {
         type: 'object',
         required: ['employeeId'],
-        properties: { employeeId: { type: 'string' } },
+        properties: {
+          employeeId: { type: 'string' },
+          month:      { type: 'string', description: 'YYYY-MM (ไม่ส่ง = ล่าสุด ~14 เดือน)' },
+        },
       },
     },
   }, async (req: any) => {
-    const history = await getEmployeeHistory(req.tenantId, req.query.employeeId)
+    const history = await getEmployeeHistory(req.tenantId, req.query.employeeId, req.query.month)
     return ok(history)
   })
 }
