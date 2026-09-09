@@ -380,7 +380,7 @@ export default function HistoryPage() {
                 const StatusIcon = st.Icon
 
                 return (
-                  <div key={it.kind === 'record' ? it.rec.id : `syn-${it.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                  <div key={it.kind === 'record' ? it.rec.id : `syn-${it.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms`, border: `1.5px solid ${st.color}`, background: `${st.bg}40` }}>
                     <div className={st.bubble}>
                       <StatusIcon size={22} strokeWidth={2} />
                     </div>
@@ -408,7 +408,7 @@ export default function HistoryPage() {
                       )}
                     </div>
 
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: st.color, background: st.bg, padding: '6px 12px', borderRadius: 12, flexShrink: 0, maxWidth: 140, textAlign: 'right', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: st.color, background: '#fff', border: `1px solid ${st.color}`, padding: '6px 12px', borderRadius: 12, flexShrink: 0, maxWidth: 140, textAlign: 'right', lineHeight: 1.3, wordBreak: 'break-word' }}>
                       {st.label}
                     </span>
                   </div>
