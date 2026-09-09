@@ -1,7 +1,7 @@
 // admin/src/pages/attendance/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search, CalendarClock } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -53,13 +53,14 @@ interface ApiEmployee {
 }
 
 
-type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT'
+type Status = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'PENDING' | 'ABSENT' | 'LEAVE' | 'DAY_OFF'
 
 interface Row {
   key: string
   employee: ApiEmployee
   record: ApiRecord | null
   status: Status
+  subLabel?: string   // ชื่อประเภทลา / เหตุผลหยุด (แสดงต่อจากสถานะ)
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -69,6 +70,11 @@ const STATUS_CFG: Record<Status, { label: string; color: string; bg: string }> =
   LATE_2:  { label: 'สายระดับ 2 / ขาด', color: '#dc2626', bg: '#fee2e2' },
   PENDING: { label: 'ยังไม่เช็ค',       color: '#64748b', bg: '#f1f5f9' },
   ABSENT:  { label: 'ขาดงาน',            color: '#7f1d1d', bg: '#fef2f2' },
+  LEAVE:   { label: 'ลา',                color: '#0369a1', bg: '#e0f2fe' },
+  DAY_OFF: { label: 'หยุด',              color: '#475569', bg: '#f1f5f9' },
+}
+const LEAVE_LABEL_TH: Record<string, string> = {
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -228,6 +234,40 @@ export default function AttendancePage() {
       }).then(r => r.data.data),
   })
 
+  // วันลา + วันหยุดประจำสัปดาห์ (approved) — เอามาโชว์สถานะให้คนที่ไม่มี record
+  const { data: leaveReqs = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'leave-requests', 'APPROVED', branchFilter],
+    queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { status: 'APPROVED', ...(branchFilter ? { branchId: branchFilter } : {}) } }).then(r => r.data.data),
+  })
+  const { data: weeklyOffs = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'weekly-off', 'APPROVED', branchFilter],
+    queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { status: 'APPROVED', ...(branchFilter ? { branchId: branchFilter } : {}) } }).then(r => r.data.data),
+  })
+
+  const leaveByEmp = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const lr of leaveReqs) {
+      if (lr.status !== 'APPROVED') continue
+      const s = String(lr.start_date).slice(0, 10), e = String(lr.end_date).slice(0, 10)
+      if (date >= s && date <= e) {
+        m.set(lr.employee_id, lr.leave_type === 'OTHER' && lr.custom_type?.name ? lr.custom_type.name : (LEAVE_LABEL_TH[lr.leave_type] ?? 'ลา'))
+      }
+    }
+    return m
+  }, [leaveReqs, date])
+
+  const weeklyOffEmps = useMemo(() => {
+    const s = new Set<string>()
+    for (const w of weeklyOffs) {
+      if (w.status !== 'APPROVED') continue
+      const ws = new Date(String(w.week_start).slice(0, 10) + 'T00:00:00.000Z')
+      const target = new Date(ws)
+      target.setUTCDate(ws.getUTCDate() + ((w.day_of_week + 6) % 7)) // จันทร์(1)→+0 ... อาทิตย์(0)→+6
+      if (target.toISOString().slice(0, 10) === date) s.add(w.employee_id)
+    }
+    return s
+  }, [weeklyOffs, date])
+
   const { data: shifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['admin', 'shifts', branchFilter],
     queryFn: () =>
@@ -305,13 +345,20 @@ export default function AttendancePage() {
           result.push({ key: rec.id, employee: emp, record: rec, status: deriveStatus(rec, date) })
         }
       } else {
-        // no record → show as pending/absent
-        result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: deriveStatus(null, date) })
+        // no record → ลา / หยุดประจำสัปดาห์ / ยังไม่เช็ค / ขาด
+        const leaveLabel = leaveByEmp.get(emp.id)
+        if (leaveLabel) {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'LEAVE', subLabel: leaveLabel })
+        } else if (weeklyOffEmps.has(emp.id)) {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'หยุดประจำสัปดาห์' })
+        } else {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: deriveStatus(null, date) })
+        }
       }
     }
 
     return result
-  }, [employees, records, date])
+  }, [employees, records, date, leaveByEmp, weeklyOffEmps])
 
   const filtered = useMemo(() => rows.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false
@@ -334,6 +381,7 @@ export default function AttendancePage() {
     late2:   rows.filter(r => r.status === 'LATE_2').length,
     absent:  rows.filter(r => r.status === 'ABSENT').length,
     pending: rows.filter(r => r.status === 'PENDING').length,
+    leave:   rows.filter(r => r.status === 'LEAVE' || r.status === 'DAY_OFF').length,
   }), [rows, employees])
 
   function openEdit(row: Row) {
@@ -343,7 +391,7 @@ export default function AttendancePage() {
       shift_id:     row.record.shift_id,
       check_in_at:  timeToStr(row.record.check_in_at),
       check_out_at: timeToStr(row.record.check_out_at),
-      status:       row.status === 'PENDING' ? 'ON_TIME' : row.status,
+      status:       (row.status === 'ON_TIME' || row.status === 'LATE_1' || row.status === 'LATE_2' || row.status === 'ABSENT') ? row.status : 'ON_TIME',
       fine:         String(Number(row.record.fine) || 0),
       note:         row.record.note ?? '',
     })
@@ -465,6 +513,7 @@ export default function AttendancePage() {
             { label: 'ทั้งหมด',    value: summary.total,   icon: <Users size={15}/>,         color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
             { label: 'มาปกติ',     value: summary.onTime,  icon: <CheckCircle2 size={15}/>,   color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
             { label: 'ยังไม่เช็ค', value: summary.pending, icon: <Clock size={15}/>,          color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
+            { label: 'ลา / หยุด',  value: summary.leave,   icon: <CalendarClock size={15}/>,  color: '#0369a1', bg: '#e0f2fe',  border: '#bae6fd' },
             { label: 'สายระดับ 1', value: summary.late1,   icon: <AlertTriangle size={15}/>,  color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
             { label: 'สายระดับ 2', value: summary.late2,   icon: <AlertCircle size={15}/>,    color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
             { label: 'ขาดงาน',     value: summary.absent,  icon: <XCircle size={15}/>,        color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
@@ -524,7 +573,7 @@ export default function AttendancePage() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-                        <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{s.label}</span>
+                        <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>{row.subLabel ?? s.label}</span>
                         {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.68rem', fontWeight: 600 }}>
                             <MapPin size={9} /> นอกสถานที่
@@ -634,7 +683,7 @@ export default function AttendancePage() {
                         </td>
                         <td style={{ padding: '11px 14px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
-                            <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{s.label}</span>
+                            <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{row.subLabel ?? s.label}</span>
                             {date === todayStr() && activeOffsiteByEmployee.has(e.id) && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
                                 <MapPin size={9} /> นอกสถานที่
