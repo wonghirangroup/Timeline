@@ -99,6 +99,28 @@ function buildDayoffDates(dayoffRecords: any[]): Set<string> {
   return s
 }
 
+// mirror holidayAppliesTo ฝั่ง server (holiday.service.ts)
+function holidayApplies(h: any, emp: { id?: string; branch_id?: string; department?: string | null } | null): boolean {
+  if (!emp) return true
+  if ((h.employee_excludes ?? []).includes(emp.id)) return false
+  if ((h.employee_includes ?? []).includes(emp.id)) return true
+  const branches = h.target_branches ?? []
+  const depts    = h.target_departments ?? []
+  const branchOk = branches.length === 0 || branches.includes(emp.branch_id)
+  const empDept  = (emp.department ?? '').slice(0, 2).trim()
+  const deptOk   = depts.length === 0 || depts.some((d: string) => String(d).slice(0, 2).trim() === empDept)
+  return branchOk && deptOk
+}
+function buildHolidayByDate(holidayRecords: any[], emp: { id?: string; branch_id?: string; department?: string | null } | null): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const h of holidayRecords) {
+    if (!holidayApplies(h, emp)) continue
+    const k = String(h.date ?? '').slice(0, 10)
+    if (k) m.set(k, h.name)
+  }
+  return m
+}
+
 function buildOffsiteDates(offsiteRecords: any[]): Set<string> {
   const s = new Set<string>()
   for (const o of offsiteRecords) {
@@ -127,7 +149,7 @@ const todayLocalStr = () => {
 // OffsiteCheckin วันนั้นแต่ไม่มีเช็คอินสาขา) > note-text เก่าจาก Firebase (fallback) >
 // เสาร์-อาทิตย์ > (วันธรรมดาที่ผ่านมาแล้ว ไม่มีอะไรเลย) ขาดงาน > ไม่มีข้อมูล
 function resolveDayStatus(params: {
-  recs?: any[]; dow: number; leaveLabel?: string; isDayOff?: boolean; isOffsite?: boolean; isPast?: boolean
+  recs?: any[]; dow: number; leaveLabel?: string; holidayName?: string; isDayOff?: boolean; isOffsite?: boolean; isPast?: boolean
 }): { label: string; color: string; bg: string } {
   const r = params.recs?.[0]
   const note = r?.note ?? ''
@@ -143,6 +165,7 @@ function resolveDayStatus(params: {
     return { label: 'มาปกติ', color: '#059669', bg: '#dcfce7' }
   }
   if (params.leaveLabel) return { label: params.leaveLabel, color: '#0891b2', bg: '#e0f2fe' }
+  if (params.holidayName) return { label: params.holidayName, color: '#4338ca', bg: '#e0e7ff' }
   if (params.isDayOff)   return { label: 'วันหยุด', color: '#0891b2', bg: '#e0f2fe' }
   if (params.isOffsite)  return { label: 'นอกสถานที่', color: '#9333ea', bg: '#faf5ff' }
   for (const [key, status] of NOTE_STATUS_FALLBACK) if (note.includes(key)) return status
@@ -164,7 +187,7 @@ function avatarPalette(id: string) {
 type Tab = 'overview' | 'attendance' | 'leave' | 'hr' | 'info'
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ employeeId }: { employeeId: string }) {
+function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth() + 1
@@ -191,6 +214,10 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
     queryKey: ['offsite-checkins', employeeId],
     queryFn: () => axios.get('/api/v1/admin/offsite-checkins', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
   })
+  const { data: holidayData } = useQuery({
+    queryKey: ['holidays', year],
+    queryFn: () => axios.get('/api/v1/super-admin/holidays', { params: { year } }).then((r: any) => r.data.data ?? []),
+  })
 
   const records = attData ?? []
   const balances = balData ?? []
@@ -198,6 +225,7 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
   const leaveByDate  = useMemo(() => buildLeaveByDate(leaveData ?? []), [leaveData])
   const dayoffDates  = useMemo(() => buildDayoffDates(dayoffData ?? []), [dayoffData])
   const offsiteDates = useMemo(() => buildOffsiteDates(offsiteData ?? []), [offsiteData])
+  const holidayByDate = useMemo(() => buildHolidayByDate(holidayData ?? [], emp), [holidayData, emp])
 
   const stats = useMemo(() => {
     const present = records.filter((r: any) => r.check_in_at)
@@ -295,7 +323,7 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             const dateStr0 = (r.date ?? '').slice(0, 10)
             const dow0 = new Date(dateStr0 + 'T00:00:00').getDay()
             const { label, color, bg } = resolveDayStatus({
-              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
+              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), holidayName: holidayByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
             })
             const dateStr = (r.date ?? '').slice(0, 10)
             const d = new Date(dateStr + 'T00:00:00')
@@ -323,7 +351,7 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
 }
 
 // ── Attendance Tab ────────────────────────────────────────────────────────────
-function AttendanceTab({ employeeId }: { employeeId: string }) {
+function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
   const [month, setMonth] = useState(() => new Date().getMonth() + 1)
   const [year,  setYear]  = useState(() => new Date().getFullYear())
   const [showMonthPicker, setShowMonthPicker] = useState(false)
@@ -351,9 +379,14 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
     queryKey: ['offsite-checkins', employeeId],
     queryFn: () => axios.get('/api/v1/admin/offsite-checkins', { params: { employeeId } }).then((r: any) => r.data.data ?? []),
   })
+  const { data: holidayData } = useQuery({
+    queryKey: ['holidays', year],
+    queryFn: () => axios.get('/api/v1/super-admin/holidays', { params: { year } }).then((r: any) => r.data.data ?? []),
+  })
   const leaveByDate   = useMemo(() => buildLeaveByDate(leaveData ?? []), [leaveData])
   const dayoffDates   = useMemo(() => buildDayoffDates(dayoffData ?? []), [dayoffData])
   const offsiteDates  = useMemo(() => buildOffsiteDates(offsiteData ?? []), [offsiteData])
+  const holidayByDate = useMemo(() => buildHolidayByDate(holidayData ?? [], emp), [holidayData, emp])
 
   const byDate = useMemo(() => {
     const m = new Map<string, any[]>()
@@ -374,10 +407,10 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
       for (const r of recs ?? []) fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
       const status = resolveDayStatus({
         recs, dow: new Date(dateKey).getDay(),
-        leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+        leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
       })
       if (status.label === 'ขาด' || status.label === 'ขาดงาน') absent++
-      else if (['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
+      else if (holidayByDate.get(dateKey) === status.label || ['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
       else if (status.label === 'มาปกติ') work++
       else if (status.label.startsWith('สาย')) { work++; late++ }
     }
@@ -450,7 +483,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
             const { label, color, bg } = resolveDayStatus({
-              recs, dow, leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+              recs, dow, leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
             })
             return (
               <div key={dateKey} style={{
@@ -467,7 +500,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                   {fmtTime(r?.check_out_at) ?? '—'}
                 </div>
                 <div style={{ padding: '9px 8px', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: `${color}20`, color, whiteSpace: 'nowrap' }}>{label}</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: `${color}20`, color, lineHeight: 1.25 }}>{label}</span>
                 </div>
                 <div style={{ padding: '9px 12px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center' }}>
                   {note && note !== label ? note : ''}
@@ -911,8 +944,8 @@ export default function EmployeeDetailPage() {
       </div>
 
       <div style={{ padding: '24px 28px' }}>
-        {tab === 'overview'   && <OverviewTab   employeeId={emp.id} />}
-        {tab === 'attendance' && <AttendanceTab employeeId={emp.id} />}
+        {tab === 'overview'   && <OverviewTab   employeeId={emp.id} emp={emp} />}
+        {tab === 'attendance' && <AttendanceTab employeeId={emp.id} emp={emp} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}
         {tab === 'hr'         && <HrLifecyclePanel employeeId={emp.id} emp={emp} features={{ employee_documents: hrOn('employee_documents'), probation: hrOn('probation'), disciplinary: hrOn('disciplinary') }} />}
         {tab === 'info'       && <InfoTab       emp={emp} onResetLine={() => setConfirmReset(true)} />}
