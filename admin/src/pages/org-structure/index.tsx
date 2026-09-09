@@ -412,8 +412,8 @@ function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, chil
 // ── Org Tree Tab (ผังของกลุ่มที่เลือก) ───────────────────────────────────────
 // ── รายละเอียดนโยบายของ node (กด "ดู") — โชว์ค่าที่ตั้งเอง + ค่าที่มีผลจริง + มาจากไหน ──
 const RULE_TH: Record<string, string> = { WORK: 'ทำงาน', OFF: 'หยุด', OFFSITE: 'นอกสถานที่' }
-function NodeDetailModal({ level, row, tree, grp, onClose }: {
-  level: Level; row: any; tree: TreeDiv[]; grp?: GroupT; onClose: () => void
+function NodeDetailModal({ level, row, tree, grp, employees, onClose }: {
+  level: Level; row: any; tree: TreeDiv[]; grp?: GroupT; employees: any[]; onClose: () => void
 }) {
   // ancestor chain — เจาะจงสุด → กลุ่ม
   const chain: { label: string; n: any }[] = []
@@ -443,6 +443,14 @@ function NodeDetailModal({ level, row, tree, grp, onClose }: {
       from: effSource,
     }
   }
+  // พนักงานที่อยู่ใต้ node นี้
+  const posIds: string[] = level === 'position'
+    ? [row.id]
+    : level === 'department'
+      ? (row.positions ?? []).map((p: any) => p.id)
+      : (row.departments ?? []).flatMap((d: any) => (d.positions ?? []).map((p: any) => p.id))
+  const members = employees.filter(e => posIds.includes(e.position_id) && e.is_active !== false)
+
   const bool = (v: any) => (v ? 'เปิด' : 'ปิด')
   const rows = [
     { label: 'สิทธิ์จองวันหยุด', ...resolve('booking_enabled', bool) },
@@ -481,6 +489,22 @@ function NodeDetailModal({ level, row, tree, grp, onClose }: {
           </tbody>
         </table>
         <p style={{ margin: '12px 0 0', fontSize: '10.5px', color: '#9ca3af' }}>"ตั้งที่นี่" = "—" หมายถึงใช้ค่าจากชั้นบน · สาขาที่พนักงานสังกัดก็ override ได้อีกชั้น</p>
+
+        <div style={{ marginTop: 14, borderTop: '1px solid #f1f5f9', paddingTop: 12 }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: 8 }}>พนักงานใน{LEVEL_LABEL[level]}นี้ ({members.length})</div>
+          {members.length === 0 ? (
+            <p style={{ fontSize: '11.5px', color: '#9ca3af', margin: 0 }}>ยังไม่มีพนักงาน</p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+              {members.map(m => (
+                <span key={m.id} style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155', background: '#f1f5f9', padding: '3px 9px', borderRadius: 99 }}>
+                  {m.first_name} {m.last_name}{m.nickname ? ` (${m.nickname})` : ''}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button onClick={onClose} style={{ ...btnPrimary, width: '100%', justifyContent: 'center', marginTop: 14 }}>ปิด</button>
       </div>
     </div>
@@ -500,6 +524,7 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
   const { data: depts = [] } = useQuery<Dept[]>({ queryKey: ['departments', groupId], queryFn: () => api.get('/api/v1/admin/departments').then(r => r.data.data) })
   const { data: tree  = [] } = useQuery<TreeDiv[]>({ queryKey: ['org-tree', groupId], queryFn: () => api.get('/api/v1/admin/org-structure/tree', { params: { group_id: groupId } }).then(r => r.data.data) })
   const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
+  const { data: allEmployees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data) })
   const grp = groups.find(g => g.id === groupId)
 
   const invalidateAll = () => {
@@ -593,7 +618,7 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
 
       {addModal && <AddEntityModal level={addModal} groupId={groupId} divs={divs} depts={depts} onClose={() => setAddModal(null)} />}
 
-      {viewTarget && <NodeDetailModal level={viewTarget.level} row={viewTarget.row} tree={tree} grp={grp} onClose={() => setViewTarget(null)} />}
+      {viewTarget && <NodeDetailModal level={viewTarget.level} row={viewTarget.row} tree={tree} grp={grp} employees={allEmployees} onClose={() => setViewTarget(null)} />}
 
       {editModal && (
         <div style={modalOverlay} onClick={() => setEditModal(null)}>

@@ -148,13 +148,32 @@ const todayLocalStr = () => {
 // ลา/วันหยุดจริง (จาก LeaveRequest/WeeklyOffRequest ที่ APPROVED) > นอกสถานที่ (มี
 // OffsiteCheckin วันนั้นแต่ไม่มีเช็คอินสาขา) > note-text เก่าจาก Firebase (fallback) >
 // เสาร์-อาทิตย์ > (วันธรรมดาที่ผ่านมาแล้ว ไม่มีอะไรเลย) ขาดงาน > ไม่มีข้อมูล
-// resolve เสาร์/อาทิตย์จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
+// resolve นโยบายจาก cascade 6 ชั้น (สถานะพนักงาน/บุคคล → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม)
+function orgChain(emp: any) {
+  return [emp?.position, emp?.position?.department, emp?.position?.department?.division, emp?.branch, emp?.branch?.group]
+}
 function weekendRuleOf(emp: any, dow: number): 'WORK' | 'OFF' | 'OFFSITE' {
   if (dow !== 0 && dow !== 6) return 'WORK'
   const k = dow === 6 ? 'saturday_rule' : 'sunday_rule'
-  const chain = [emp?.employee_status_type, emp?.position, emp?.position?.department, emp?.position?.department?.division, emp?.branch, emp?.branch?.group]
-  for (const n of chain) { const v = n?.[k]; if (v != null) return v }
+  for (const n of [emp?.employee_status_type, ...orgChain(emp)]) { const v = n?.[k]; if (v != null) return v }
   return 'OFF'
+}
+function resolveEmpPolicy(emp: any) {
+  const flag = (key: 'booking' | 'leave') => {
+    const ov = key === 'booking' ? emp?.booking_enabled_override : emp?.leave_enabled_override
+    if (ov != null) return ov
+    const f = key === 'booking' ? 'booking_enabled' : 'leave_enabled'
+    for (const n of orgChain(emp)) { const v = n?.[f]; if (v != null) return v }
+    return true
+  }
+  const quota = () => {
+    for (const v of [emp?.employee_status_type?.monthly_off_quota, ...orgChain(emp).map((n: any) => n?.booking_quota)]) if (v != null) return v
+    return 5
+  }
+  return {
+    booking: flag('booking'), leave: flag('leave'),
+    sat: weekendRuleOf(emp, 6), sun: weekendRuleOf(emp, 0), quota: quota(),
+  }
 }
 
 function resolveDayStatus(params: {
@@ -292,6 +311,29 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
           </div>
         )}
       </div>
+
+      {emp && (() => {
+        const p = resolveEmpPolicy(emp)
+        const RULE_TH: Record<string, string> = { WORK: 'ทำงาน', OFF: 'หยุด', OFFSITE: 'นอกสถานที่' }
+        const chip = (label: string, value: string, ok: boolean) => (
+          <div key={label} style={{ background: ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${ok ? '#bbf7d0' : '#fecaca'}`, borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: ok ? '#15803d' : '#b91c1c' }}>{value}</div>
+          </div>
+        )
+        return (
+          <div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>นโยบายวันหยุด / การลา <span style={{ fontWeight: 400, color: '#94a3b8' }}>(resolved จากกลุ่ม/ฝ่าย/แผนก/ตำแหน่ง/สถานะพนักงาน)</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
+              {chip('สิทธิ์จองวันหยุด', p.booking ? 'เปิด' : 'ปิด', p.booking)}
+              {chip('สิทธิ์การลา', p.leave ? 'เปิด' : 'ปิด', p.leave)}
+              {chip('วันเสาร์', RULE_TH[p.sat] ?? p.sat, p.sat !== 'WORK')}
+              {chip('วันอาทิตย์', RULE_TH[p.sun] ?? p.sun, p.sun !== 'WORK')}
+              {chip('จองวันหยุด/เดือน', `${p.quota} วัน`, true)}
+            </div>
+          </div>
+        )
+      })()}
 
       <div>
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>โควต้าวันลาคงเหลือ</div>
