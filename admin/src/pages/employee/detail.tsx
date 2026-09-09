@@ -75,7 +75,8 @@ function buildLeaveByDate(leaveRecords: any[]): Map<string, string> {
   const m = new Map<string, string>()
   for (const l of leaveRecords) {
     if (l.status !== 'APPROVED') continue
-    const label = LEAVE_TYPE_LABEL[l.leave_type] ?? l.leave_type
+    const bracket = String(l.reason ?? '').match(/^\[(.+?)\]/)?.[1]
+    const label = bracket ?? LEAVE_TYPE_LABEL[l.leave_type] ?? l.leave_type
     const start = new Date((l.start_date ?? '').slice(0, 10) + 'T00:00:00')
     const end   = new Date((l.end_date   ?? '').slice(0, 10) + 'T00:00:00')
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -116,12 +117,17 @@ const NOTE_STATUS_FALLBACK: [string, { label: string; color: string; bg: string 
   ['ขาดงาน', { label: 'ขาดงาน', color: '#dc2626', bg: '#fee2e2' }],
 ]
 
+const todayLocalStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // สถานะของ 1 วัน — คิดตามลำดับ: ขาดจริง (is_absent) > เช็คอินจริง (สาย/ปกติ) >
 // ลา/วันหยุดจริง (จาก LeaveRequest/WeeklyOffRequest ที่ APPROVED) > นอกสถานที่ (มี
 // OffsiteCheckin วันนั้นแต่ไม่มีเช็คอินสาขา) > note-text เก่าจาก Firebase (fallback) >
-// เสาร์-อาทิตย์ > ไม่มีข้อมูล
+// เสาร์-อาทิตย์ > (วันธรรมดาที่ผ่านมาแล้ว ไม่มีอะไรเลย) ขาดงาน > ไม่มีข้อมูล
 function resolveDayStatus(params: {
-  recs?: any[]; dow: number; leaveLabel?: string; isDayOff?: boolean; isOffsite?: boolean
+  recs?: any[]; dow: number; leaveLabel?: string; isDayOff?: boolean; isOffsite?: boolean; isPast?: boolean
 }): { label: string; color: string; bg: string } {
   const r = params.recs?.[0]
   const note = r?.note ?? ''
@@ -141,6 +147,8 @@ function resolveDayStatus(params: {
   if (params.isOffsite)  return { label: 'นอกสถานที่', color: '#9333ea', bg: '#faf5ff' }
   for (const [key, status] of NOTE_STATUS_FALLBACK) if (note.includes(key)) return status
   if (params.dow === 0 || params.dow === 6) return { label: 'เสาร์/อาทิตย์', color: '#94a3b8', bg: '#fafafa' }
+  // วันธรรมดาที่ผ่านมาแล้ว ไม่มี record / ไม่มีลา / ไม่มีวันหยุด = ไม่ได้มาทำงาน
+  if (params.isPast) return { label: 'ขาดงาน', color: '#dc2626', bg: '#fee2e2' }
   return { label: '—', color: '#94a3b8', bg: '#fff' }
 }
 
@@ -287,7 +295,7 @@ function OverviewTab({ employeeId }: { employeeId: string }) {
             const dateStr0 = (r.date ?? '').slice(0, 10)
             const dow0 = new Date(dateStr0 + 'T00:00:00').getDay()
             const { label, color, bg } = resolveDayStatus({
-              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0),
+              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
             })
             const dateStr = (r.date ?? '').slice(0, 10)
             const d = new Date(dateStr + 'T00:00:00')
@@ -366,7 +374,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
       for (const r of recs ?? []) fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
       const status = resolveDayStatus({
         recs, dow: new Date(dateKey).getDay(),
-        leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey),
+        leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
       })
       if (status.label === 'ขาด' || status.label === 'ขาดงาน') absent++
       else if (['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
@@ -442,7 +450,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
             const { label, color, bg } = resolveDayStatus({
-              recs, dow, leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey),
+              recs, dow, leaveLabel: leaveByDate.get(dateKey), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
             })
             return (
               <div key={dateKey} style={{
