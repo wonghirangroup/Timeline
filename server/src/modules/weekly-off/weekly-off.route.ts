@@ -326,7 +326,13 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createWeeklyOff(req.tenantId, req.body)
-      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดสัปดาห์ ${req.body.week_start} (วัน${DOW_TH[req.body.day_of_week]}) — รอคุณอนุมัติ`)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        title: 'จองวันหยุดรออนุมัติ',
+        detail: `หยุดวัน${DOW_TH[req.body.day_of_week]} สัปดาห์ ${req.body.week_start}`,
+        color: '#2563EB',
+        path: `/leave?tab=time-off&focus=${result.id}`,
+        buttonLabel: 'เปิดดู',
+      })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์นี้แล้ว'))
@@ -373,7 +379,13 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createMonthlyOff(req.tenantId, req.body)
-      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดประจำเดือน ${req.body.date} — รอคุณอนุมัติ`)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        title: 'จองวันหยุดรออนุมัติ',
+        detail: `วันหยุดประจำเดือน ${req.body.date}`,
+        color: '#2563EB',
+        path: `/leave?tab=time-off&focus=${result.id}`,
+        buttonLabel: 'เปิดดู',
+      })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดเดือนนี้แล้ว'))
@@ -402,7 +414,13 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createMonthlyBatchOff(req.tenantId, req.body)
-      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน — รอคุณอนุมัติ`)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        title: 'จองวันหยุดรออนุมัติ',
+        detail: `วันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน`,
+        color: '#2563EB',
+        path: '/leave?tab=time-off',
+        buttonLabel: 'เปิดดู',
+      })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดทั้งเดือนสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว'))

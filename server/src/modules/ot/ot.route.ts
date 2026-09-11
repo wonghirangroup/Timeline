@@ -122,7 +122,12 @@ export async function otRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const request = await createOtRequest(req.tenantId, req.body)
     const { employee_id, date, start_time, end_time, hours } = req.body
-    notifyAdminsLine(req.tenantId, employee_id, `ยื่นขอ OT ${date} ${start_time}–${end_time} (${hours} ชม.) — รอคุณอนุมัติ`)
+    notifyAdminsLine(req.tenantId, employee_id, {
+      title: 'คำขอ OT รออนุมัติ',
+      detail: `${date} ${start_time}–${end_time} (${hours} ชม.)`,
+      color: '#7C3AED',
+      path: `/ot?approve=${request.id}`,
+    })
     return reply.code(201).send(ok(request, 'ยื่นขอ OT สำเร็จ'))
   })
 

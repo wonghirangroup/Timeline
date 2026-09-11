@@ -232,7 +232,12 @@ export async function leaveRoutes(app: FastifyInstance) {
       const { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
       const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
       const dateRange = start_date === end_date ? start_date : `${start_date} – ${end_date}`
-      notifyAdminsLine(req.tenantId, employee_id, `ยื่นคำขอ${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน) — รอคุณอนุมัติ`)
+      notifyAdminsLine(req.tenantId, employee_id, {
+        title: 'ใบลารออนุมัติ',
+        detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)`,
+        color: '#EA580C',
+        path: `/leave?tab=requests&approve=${request.id}`,
+      })
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))

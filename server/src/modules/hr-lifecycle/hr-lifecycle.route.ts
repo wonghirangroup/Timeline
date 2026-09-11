@@ -193,7 +193,12 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     try {
       const { employee_id, last_working_date, reason } = req.body
       const r = await svc.createResignation(req.tenantId, { employee_id, last_working_date, reason })
-      notifyAdminsLine(req.tenantId, employee_id, `ยื่นคำขอลาออก — วันทำงานสุดท้าย ${last_working_date} — รอคุณพิจารณา`)
+      notifyAdminsLine(req.tenantId, employee_id, {
+        title: 'คำขอลาออกรอพิจารณา',
+        detail: `วันทำงานสุดท้าย ${last_working_date}`,
+        color: '#DC2626',
+        path: `/resignations?approve=${r.id}`,
+      })
       return reply.code(201).send(ok({ id: r.id }, 'ยื่นคำขอลาออกแล้ว รอผู้ดูแลอนุมัติ'))
     } catch (e: any) {
       return reply.code(e.message === 'ALREADY_PENDING' ? 409 : 400).send(fail(e.message, e.message === 'ALREADY_PENDING' ? 'มีคำขอลาออกที่รออนุมัติอยู่แล้ว' : 'ยื่นไม่สำเร็จ'))
