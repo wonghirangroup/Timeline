@@ -56,6 +56,15 @@ function toYMD(year: number, month: number, day: number): string {
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+
+// รายวันที่ "ไม่มีข้อมูล" → "3, 7 ก.ย." (ตัดที่ 6 วันแรก กันล้นการ์ด)
+function fmtMissingDates(dates: string[]): string {
+  const shown = dates.slice(0, 6).map(dk => {
+    const d = new Date(dk + 'T00:00:00')
+    return `${d.getDate()} ${MONTHS_TH[d.getMonth()].slice(0, 3)}`
+  }).join(', ')
+  return dates.length > 6 ? `${shown} และอีก ${dates.length - 6} วัน` : shown
+}
 const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
 function initials(first: string, last: string) {
@@ -72,6 +81,7 @@ export default function ReportPage() {
   const [detail, setDetail] = useState<{ emp: string; date: string; records: AttendanceRecord[] } | null>(null)
   const [expandedEmp, setExpandedEmp] = useState<string | null>(null)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [onlyNoData, setOnlyNoData] = useState(false)
 
   // ── มุมมอง: ปฏิทิน (1 เดือนเต็ม) หรือ ช่วงเวลาที่กำหนดเอง (ข้ามเดือนได้) ──
   const [viewMode, setViewMode] = useState<'month' | 'range'>('month')
@@ -220,10 +230,33 @@ export default function ReportPage() {
     )
   }, [allEmployees, empMap, search])
 
+  // ── หาว่าใครมีวัน "ไม่มีข้อมูล" บ้าง (ไม่ใช่ลา/หยุด/นอกสถานที่/วันหยุดสุดสัปดาห์ — แค่ไม่มี
+  // record จริงๆ) และเป็นวันไหน — เฉพาะวันที่ผ่านมาแล้ว (ไม่นับวันอนาคตที่ยังไม่ถึง)
+  const todayStr = now.toISOString().slice(0, 10)
+  const activeDateKeys = useMemo(
+    () => (viewMode === 'range' ? rangeDateKeys : days.map(d => toYMD(year, month, d))),
+    [viewMode, rangeDateKeys, days, year, month],
+  )
+  const noDataByEmp = useMemo(() => {
+    const m = new Map<string, string[]>()
+    for (const { info, byDate } of employees) {
+      const missing: string[] = []
+      for (const dateKey of activeDateKeys) {
+        if (dateKey > todayStr) continue
+        const ci = cellInfo(byDate.get(dateKey), info.employee_code, info.id, dateKey)
+        if (ci.tip === 'ไม่มีข้อมูล') missing.push(dateKey)
+      }
+      if (missing.length > 0) m.set(info.id, missing)
+    }
+    return m
+  }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap])
+
+  const filteredEmployees = onlyNoData ? employees.filter(e => noDataByEmp.has(e.info.id)) : employees
+
   // ── สรุปรายพนักงานสำหรับมุมมอง "ช่วงเวลา" — นับจาก cellInfo() ทีละวันในช่วงที่เลือก ──
   const rangeSummary = useMemo(() => {
     if (viewMode !== 'range') return []
-    return employees.map(({ info, byDate }) => {
+    return filteredEmployees.map(({ info, byDate }) => {
       let ok = 0, late = 0, absent = 0, leave = 0, fine = 0
       for (const dateKey of rangeDateKeys) {
         const recs = byDate.get(dateKey)
@@ -237,7 +270,7 @@ export default function ReportPage() {
       }
       return { info, byDate, ok, late, absent, leave, fine }
     })
-  }, [viewMode, employees, rangeDateKeys])
+  }, [viewMode, filteredEmployees, rangeDateKeys])
 
   function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string) {
     const dow     = new Date(dateKey + 'T00:00:00').getDay()
@@ -343,8 +376,8 @@ export default function ReportPage() {
     a.download = filename; a.click()
   }
   function exportAll() {
-    if (viewMode === 'range') downloadCsv(buildCsvRows(employees, rangeDateKeys), `รายงาน_${rangeStart}_ถึง_${rangeEnd}.csv`)
-    else downloadCsv(buildCsvRows(employees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`)
+    if (viewMode === 'range') downloadCsv(buildCsvRows(filteredEmployees, rangeDateKeys), `รายงาน_${rangeStart}_ถึง_${rangeEnd}.csv`)
+    else downloadCsv(buildCsvRows(filteredEmployees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`)
   }
   function exportOne(emp: typeof employees[0]) {
     const name = `${emp.info.first_name}_${emp.info.last_name}`
@@ -466,15 +499,21 @@ export default function ReportPage() {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}><AlertTriangle size={12} /> สาย {totalLate}</span>
           {totalAbsent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}><X size={12} /> ขาด {totalAbsent}</span>}
           {totalFine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}><Wallet size={12} /> ค่าปรับรวม {totalFine} ฿</span>}
-          <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{employees.length} คน</span>
+          {noDataByEmp.size > 0 && (
+            <button onClick={() => setOnlyNoData(v => !v)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: onlyNoData ? '#7c3aed' : '#ede9fe', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: onlyNoData ? '#fff' : '#6d28d9', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <AlertTriangle size={12} /> ไม่มีข้อมูล {noDataByEmp.size} คน{onlyNoData ? ' ✕' : ''}
+            </button>
+          )}
+          <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{filteredEmployees.length} คน</span>
           {!isMobile && (
-            <button onClick={exportAll} disabled={employees.length === 0}
+            <button onClick={exportAll} disabled={filteredEmployees.length === 0}
               style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
               <Download size={13} /> Export รวม
             </button>
           )}
           {isMobile && (
-            <button onClick={exportAll} disabled={employees.length === 0}
+            <button onClick={exportAll} disabled={filteredEmployees.length === 0}
               style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
               <Download size={12} /> Export
             </button>
@@ -483,9 +522,9 @@ export default function ReportPage() {
       )}
 
       {isLoading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
-      {!isLoading && employees.length === 0 && (
+      {!isLoading && filteredEmployees.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
-          {search.trim() ? 'ไม่พบพนักงานที่ค้นหา' : 'ไม่พบข้อมูลพนักงาน'}
+          {onlyNoData ? 'ไม่มีใครที่มีสถานะ "ไม่มีข้อมูล" ในช่วงนี้' : search.trim() ? 'ไม่พบพนักงานที่ค้นหา' : 'ไม่พบข้อมูลพนักงาน'}
         </div>
       )}
 
@@ -519,6 +558,11 @@ export default function ReportPage() {
                       {leave > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '2px 7px' }}><CalendarOff size={10} /> {+leave.toFixed(1)}</span>}
                       {fine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#be185d', background: '#fdf2f8', borderRadius: 6, padding: '2px 7px' }}><Wallet size={10} /> {fine} ฿</span>}
                     </div>
+                    {noDataByEmp.has(info.id) && (
+                      <div style={{ marginTop: 5, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <AlertTriangle size={11} /> ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <div style={{ fontSize: '0.7rem', color: isExpanded ? '#f97316' : 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</div>
@@ -562,9 +606,9 @@ export default function ReportPage() {
       )}
 
       {/* ── CARD VIEW: Employee cards (มือถือเสมอ, จอใหญ่ตอนเลือกมุมมองการ์ด) ── */}
-      {!isLoading && employees.length > 0 && (isMobile || cardView) && viewMode === 'month' && (
+      {!isLoading && filteredEmployees.length > 0 && (isMobile || cardView) && viewMode === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {employees.map(({ info, byDate }) => {
+          {filteredEmployees.map(({ info, byDate }) => {
             const presentDays = [...byDate.entries()].filter(([dk]) => {
               const dow = new Date(dk + 'T00:00:00Z').getUTCDay()
               return dow !== 0 && dow !== 6
@@ -614,6 +658,11 @@ export default function ReportPage() {
                         }} />
                       </div>
                     </div>
+                    {noDataByEmp.has(info.id) && (
+                      <div style={{ marginTop: 6, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <AlertTriangle size={11} /> ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right side */}
@@ -725,7 +774,7 @@ export default function ReportPage() {
       )}
 
       {/* ── TABLE VIEW: Matrix table (จอใหญ่ตอนเลือกมุมมองตาราง) ───────────────── */}
-      {!isLoading && employees.length > 0 && !isMobile && !cardView && viewMode === 'month' && (
+      {!isLoading && filteredEmployees.length > 0 && !isMobile && !cardView && viewMode === 'month' && (
         <>
           {/* Legend */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
@@ -767,7 +816,7 @@ export default function ReportPage() {
                 </tr>
               </thead>
               <tbody>
-                {employees.map(({ info, byDate }) => {
+                {filteredEmployees.map(({ info, byDate }) => {
                   const presentDays = [...byDate.entries()].filter(([dk]) => {
                     const dow = new Date(dk + 'T00:00:00Z').getUTCDay()
                     return dow !== 0 && dow !== 6
@@ -784,6 +833,11 @@ export default function ReportPage() {
                               {info.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>({info.nickname})</span>}
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
+                            {noDataByEmp.has(info.id) && (
+                              <div style={{ fontSize: '0.66rem', color: '#7c3aed', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap' }}>
+                                ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                              </div>
+                            )}
                           </div>
                           <button onClick={() => exportOne({ info, byDate })} title="Export รายคน"
                             style={{ flexShrink: 0, padding: '2px 6px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>

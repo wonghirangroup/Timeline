@@ -1,10 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Bell, ClipboardList, Clock, DoorOpen, CalendarOff, AlertTriangle,
-  FileWarning, Target, ArrowLeftRight, Check,
+  FileWarning, Target, ArrowLeftRight, Check, X, Loader2,
 } from 'lucide-react'
 import { useNotifications, type NotifItem, type NotifSeverity } from '../../hooks/useNotifications'
+import { api } from '../../lib/axios'
+import { useToast } from '../ui/Toast'
+
+// รายการแจ้งเตือนที่อนุมัติ/ปฏิเสธได้ตรงจากกระดิ่งเลย (ไม่ต้องเปิดหน้าเต็ม)
+const APPROVABLE = new Set(['pending_leave', 'pending_ot', 'pending_resignation', 'pending_weekly_off'])
+
+async function submitDecision(it: NotifItem, decision: 'approve' | 'reject') {
+  const rowId = it.id.slice(it.id.indexOf(':') + 1)
+  if (it.kind === 'pending_resignation') {
+    return api.post(`/api/v1/admin/resignations/${rowId}/review`, { approve: decision === 'approve' })
+  }
+  const base = it.kind === 'pending_leave' ? 'leave-requests' : it.kind === 'pending_ot' ? 'ot-requests' : 'weekly-off'
+  return api.post(`/api/v1/admin/${base}/${rowId}/${decision}`)
+}
 
 const SEV: Record<NotifSeverity, { dot: string; bg: string; fg: string }> = {
   action: { dot: 'var(--action-primary)', bg: 'var(--accent-light)',  fg: 'var(--action-primary-hover)' },
@@ -53,7 +68,10 @@ function saveRead(s: Set<string>) {
 export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
   const navigate = useNavigate()
   const { data } = useNotifications()
+  const qc = useQueryClient()
+  const { showToast } = useToast()
   const [open, setOpen] = useState(false)
+  const [acting, setActing] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   const items = data?.items ?? []
@@ -107,6 +125,21 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
     markRead(items.filter(i => i.severity !== 'info').map(i => i.id))
   }
 
+  async function actOn(it: NotifItem, decision: 'approve' | 'reject') {
+    if (acting) return
+    setActing(it.id)
+    try {
+      await submitDecision(it, decision)
+      markRead([it.id])
+      qc.invalidateQueries({ queryKey: ['admin', 'notifications'] })
+      showToast('success', decision === 'approve' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว')
+    } catch {
+      showToast('error', 'ดำเนินการไม่สำเร็จ — ลองอีกครั้ง หรือเปิดหน้าเต็มเพื่อดูรายละเอียด')
+    } finally {
+      setActing(null)
+    }
+  }
+
   const panel = (
     <div style={{ display: 'flex', flexDirection: 'column', maxHeight: isMobile ? '80vh' : 460 }}>
       <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -137,22 +170,42 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
                 {rows.map(it => {
                   const s = SEV[it.severity]
                   const unread = isUnread(it)
+                  const canAct = APPROVABLE.has(it.kind)
+                  const isActing = acting === it.id
+                  const rowBg = unread ? 'var(--bg-card)' : 'var(--bg-subtle)'
                   return (
-                    <button key={it.id} onClick={() => go(it)}
-                      style={{ display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: '11px 18px', border: 'none', borderBottom: '1px solid var(--border-light)', background: unread ? 'var(--bg-card)' : 'var(--bg-subtle)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s', opacity: unread ? 1 : 0.6 }}
+                    <div key={it.id}
+                      style={{ borderBottom: '1px solid var(--border-light)', background: rowBg, opacity: unread ? 1 : 0.6, transition: 'background 0.12s' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-muted)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = unread ? 'var(--bg-card)' : 'var(--bg-subtle)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                     >
-                      <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: s.bg, color: s.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                        {KIND_ICON[it.kind] ?? <Bell size={15} />}
-                      </span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: unread ? 700 : 600, color: 'var(--text-main)' }}>{it.title}</span>
-                        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1, lineHeight: 1.45 }}>{it.detail}</span>
-                        <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-faint)', marginTop: 3 }}>{relThai(it.at)}</span>
-                      </span>
-                      {unread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.dot, flexShrink: 0, alignSelf: 'center' }} />}
-                    </button>
+                      <button onClick={() => go(it)}
+                        style={{ display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: canAct ? '11px 18px 6px' : '11px 18px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: s.bg, color: s.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                          {KIND_ICON[it.kind] ?? <Bell size={15} />}
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 12.5, fontWeight: unread ? 700 : 600, color: 'var(--text-main)' }}>{it.title}</span>
+                          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1, lineHeight: 1.45 }}>{it.detail}</span>
+                          <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-faint)', marginTop: 3 }}>{relThai(it.at)}</span>
+                        </span>
+                        {unread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.dot, flexShrink: 0, alignSelf: 'center' }} />}
+                      </button>
+
+                      {canAct && (
+                        <div style={{ display: 'flex', gap: 8, padding: '0 18px 11px 59px' }}>
+                          <button onClick={() => actOn(it, 'approve')} disabled={isActing}
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 0', borderRadius: 8, border: 'none', background: 'var(--action-approve, #16a34a)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: isActing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: isActing ? 0.6 : 1 }}>
+                            {isActing ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} อนุมัติ
+                          </button>
+                          <button onClick={() => actOn(it, 'reject')} disabled={isActing}
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 0', borderRadius: 8, border: '1px solid var(--action-danger, #dc2626)', background: 'transparent', color: 'var(--action-danger, #dc2626)', fontSize: 12, fontWeight: 700, cursor: isActing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: isActing ? 0.6 : 1 }}>
+                            <X size={13} /> ปฏิเสธ
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
