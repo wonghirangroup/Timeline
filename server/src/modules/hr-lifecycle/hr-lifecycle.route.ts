@@ -7,6 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
 import * as svc             from './hr-lifecycle.service'
+import { notifyAdminsLine } from '../notifications/line-push.service'
 
 const ADMIN_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'] as const
 const READ_ROLES   = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] as const
@@ -192,6 +193,7 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     try {
       const { employee_id, last_working_date, reason } = req.body
       const r = await svc.createResignation(req.tenantId, { employee_id, last_working_date, reason })
+      notifyAdminsLine(req.tenantId, employee_id, `ยื่นคำขอลาออก — วันทำงานสุดท้าย ${last_working_date} — รอคุณพิจารณา`)
       return reply.code(201).send(ok({ id: r.id }, 'ยื่นคำขอลาออกแล้ว รอผู้ดูแลอนุมัติ'))
     } catch (e: any) {
       return reply.code(e.message === 'ALREADY_PENDING' ? 409 : 400).send(fail(e.message, e.message === 'ALREADY_PENDING' ? 'มีคำขอลาออกที่รออนุมัติอยู่แล้ว' : 'ยื่นไม่สำเร็จ'))

@@ -6,6 +6,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listOtRequests, createOtRequest, approveOtRequest, rejectOtRequest } from './ot.service'
+import { notifyAdminsLine } from '../notifications/line-push.service'
 
 export async function otRoutes(app: FastifyInstance) {
 
@@ -120,6 +121,8 @@ export async function otRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     const request = await createOtRequest(req.tenantId, req.body)
+    const { employee_id, date, start_time, end_time, hours } = req.body
+    notifyAdminsLine(req.tenantId, employee_id, `ยื่นขอ OT ${date} ${start_time}–${end_time} (${hours} ชม.) — รอคุณอนุมัติ`)
     return reply.code(201).send(ok(request, 'ยื่นขอ OT สำเร็จ'))
   })
 

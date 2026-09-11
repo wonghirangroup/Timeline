@@ -7,6 +7,11 @@ import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
 import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest, getMonthColleagueLeaves } from './leave.service'
 import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEmployeesWithBalances } from './leave-balance.service'
+import { notifyAdminsLine } from '../notifications/line-push.service'
+
+const LEAVE_LABEL_TH: Record<string, string> = {
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
+}
 
 export async function leaveRoutes(app: FastifyInstance) {
 
@@ -226,6 +231,8 @@ export async function leaveRoutes(app: FastifyInstance) {
       // พนักงานยื่นเอง — บังคับ force/autoApprove = false เสมอ (กันส่ง flag ตรงๆ ผ่าน body)
       const { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
       const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
+      const dateRange = start_date === end_date ? start_date : `${start_date} – ${end_date}`
+      notifyAdminsLine(req.tenantId, employee_id, `ยื่นคำขอ${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน) — รอคุณอนุมัติ`)
       return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))

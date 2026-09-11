@@ -7,6 +7,9 @@ import { ok, fail }         from '../../common/utils/response'
 import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
+import { notifyAdminsLine } from '../notifications/line-push.service'
+
+const DOW_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์']
 
 export async function weeklyOffRoutes(app: FastifyInstance) {
 
@@ -323,6 +326,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createWeeklyOff(req.tenantId, req.body)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดสัปดาห์ ${req.body.week_start} (วัน${DOW_TH[req.body.day_of_week]}) — รอคุณอนุมัติ`)
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์นี้แล้ว'))
@@ -369,6 +373,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createMonthlyOff(req.tenantId, req.body)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดประจำเดือน ${req.body.date} — รอคุณอนุมัติ`)
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดเดือนนี้แล้ว'))
@@ -397,6 +402,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const result = await createMonthlyBatchOff(req.tenantId, req.body)
+      notifyAdminsLine(req.tenantId, req.body.employee_id, `จองวันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน — รอคุณอนุมัติ`)
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดทั้งเดือนสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว'))
