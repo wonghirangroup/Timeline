@@ -3,7 +3,16 @@
 // และ "สไลด์ลง" ด้วยนิ้ว (touch) ไม่มี gesture library ในโปรเจกต์นี้ เลยเขียนเอง
 // แบบง่าย: ลาก drag-handle แล้ววัดระยะ Y ถ้าลากพ้น threshold หรือปล่อยตอน velocity
 // สูงพอ ถือว่าปิด ไม่งั้น sheet เด้งกลับตำแหน่งเดิม
+//
+// render ผ่าน createPortal ไป document.body ตรงๆ (feedback 2026-09-14: user
+// ยัง report ว่าเลื่อนดูไม่ได้ + nav bar ล่างโผล่ทะลุมาบัง แม้แก้ maxHeight
+// เป็น vh แล้ว) — เดิม sheet render อยู่ใน component tree ปกติของหน้านั้นๆ
+// ถ้ามี ancestor ไหนตั้ง transform/filter/perspective ไว้ (แม้แค่ระหว่าง
+// animation) มันจะกลายเป็น containing block ของลูกที่เป็น position:fixed
+// แทนที่จะอ้างอิง viewport จริง ทำให้ sheet เพี้ยนตำแหน่ง/ความสูงได้ — portal
+// ตัดปัญหานี้ทิ้งไปเลย ไม่ต้องตามหาว่า ancestor ไหนเป็นต้นเหตุ
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 const CLOSE_DISTANCE = 100  // px ที่ต้องลากลงถึงจะปิด
 const CLOSE_VELOCITY = 0.5  // px/ms ที่ถือว่า "ปัดเร็ว" ปิดได้แม้ลากไม่ถึงระยะ
@@ -61,7 +70,7 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
     }
   }
 
-  return (
+  return createPortal(
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex, display: 'flex', alignItems: 'flex-end' }}
       className="animate-fade-in"
@@ -94,6 +103,7 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
         />
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
