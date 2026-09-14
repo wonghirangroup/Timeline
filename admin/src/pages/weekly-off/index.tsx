@@ -204,10 +204,24 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
   const [editDeadline, setEditDeadline] = useState('')
   const [editNote, setEditNote] = useState('')
   const [viewBookingsBranch, setViewBookingsBranch] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  useEffect(() => { setSelectedIds(new Set()) }, [viewBookingsBranch]) // เคลียร์ที่เลือกไว้ทุกครั้งที่เปิด modal สาขาใหม่
 
   const { data: periods = [], isLoading } = useQuery<WeeklyOffPeriod[]>({
     queryKey: ['admin', 'weekly-off-periods', month],
     queryFn: () => api.get('/api/v1/admin/weekly-off/periods', { params: { month } }).then((r: any) => r.data.data),
+  })
+
+  // อนุมัติหลายรายการพร้อมกัน (ทั้งหมด/เฉพาะที่เลือกใน modal ดูรายการจองของสาขา) — ยิง
+  // per-item endpoint เดิมพร้อมกันแทนการเพิ่ม endpoint bulk ใหม่ (จำนวนต่อสาขาไม่เยอะ)
+  const approveManyMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`))),
+    onSuccess: (_data, ids) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
+      showToast('success', `อนุมัติ ${ids.length} รายการสำเร็จ`)
+      setSelectedIds(new Set())
+    },
+    onError: () => showToast('error', 'อนุมัติบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
   })
 
   const openMutation = useMutation({
@@ -354,25 +368,50 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
         const bookings = requests
           .filter(r => r.employee.branch.id === viewBookingsBranch && resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month)
           .sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week)))
+        const pendingIds = bookings.filter(b => b.status === 'PENDING').map(b => b.id)
+        const selectedPendingCount = pendingIds.filter(id => selectedIds.has(id)).length
+        const toggleSelect = (id: string) => setSelectedIds(prev => {
+          const next = new Set(prev)
+          if (next.has(id)) next.delete(id); else next.add(id)
+          return next
+        })
         return (
           <div onClick={() => setViewBookingsBranch(null)}
             style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: '#fff', borderRadius: 14, width: 420, maxWidth: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
-              <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p?.branch.name}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtYM(month)} · {bookings.length} รายการ</div>
+              <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p?.branch.name}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtYM(month)} · {bookings.length} รายการ</div>
+                  </div>
+                  <button onClick={() => setViewBookingsBranch(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                    <X size={14} />
+                  </button>
                 </div>
-                <button onClick={() => setViewBookingsBranch(null)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-                  <X size={14} />
-                </button>
+                {!isReadOnly && pendingIds.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <button onClick={() => approveManyMutation.mutate(pendingIds)} disabled={approveManyMutation.isPending}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <Check size={13} /> อนุมัติทั้งหมด ({pendingIds.length})
+                    </button>
+                    <button onClick={() => approveManyMutation.mutate([...selectedIds])} disabled={approveManyMutation.isPending || selectedPendingCount === 0}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: selectedPendingCount > 0 ? '#fff7ed' : '#f9fafb', color: selectedPendingCount > 0 ? '#ea580c' : '#9ca3af', fontSize: '0.76rem', fontWeight: 700, cursor: selectedPendingCount > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <Check size={13} /> อนุมัติที่เลือก ({selectedPendingCount})
+                    </button>
+                  </div>
+                )}
               </div>
               <div style={{ overflowY: 'auto', padding: '8px 10px' }}>
                 {bookings.map(b => {
                   const sc = STATUS_CFG[b.status]
+                  const isPending = b.status === 'PENDING'
                   return (
                     <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9 }}>
+                      {isPending && !isReadOnly && (
+                        <input type="checkbox" checked={selectedIds.has(b.id)} onChange={() => toggleSelect(b.id)} style={{ flexShrink: 0, width: 15, height: 15 }} />
+                      )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>
                           {b.employee.first_name} {b.employee.last_name}{b.employee.nickname ? ` (${b.employee.nickname})` : ''}
@@ -381,7 +420,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                           {fmtDate(resolveDate(b.week_start, b.day_of_week))}
                         </div>
                       </div>
-                      {b.status === 'PENDING' && !isReadOnly ? (
+                      {isPending && !isReadOnly ? (
                         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                           <button onClick={() => onApprove(b.id)}
                             style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
