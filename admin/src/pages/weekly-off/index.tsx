@@ -1,7 +1,7 @@
 // admin/src/pages/weekly-off/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -9,7 +9,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { deptName } from '../../lib/format'
-import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,6 +86,20 @@ const STATUS_CFG = {
 const WEEKLY_OFF_MODE_LABEL: Record<'WEEKLY' | 'MONTHLY_BATCH', string> = {
   WEEKLY:        'รายสัปดาห์ (จองทีละสัปดาห์)',
   MONTHLY_BATCH: 'รายเดือน (ต้องจองครบทุกสัปดาห์)',
+}
+
+// ── สีต่อคน + localStorage key เดียวกับ "ตารางแยกกลุ่ม" ของหน้าปฏิทินรวม
+// (leave/TeamCalendarTab.tsx) — ตั้งใจใช้ key เดียวกันเพื่อให้พนักงานคนเดียวกัน
+// ได้สีเดียวกันไม่ว่า export จากหน้าไหน (feedback 2026-09-14: export ให้เหมือน
+// ปฏิทินรวม แยกกลุ่ม + แบ่งสี)
+const ROSTER_COLOR_PALETTE = [
+  '#F97316', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
+  '#F59E0B', '#06B6D4', '#EF4444', '#84CC16', '#6366F1',
+  '#14B8A6', '#D946EF',
+]
+const ROSTER_COLOR_KEY = 'tl_roster_colors'
+function loadRosterColors(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(ROSTER_COLOR_KEY) ?? '{}') } catch { return {} }
 }
 
 // แผนก — สำเนาจาก employee/index.tsx (ตามธรรมเนียมของโปรเจกต์นี้ที่ define ค่าคงที่ต่อไฟล์)
@@ -1004,6 +1018,8 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
 }) {
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('APPROVED')
+  const { groups } = useOrgFilterOptions()
+  const [rosterColors] = useState<Record<string, string>>(() => loadRosterColors())
 
   const filtered = useMemo(() => requests.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
@@ -1051,6 +1067,96 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
     a.download = `วันหยุด_${month}.csv`; a.click()
   }
 
+  // ── Export "ตารางแยกกลุ่ม" (Excel สี) — ให้เหมือนหน้าปฏิทินรวม (TeamCalendarTab)
+  // feedback 2026-09-14: "ปฎิทิน Export เหมือนกับหน้าปฏิทินรวม แยกกลุ่มให้ด้วย +
+  // แบ่งสีสำหรับจองวันหยุด" — ไม่กรองตาม orgFilter/statusFilter บนจอ (ดูทุกคน/ทุก
+  // สถานะที่ไม่ใช่ปฏิเสธในเดือนนี้เสมอ เหมือน roster export ของปฏิทินรวม) จัดกลุ่ม
+  // ตามกลุ่มสาขา แต่ละคนมีสีประจำตัว (localStorage key เดียวกับปฏิทินรวม เพื่อให้
+  // สีตรงกันข้ามหน้า)
+  function buildRosterGroups(): { groupName: string; employees: ApiEmployee[] }[] {
+    const byId = new Map<string, ApiEmployee>()
+    for (const r of requests) if (r.status !== 'REJECTED') byId.set(r.employee_id, r.employee)
+    const byGroup = new Map<string, ApiEmployee[]>()
+    const noGroup: ApiEmployee[] = []
+    for (const emp of byId.values()) {
+      const gid = employeeOrgMap[emp.id]?.groupId
+      if (!gid) { noGroup.push(emp); continue }
+      if (!byGroup.has(gid)) byGroup.set(gid, [])
+      byGroup.get(gid)!.push(emp)
+    }
+    const result = groups
+      .filter(g => (byGroup.get(g.id)?.length ?? 0) > 0)
+      .map(g => ({ groupName: g.name, employees: byGroup.get(g.id)! }))
+    if (noGroup.length > 0) result.push({ groupName: 'ไม่มีกลุ่ม', employees: noGroup })
+    return result
+  }
+  function rosterCellFor(employeeId: string, dateStr: string): { pending: boolean } | null {
+    const req = requests.find(r => r.employee_id === employeeId && r.status !== 'REJECTED' && resolveDate(r.week_start, r.day_of_week) === dateStr)
+    return req ? { pending: req.status === 'PENDING' } : null
+  }
+  function colorForEmployee(id: string, orderedIds: string[]): string {
+    if (rosterColors[id]) return rosterColors[id]
+    const idx = orderedIds.indexOf(id)
+    return ROSTER_COLOR_PALETTE[idx % ROSTER_COLOR_PALETTE.length]
+  }
+
+  // ไฟล์ .xlsx จริง (ไม่ใช่ CSV) เพราะต้องการสีพื้นหลังต่อช่อง — โหลด ExcelJS
+  // แบบ dynamic import กันบวมขนาดหน้าเว็บตอนโหลดปกติ (ตาม pattern เดียวกับ
+  // TeamCalendarTab.exportRosterExcel)
+  async function exportRosterExcel() {
+    const ExcelJS = (await import('exceljs')).default
+    const rosterGroups = buildRosterGroups()
+    const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
+
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet(fmtYM(month).slice(0, 31))
+
+    const THIN = { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
+    const CELL_BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
+
+    const fixedCols = ['ชื่อ', 'รหัส', 'สาขา']
+    const totalCols = fixedCols.length + daysInMonth
+    const headerRow = ws.addRow([...fixedCols, ...Array.from({ length: daysInMonth }, (_, i) => i + 1)])
+    headerRow.eachCell({ includeEmpty: true }, c => { c.font = { bold: true, color: { argb: 'FF6B7280' } }; c.alignment = { horizontal: 'center' }; c.border = CELL_BORDER })
+    ws.getColumn(1).width = 22
+    ws.getColumn(2).width = 12
+    ws.getColumn(3).width = 12
+    for (let i = 0; i < daysInMonth; i++) ws.getColumn(fixedCols.length + 1 + i).width = 6
+
+    for (const grp of rosterGroups) {
+      const groupRow = ws.addRow([`${grp.groupName} (${grp.employees.length} คน)`])
+      ws.mergeCells(groupRow.number, 1, groupRow.number, totalCols)
+      groupRow.getCell(1).font = { bold: true, size: 12 }
+      groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+      groupRow.getCell(1).border = CELL_BORDER
+
+      for (const e of grp.employees) {
+        const color = colorForEmployee(e.id, orderedIds).replace('#', '').toUpperCase()
+        const row = ws.addRow([`${e.nickname || e.first_name} ${e.last_name}`, e.employee_code ?? '', e.branch.name])
+        row.getCell(1).font = { bold: true }
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `20${color}` } }
+
+        for (let i = 0; i < daysInMonth; i++) {
+          const dateStr = `${month}-${String(i + 1).padStart(2, '0')}`
+          const cell = rosterCellFor(e.id, dateStr)
+          const xlCell = row.getCell(fixedCols.length + 1 + i)
+          xlCell.alignment = { horizontal: 'center' }
+          if (cell) {
+            xlCell.value = 'หยุด'
+            xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${color}` } }
+            xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FFFFFFFF' } }
+          }
+        }
+        row.eachCell({ includeEmpty: true }, c => { c.border = CELL_BORDER })
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    a.download = `วันหยุดแยกกลุ่ม_${month}.xlsx`; a.click()
+  }
+
   return (
     <div>
       {/* Controls */}
@@ -1074,6 +1180,12 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
         <button onClick={exportCsv} disabled={filtered.length === 0}
           style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.82rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: filtered.length === 0 ? 0.5 : 1 }}>
           <Download size={14} /> Export CSV
+        </button>
+
+        <button onClick={exportRosterExcel} disabled={requests.filter(r => r.status !== 'REJECTED').length === 0}
+          title="Export Excel แยกกลุ่ม + สีต่อคน เหมือนหน้าปฏิทินรวม (ไม่ขึ้นกับตัวกรองบนจอ)"
+          style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', fontWeight: 600, fontSize: '0.82rem', cursor: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 0.5 : 1 }}>
+          <FileSpreadsheet size={14} /> Export Excel (แยกกลุ่ม+สี)
         </button>
       </div>
 
