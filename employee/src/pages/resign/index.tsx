@@ -19,9 +19,11 @@ export default function ResignPage() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
+  // api instance มี baseURL = .../api/v1 อยู่แล้ว — /api/v1 ในเส้นทางข้างล่างซ้ำ
+  // ทำให้ 404 ทุกครั้ง (feedback 2026-09-14, เจอจาก console error จริง)
   useEffect(() => {
     if (!employee) return
-    api.get('/api/v1/employee/resignation', { params: { employee_id: employee.id } })
+    api.get('/employee/resignation', { params: { employee_id: employee.id } })
       .then(r => setExisting(r.data.data)).catch(() => setExisting(null))
   }, [employee])
 
@@ -29,8 +31,8 @@ export default function ResignPage() {
     if (!employee || !lastDay) return
     setBusy(true); setErr('')
     try {
-      await api.post('/api/v1/employee/resignation', { employee_id: employee.id, last_working_date: lastDay, reason: reason || null })
-      const r = await api.get('/api/v1/employee/resignation', { params: { employee_id: employee.id } })
+      await api.post('/employee/resignation', { employee_id: employee.id, last_working_date: lastDay, reason: reason || null })
+      const r = await api.get('/employee/resignation', { params: { employee_id: employee.id } })
       setExisting(r.data.data)
     } catch (e: any) {
       setErr(e?.response?.data?.error?.message ?? 'ยื่นไม่สำเร็จ')

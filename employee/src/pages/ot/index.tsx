@@ -81,7 +81,9 @@ export default function OtPage() {
   }
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
+    // เอา padding: '0 0 16px' inline ที่ทับ padding-bottom ของ .page-container
+    // ออก (บั๊กเดียวกับหน้า feedback — ปุ่มท้ายหน้าโดน BottomNav บัง, feedback 2026-09-14)
+    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
 
       {/* Header */}
       <div className="header-strip animate-fade-in" style={{ padding: '28px 20px 20px', textAlign: 'center' }}>

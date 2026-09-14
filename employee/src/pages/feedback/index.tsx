@@ -66,7 +66,11 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
+    // เดิมมี padding: '0 0 16px' inline ทับ padding-bottom ของ .page-container
+    // (class เผื่อพื้นที่ไว้พ้น BottomNav อยู่แล้ว: calc(var(--nav-height)+8px))
+    // ทำให้ปุ่ม "ส่งความคิดเห็น" ท้ายหน้าโดน nav บังจนเลื่อนไปกดไม่ถึง
+    // (feedback 2026-09-14) — เอา override ออก ใช้ padding-bottom ของ class ปกติ
+    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
 
       {/* Header */}
       <div className="header-strip animate-fade-in" style={{ padding: '28px 20px 20px', textAlign: 'center' }}>

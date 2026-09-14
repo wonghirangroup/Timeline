@@ -64,11 +64,15 @@ export default function CheckoutPage() {
   const alreadyAll = records.length > 0 && unchecked.length === 0
   const nextRecord = unchecked[unchecked.length - 1]
 
+  // เดิม 3 จุดใน return ของไฟล์นี้มี padding: '0 0 16px' inline ทับ
+  // padding-bottom ของ .page-container (เผื่อพื้นที่พ้น BottomNav ไว้แล้ว)
+  // ทำให้เนื้อหา/ปุ่มท้ายสุดโดน nav บัง เอาออกหมดแล้ว (feedback 2026-09-14,
+  // เจอจากหน้า feedback ก่อน แต่เป็น pattern เดียวกันทั้งไฟล์นี้)
   // ── เช็คเอาต์สำเร็จ ────────────────────────────────────────────────────────
   if (doneResult) {
     const r = doneResult.record
     return (
-      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
+      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
           <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 20px' }} />
           <CheckCircle2 size={64} color="var(--success)" strokeWidth={1.6} className="animate-success-pop" style={{ marginBottom: 16 }} />
@@ -114,7 +118,7 @@ export default function CheckoutPage() {
   // ── เช็คเอาต์แล้วทั้งหมด ──────────────────────────────────────────────────
   if (alreadyAll) {
     return (
-      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
+      <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
         <div className="header-strip animate-fade-in" style={{ padding: '40px 20px 32px', textAlign: 'center' }}>
           <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 20px' }} />
           <Flag size={64} color="var(--accent-primary)" strokeWidth={1.6} style={{ marginBottom: 16 }} />
@@ -144,7 +148,7 @@ export default function CheckoutPage() {
   const loading = checkoutMutation.isPending
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto', padding: '0 0 16px' }}>
+    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
       <div className="header-strip animate-fade-in" style={{ padding: '32px 20px 24px', textAlign: 'center' }}>
         <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 18px' }} />
         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>เช็คเอาต์</div>

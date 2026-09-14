@@ -28,7 +28,10 @@ export default function ProfilePage() {
     setUploading(true)
     try {
       const url = await uploadImage(file)
-      await api.patch('/api/v1/employee/photo', { photo_url: url })
+      // api instance มี baseURL = .../api/v1 อยู่แล้ว — ใส่ /api/v1 ซ้ำในนี้ทำให้เป็น
+      // .../api/v1/api/v1/employee/photo แล้วโดน 404 (จริงตัวจริงของบั๊กอัปโหลดไม่ได้
+      // ไม่ใช่แค่เรื่อง MIME type ข้างบน — feedback 2026-09-14 ยืนยันจาก console error)
+      await api.patch('/employee/photo', { photo_url: url })
       patchEmployee({ photo_url: url })
     } catch {
       alert('อัปโหลดรูปไม่สำเร็จ')

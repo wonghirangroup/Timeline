@@ -1563,7 +1563,9 @@ export default function LeavePage() {
   // ประเภทการลาที่ tenant กำหนดเอง — 403 (feature ปิด) = []
   const { data: customLeaveTypes = [] } = useQuery<{ id: string; name: string; color: string }[]>({
     queryKey: ['employee', 'leave-types'],
-    queryFn: () => api.get('/api/v1/employee/leave-types').then(r => r.data.data).catch(() => []),
+    // api instance มี baseURL = .../api/v1 อยู่แล้ว — /api/v1 ในนี้ซ้ำ ทำให้ 404
+    // (feedback 2026-09-14, เจอจาก console error จริง)
+    queryFn: () => api.get('/employee/leave-types').then(r => r.data.data).catch(() => []),
   })
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)

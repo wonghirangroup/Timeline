@@ -17,9 +17,11 @@ export default function NoticesPage() {
   const [rows, setRows] = useState<any[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
+  // api instance มี baseURL = .../api/v1 อยู่แล้ว — /api/v1 ในเส้นทางข้างล่างซ้ำ
+  // ทำให้ 404 ทุกครั้ง (feedback 2026-09-14, เจอจาก console error จริง)
   const load = () => {
     if (!employee) return
-    api.get('/api/v1/employee/disciplinary', { params: { employee_id: employee.id } })
+    api.get('/employee/disciplinary', { params: { employee_id: employee.id } })
       .then(r => setRows(r.data.data)).catch(() => setRows([]))
   }
   useEffect(load, [employee])
@@ -28,7 +30,7 @@ export default function NoticesPage() {
     if (!employee) return
     setBusy(id)
     try {
-      await api.post(`/api/v1/employee/disciplinary/${id}/acknowledge`, { employee_id: employee.id })
+      await api.post(`/employee/disciplinary/${id}/acknowledge`, { employee_id: employee.id })
       load()
     } finally { setBusy(null) }
   }
