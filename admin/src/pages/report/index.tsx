@@ -28,7 +28,7 @@ interface AttendanceRecord {
 }
 
 interface Branch { id: string; name: string }
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string }; hired_at?: string | null }
 
 interface LeaveRequest {
   id: string
@@ -271,9 +271,11 @@ export default function ReportPage() {
   const noDataByEmp = useMemo(() => {
     const m = new Map<string, string[]>()
     for (const { info, byDate } of employees) {
+      const hiredAt = info.hired_at ? info.hired_at.slice(0, 10) : null
       const missing: string[] = []
       for (const dateKey of activeDateKeys) {
         if (dateKey > todayStr) continue
+        if (hiredAt && dateKey < hiredAt) continue // ยังไม่เข้างาน — ไม่นับเป็น "ไม่มีข้อมูล"
         const ci = cellInfo(byDate.get(dateKey), info.employee_code, info.id, dateKey)
         if (ci.tip === 'ไม่มีข้อมูล') missing.push(dateKey)
       }
@@ -284,6 +286,18 @@ export default function ReportPage() {
 
   const filteredEmployees = onlyNoData ? employees.filter(e => noDataByEmp.has(e.info.id)) : employees
 
+  // ตรวจข้อมูลย้อนหลังทั้งหมด — สลับไปมุมมอง "ช่วงเวลา" แล้วดันจุดเริ่มไปวันที่เข้างานเร็วสุด
+  // ของคนที่กำลังกรองอยู่ (ตัดข้อมูลแต่ละคนตาม hired_at ของตัวเองอยู่แล้วใน noDataByEmp)
+  function auditSinceHire() {
+    const hireDates = employees.map(e => e.info.hired_at?.slice(0, 10)).filter((d): d is string => !!d)
+    const earliest = hireDates.length > 0 ? hireDates.reduce((a, b) => (a < b ? a : b)) : (() => {
+      const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10)
+    })()
+    setViewMode('range')
+    setRangeStart(earliest)
+    setRangeEnd(now.toISOString().slice(0, 10))
+  }
+
   // ── สรุปรายพนักงานสำหรับมุมมอง "ช่วงเวลา" — นับจาก cellInfo() ทีละวันในช่วงที่เลือก ──
   const rangeSummary = useMemo(() => {
     if (viewMode !== 'range') return []
@@ -291,7 +305,7 @@ export default function ReportPage() {
       let ok = 0, late = 0, absent = 0, leave = 0, fine = 0
       for (const dateKey of rangeDateKeys) {
         const recs = byDate.get(dateKey)
-        const ci = cellInfo(recs, info.employee_code, info.id, dateKey)
+        const ci = cellInfo(recs, info.employee_code, info.id, dateKey, info.hired_at)
         const status = ci.status
         if (status === 'ok') ok++
         else if (status === 'late' || status === 'late2') late++
@@ -303,7 +317,10 @@ export default function ReportPage() {
     })
   }, [viewMode, filteredEmployees, rangeDateKeys])
 
-  function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string) {
+  function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
+    if (hiredAt && dateKey < hiredAt.slice(0, 10)) {
+      return { bg: '#fafafa', label: null as ReactNode, color: 'var(--text-muted)', tip: 'ยังไม่เข้างาน', status: 'weekend' as const }
+    }
     const dow     = new Date(dateKey + 'T00:00:00').getDay()
     const dept    = empCode.split('-')[1] ?? ''
     const leaveEntry = leaveMap.get(empId)?.get(dateKey)
@@ -365,7 +382,9 @@ export default function ReportPage() {
     const header = ['รหัสพนักงาน','ชื่อ','นามสกุล','ชื่อเล่น','สาขา','วันที่','วัน','กะ','เวลาเข้า','เวลาออก','สถานะ','สาย','ค่าปรับ','หมายเหตุ']
     const rows: string[][] = []
     for (const { info, byDate } of empList) {
+      const hiredAt = info.hired_at ? info.hired_at.slice(0, 10) : null
       for (const dateKey of dateKeys) {
+        if (hiredAt && dateKey < hiredAt) continue // ยังไม่เข้างาน — ไม่ต้องมีแถวเลย
         const dow     = new Date(dateKey + 'T00:00:00').getDay()
         const recs    = byDate.get(dateKey)
         const leaveEntry = leaveMap.get(info.id)?.get(dateKey)
@@ -453,6 +472,11 @@ export default function ReportPage() {
             </button>
           ))}
         </div>
+
+        <button onClick={auditSinceHire} title="ตรวจข้อมูลย้อนหลังทั้งหมดของแต่ละคน ตั้งแต่วันที่เข้างานจริง ไม่ใช่แค่เดือน/ช่วงที่เลือกอยู่"
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 9, border: '1px solid #ddd6fe', background: '#f5f3ff', color: '#6d28d9', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <AlertTriangle size={13} /> ตรวจตั้งแต่วันเข้างาน
+        </button>
 
         {/* Card/Table toggle — เฉพาะโหมดปฏิทินบนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว, ช่วงเวลาเป็นการ์ดเสมออยู่แล้ว) */}
         {viewMode === 'month' && !isMobile && (
@@ -611,7 +635,7 @@ export default function ReportPage() {
                       const d = new Date(dateKey + 'T00:00:00')
                       const dow = d.getDay()
                       const recs = byDate.get(dateKey)
-                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey, info.hired_at)
                       if (status === 'weekend') return null
                       const firstRec = recs?.[0]
                       return (
@@ -715,7 +739,7 @@ export default function ReportPage() {
                       const dow = new Date(year, month - 1, d).getDay()
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
-                      const { status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+                      const { status } = cellInfo(recs, info.employee_code, info.id, dateKey, info.hired_at)
                       const isToday = dateKey === now.toISOString().slice(0, 10)
                       return (
                         <div
@@ -749,7 +773,7 @@ export default function ReportPage() {
                       const dow = new Date(year, month - 1, d).getDay()
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
-                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey)
+                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey, info.hired_at)
                       if (status === 'weekend') return null
                       const firstRec = recs?.[0]
                       return (
@@ -880,7 +904,7 @@ export default function ReportPage() {
                       {days.map(d => {
                         const dateKey = toYMD(year, month, d)
                         const recs = byDate.get(dateKey)
-                        const { bg, label, color, tip } = cellInfo(recs, info.employee_code, info.id, dateKey)
+                        const { bg, label, color, tip } = cellInfo(recs, info.employee_code, info.id, dateKey, info.hired_at)
                         return (
                           <td key={d} style={{ padding: 2, textAlign: 'center' }}>
                             <div
