@@ -302,7 +302,11 @@ export default function BranchPage() {
     queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
   })
   const { data: allEmployees = [] } = useQuery<ApiEmployee[]>({
-    queryKey: ['employees'],
+    // queryKey แยกจากหน้าพนักงาน (['employees','all']) ให้ชัดเจน — เดิมใช้คีย์เดียวกัน
+    // ('employees' เปล่าๆ) ทั้งที่ query คนละแบบ (หน้านี้ active-only ไม่ส่ง includeInactive
+    // แต่หน้าพนักงานส่ง includeInactive:true) React Query cache ตามคีย์อย่างเดียว เลยมีโอกาส
+    // ได้ข้อมูลที่รวมคนไม่ Active มาปนถ้าเพิ่งไปเปิดหน้าพนักงานมาก่อน (feedback 2026-09-14)
+    queryKey: ['employees', 'active'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
 

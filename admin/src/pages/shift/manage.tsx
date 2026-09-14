@@ -419,7 +419,9 @@ export default function ShiftPage() {
     queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
   })
   const { data: allEmployees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; department: string | null; branch_id: string; branch: { id: string; name: string } }[]>({
-    queryKey: ['employees'],
+    // queryKey แยกจากหน้าพนักงาน ('employees','all') — ดูคอมเมนต์เดียวกันใน branch/index.tsx
+    // (feedback 2026-09-14: เพิ่มพนักงานเข้ากะต้องเห็นแค่คนที่ยัง Active เท่านั้น)
+    queryKey: ['employees', 'active'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
   const { data: employeeShiftLinks = [] } = useQuery<{ employee_id: string; shift_id: string }[]>({

@@ -143,7 +143,11 @@ export default function EmployeePage() {
   const qc = useQueryClient()
 
   const { data: employees = [], isLoading: loading } = useQuery<ApiEmployee[]>({
-    queryKey: ['employees'],
+    // queryKey แยกจากหน้าอื่น ('employees','all') — หน้านี้ (+ org-structure/PolicyOverview
+    // ที่เป็นแท็บย่อยในเส้นทาง /employee เดียวกัน) ตั้งใจให้เห็นคนไม่ Active ด้วย ต่างจาก
+    // ทุกหน้าอื่นที่ต้อง active-only (feedback 2026-09-14: กันชนกับคีย์เดิม 'employees' เปล่าๆ
+    // ที่หน้า shift/branch ก็เคยใช้ ทำให้บางทีได้ข้อมูลรวมคนไม่ Active มาปนโดยไม่ตั้งใจ)
+    queryKey: ['employees', 'all'],
     queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data),
   })
   const { data: branches = [] } = useQuery<ApiBranch[]>({

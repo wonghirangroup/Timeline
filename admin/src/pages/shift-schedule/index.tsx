@@ -161,7 +161,8 @@ export default function ShiftSchedulePage() {
   const queryYear2  = Number(displayDates[displayDates.length - 1].slice(0, 4))
 
   const { data: employees = [] } = useQuery<ApiEmployee[]>({
-    queryKey: ['employees'],
+    // queryKey แยกจากหน้าพนักงาน ('employees','all') — ดูคอมเมนต์เดียวกันใน branch/index.tsx
+    queryKey: ['employees', 'active'],
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
   const { data: branches = [] } = useQuery<ApiBranch[]>({

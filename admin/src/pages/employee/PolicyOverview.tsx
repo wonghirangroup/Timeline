@@ -116,7 +116,8 @@ export default function PolicyOverview() {
   const [bulkConfirm, setBulkConfirm] = useState(false)
 
   const { data: employees = [], isLoading } = useQuery<PolicyEmployee[]>({
-    queryKey: ['employees'],
+    // queryKey ตรงกับ employee/index.tsx ('employees','all') — ดูคอมเมนต์เดียวกันที่นั่น
+    queryKey: ['employees', 'all'],
     queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data),
   })
   const { data: positions = [] } = useQuery<ApiPositionLite[]>({

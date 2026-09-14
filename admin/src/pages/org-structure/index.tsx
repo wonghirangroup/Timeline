@@ -524,7 +524,8 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
   const { data: depts = [] } = useQuery<Dept[]>({ queryKey: ['departments', groupId], queryFn: () => api.get('/api/v1/admin/departments').then(r => r.data.data) })
   const { data: tree  = [] } = useQuery<TreeDiv[]>({ queryKey: ['org-tree', groupId], queryFn: () => api.get('/api/v1/admin/org-structure/tree', { params: { group_id: groupId } }).then(r => r.data.data) })
   const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
-  const { data: allEmployees = [] } = useQuery<any[]>({ queryKey: ['employees'], queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data) })
+  // queryKey ตรงกับ employee/index.tsx ('employees','all') — ดูคอมเมนต์เดียวกันที่นั่น
+  const { data: allEmployees = [] } = useQuery<any[]>({ queryKey: ['employees', 'all'], queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data) })
   const grp = groups.find(g => g.id === groupId)
 
   const invalidateAll = () => {
