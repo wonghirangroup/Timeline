@@ -461,7 +461,11 @@ export async function checkInAuto(tenantId: string, data: {
   const { shift, isOutsideShift } = detected
 
   if (branch.lat && branch.lng && data.gps_lat != null && data.gps_lng != null) {
-    const radius = (shift as any)?.gps_radius ?? branch.gps_radius
+    // 0 ก็ต้องตกไปใช้ค่าสาขาเหมือน null — ในฟอร์มแอดมิน "ปล่อยว่าง/0" สื่อว่า
+    // "ไม่จำกัดพื้นที่พิเศษ ใช้ค่าเริ่มต้นสาขา" (ดู shift/manage.tsx) แต่ ?? เช็คแค่
+    // null/undefined เฉยๆ พอมีค่า 0 ติดมาจริงจะกลายเป็นบังคับ "ต้องอยู่ตรงพิกัดเป๊ะ"
+    // ซึ่งไม่มีใครผ่านได้เลยจริงในทางปฏิบัติ (GPS มีคลาดเคลื่อนเสมอ)
+    const radius = (shift as any)?.gps_radius || branch.gps_radius
     const dist = Math.round(haversineMeters(
       data.gps_lat, data.gps_lng,
       Number(branch.lat), Number(branch.lng),
@@ -574,7 +578,8 @@ export async function checkIn(tenantId: string, data: {
 
   if (data.branch_id && data.gps_lat != null && data.gps_lng != null) {
     const branch = await prisma.branch.findFirst({ where: { id: data.branch_id } })
-    const shiftRadius = (shift as any)?.gps_radius ?? null
+    // 0 ตกไปใช้ค่าสาขาเหมือน null ด้วย — ดูคอมเมนต์เดียวกันใน checkInAuto() ด้านบน
+    const shiftRadius = (shift as any)?.gps_radius || null
     if (branch?.lat && branch?.lng) {
       const radius = shiftRadius ?? branch.gps_radius
       const dist = Math.round(haversineMeters(
