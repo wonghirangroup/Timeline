@@ -37,6 +37,22 @@ export async function liffLogin(params: {
   return { token, employee }
 }
 
+// แจ้งปัญหาการใช้งานแอปให้แอดมินทาง LINE — ตั้งใจไม่ผ่าน `api` instance (ไม่ใส่
+// JWT เลย เพราะ endpoint ฝั่งเซิร์ฟเวอร์ไม่ต้อง auth) ใช้ได้แม้ boot() ทั้งหมด
+// ล้มเหลว (เช่น "Failed to Fetch" วนลูป) — ดู App.tsx ErrorScreen
+export async function reportIssue(params: {
+  line_channel_id: string
+  line_user_id?:   string
+  display_name?:   string
+  message:         string
+  context?:        string
+}): Promise<void> {
+  await axios.post(`${BASE}/employee/report-issue`, params, {
+    headers: { 'ngrok-skip-browser-warning': 'true' },
+    timeout: 10000,
+  })
+}
+
 // Dev mode: ใช้ Admin JWT เพื่อเรียก employee endpoints (tenant_id ตรงกัน)
 export async function devLogin(): Promise<{ token: string; tenant_id: string }> {
   const username = import.meta.env.VITE_DEV_EMAIL    ?? 'wonghi_admin'

@@ -5,7 +5,7 @@ import './index.css'
 import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
 import { useAuthStore } from './stores/authStore'
-import { devLogin, liffLogin } from './lib/axios'
+import { devLogin, liffLogin, reportIssue } from './lib/axios'
 import { initLiff, getLiffProfile, getChannelId, forceRelogin } from './lib/liff'
 
 const CheckinPage  = lazy(() => import('./pages/checkin'))
@@ -26,11 +26,38 @@ type BootState = 'loading' | 'dev-pick' | 'authed' | 'need-verify' | 'error'
 const DEV_EMP_KEY = 'dev_employee_id'
 
 
-function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+// พนักงานที่เข้าแอปไม่ได้เลย (เช่น "Failed to Fetch" วนลูป) เดิมไม่มีทางแจ้งอะไร
+// ได้นอกจากทักไปหาแอดมินตรงๆ เอง — เพิ่มปุ่ม "แจ้งปัญหานี้ให้แอดมิน" ยิงตรงไป
+// /employee/report-issue (ไม่ต้อง login เลย ระบุ tenant จาก line_channel_id ที่
+// อ่านได้ฝั่ง client ล้วนๆ ไม่ต้องเรียก API ก่อน) feedback 2026-09-14: มี 2 คนเจอ
+// ปัญหานี้แล้วไม่มีทางแจ้ง
+function ErrorScreen({ message, onRetry, reportCtx }: {
+  message: string; onRetry: () => void
+  reportCtx: { lineUserId?: string; displayName?: string }
+}) {
+  const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const [extra, setExtra] = useState('')
+
+  async function handleReport() {
+    setReportState('sending')
+    try {
+      await reportIssue({
+        line_channel_id: getChannelId(),
+        line_user_id:    reportCtx.lineUserId,
+        display_name:    reportCtx.displayName,
+        message:         extra.trim() || 'พนักงานกดปุ่ม "แจ้งปัญหา" จากหน้า error (ไม่ได้พิมพ์รายละเอียดเพิ่ม)',
+        context:         message,
+      })
+      setReportState('sent')
+    } catch {
+      setReportState('failed')
+    }
+  }
+
   return (
     <div style={{
-      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 24px', textAlign: 'center',
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 14, padding: '24px', textAlign: 'center',
     }}>
       <div style={{ fontSize: '3rem' }}>⚠️</div>
       <div style={{ fontWeight: 700, color: '#dc2626', lineHeight: 1.5 }}>{message}</div>
@@ -39,6 +66,35 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
         background: '#EA580C', color: '#fff',
         fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem',
       }}>ลองใหม่</button>
+
+      {reportState === 'sent' ? (
+        <div style={{ marginTop: 6, fontSize: '0.85rem', color: '#16A34A', fontWeight: 700 }}>
+          ✓ แจ้งแอดมินแล้ว ทีมงานจะรีบดำเนินการ
+        </div>
+      ) : (
+        <div style={{ marginTop: 6, width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <textarea
+            value={extra}
+            onChange={e => setExtra(e.target.value.slice(0, 300))}
+            placeholder="อธิบายเพิ่มเติมได้ (ไม่บังคับ) เช่น ทำอะไรอยู่ตอนเจอปัญหา"
+            rows={2}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #E5E7EB',
+              fontSize: '0.82rem', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box',
+            }}
+          />
+          <button onClick={handleReport} disabled={reportState === 'sending'} style={{
+            padding: '11px 20px', borderRadius: 14, border: '1.5px solid #EA580C',
+            background: '#fff', color: '#EA580C',
+            fontWeight: 700, cursor: reportState === 'sending' ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: '0.85rem',
+          }}>
+            {reportState === 'sending' ? 'กำลังส่ง...' : 'แจ้งปัญหานี้ให้แอดมิน'}
+          </button>
+          {reportState === 'failed' && (
+            <div style={{ fontSize: '0.78rem', color: '#dc2626' }}>ส่งไม่สำเร็จ ลองใหม่อีกครั้ง</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -136,6 +192,9 @@ export default function App() {
   const [bootState, setBootState] = useState<BootState>('loading')
   const [devToken,  setDevToken]  = useState('')
   const [errMsg,    setErrMsg]    = useState('')
+  // เก็บไว้ให้ ErrorScreen ใช้แนบไปกับ "แจ้งปัญหาให้แอดมิน" — ดึงจาก LIFF SDK ได้
+  // (ไม่ต้องเรียก API เรา) แม้ boot ล้มเหลวตอนเรียก backend ก็ตาม
+  const [reportCtx, setReportCtx] = useState<{ lineUserId?: string; displayName?: string }>({})
 
   async function boot() {
     setBootState('loading')
@@ -168,8 +227,9 @@ export default function App() {
 
       // PROD: LIFF flow
       await initLiff()
-      const { lineUserId, idToken } = await getLiffProfile()
+      const { lineUserId, displayName, idToken } = await getLiffProfile()
       const channelId = getChannelId()
+      setReportCtx({ lineUserId, displayName })
 
       try {
         const { token, employee } = await liffLogin({
@@ -210,7 +270,7 @@ export default function App() {
   }
 
   if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub="TimeLine HR" />
-  if (bootState === 'error')    return <ErrorScreen message={errMsg} onRetry={boot} />
+  if (bootState === 'error')    return <ErrorScreen message={errMsg} onRetry={boot} reportCtx={reportCtx} />
   if (bootState === 'dev-pick') return <DevPicker onPick={handleDevPick} />
 
   return (

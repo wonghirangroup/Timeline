@@ -22,6 +22,7 @@ import { lineRoutes }         from './modules/line/line.route'
 import { announcementRoutes } from './modules/announcement/announcement.route'
 import { weeklyOffRoutes }    from './modules/weekly-off/weekly-off.route'
 import { feedbackRoutes }     from './modules/feedback/feedback.route'
+import { issueReportRoutes }  from './modules/issue-report/issue-report.route'
 import { billingRoutes }      from './modules/billing/billing.route'
 import { activityRoutes }     from './modules/activity/activity.route'
 import { offsiteRoutes }      from './modules/offsite/offsite.route'
@@ -132,6 +133,7 @@ app.register(otRoutes,           { prefix: '/api/v1' })              // MANAGER 
 app.register(announcementRoutes, { prefix: '/api/v1/admin' })        // ADMIN broadcast
 app.register(weeklyOffRoutes,   { prefix: '/api/v1' })               // ADMIN manage + EMPLOYEE request
 app.register(feedbackRoutes,    { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE submit (ไม่ระบุตัวตน, LIFF)
+app.register(issueReportRoutes, { prefix: '/api/v1' })               // EMPLOYEE: แจ้งปัญหาการใช้งานแอปให้แอดมิน (ไม่ต้อง login — ใช้ตอนเข้าแอปไม่ได้เลย)
 app.register(billingRoutes,     { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: Invoice tracking (manual, ไม่มี payment gateway)
 app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: กิจกรรมล่าสุด (Dashboard feed)
 app.register(offsiteRoutes,     { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE ปักหมุดเช็คอิน-เอาต์นอกสถานที่ (LIFF)
