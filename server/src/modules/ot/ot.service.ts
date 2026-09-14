@@ -1,5 +1,6 @@
 // server/src/modules/ot/ot.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listOtRequests(tenantId: string, filters: {
@@ -19,7 +20,7 @@ export async function listOtRequests(tenantId: string, filters: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...employeeFilter,
       ...(filters.status     ? { status: filters.status as any }   : {}),
-      ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.branchId   ? { employee: employeeBranchWhere(filters.branchId) } : {}),
     },
     include: {
       employee: {

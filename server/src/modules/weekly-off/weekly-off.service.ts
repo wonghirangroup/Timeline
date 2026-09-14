@@ -2,6 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
 import { checkPeriodOpen } from './weekly-off-period.service'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -84,7 +85,7 @@ export async function listWeeklyOff(tenantId: string, filters: {
   } else if (filters.employeeId) {
     where.employee_id = filters.employeeId
   } else if (filters.branchId) {
-    where.employee = { branch_id: filters.branchId }
+    where.employee = employeeBranchWhere(filters.branchId)
   }
 
   const results = await prisma.weeklyOffRequest.findMany({
@@ -349,14 +350,21 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
 
   const employee = await prisma.employee.findFirst({
     where:  { id: employeeId, tenant_id: tenantId },
-    select: { branch_id: true, position_id: true },
+    select: { branch_id: true, position_id: true, extra_branches: { select: { branch_id: true } } },
   })
+  // เพื่อนร่วมสาขา = แชร์สาขาใดสาขาหนึ่งร่วมกัน (หลักหรือเสริมก็นับ) ไม่ใช่แค่สาขาหลัก
+  // ตัวเองอย่างเดียวอีกต่อไป (feedback 2026-09-14: คนมีหลายสาขาต้องเห็นคนจองชนใน
+  // ทุกสาขาที่ตัวเองสังกัดด้วย ไม่ใช่แค่สาขาหลัก)
+  const myBranchIds = employee ? [employee.branch_id, ...employee.extra_branches.map(b => b.branch_id)] : []
+  const employeeWhere = myBranchIds.length > 0
+    ? { OR: [{ branch_id: { in: myBranchIds } }, { extra_branches: { some: { branch_id: { in: myBranchIds } } } }] }
+    : {}
 
   const allRaw = await prisma.weeklyOffRequest.findMany({
     where: {
       tenant_id:  tenantId,
       week_start: { gte: startOfMonth, lte: endOfMonth },
-      employee:   { branch_id: employee?.branch_id ?? undefined },
+      employee:   employeeWhere,
     },
     include: {
       employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true } },

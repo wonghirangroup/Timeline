@@ -5,6 +5,7 @@ import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { bangkokToday } from '../../common/utils/time'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
@@ -127,7 +128,7 @@ export async function getAttendanceReport(tenantId: string, filters: {
       tenant_id: tenantId,
       ...dateFilter,
       ...employeeFilter,
-      ...(filters.branchId ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
     },
     include: {
       employee: {
@@ -442,13 +443,15 @@ export async function checkInAuto(tenantId: string, data: {
   })
   if (!branch) throw new Error('BRANCH_NOT_FOUND')
 
-  // ตรวจว่าพนักงานสังกัดสาขานี้
+  // ตรวจว่าพนักงานสังกัดสาขานี้ — สาขาหลัก (branch_id) หรือสาขาเสริม (extra_branches)
+  // ก็เช็คอินได้ (feedback 2026-09-14: พนักงาน 1 คนอยู่ได้มากกว่า 1 สาขา)
   const employee = await prisma.employee.findFirst({
     where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null },
-    select: { branch_id: true },
+    select: { branch_id: true, extra_branches: { select: { branch_id: true } } },
   })
   if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
-  if (employee.branch_id !== data.branch_id) throw new Error('NOT_IN_BRANCH')
+  const allowedBranchIds = [employee.branch_id, ...employee.extra_branches.map(b => b.branch_id)]
+  if (!allowedBranchIds.includes(data.branch_id)) throw new Error('NOT_IN_BRANCH')
 
   // ตรวจ GPS
   let is_outside_area = false
@@ -952,7 +955,7 @@ export async function getFirstCheckinDates(tenantId: string, branchId?: string):
     where: {
       tenant_id: tenantId,
       check_in_at: { not: null },
-      ...(branchId ? { employee: { branch_id: branchId } } : {}),
+      ...(branchId ? { employee: employeeBranchWhere(branchId) } : {}),
     },
     _min: { date: true },
   })

@@ -1,5 +1,6 @@
 // server/src/modules/announcement/announcement.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // messages รับได้ทั้งข้อความล้วน (string — เดิม) หรือ LINE message object เต็มๆ
 // (เช่น Flex Message) — ทำให้ผู้เรียกเลือกได้ว่าจะส่งแบบไหน โดยไม่ต้องมีฟังก์ชันแยก
@@ -70,7 +71,7 @@ export async function createAnnouncement(
         deleted_at:   null,
         ...(data.employee_ids?.length
           ? { id: { in: data.employee_ids } }
-          : data.branch_id ? { branch_id: data.branch_id } : {}),
+          : data.branch_id ? employeeBranchWhere(data.branch_id) : {}),
       },
       select: { line_user_id: true },
     })

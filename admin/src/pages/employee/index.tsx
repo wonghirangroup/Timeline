@@ -42,6 +42,7 @@ interface ApiEmployee {
   created_at: string
   branch_id: string
   branch: { id: string; name: string; group_id?: string | null }
+  extra_branches?: { branch: { id: string; name: string } }[]
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
   position_id: string | null
   position?: { id: string; name: string } | null
@@ -108,6 +109,7 @@ const EMPTY_FORM = {
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
   position_id: '', employee_status_type_id: '',
   booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
+  extra_branch_ids: [] as string[], // สาขาเสริม นอกเหนือจากสาขาหลัก — เช็คอิน/ขึ้นในรายงานของสาขานี้ได้ด้วย
 }
 
 const input: React.CSSProperties = {
@@ -270,6 +272,7 @@ export default function EmployeePage() {
       employee_status_type_id: e.employee_status_type_id ?? '',
       booking_override: toOverrideVal(e.booking_enabled_override),
       leave_override: toOverrideVal(e.leave_enabled_override),
+      extra_branch_ids: (e.extra_branches ?? []).map(b => b.branch.id),
     })
     setEditTarget(e)
     setModal('edit')
@@ -351,6 +354,7 @@ export default function EmployeePage() {
         employee_status_type_id: form.employee_status_type_id || null,
         booking_enabled_override: fromOverrideVal(form.booking_override),
         leave_enabled_override: fromOverrideVal(form.leave_override),
+        extra_branch_ids: form.extra_branch_ids,
       }})
     }
   }
@@ -1211,9 +1215,32 @@ export default function EmployeePage() {
                 <div><label style={label}>เบอร์โทร</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0XXXXXXXXX" style={input} inputMode="tel" /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={label}>สาขา</label><select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value }))} style={input}><option value="">เลือกสาขา</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+                <div><label style={label}>สาขา</label><select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, extra_branch_ids: f.extra_branch_ids.filter(id => id !== e.target.value) }))} style={input}><option value="">เลือกสาขา</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                 <div><label style={label}>วันที่เข้าทำงาน</label><input type="date" value={form.hired_at} onChange={e => setForm(f => ({ ...f, hired_at: e.target.value }))} style={input} /></div>
               </div>
+              {branches.length > 1 && (
+                <div>
+                  <label style={label}>สาขาเสริม <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(เช็คอิน/ขึ้นในรายงานของสาขาที่เลือกได้ด้วย นอกเหนือจากสาขาหลัก)</span></label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {branches.filter(b => b.id !== form.branch_id).map(b => {
+                      const checked = form.extra_branch_ids.includes(b.id)
+                      return (
+                        <label key={b.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                          border: `1px solid ${checked ? '#f97316' : '#e5e7eb'}`, background: checked ? '#fff7ed' : '#fff',
+                          fontSize: 13, color: checked ? '#c2410c' : '#374151', cursor: 'pointer', fontWeight: checked ? 700 : 500,
+                        }}>
+                          <input type="checkbox" checked={checked} onChange={e => setForm(f => ({
+                            ...f,
+                            extra_branch_ids: e.target.checked ? [...f.extra_branch_ids, b.id] : f.extra_branch_ids.filter(id => id !== b.id),
+                          }))} style={{ margin: 0 }} />
+                          {b.name}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={label}>ตำแหน่ง (ผังองค์กร)</label>

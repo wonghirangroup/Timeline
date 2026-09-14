@@ -1,5 +1,6 @@
 // server/src/modules/dashboard/dashboard.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // สรุป KPI ตามช่วงวันที่ที่เลือก (Dashboard requirement 2026-08-26): มาสายกี่คน+
 // ใครบ้าง, ลาออกกี่คน, เข้าใหม่กี่คน + จำนวนพนักงานทั้งหมดไว้ให้ frontend คำนวณ %
@@ -14,7 +15,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
   const end   = new Date(`${filters.endDate}T23:59:59.999Z`)
 
   const employeeScope: any = { tenant_id: tenantId, deleted_at: null }
-  if (filters.branchId) employeeScope.branch_id = filters.branchId
+  if (filters.branchId) Object.assign(employeeScope, employeeBranchWhere(filters.branchId))
   if (filters.scopedEmployeeIds) employeeScope.id = { in: filters.scopedEmployeeIds }
 
   const totalEmployees = await prisma.employee.count({ where: employeeScope })
@@ -25,7 +26,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       tenant_id: tenantId,
       is_late: true,
       date: { gte: start, lte: end },
-      ...(filters.branchId ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
       ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
     },
     include: {
@@ -46,6 +47,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       tenant_id: tenantId,
       to_status: { in: ['RESIGNED', 'TERMINATED'] },
       created_at: { gte: start, lte: end },
+      ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
       ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
     },
     include: {
@@ -55,7 +57,6 @@ export async function getDashboardSummary(tenantId: string, filters: {
   })
   const resignedByEmployee = new Map<string, (typeof resignLogs)[number]['employee']>()
   for (const log of resignLogs) {
-    if (filters.branchId && log.employee.branch_id !== filters.branchId) continue
     if (!resignedByEmployee.has(log.employee_id)) resignedByEmployee.set(log.employee_id, log.employee)
   }
   const resignedList = [...resignedByEmployee.values()]
@@ -66,7 +67,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       tenant_id: tenantId,
       deleted_at: null,
       hired_at: { gte: start, lte: end },
-      ...(filters.branchId ? { branch_id: filters.branchId } : {}),
+      ...(filters.branchId ? employeeBranchWhere(filters.branchId) : {}),
       ...(filters.scopedEmployeeIds ? { id: { in: filters.scopedEmployeeIds } } : {}),
     },
     select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, hired_at: true, branch: { select: { id: true, name: true } } },

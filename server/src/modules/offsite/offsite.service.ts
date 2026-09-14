@@ -1,6 +1,7 @@
 // server/src/modules/offsite/offsite.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { reverseGeocode } from '../../common/utils/geocode'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
 export async function listOffsiteCheckins(tenantId: string, filters: {
@@ -19,7 +20,7 @@ export async function listOffsiteCheckins(tenantId: string, filters: {
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...employeeFilter,
-      ...(filters.branchId   ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.branchId   ? { employee: employeeBranchWhere(filters.branchId) } : {}),
       ...(filters.activeOnly ? { check_out_at: null } : {}),
     },
     include: {

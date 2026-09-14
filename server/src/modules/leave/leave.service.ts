@@ -2,6 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
 const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
@@ -67,7 +68,7 @@ export async function listLeaveRequests(tenantId: string, filters: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...employeeFilter,
       ...(filters.status ? { status: filters.status as any } : {}),
-      ...(filters.branchId ? { employee: { branch_id: filters.branchId } } : {}),
+      ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
     },
     include: {
       employee: {

@@ -193,6 +193,7 @@ model Employee {
   resignation_requests ResignationRequest[]
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
+  extra_branches         EmployeeBranch[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch_id (สาขาหลัก) — ดู model EmployeeBranch
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
@@ -480,10 +481,32 @@ model Branch {
   shifts             Shift[]
   managers           BranchManager[]
   weekly_off_periods WeeklyOffPeriod[]
+  extra_employees    EmployeeBranch[]
 
   @@index([tenant_id])
   @@index([group_id])
   @@map("branches")
+}
+
+// สาขาเสริม/สาขารอง — พนักงาน 1 คนสังกัดสาขาหลักได้แค่ 1 สาขา (Employee.branch_id
+// ตัวเดิม ใช้เป็นฐานของ policy/โควต้า/ช่วงเปิดจองวันหยุด ฯลฯ เหมือนเดิมทุกอย่าง)
+// แต่เช็คอิน/ปรากฏในรายงานของสาขาอื่นเพิ่มได้ผ่านตารางนี้ (feedback 2026-09-14 —
+// แอดมินเป็นคนเพิ่มให้เองตรงๆ ตอนแก้ข้อมูลพนักงาน ไม่มี self-service)
+model EmployeeBranch {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  branch_id   String
+  created_at  DateTime @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+  branch   Branch   @relation(fields: [branch_id], references: [id])
+
+  @@unique([employee_id, branch_id])
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@index([branch_id])
+  @@map("employee_branches")
 }
 
 model BranchManager {

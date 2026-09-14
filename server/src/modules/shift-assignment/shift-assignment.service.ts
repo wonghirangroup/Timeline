@@ -1,5 +1,6 @@
 // server/src/modules/shift-assignment/shift-assignment.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { employeeBranchWhere } from '../employee/employee.service'
 
 export type ShiftAssignmentTypeValue = 'WORK' | 'DAY_OFF' | 'WEEKLY_OFF' | 'HOLIDAY'
 
@@ -19,7 +20,7 @@ export async function listShiftAssignments(tenantId: string, filters: {
     }
   }
   if (filters.branchId) {
-    where.employee = { branch_id: filters.branchId }
+    where.employee = employeeBranchWhere(filters.branchId)
   }
   if (filters.scopedEmployeeIds) {
     where.employee_id = { in: filters.scopedEmployeeIds }

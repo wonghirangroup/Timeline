@@ -21,6 +21,36 @@ const STATUS_TYPE_INCLUDE = {
   select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true },
 } as const
 
+// เงื่อนไข Prisma สำหรับกรอง "พนักงานที่สังกัดสาขานี้" — รวมทั้งสาขาหลัก (branch_id)
+// และสาขาเสริมที่แอดมินเพิ่มให้ (extra_branches) เพราะพนักงาน 1 คนอยู่ได้มากกว่า
+// 1 สาขาแล้ว (feedback 2026-09-14: "เห็นทุกสาขาที่สังกัด (หลัก+เสริม)") — ใช้แทน
+// { branch_id: X } เปล่าๆ ทุกจุดที่กรองรายงาน/รายการตามสาขา (attendance, leave,
+// ot, offsite, weekly-off, shift-assignment, dashboard, announcement ฯลฯ)
+export function employeeBranchWhere(branchId: string) {
+  return {
+    OR: [
+      { branch_id: branchId },
+      { extra_branches: { some: { branch_id: branchId } } },
+    ],
+  }
+}
+
+// sync สาขาเสริม — ลบของเดิมทั้งหมดแล้วสร้างใหม่ตาม list ที่ส่งมา (ง่ายกว่า diff
+// เพราะจำนวนสาขาต่อคนน้อย ไม่คุ้มความซับซ้อนของการ diff) ส่ง undefined = ไม่แตะเลย,
+// [] = ล้างสาขาเสริมทั้งหมด
+async function syncExtraBranches(tenantId: string, employeeId: string, branchIds: string[] | undefined) {
+  if (branchIds === undefined) return
+  await prisma.$transaction([
+    prisma.employeeBranch.deleteMany({ where: { employee_id: employeeId } }),
+    ...(branchIds.length > 0
+      ? [prisma.employeeBranch.createMany({
+          data: branchIds.map(branch_id => ({ tenant_id: tenantId, employee_id: employeeId, branch_id })),
+          skipDuplicates: true,
+        })]
+      : []),
+  ])
+}
+
 async function generateEmployeeCode(
   tenantId: string,
   hiredAt: string | undefined,
@@ -56,7 +86,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
     where: {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
-      ...(branchId ? { branch_id: branchId } : {}),
+      ...(branchId ? employeeBranchWhere(branchId) : {}),
       ...(includeInactive ? {} : { status: 'ACTIVE' }),
       ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
@@ -65,6 +95,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: { select: { role: true, is_active: true } },
+      extra_branches: { select: { branch: { select: { id: true, name: true } } } },
     },
     orderBy: { created_at: 'asc' },
   })
@@ -85,6 +116,7 @@ export async function getEmployee(tenantId: string, id: string) {
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: ADMIN_USER_INCLUDE,
+      extra_branches: { select: { branch: { select: { id: true, name: true } } } },
     },
   })
 }
@@ -164,11 +196,12 @@ export async function createEmployee(
     hired_at?: string
     position_id?: string
     employee_status_type_id?: string
+    extra_branch_ids?: string[]   // สาขาเสริม นอกเหนือจาก branch_id (สาขาหลัก)
   },
 ) {
   await assertPlanCapacity(tenantId, 'employees')
   const employee_code = await generateEmployeeCode(tenantId, data.hired_at, data.department)
-  return prisma.employee.create({
+  const employee = await prisma.employee.create({
     data: {
       tenant_id: tenantId,
       employee_code,
@@ -183,6 +216,8 @@ export async function createEmployee(
       employee_status_type_id: data.employee_status_type_id,
     },
   })
+  if (data.extra_branch_ids?.length) await syncExtraBranches(tenantId, employee.id, data.extra_branch_ids)
+  return employee
 }
 
 export async function updateEmployee(
@@ -206,9 +241,10 @@ export async function updateEmployee(
     booking_enabled_override?: boolean | null
     leave_enabled_override?: boolean | null
     photo_url?: string | null
+    extra_branch_ids?: string[]   // undefined = ไม่แตะ, [] = ล้างสาขาเสริมทั้งหมด
   },
 ) {
-  const { hired_at, ...rest } = data
+  const { hired_at, extra_branch_ids, ...rest } = data
   const count = await prisma.employee.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
     data: {
@@ -217,7 +253,8 @@ export async function updateEmployee(
     },
   })
   if (count.count === 0) return null
-  return prisma.employee.findFirst({ where: { id } })
+  await syncExtraBranches(tenantId, id, extra_branch_ids)
+  return prisma.employee.findFirst({ where: { id }, include: { extra_branches: { select: { branch: { select: { id: true, name: true } } } } } })
 }
 
 export async function bulkSetWeeklyOffMode(
