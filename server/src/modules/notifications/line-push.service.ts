@@ -9,7 +9,8 @@
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast } from '../announcement/announcement.service'
 
-const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
+const ADMIN_APP_URL    = process.env.ADMIN_APP_URL    || 'https://timeline-admin.vercel.app'
+const EMPLOYEE_APP_URL = process.env.EMPLOYEE_APP_URL || 'https://timeline-employee.vercel.app'
 
 export interface AdminLineNotice {
   title: string     // หัวการ์ด เช่น "ใบลารออนุมัติ"
@@ -19,13 +20,13 @@ export interface AdminLineNotice {
   buttonLabel?: string
 }
 
-function buildFlexMessage(empName: string, n: AdminLineNotice) {
+function buildFlexMessage(empName: string, n: AdminLineNotice, baseUrl: string = ADMIN_APP_URL) {
   const footer = n.path ? {
     footer: {
       type: 'box', layout: 'vertical', paddingAll: '12px', spacing: 'sm',
       contents: [{
         type: 'button', style: 'primary', color: n.color, height: 'sm',
-        action: { type: 'uri', label: n.buttonLabel ?? 'เปิดดู / อนุมัติ', uri: `${ADMIN_APP_URL}${n.path}` },
+        action: { type: 'uri', label: n.buttonLabel ?? 'เปิดดู / อนุมัติ', uri: `${baseUrl}${n.path}` },
       }],
     },
   } : {}
@@ -84,5 +85,31 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
     await lineMulticast(lineConfig.line_channel_access_token, uniqueIds, buildFlexMessage(empName, notice))
   } catch (e) {
     console.error('[line-push] ส่งแจ้งเตือนแอดมินทาง LINE ไม่สำเร็จ:', e)
+  }
+}
+
+// ── แจ้งเตือนพนักงานคนเดียวทาง LINE (ต่างจาก notifyAdminsLine ที่ยิงหาแอดมินทั้งชุด) ──
+// ใช้กับ flow ที่พนักงานคุยกันเอง เช่น "เพื่อนขอสลับวันหยุด" — การ์ดเปิดไป
+// แอปพนักงาน (LIFF) ไม่ใช่เว็บแอดมิน ส่งจาก header ที่ระบุชื่อผู้ส่ง (fromName)
+// แทน "ชื่อตัวเอง" เหมือน notifyAdminsLine เพราะบริบทต่างกัน (นี่คือคนอื่นทำอะไรถึงตัวเอง)
+export interface EmployeeLineNotice {
+  title: string
+  detail: string
+  color: string
+  path?: string     // path สัมพัทธ์ในแอปพนักงาน (LIFF) เช่น "/leave?tab=booking&swap=<id>"
+  buttonLabel?: string
+}
+
+export async function notifyEmployeeLine(tenantId: string, employeeId: string, fromName: string, notice: EmployeeLineNotice): Promise<void> {
+  try {
+    const [lineConfig, emp] = await Promise.all([
+      prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true } }),
+      prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { line_user_id: true } }),
+    ])
+    if (!lineConfig?.line_channel_access_token || !emp?.line_user_id) return
+
+    await lineMulticast(lineConfig.line_channel_access_token, [emp.line_user_id], buildFlexMessage(fromName, notice, EMPLOYEE_APP_URL))
+  } catch (e) {
+    console.error('[line-push] ส่งแจ้งเตือนพนักงานทาง LINE ไม่สำเร็จ:', e)
   }
 }

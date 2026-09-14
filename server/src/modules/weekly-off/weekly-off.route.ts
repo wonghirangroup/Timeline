@@ -4,10 +4,14 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
-import { listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff, getMonthView, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff } from './weekly-off.service'
+import {
+  listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
+  getMonthView, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
+} from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
-import { notifyAdminsLine } from '../notifications/line-push.service'
+import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
 const DOW_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์']
 
@@ -455,12 +459,14 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     return ok(result)
   })
 
-  // ── Employee (LIFF): ยกเลิกคำขอ PENDING ของตัวเอง ────────────────────
+  // ── Employee (LIFF): ยกเลิก/แก้ไขคำขอวันหยุดของตัวเอง ────────────────────
+  // PENDING ยกเลิกได้เสมอ — APPROVED ยกเลิกได้ก็ต่อเมื่อช่วงเปิดรับจองของเดือนนั้น
+  // ยังเปิดอยู่ (feedback 2026-09-14: เดิมอนุมัติแล้วแก้ไม่ได้เลย)
   app.delete('/employee/weekly-off/:id', {
     preHandler: [tenantMiddleware],
     schema: {
       tags: ['Employee'],
-      summary: 'ยกเลิกคำขอวันหยุดประจำเดือน (LIFF) — ได้เฉพาะสถานะ PENDING',
+      summary: 'ยกเลิก/แก้ไขคำขอวันหยุด (LIFF) — PENDING ได้เสมอ, APPROVED ได้ถ้าช่วงจองยังเปิด',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
@@ -471,7 +477,122 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
       return ok(null, 'ยกเลิกคำขอแล้ว')
     } catch (e: any) {
-      if (e.message === 'NOT_PENDING') return reply.code(409).send(fail('NOT_PENDING', 'ยกเลิกได้เฉพาะรายการที่รอพิจารณา'))
+      if (e.message === 'NOT_PENDING')    return reply.code(409).send(fail('NOT_PENDING', 'ยกเลิกได้เฉพาะรายการที่รอพิจารณา'))
+      if (e.message === 'PERIOD_CLOSED')  return reply.code(409).send(fail('PERIOD_CLOSED', 'ช่วงเปิดรับจองของเดือนนี้ปิดแล้ว — แก้ไขไม่ได้'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ขอสลับวันหยุดกับเพื่อน (self-service) ──────────────
+  // สลับได้เฉพาะระหว่างวันหยุดที่ "อนุมัติแล้ว" ทั้งคู่ — ยังไม่สลับจริงตรงนี้
+  // แค่ส่งคำขอ + LINE ไปหาเพื่อนให้กดตอบรับก่อน (ดู /respond ด้านล่าง)
+  app.post('/employee/weekly-off/swap-requests', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ขอสลับวันหยุดกับเพื่อน (ต้องอนุมัติแล้วทั้งคู่) — ส่ง LINE ไปให้เพื่อนตอบรับ',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'requester_off_id', 'target_off_id'],
+        properties: {
+          employee_id:      { type: 'string' },
+          requester_off_id: { type: 'string' },
+          target_off_id:    { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const result = await requestWeeklyOffSwap(req.tenantId, req.body.employee_id, {
+        requesterOffId: req.body.requester_off_id, targetOffId: req.body.target_off_id,
+      })
+      const requesterName = result.requester.nickname ? `${result.requester.first_name} (${result.requester.nickname})` : `${result.requester.first_name} ${result.requester.last_name}`
+      const [reqOff, targetOff] = await Promise.all([
+        prisma.weeklyOffRequest.findUnique({ where: { id: req.body.requester_off_id } }),
+        prisma.weeklyOffRequest.findUnique({ where: { id: req.body.target_off_id } }),
+      ])
+      if (reqOff && targetOff) {
+        notifyEmployeeLine(req.tenantId, result.target_employee_id, requesterName, {
+          title: 'ขอสลับวันหยุด',
+          detail: `${requesterName} ขอสลับวันหยุด ${resolveActualDateStr(targetOff.week_start, targetOff.day_of_week)} ของคุณ กับวันหยุด ${resolveActualDateStr(reqOff.week_start, reqOff.day_of_week)} ของเขา`,
+          color: '#7C3AED',
+          path: `/leave?tab=booking&swap=${result.id}`,
+          buttonLabel: 'ดูคำขอ',
+        })
+      }
+      return reply.code(201).send(ok(result, 'ส่งคำขอสลับวันหยุดแล้ว รอเพื่อนตอบรับ'))
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND')      return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการวันหยุดที่ระบุ'))
+      if (e.message === 'SAME_EMPLOYEE')  return reply.code(400).send(fail('SAME_EMPLOYEE', 'ต้องเป็นคนละคนกัน'))
+      if (e.message === 'NOT_APPROVED')   return reply.code(400).send(fail('NOT_APPROVED', 'สลับได้เฉพาะวันหยุดที่อนุมัติแล้วทั้งคู่'))
+      if (e.message === 'ALREADY_PENDING') return reply.code(409).send(fail('ALREADY_PENDING', 'มีคำขอสลับที่รอตอบรับผูกกับวันนี้อยู่แล้ว'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ดูคำขอสลับที่เกี่ยวกับตัวเอง (ขอไป/มีคนขอมา) ────────
+  app.get('/employee/weekly-off/swap-requests', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ดูคำขอสลับวันหยุดที่เกี่ยวกับตัวเอง (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
+    },
+  }, async (req: any) => {
+    return ok(await listMyWeeklyOffSwapRequests(req.tenantId, req.query.employeeId))
+  })
+
+  // ── Employee (LIFF): ตอบรับ/ปฏิเสธคำขอสลับ ───────────────────────────────
+  app.post('/employee/weekly-off/swap-requests/:id/respond', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ตอบรับ/ปฏิเสธคำขอสลับวันหยุด — ยอมรับ = สลับจริงทันที + แจ้ง LINE ผู้ขอ/แอดมิน',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['employee_id', 'accept'],
+        properties: { employee_id: { type: 'string' }, accept: { type: 'boolean' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const { swapReq, swapped } = await respondWeeklyOffSwap(req.tenantId, req.params.id, req.body.employee_id, req.body.accept)
+      const requesterName = swapReq.requester.nickname ? `${swapReq.requester.first_name} (${swapReq.requester.nickname})` : `${swapReq.requester.first_name} ${swapReq.requester.last_name}`
+      const targetName    = swapReq.target.nickname    ? `${swapReq.target.first_name} (${swapReq.target.nickname})`       : `${swapReq.target.first_name} ${swapReq.target.last_name}`
+
+      if (req.body.accept && swapped) {
+        const newReqDate    = resolveActualDateStr(swapped.a.week_start, swapped.a.day_of_week)
+        const newTargetDate = resolveActualDateStr(swapped.b.week_start, swapped.b.day_of_week)
+        notifyEmployeeLine(req.tenantId, swapReq.requester_employee_id, targetName, {
+          title: 'เพื่อนยอมรับคำขอสลับแล้ว',
+          detail: `${targetName} ยอมรับการสลับวันหยุดแล้ว — ตอนนี้คุณหยุดวันที่ ${newReqDate} แทน`,
+          color: '#16A34A',
+        })
+        notifyAdminsLine(req.tenantId, swapReq.requester_employee_id, {
+          title: 'พนักงานสลับวันหยุดกันเอง',
+          detail: `${requesterName} ↔ ${targetName}: ${requesterName} เปลี่ยนไปหยุด ${newReqDate}, ${targetName} เปลี่ยนไปหยุด ${newTargetDate}`,
+          color: '#7C3AED',
+          path: `/leave?tab=time-off`,
+          buttonLabel: 'เปิดดู',
+        })
+      } else if (!req.body.accept) {
+        notifyEmployeeLine(req.tenantId, swapReq.requester_employee_id, targetName, {
+          title: 'เพื่อนปฏิเสธคำขอสลับ',
+          detail: `${targetName} ไม่สะดวกสลับวันหยุดกับคุณ`,
+          color: '#DC2626',
+        })
+      }
+
+      return ok(null, req.body.accept ? 'สลับวันหยุดสำเร็จ' : 'ปฏิเสธคำขอแล้ว')
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND')    return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ'))
+      if (e.message === 'NOT_PENDING')  return reply.code(409).send(fail('NOT_PENDING', 'คำขอนี้ถูกตอบไปแล้ว'))
+      if (e.message === 'NOT_APPROVED') return reply.code(409).send(fail('NOT_APPROVED', 'วันหยุดฝั่งใดฝั่งหนึ่งไม่ใช่สถานะอนุมัติแล้ว — สลับไม่ได้'))
+      if (e.message === 'CONFLICT_A' || e.message === 'CONFLICT_B') return reply.code(409).send(fail('CONFLICT', 'มีฝั่งใดฝั่งหนึ่งจองวันหยุดสัปดาห์นั้นซ้อนอยู่แล้ว'))
       throw e
     }
   })

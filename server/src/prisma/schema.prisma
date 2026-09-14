@@ -191,6 +191,8 @@ model Employee {
   documents            EmployeeDocument[]
   disciplinary_records DisciplinaryRecord[]
   resignation_requests ResignationRequest[]
+  swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
+  swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
 
   @@unique([tenant_id, employee_code])
   @@unique([tenant_id, line_user_id])
@@ -801,8 +803,10 @@ enum WeeklyOffWorkResolution {
   COMPENSATE // ตั้งใจมาทำ — ให้วันหยุดชดเชยเพิ่ม (เหมือนกลไกวันหยุดนักขัตฤกษ์)
 }
 
-// Audit log การสลับวันหยุดกันระหว่าง 2 คน — แอดมิน/HR เป็นคนทำให้โดยตรง (ไม่มี
-// self-service ฝั่งพนักงาน, ไม่ต้องรอทั้งคู่ยินยอมแยก — แอดมินคือ single-gate)
+// Audit log การสลับวันหยุดกันระหว่าง 2 คน — เดิมมีแต่แอดมิน/HR ทำให้โดยตรง
+// (swapped_by ไม่ null) ตอนนี้เพิ่ม self-service ฝั่งพนักงานได้แล้ว (ผ่าน
+// WeeklyOffSwapRequest ด้านล่าง — ขอ→เพื่อนยอมรับ→สลับทันที ไม่ผ่านแอดมิน)
+// swapped_by = null หมายถึง self-service (พนักงานยินยอมกันเอง ไม่มีแอดมินกด)
 // ไม่ผูก FK กับ employees/weekly_off_requests ตามธรรมเนียมฟิลด์ audit อื่นในระบบ
 // นี้ (เช่น WeeklyOffRequest.reviewed_by) ที่เก็บ id แบบ loose reference
 model WeeklyOffSwap {
@@ -812,11 +816,42 @@ model WeeklyOffSwap {
   employee_a_off_id String // WeeklyOffRequest.id ฝั่ง A ก่อนสลับ
   employee_b_id     String
   employee_b_off_id String // WeeklyOffRequest.id ฝั่ง B ก่อนสลับ
-  swapped_by        String // user_id ของแอดมิน/HR ที่ทำสลับให้
+  swapped_by        String? // user_id ของแอดมิน/HR ที่ทำสลับให้ — null = self-service ระหว่างพนักงาน
   created_at        DateTime @default(now())
 
   @@index([tenant_id])
   @@map("weekly_off_swaps")
+}
+
+enum WeeklyOffSwapRequestStatus {
+  PENDING  // รอเพื่อนตอบรับ
+  ACCEPTED // ยอมรับแล้ว — สลับจริงแล้ว
+  REJECTED // ปฏิเสธ
+  CANCELED // ผู้ขอยกเลิกเอง ก่อนอีกฝ่ายตอบ
+}
+
+// คำขอสลับวันหยุด (self-service) — ต้องยินยอมทั้งคู่ก่อนถึงจะสลับจริง สลับได้
+// เฉพาะระหว่างวันหยุดที่ "อนุมัติแล้ว" ทั้ง 2 ฝั่งเท่านั้น (ตัดสินใจ 2026-09-14)
+// ตอนยอมรับ ระบบเรียก swapWeeklyOff() เดิม (swappedBy: null) ให้ทำสลับจริง
+// แล้วสร้าง WeeklyOffSwap audit log ตามปกติ
+model WeeklyOffSwapRequest {
+  id                    String                     @id @default(uuid())
+  tenant_id             String
+  requester_employee_id String
+  requester_off_id      String // WeeklyOffRequest.id ของฝั่งขอ (วันที่ตัวเองมีอยู่ ยอมยกให้)
+  target_employee_id    String
+  target_off_id         String // WeeklyOffRequest.id ของฝั่งเป้าหมาย (วันที่อยากได้)
+  status                WeeklyOffSwapRequestStatus @default(PENDING)
+  responded_at          DateTime?
+  created_at            DateTime                   @default(now())
+
+  requester Employee @relation("SwapRequester", fields: [requester_employee_id], references: [id])
+  target    Employee @relation("SwapTarget", fields: [target_employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([requester_employee_id])
+  @@index([target_employee_id])
+  @@map("weekly_off_swap_requests")
 }
 
 model LeaveBalance {

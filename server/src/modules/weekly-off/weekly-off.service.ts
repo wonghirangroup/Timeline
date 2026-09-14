@@ -1,6 +1,7 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
+import { checkPeriodOpen } from './weekly-off-period.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -22,7 +23,7 @@ function getMondayOf(dateStr: string): Date {
 }
 
 // week_start (จันทร์) + day_of_week → วันที่จริงที่พนักงานเลือกหยุด (YYYY-MM-DD)
-function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string {
+export function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string {
   const d = new Date(weekStart)
   const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
   d.setUTCDate(d.getUTCDate() + offset)
@@ -360,12 +361,21 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
   }
 }
 
+// PENDING ยกเลิกได้เสมอ (ยังไม่ผ่านอนุมัติ ไม่กระทบใคร) — APPROVED ยกเลิก/แก้ไขได้ก็ต่อเมื่อ
+// ช่วงเปิดรับจองของเดือนนั้น (ตามสาขาพนักงาน) ยังเปิดอยู่เท่านั้น (feedback 2026-09-14:
+// เดิมพออนุมัติแล้วแก้ไม่ได้เลยแม้ช่วงจองจะยังไม่ปิด)
 export async function deleteMonthlyOff(tenantId: string, id: string, employeeId: string) {
   const req = await prisma.weeklyOffRequest.findFirst({
     where: { id, tenant_id: tenantId, employee_id: employeeId },
+    include: { employee: { select: { branch_id: true } } },
   })
   if (!req) return false
-  if (req.status !== 'PENDING') throw new Error('NOT_PENDING')
+  if (req.status !== 'PENDING') {
+    if (req.status !== 'APPROVED') throw new Error('NOT_PENDING')
+    const month = resolveActualDateStr(req.week_start, req.day_of_week).slice(0, 7)
+    const open = await checkPeriodOpen(tenantId, req.employee.branch_id, month)
+    if (!open) throw new Error('PERIOD_CLOSED')
+  }
 
   await prisma.weeklyOffRequest.delete({ where: { id } })
   return true
@@ -429,15 +439,15 @@ export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendance
   })
 }
 
-// ── สลับวันหยุดกันระหว่าง 2 คน (feedback 2026-08-27) ─────────────────────────
-// แอดมิน/HR เป็นคนทำให้โดยตรง — ไม่มี self-service ฝั่งพนักงาน ไม่ต้องรอทั้งคู่
-// ยินยอมแยก เพราะแอดมินคือ single-gate อยู่แล้ว (เหมาะกับเคส "สลับกันกระทันหัน"
-// ที่ HR มักเป็นคนจัดการให้ตรงๆ) สลับแค่ week_start/day_of_week ของสองแถวเดิม
+// ── สลับวันหยุดกันระหว่าง 2 คน (feedback 2026-08-27, เพิ่ม self-service 2026-09-14) ──
+// เดิมมีแค่แอดมิน/HR ทำให้โดยตรง (swappedBy = user_id) — ตอนนี้พนักงานสลับกันเอง
+// ได้แล้วผ่าน WeeklyOffSwapRequest (ขอ→เพื่อนยอมรับ) เรียกฟังก์ชันนี้ตอนยอมรับ โดย
+// ส่ง swappedBy: null (ไม่มีแอดมินกด) สลับแค่ week_start/day_of_week ของสองแถวเดิม
 // (id คงเดิม) แล้ว mark APPROVED ทั้งคู่ + เก็บ audit log ไว้
 export async function swapWeeklyOff(tenantId: string, data: {
   employeeAOffId: string
   employeeBOffId: string
-  swappedBy: string
+  swappedBy: string | null
 }) {
   const [offA, offB] = await Promise.all([
     prisma.weeklyOffRequest.findFirst({ where: { id: data.employeeAOffId, tenant_id: tenantId } }),
@@ -480,4 +490,109 @@ export async function swapWeeklyOff(tenantId: string, data: {
     }),
   ])
   return { a: updatedA, b: updatedB }
+}
+
+// ── ขอสลับวันหยุดกัน (self-service, feedback 2026-09-14) ─────────────────────
+// A เลือกวันของตัวเอง (requesterOffId) + วันของเพื่อน B ที่อยากได้ (targetOffId) —
+// ต้อง "อนุมัติแล้ว" ทั้งคู่ก่อนถึงจะขอสลับได้ (ตัดสินใจ 2026-09-14) ยังไม่สลับจริง
+// ตรงนี้ — แค่สร้างคำขอ PENDING รอ B กดตอบรับผ่าน respondWeeklyOffSwap()
+// (การส่ง LINE แจ้ง B ทำที่ route layer ตามธรรมเนียมไฟล์นี้ ไม่ทำในนี้)
+export async function requestWeeklyOffSwap(tenantId: string, requesterEmployeeId: string, data: {
+  requesterOffId: string
+  targetOffId: string
+}) {
+  const [reqOff, targetOff] = await Promise.all([
+    prisma.weeklyOffRequest.findFirst({ where: { id: data.requesterOffId, tenant_id: tenantId, employee_id: requesterEmployeeId } }),
+    prisma.weeklyOffRequest.findFirst({ where: { id: data.targetOffId, tenant_id: tenantId } }),
+  ])
+  if (!reqOff || !targetOff) throw new Error('NOT_FOUND')
+  if (targetOff.employee_id === requesterEmployeeId) throw new Error('SAME_EMPLOYEE')
+  if (reqOff.status !== 'APPROVED' || targetOff.status !== 'APPROVED') throw new Error('NOT_APPROVED')
+
+  // กันขอซ้ำซ้อน — ถ้ามีคำขอ PENDING ผูกกับวันใดวันหนึ่งอยู่แล้ว (ทั้งฝั่งขอ/เป้าหมาย) ห้ามขอซ้ำ
+  const existing = await prisma.weeklyOffSwapRequest.findFirst({
+    where: {
+      tenant_id: tenantId, status: 'PENDING',
+      OR: [
+        { requester_off_id: data.requesterOffId }, { target_off_id: data.requesterOffId },
+        { requester_off_id: data.targetOffId },    { target_off_id: data.targetOffId },
+      ],
+    },
+  })
+  if (existing) throw new Error('ALREADY_PENDING')
+
+  return prisma.weeklyOffSwapRequest.create({
+    data: {
+      tenant_id: tenantId,
+      requester_employee_id: requesterEmployeeId,
+      requester_off_id: data.requesterOffId,
+      target_employee_id: targetOff.employee_id,
+      target_off_id: data.targetOffId,
+    },
+    include: {
+      requester: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+      target:    { select: { id: true, first_name: true, last_name: true, nickname: true } },
+    },
+  })
+}
+
+// รายการคำขอสลับที่เกี่ยวกับตัวเอง — ทั้งที่ตัวเองเป็นคนขอ (ยังรอเพื่อนตอบ) และที่
+// เพื่อนขอมาหาตัวเอง (ต้องตอบ) ใช้โชว์แบนเนอร์/แจ้งเตือนในหน้าจองวันหยุด
+export async function listMyWeeklyOffSwapRequests(tenantId: string, employeeId: string) {
+  const rows = await prisma.weeklyOffSwapRequest.findMany({
+    where: { tenant_id: tenantId, OR: [{ requester_employee_id: employeeId }, { target_employee_id: employeeId }] },
+    include: {
+      requester: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+      target:    { select: { id: true, first_name: true, last_name: true, nickname: true } },
+    },
+    orderBy: { created_at: 'desc' },
+  })
+  // แนบวันที่จริงของแต่ละฝั่งให้ frontend ใช้แสดงผลตรงๆ ไม่ต้องไป join WeeklyOffRequest เอง
+  const offIds = [...new Set(rows.flatMap(r => [r.requester_off_id, r.target_off_id]))]
+  const offs = await prisma.weeklyOffRequest.findMany({ where: { id: { in: offIds } }, select: { id: true, week_start: true, day_of_week: true } })
+  const dateOf = new Map(offs.map(o => [o.id, resolveActualDateStr(o.week_start, o.day_of_week)]))
+  return rows.map(r => ({
+    ...r,
+    requester_date: dateOf.get(r.requester_off_id) ?? null,
+    target_date:    dateOf.get(r.target_off_id) ?? null,
+  }))
+}
+
+// ── ตอบรับ/ปฏิเสธคำขอสลับ ────────────────────────────────────────────────────
+// accept = true → เรียก swapWeeklyOff() เดิมให้สลับจริงทันที (swappedBy: null =
+// self-service ไม่มีแอดมินกด) แล้ว mark คำขอเป็น ACCEPTED
+// accept = false → mark REJECTED เฉยๆ ไม่แตะ WeeklyOffRequest ทั้งคู่
+export async function respondWeeklyOffSwap(tenantId: string, swapRequestId: string, targetEmployeeId: string, accept: boolean) {
+  const swapReq = await prisma.weeklyOffSwapRequest.findFirst({
+    where: { id: swapRequestId, tenant_id: tenantId, target_employee_id: targetEmployeeId },
+    include: {
+      requester: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+      target:    { select: { id: true, first_name: true, last_name: true, nickname: true } },
+    },
+  })
+  if (!swapReq) throw new Error('NOT_FOUND')
+  if (swapReq.status !== 'PENDING') throw new Error('NOT_PENDING')
+
+  if (!accept) {
+    await prisma.weeklyOffSwapRequest.update({ where: { id: swapReq.id }, data: { status: 'REJECTED', responded_at: new Date() } })
+    return { swapReq, swapped: null as null }
+  }
+
+  // เช็คซ้ำว่าทั้งคู่ยังอนุมัติอยู่จริง เผื่อสถานะเปลี่ยนไปหลังขอ (เช่นแอดมินไปแก้ก่อน)
+  const [reqOff, targetOff] = await Promise.all([
+    prisma.weeklyOffRequest.findUnique({ where: { id: swapReq.requester_off_id } }),
+    prisma.weeklyOffRequest.findUnique({ where: { id: swapReq.target_off_id } }),
+  ])
+  if (!reqOff || !targetOff || reqOff.status !== 'APPROVED' || targetOff.status !== 'APPROVED') {
+    await prisma.weeklyOffSwapRequest.update({ where: { id: swapReq.id }, data: { status: 'CANCELED', responded_at: new Date() } })
+    throw new Error('NOT_APPROVED')
+  }
+
+  const swapped = await swapWeeklyOff(tenantId, {
+    employeeAOffId: swapReq.requester_off_id,
+    employeeBOffId: swapReq.target_off_id,
+    swappedBy: null,
+  })
+  await prisma.weeklyOffSwapRequest.update({ where: { id: swapReq.id }, data: { status: 'ACCEPTED', responded_at: new Date() } })
+  return { swapReq, swapped }
 }

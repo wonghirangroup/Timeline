@@ -3,10 +3,10 @@ import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
-  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle,
+  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check,
 } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
-import { ThaiDatePicker } from '../../components/ui'
+import { ThaiDatePicker, BottomSheet } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -35,6 +35,13 @@ interface WeeklyOffRecord {
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
 }
 interface PeriodStatus { is_open: boolean; deadline: string | null; note: string | null }
+interface SwapRequestRow {
+  id: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED'
+  requester: { id: string; first_name: string; last_name: string; nickname: string | null }
+  target: { id: string; first_name: string; last_name: string; nickname: string | null }
+  requester_date: string | null   // วันที่ผู้ขอมีอยู่ (จะยกให้)
+  target_date: string | null      // วันที่เป้าหมายมีอยู่ (อยากได้)
+}
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -449,6 +456,151 @@ function getWeeksOfMonth(month: string, todayStr: string): string[] {
   return getAllWeeksOfMonth(month).filter(monday => addDaysStr(monday, 6) >= todayStr)
 }
 
+// ── ขอสลับวันหยุดกับเพื่อน (self-service, feedback 2026-09-14) ────────────────
+// เลือกเพื่อนที่มีวันหยุด "อนุมัติแล้ว" ในสาขา/เดือนเดียวกัน (colleagues จาก
+// month-view คัดกรอง status === 'APPROVED' — เพื่อนที่ยังรอพิจารณาสลับไม่ได้)
+// ส่งคำขอไปแล้วต้องรอเพื่อนกดยอมรับก่อน ถึงจะสลับจริง (ดู SwapRequestsPanel)
+function SwapPickerSheet({ employeeId, month, requesterOffId, onClose }: {
+  employeeId: string; month: string; requesterOffId: string; onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
+
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+    queryKey: ['employee', 'weekly-off-view', employeeId, month],
+    queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
+  })
+  const eligible = (colleagueQ.data?.colleagues ?? []).filter(c => c.status === 'APPROVED')
+
+  const swapMutation = useMutation({
+    mutationFn: (targetOffId: string) => api.post('/employee/weekly-off/swap-requests', {
+      employee_id: employeeId, requester_off_id: requesterOffId, target_off_id: targetOffId,
+    }),
+    onSuccess: (_data, targetOffId) => {
+      setSentTo(targetOffId)
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-swap-requests'] })
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(
+        code === 'ALREADY_PENDING' ? 'มีคำขอสลับที่รอตอบรับผูกกับวันนี้อยู่แล้ว' :
+        code === 'NOT_APPROVED'    ? 'สลับได้เฉพาะวันหยุดที่อนุมัติแล้วทั้งคู่' :
+        'เกิดข้อผิดพลาด กรุณาลองใหม่'
+      )
+    },
+  })
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C', marginBottom: 4 }}>ขอสลับวันหยุดกับเพื่อน</div>
+      <div style={{ fontSize: '0.78rem', color: '#6B7280', marginBottom: 16 }}>
+        เลือกเพื่อนที่มีวันหยุดอนุมัติแล้ว เพื่อขอสลับวันกัน — ต้องรอเพื่อนกดยอมรับก่อนถึงจะสลับจริง
+      </div>
+
+      {sentTo ? (
+        <div style={{ padding: '16px 0', textAlign: 'center' }}>
+          <CheckCircle2 size={32} color="#16A34A" style={{ marginBottom: 8 }} />
+          <div style={{ fontWeight: 700, color: '#16A34A' }}>ส่งคำขอแล้ว</div>
+          <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 4 }}>รอเพื่อนตอบรับ</div>
+        </div>
+      ) : eligible.length === 0 ? (
+        <div style={{ padding: '24px 0', textAlign: 'center', color: '#9CA3AF', fontSize: '0.85rem' }}>
+          {colleagueQ.isLoading ? 'กำลังโหลด...' : 'ยังไม่มีเพื่อนในสาขาที่มีวันหยุดอนุมัติแล้วในเดือนนี้'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
+          {eligible.map(c => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>{c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`}</div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{fmtDate(resolveDate(c.week_start, c.day_of_week))}</div>
+              </div>
+              <button onClick={() => swapMutation.mutate(c.id)} disabled={swapMutation.isPending}
+                style={{ padding: '6px 14px', borderRadius: 10, border: 'none', background: COLOR.primary, color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                ขอสลับ
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> {errorMsg}
+        </div>
+      )}
+    </BottomSheet>
+  )
+}
+
+// ── คำขอสลับที่เกี่ยวกับตัวเอง (ขอไป/มีคนขอมา) ────────────────────────────────
+// แสดงตลอดที่อยู่บนสุดของโหมด "วันหยุดประจำ" ไม่ผูกกับเดือน/สัปดาห์ที่กำลังดูอยู่
+// เพราะคำขอสลับอาจข้ามเดือนได้ (เช่นจองไว้ปลายเดือนนี้ ขอสลับกับต้นเดือนหน้า)
+function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
+  const qc = useQueryClient()
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const { data: requests = [] } = useQuery<SwapRequestRow[]>({
+    queryKey: ['employee', 'weekly-off-swap-requests', employeeId],
+    queryFn:  () => api.get('/employee/weekly-off/swap-requests', { params: { employeeId } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
+    refetchInterval: 30000, // เพื่อนอาจตอบรับระหว่างที่เปิดหน้าค้างไว้
+  })
+
+  const respondMutation = useMutation({
+    mutationFn: ({ id, accept }: { id: string; accept: boolean }) =>
+      api.post(`/employee/weekly-off/swap-requests/${id}/respond`, { employee_id: employeeId, accept }),
+    onSettled: () => {
+      setBusyId(null)
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-swap-requests'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+    },
+  })
+
+  const incoming = requests.filter(r => r.status === 'PENDING' && r.target.id === employeeId)
+  const outgoing = requests.filter(r => r.status === 'PENDING' && r.requester.id === employeeId)
+  if (incoming.length === 0 && outgoing.length === 0) return null
+
+  return (
+    <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {incoming.map(r => {
+        const name = r.requester.nickname || `${r.requester.first_name} ${r.requester.last_name}`
+        return (
+          <div key={r.id} style={{ padding: '12px 14px', borderRadius: 14, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Repeat size={14} color="#7C3AED" />
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#5B21B6' }}>คำขอสลับวันหยุด</span>
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#374151', marginBottom: 10 }}>
+              <b>{name}</b> ขอสลับวันหยุด <b>{r.target_date ? fmtDate(r.target_date) : '—'}</b> ของคุณ กับวันหยุด <b>{r.requester_date ? fmtDate(r.requester_date) : '—'}</b> ของเขา
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setBusyId(r.id); respondMutation.mutate({ id: r.id, accept: true }) }} disabled={busyId === r.id}
+                style={{ flex: 1, padding: '8px', borderRadius: 10, border: 'none', background: '#16A34A', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <Check size={14} /> ยอมรับ
+              </button>
+              <button onClick={() => { setBusyId(r.id); respondMutation.mutate({ id: r.id, accept: false }) }} disabled={busyId === r.id}
+                style={{ flex: 1, padding: '8px', borderRadius: 10, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <X size={14} /> ปฏิเสธ
+              </button>
+            </div>
+          </div>
+        )
+      })}
+      {outgoing.map(r => {
+        const name = r.target.nickname || `${r.target.first_name} ${r.target.last_name}`
+        return (
+          <div key={r.id} style={{ padding: '10px 14px', borderRadius: 14, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '0.8rem', color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Loader2 size={13} /> รอ <b>{name}</b> ตอบรับคำขอสลับวันหยุด
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
   const qc = useQueryClient()
   const employee = useAuthStore(s => s.employee)
@@ -459,6 +611,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   // โหมดเดิม (ไม่มีสถานะพนักงานผูก): key = mondayISO, บังคับ 1 วัน/สัปดาห์ให้ครบทุกสัปดาห์
   const [picks, setPicks] = useState<Record<string, string>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null) // WeeklyOffRequest.id ที่กำลังจะขอสลับ
 
   // โควต้าจอง/เดือน — resolve จาก cascade 6 ชั้น ฝั่ง server (default 5) · ทุกคนเป็นโหมดโควต้า
   const quota    = employee?.booking_quota ?? employee?.employee_status_type?.monthly_off_quota ?? 5
@@ -529,6 +682,14 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const cancelAllMutation = useMutation({
     mutationFn: () => Promise.all(ownThisMonth.map(r => api.delete(`/employee/weekly-off/${r.id}`, { params: { employeeId } }))),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setErrorMsg(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(code === 'PERIOD_CLOSED' ? 'ช่วงเปิดรับจองของเดือนนี้ปิดแล้ว — แก้ไขไม่ได้' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      // อาจลบไปแล้วบางรายการก่อนเจอ error — sync ให้ตรงกับ DB จริง
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
     },
@@ -611,16 +772,30 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
                   </div>
                   <div style={{ fontSize: '0.72rem', color: cfg.color, fontWeight: 700 }}>{cfg.label}</div>
                 </div>
+                {r.status === 'APPROVED' && (
+                  <button onClick={() => setSwapPickerFor(r.id)}
+                    style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <Repeat size={12} /> ขอสลับ
+                  </button>
+                )}
               </div>
             )
           })}
-          {allSubmittedPending && (
+          {/* ยกเลิก/แก้ไขได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองยังเปิดอยู่ */}
+          {(allSubmittedPending || isOpen) && (
             <button onClick={() => cancelAllMutation.mutate()} disabled={cancelAllMutation.isPending}
               style={{ width: '100%', padding: '11px', borderRadius: 12, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {cancelAllMutation.isPending ? '...' : 'ยกเลิกคำขอทั้งเดือน'}
+              {cancelAllMutation.isPending ? '...' : allSubmittedPending ? 'ยกเลิกคำขอทั้งเดือน' : 'แก้ไขวันที่จอง'}
             </button>
           )}
         </div>
+      )}
+
+      {swapPickerFor && (
+        <SwapPickerSheet
+          employeeId={employeeId} month={month} requesterOffId={swapPickerFor}
+          onClose={() => setSwapPickerFor(null)}
+        />
       )}
 
       {/* ── เดือนที่ผ่านไปแล้วทั้งเดือน — ไม่มีวันให้จอง ───────── */}
@@ -733,6 +908,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
   const [selDow,    setSelDow]    = useState<number | null>(null)
   const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null)
 
   const isCurrentWeek = weekStart === thisMonday
   const isPastWeek    = weekStart < thisMonday
@@ -794,7 +970,11 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
-      setSubmitted(false)
+      setSubmitted(false); setErrorMsg(null)
+    },
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      setErrorMsg(code === 'PERIOD_CLOSED' ? 'ช่วงเปิดรับจองสัปดาห์นี้ปิดแล้ว — แก้ไขไม่ได้' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })
 
@@ -840,7 +1020,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             <div style={{ fontWeight: 700, fontSize: '0.9rem', color: thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
               {thisWeekOwn.status === 'APPROVED' ? <><CheckCircle2 size={15} /> อนุมัติแล้ว</> : <><Loader2 size={15} /> รอพิจารณา</>}
             </div>
-            {thisWeekOwn.status === 'PENDING' && isCurrentWeek && (
+            {/* ยกเลิกได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองสัปดาห์นี้ยังเปิด */}
+            {isCurrentWeek && (thisWeekOwn.status === 'PENDING' || (thisWeekOwn.status === 'APPROVED' && isOpen)) && (
               <button onClick={() => cancelMutation.mutate(thisWeekOwn.id)} disabled={cancelMutation.isPending}
                 style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {cancelMutation.isPending ? '...' : 'ยกเลิก'}
@@ -849,7 +1030,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Palmtree size={30} color={thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706'} />
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, color: '#1A2B3C' }}>
                 หยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(thisWeekOwn.day_of_week)]}
               </div>
@@ -857,8 +1038,21 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
                 {fmtDate(resolveDate(thisWeekOwn.week_start, thisWeekOwn.day_of_week))}
               </div>
             </div>
+            {thisWeekOwn.status === 'APPROVED' && (
+              <button onClick={() => setSwapPickerFor(thisWeekOwn.id)}
+                style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <Repeat size={12} /> ขอสลับ
+              </button>
+            )}
           </div>
         </div>
+      )}
+
+      {swapPickerFor && (
+        <SwapPickerSheet
+          employeeId={employeeId} month={month} requesterOffId={swapPickerFor}
+          onClose={() => setSwapPickerFor(null)}
+        />
       )}
 
       {/* ── Period closed banner (current week, no booking) ────── */}
@@ -1610,6 +1804,8 @@ export default function LeavePage() {
                 )
               })}
             </div>
+
+            {bookingMode === 'off' && employee?.id && <SwapRequestsPanel employeeId={employee.id} />}
 
             {bookingMode === 'off' ? (
               employee?.booking_enabled === false ? (
