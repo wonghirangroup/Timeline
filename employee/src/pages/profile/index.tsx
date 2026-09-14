@@ -17,7 +17,14 @@ export default function ProfilePage() {
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !file.type.startsWith('image/')) return
+    if (!file) return
+    // เดิมเช็ค file.type.startsWith('image/') แล้ว return เงียบๆ ถ้าไม่ตรง — เว็บวิว
+    // LINE บางเครื่อง/บางรุ่น (โดยเฉพาะรูปที่ถ่ายจากกล้องตรงๆ ไม่ได้เลือกจากคลัง) รายงาน
+    // file.type เป็นค่าว่างหรือไม่ตรงกับที่คาด ทำให้เงียบไปเลย กดแล้วไม่มีอะไรเกิดขึ้น
+    // เหมือนปุ่มพัง (feedback 2026-09-14: "อัปโหลดรูปโปรไฟล์ใน Line ไม่ได้") — input
+    // accept="image/*" กรองที่ตัวเลือกไฟล์ของ OS อยู่แล้ว เช็ค MIME ซ้ำแค่กันไฟล์ที่
+    // ระบุ type ชัดเจนว่าไม่ใช่รูปจริงๆ (เช่น .pdf) ปล่อยผ่านกรณี type ว่าง/ไม่ทราบ
+    if (file.type && !file.type.startsWith('image/')) { alert('กรุณาเลือกไฟล์รูปภาพ'); return }
     setUploading(true)
     try {
       const url = await uploadImage(file)
