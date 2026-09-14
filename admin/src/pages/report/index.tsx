@@ -642,24 +642,37 @@ export default function ReportPage() {
                 {/* Expanded: day-by-day breakdown ในช่วงที่เลือก */}
                 {isExpanded && (
                   <div style={{ borderTop: '1px solid #f3f4f6' }}>
-                    {rangeDateKeys.map(dateKey => {
+                    {rangeDateKeys.map((dateKey, idx) => {
                       const d = new Date(dateKey + 'T00:00:00')
                       const dow = d.getDay()
                       const recs = byDate.get(dateKey)
                       const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
-                      if (status === 'weekend') return null
                       const firstRec = recs?.[0]
+                      // ช่วงที่เลือกอาจคาบเกี่ยวหลายเดือน (เช่นปุ่ม "ตรวจตั้งแต่เริ่มใช้งาน")
+                      // แต่ละแถวมีแค่วันที่+วัน ไม่มีเดือน ดูแล้วสับสนว่าเป็นเดือนไหน —
+                      // เลยแทรกหัวข้อเดือนคั่นทุกครั้งที่เดือนเปลี่ยน
+                      const prevKey = idx > 0 ? rangeDateKeys[idx - 1] : null
+                      const showMonthDivider = !prevKey || new Date(prevKey + 'T00:00:00').getMonth() !== d.getMonth() || new Date(prevKey + 'T00:00:00').getFullYear() !== d.getFullYear()
                       return (
-                        <div key={dateKey}
-                          onClick={() => recs?.length && setDetail({ emp: `${info.first_name} ${info.last_name}`, date: dateKey, records: recs })}
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: '1px solid #f9fafb', cursor: recs?.length ? 'pointer' : 'default' }}>
-                          <div style={{ width: 34, textAlign: 'center', flexShrink: 0 }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151' }}>{d.getDate()}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
-                          </div>
-                          <div style={{ width: 24, height: 24, borderRadius: 6, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{label}</div>
-                          <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#374151' }}>{tip}</div>
-                          {firstRec && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{fmtTime(firstRec.check_in_at)}</div>}
+                        <div key={dateKey}>
+                          {showMonthDivider && (
+                            <div style={{ padding: '7px 16px', background: '#f8fafc', fontSize: '0.72rem', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 1 }}>
+                              {MONTHS_TH[d.getMonth()]} {d.getFullYear() + 543}
+                            </div>
+                          )}
+                          {status !== 'weekend' && (
+                            <div
+                              onClick={() => recs?.length && setDetail({ emp: `${info.first_name} ${info.last_name}`, date: dateKey, records: recs })}
+                              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: '1px solid #f9fafb', cursor: recs?.length ? 'pointer' : 'default' }}>
+                              <div style={{ width: 34, textAlign: 'center', flexShrink: 0 }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151' }}>{d.getDate()}</div>
+                                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
+                              </div>
+                              <div style={{ width: 24, height: 24, borderRadius: 6, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{label}</div>
+                              <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#374151' }}>{tip}</div>
+                              {firstRec && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{fmtTime(firstRec.check_in_at)}</div>}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
