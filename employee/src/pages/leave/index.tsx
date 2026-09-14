@@ -905,7 +905,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
   const quota       = employee?.booking_quota ?? 5
   const thisMonday  = getThisWeekMonday()
   const [weekStart, setWeekStart] = useState(thisMonday)
-  const [selDow,    setSelDow]    = useState<number | null>(null)
+  const [selDows,   setSelDows]   = useState<Set<number>>(new Set()) // เลือกได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14)
   const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null)
@@ -916,7 +916,16 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
 
   function changeWeek(delta: number) {
     setWeekStart(w => addWeeks(w, delta))
-    setSelDow(null); setErrorMsg(null); setSubmitted(false)
+    setSelDows(new Set()); setErrorMsg(null); setSubmitted(false)
+  }
+
+  function toggleDow(dow: number) {
+    setSelDows(prev => {
+      const next = new Set(prev)
+      if (next.has(dow)) next.delete(dow)
+      else next.add(dow)
+      return next
+    })
   }
 
   const navBtnStyle: React.CSSProperties = {
@@ -945,24 +954,38 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
   const allOwn      = historyQ.data ?? []
   const weekDays    = getWeekDays(weekStart)
   const mondayMonth = new Date(weekStart + 'T00:00:00Z').getUTCMonth()
-  const thisWeekOwn = allOwn.find(r => r.week_start.slice(0, 10) === weekStart)
-  const colleagues  = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
-  // โควต้าจอง/เดือน — นับวันที่จองไว้แล้ว (จริง) ในเดือนของสัปดาห์นี้
+  // จองได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14) — เดิมมีได้แค่ 1 record/สัปดาห์
+  const thisWeekOwns = allOwn.filter(r => r.week_start.slice(0, 10) === weekStart).sort((a, b) => DISPLAY_TO_DOW.indexOf(a.day_of_week) - DISPLAY_TO_DOW.indexOf(b.day_of_week))
+  const bookedDows   = new Set(thisWeekOwns.map(r => r.day_of_week))
+  const colleagues   = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
+  // โควต้าจอง/เดือน — นับวันที่จองไว้แล้ว (จริง) ในเดือนของสัปดาห์นี้ + วันที่กำลังเลือกเพิ่ม
   const monthUsed  = allOwn.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month && r.status !== 'REJECTED').length
-  const quotaFull  = monthUsed >= quota
+  const remaining  = Math.max(0, quota - monthUsed)
+  const quotaFull  = remaining <= 0
 
   const submitMutation = useMutation({
-    mutationFn: () => api.post('/employee/weekly-off', { employee_id: employeeId, week_start: weekStart, day_of_week: selDow }),
+    // ส่งทีละวัน (endpoint เดิมรับ day_of_week เดียว) — ทำแบบ sequential ไม่ใช่ Promise.all
+    // เพื่อให้เช็คโควต้าที่ backend สะสมถูกต้องตามลำดับ ไม่ชนกันเองระหว่างเรียกพร้อมกัน
+    mutationFn: async () => {
+      for (const dow of selDows) {
+        await api.post('/employee/weekly-off', { employee_id: employeeId, week_start: weekStart, day_of_week: dow })
+      }
+    },
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
-      setSubmitted(true); setErrorMsg(null)
+      setSubmitted(true); setErrorMsg(null); setSelDows(new Set())
     },
     onError: (err: any) => {
+      // อาจสำเร็จไปแล้วบางวันก่อนเจอ error — sync กับ DB จริง แล้วเคลียร์ที่เลือกไว้ทิ้ง
+      // ให้ผู้ใช้เห็นสถานะจริงแล้วเลือกใหม่ แทนที่จะค้างวันที่ส่งไปแล้วให้เลือกซ้ำ
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setSelDows(new Set())
       const code = err.response?.data?.error?.code
-      setErrorMsg(code === 'ALREADY_REQUESTED' ? 'คุณจองวันหยุดสัปดาห์นี้แล้ว'
-        : code === 'OVER_QUOTA' ? `จองวันหยุดครบโควต้าของเดือนนี้แล้ว (${quota} วัน/เดือน)`
-        : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      setErrorMsg(code === 'ALREADY_REQUESTED' ? 'มีวันที่เลือกไว้บางวันถูกจองไปแล้ว — เช็คสถานะแล้วเลือกใหม่'
+        : code === 'OVER_QUOTA' ? `จองวันหยุดเกินโควต้าของเดือนนี้แล้ว (${quota} วัน/เดือน)`
+        : 'เกิดข้อผิดพลาดระหว่างส่งคำขอ — เช็คสถานะแล้วลองใหม่')
     },
   })
   const cancelMutation = useMutation({
@@ -978,7 +1001,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
     },
   })
 
-  const canBook = isCurrentWeek && isOpen && !thisWeekOwn && !submitted && !quotaFull
+  const canBook = isCurrentWeek && isOpen && !submitted && !quotaFull
 
   return (
     <div>
@@ -1009,42 +1032,46 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
         </div>
       )}
 
-      {/* ── Already booked this week ───────────────────────────── */}
-      {thisWeekOwn && (
-        <div style={{
-          background: thisWeekOwn.status === 'APPROVED' ? '#F0FDF4' : '#FFFBEB',
-          border: `1px solid ${thisWeekOwn.status === 'APPROVED' ? 'rgba(22,163,74,0.25)' : '#FDE68A'}`,
-          borderRadius: 16, padding: '16px', marginBottom: 16,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
-              {thisWeekOwn.status === 'APPROVED' ? <><CheckCircle2 size={15} /> อนุมัติแล้ว</> : <><Loader2 size={15} /> รอพิจารณา</>}
-            </div>
-            {/* ยกเลิกได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองสัปดาห์นี้ยังเปิด */}
-            {isCurrentWeek && (thisWeekOwn.status === 'PENDING' || (thisWeekOwn.status === 'APPROVED' && isOpen)) && (
-              <button onClick={() => cancelMutation.mutate(thisWeekOwn.id)} disabled={cancelMutation.isPending}
-                style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {cancelMutation.isPending ? '...' : 'ยกเลิก'}
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Palmtree size={30} color={thisWeekOwn.status === 'APPROVED' ? '#16A34A' : '#D97706'} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, color: '#1A2B3C' }}>
-                หยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(thisWeekOwn.day_of_week)]}
+      {/* ── Already booked this week (จองได้หลายวัน/สัปดาห์แล้ว — โชว์ทีละวัน) ── */}
+      {thisWeekOwns.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {thisWeekOwns.map(r => (
+            <div key={r.id} style={{
+              background: r.status === 'APPROVED' ? '#F0FDF4' : '#FFFBEB',
+              border: `1px solid ${r.status === 'APPROVED' ? 'rgba(22,163,74,0.25)' : '#FDE68A'}`,
+              borderRadius: 16, padding: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: r.status === 'APPROVED' ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {r.status === 'APPROVED' ? <><CheckCircle2 size={15} /> อนุมัติแล้ว</> : <><Loader2 size={15} /> รอพิจารณา</>}
+                </div>
+                {/* ยกเลิกได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองสัปดาห์นี้ยังเปิด */}
+                {isCurrentWeek && (r.status === 'PENDING' || (r.status === 'APPROVED' && isOpen)) && (
+                  <button onClick={() => cancelMutation.mutate(r.id)} disabled={cancelMutation.isPending}
+                    style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {cancelMutation.isPending ? '...' : 'ยกเลิก'}
+                  </button>
+                )}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>
-                {fmtDate(resolveDate(thisWeekOwn.week_start, thisWeekOwn.day_of_week))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Palmtree size={30} color={r.status === 'APPROVED' ? '#16A34A' : '#D97706'} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: '#1A2B3C' }}>
+                    หยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(r.day_of_week)]}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>
+                    {fmtDate(resolveDate(r.week_start, r.day_of_week))}
+                  </div>
+                </div>
+                {r.status === 'APPROVED' && (
+                  <button onClick={() => setSwapPickerFor(r.id)}
+                    style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <Repeat size={12} /> ขอสลับ
+                  </button>
+                )}
               </div>
             </div>
-            {thisWeekOwn.status === 'APPROVED' && (
-              <button onClick={() => setSwapPickerFor(thisWeekOwn.id)}
-                style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                <Repeat size={12} /> ขอสลับ
-              </button>
-            )}
-          </div>
+          ))}
         </div>
       )}
 
@@ -1056,7 +1083,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
       )}
 
       {/* ── Period closed banner (current week, no booking) ────── */}
-      {isCurrentWeek && !isOpen && !thisWeekOwn && !periodQ.isLoading && (
+      {isCurrentWeek && !isOpen && thisWeekOwns.length === 0 && !periodQ.isLoading && (
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
           <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>ยังไม่เปิดรับการจองสัปดาห์นี้</div>
@@ -1064,8 +1091,8 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
         </div>
       )}
 
-      {/* ── Quota full (current week, open, not booked yet) ─────── */}
-      {isCurrentWeek && isOpen && !thisWeekOwn && !submitted && quotaFull && (
+      {/* ── Quota full (current week, open) ─────────────────────── */}
+      {isCurrentWeek && isOpen && !submitted && quotaFull && (
         <div style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, marginBottom: 14, textAlign: 'center' }}>
           <Lock size={26} color="#DC2626" style={{ marginBottom: 4 }} />
           <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.88rem' }}>จองวันหยุดครบโควต้าของเดือนนี้แล้ว</div>
@@ -1074,17 +1101,17 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
       )}
 
       {/* ── Submitted flash ─────────────────────────────────────── */}
-      {submitted && !thisWeekOwn && (
+      {submitted && (
         <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 14, marginBottom: 14, textAlign: 'center', fontWeight: 700, color: '#16A34A', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <Send size={15} /> ส่งคำขอแล้ว รอผู้จัดการพิจารณา
         </div>
       )}
 
-      {/* ── 7-day selector (current week, open, not yet booked) ── */}
+      {/* ── 7-day selector (current week, open) — เลือกได้หลายวัน ── */}
       {canBook && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
-            เลือกวันที่ต้องการหยุด — 1 วัน/สัปดาห์
+            เลือกวันที่ต้องการหยุด (เหลือโควต้า {remaining} วัน){thisWeekOwns.length > 0 ? ' — เพิ่มวันหยุดสัปดาห์นี้ได้อีก' : ''}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
             {weekDays.map((dateStr, displayIdx) => {
@@ -1093,34 +1120,39 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
               const day  = d.getUTCDate()
               const mon  = MONTHS_TH[d.getUTCMonth()]
               const spanMonth = d.getUTCMonth() !== mondayMonth
-              const isSel = selDow === dow
+              const isBooked = bookedDows.has(dow)
+              const isSel = selDows.has(dow)
               const isSat = displayIdx === 5
               const isSun = displayIdx === 6
               const samePosition   = colleagues.some(c => c.same_position && c.day_of_week === dow)
               const otherColleague = !samePosition && colleagues.some(c => c.day_of_week === dow)
+              // ปิดปุ่มถ้า: จองวันนี้ไปแล้ว, หรือยังไม่ได้เลือกวันนี้แต่เลือกครบโควต้าที่เหลือแล้ว
+              const disabled = isBooked || (!isSel && selDows.size >= remaining)
 
               return (
-                <button key={displayIdx} onClick={() => setSelDow(p => p === dow ? null : dow)}
+                <button key={displayIdx} disabled={disabled} onClick={() => toggleDow(dow)}
                   style={{
                     borderRadius: 14, border: isSel ? `2.5px solid ${COLOR.primary}` : '1.5px solid #E5E7EB',
-                    background: isSel ? COLOR.primary : isSat || isSun ? '#F9FAFB' : '#fff',
-                    padding: '10px 2px 8px', cursor: 'pointer', textAlign: 'center',
-                    fontFamily: 'inherit', transition: 'all 0.12s', position: 'relative',
+                    background: isSel ? COLOR.primary : isBooked ? '#F0FDF4' : isSat || isSun ? '#F9FAFB' : '#fff',
+                    padding: '10px 2px 8px', cursor: disabled ? 'not-allowed' : 'pointer', textAlign: 'center',
+                    fontFamily: 'inherit', transition: 'all 0.12s', position: 'relative', opacity: disabled && !isBooked ? 0.4 : 1,
                     boxShadow: isSel ? `0 4px 12px ${COLOR.primary}44` : '0 1px 3px rgba(0,0,0,0.05)',
                   }}>
                   <div style={{ fontSize: '0.6rem', fontWeight: 700, lineHeight: 1,
                     color: isSel ? 'rgba(255,255,255,0.8)' : isSun ? '#EF4444' : isSat ? '#3B82F6' : '#9CA3AF' }}>
                     {DAYS_DISPLAY[displayIdx]}
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: isSel ? '#fff' : isSat || isSun ? '#6B7280' : '#1A2B3C', marginTop: 4, lineHeight: 1 }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: isSel ? '#fff' : isBooked ? '#16A34A' : isSat || isSun ? '#6B7280' : '#1A2B3C', marginTop: 4, lineHeight: 1 }}>
                     {day}
                   </div>
-                  {spanMonth && (
+                  {isBooked ? (
+                    <div style={{ fontSize: '0.52rem', color: '#16A34A', marginTop: 3, fontWeight: 700 }}>จองแล้ว</div>
+                  ) : spanMonth && (
                     <div style={{ fontSize: '0.52rem', color: isSel ? 'rgba(255,255,255,0.9)' : '#9CA3AF', marginTop: 3 }}>
                       {mon}
                     </div>
                   )}
-                  {(samePosition || otherColleague) && (
+                  {!isBooked && (samePosition || otherColleague) && (
                     <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
                       width: 5, height: 5, borderRadius: '50%',
                       background: isSel ? 'rgba(255,255,255,0.9)' : samePosition ? '#DC2626' : '#F59E0B' }} />
@@ -1130,17 +1162,17 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             })}
           </div>
 
-          {selDow !== null && (() => {
-            const dayColleagues = colleagues.filter(c => c.day_of_week === selDow)
+          {selDows.size > 0 && (() => {
+            const dayColleagues = colleagues.filter(c => selDows.has(c.day_of_week))
+            const names = [...new Set(dayColleagues.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`))]
             return (
               <div style={{ marginTop: 12, padding: '10px 14px', background: `${COLOR.primary}0C`, border: `1px solid ${COLOR.primary}22`, borderRadius: 12 }}>
                 <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Calendar size={15} /> เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
+                  <Calendar size={15} /> เลือกหยุด {[...selDows].sort((a, b) => DISPLAY_TO_DOW.indexOf(a) - DISPLAY_TO_DOW.indexOf(b)).map(dow => DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(dow)]).join(', ')} ({selDows.size} วัน)
                 </span>
-                {dayColleagues.length > 0 && (
+                {names.length > 0 && (
                   <div style={{ marginTop: 6, fontSize: '0.76rem', color: '#7C2D12' }}>
-                    {dayColleagues.some(c => c.same_position) ? 'ชนกับ' : 'มีเพื่อนจองวันนี้แล้ว:'}{' '}
-                    {dayColleagues.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
+                    {dayColleagues.some(c => c.same_position) ? 'ชนกับ' : 'มีเพื่อนจองบางวันแล้ว:'} {names.join(', ')}
                   </div>
                 )}
               </div>
@@ -1162,20 +1194,20 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
 
       {/* ── Submit button ───────────────────────────────────────── */}
       {canBook && (
-        <button onClick={() => submitMutation.mutate()} disabled={selDow === null || submitMutation.isPending}
+        <button onClick={() => submitMutation.mutate()} disabled={selDows.size === 0 || submitMutation.isPending}
           style={{
             width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontFamily: 'inherit',
-            cursor: selDow !== null ? 'pointer' : 'not-allowed',
-            background: selDow !== null ? COLOR.primary : 'rgba(0,0,0,0.08)',
-            color: selDow !== null ? '#fff' : '#9CA3AF',
+            cursor: selDows.size > 0 ? 'pointer' : 'not-allowed',
+            background: selDows.size > 0 ? COLOR.primary : 'rgba(0,0,0,0.08)',
+            color: selDows.size > 0 ? '#fff' : '#9CA3AF',
             fontSize: '1rem', fontWeight: 700,
-            boxShadow: selDow !== null ? `0 4px 16px ${COLOR.primary}44` : 'none',
+            boxShadow: selDows.size > 0 ? `0 4px 16px ${COLOR.primary}44` : 'none',
             transition: 'all 0.2s', marginBottom: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
           {submitMutation.isPending
             ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
-            : selDow !== null ? <><CheckCircle2 size={17} /> ยืนยันจองวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]}</>
+            : selDows.size > 0 ? <><CheckCircle2 size={17} /> ยืนยันจองหยุด {selDows.size} วัน</>
             : 'กดเลือกวันที่ต้องการหยุด'}
         </button>
       )}

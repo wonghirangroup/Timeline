@@ -11,6 +11,7 @@ import {
   getTodayAttendance, getEmployeeHistory, getOffsiteShifts, getFirstCheckinDates,
 } from './attendance.service'
 import { verifyBranchQrPayload } from '../shift/shift.service'
+import { notifyAdminsLine } from '../notifications/line-push.service'
 
 export async function attendanceRoutes(app: FastifyInstance) {
 
@@ -222,8 +223,10 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    // ประกาศไว้นอก try หลัก เพราะ catch block ด้านล่างต้องใช้ payload.bid ด้วย
+    // (ตอนแจ้งแอดมินกรณี NOT_IN_BRANCH) — ไม่งั้นจะพ้น scope ของ try แรก
+    let payload: any
     try {
-      let payload: any
       try { payload = JSON.parse(req.body.qr_payload) } catch {
         return reply.code(400).send(fail('INVALID_QR', 'QR Code ไม่ถูกต้อง'))
       }
@@ -245,12 +248,34 @@ export async function attendanceRoutes(app: FastifyInstance) {
         gps_lat:     req.body.gps_lat,
         gps_lng:     req.body.gps_lng,
       })
+      // แจ้งแอดมิน (feedback 2026-09-14): เช็คอินสำเร็จแต่ไม่มีกะที่ตรงเวลาพอดี
+      // ระบบเลยหากะที่ใกล้เคียงที่สุดมาให้แทน (ยังเช็คอินได้ปกติ แค่ผิดปกติ ให้แอดมินรู้)
+      if (result.is_outside_shift) {
+        notifyAdminsLine(req.tenantId, req.body.employee_id, {
+          title: 'เช็คอินนอกเวลากะ',
+          detail: `เช็คอินสำเร็จ แต่ไม่มีกะที่ตรงเวลาเช็คอินพอดี — ระบบจับเข้ากะ "${result.shift.name}" (${result.shift.start_time}-${result.shift.end_time}) ให้แทน`,
+          color: '#7C3AED',
+          path: `/shift?date=${result.record.date.toISOString().slice(0, 10)}&employee=${req.body.employee_id}`,
+          buttonLabel: 'เปิดดู',
+        })
+      }
       return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_CHECKED_IN' || e.code === 'P2002') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
-      if (e.message === 'NOT_IN_BRANCH')      return reply.code(403).send(fail('NOT_IN_BRANCH', 'คุณไม่ได้สังกัดสาขานี้ — ไม่สามารถเช็คอินได้'))
+      if (e.message === 'NOT_IN_BRANCH') {
+        // แจ้งแอดมิน (feedback 2026-09-14): พยายามเช็คอินสาขาที่ตัวเองไม่ได้สังกัด —
+        // เช็คอินไม่สำเร็จเลย แต่เป็นสัญญาณผิดปกติที่แอดมินควรรู้ (สแกน QR ผิดสาขา/
+        // ยังไม่ได้ย้ายสาขาในระบบให้ตรง ฯลฯ)
+        const branch = await prisma.branch.findFirst({ where: { id: payload.bid }, select: { name: true } })
+        notifyAdminsLine(req.tenantId, req.body.employee_id, {
+          title: 'เช็คอินผิดสาขา (ถูกบล็อก)',
+          detail: `พยายามเช็คอินที่สาขา "${branch?.name ?? payload.bid}" แต่ไม่ได้สังกัดสาขานี้ — เช็คอินไม่สำเร็จ`,
+          color: '#DC2626',
+        })
+        return reply.code(403).send(fail('NOT_IN_BRANCH', 'คุณไม่ได้สังกัดสาขานี้ — ไม่สามารถเช็คอินได้'))
+      }
       if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบข้อมูลพนักงาน'))
       if (e.message === 'SHIFT_NOT_IN_TIME')  return reply.code(400).send(fail('SHIFT_NOT_IN_TIME', 'ยังไม่ถึงเวลาเช็คอินกะนี้'))
       if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(404).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะงานที่กำหนดไว้สำหรับสาขานี้'))

@@ -116,8 +116,10 @@ export async function createWeeklyOff(tenantId: string, data: {
 
   const monday = getMondayOf(data.week_start)
 
-  const existing = await prisma.weeklyOffRequest.findUnique({
-    where: { employee_id_week_start: { employee_id: data.employee_id, week_start: monday } },
+  // กันจองซ้ำแค่ "วันเดียวกันเป๊ะ" (feedback 2026-09-14: เลิกจำกัด 1 วัน/สัปดาห์
+  // แล้ว — จองได้หลายวันในสัปดาห์เดียวกัน จำกัดแค่โควต้ารวม/เดือนด้านล่าง)
+  const existing = await prisma.weeklyOffRequest.findFirst({
+    where: { employee_id: data.employee_id, week_start: monday, day_of_week: data.day_of_week },
   })
   if (existing) throw new Error('ALREADY_REQUESTED')
 
@@ -183,10 +185,11 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
   let monday: Date | undefined
   if (data.week_start !== undefined) {
     monday = getMondayOf(data.week_start)
-    // ย้ายข้ามสัปดาห์ต้องเช็ค unique (employee_id + week_start) ก่อน — เว้นตัวเอง
-    if (monday.getTime() !== req.week_start.getTime()) {
-      const conflict = await prisma.weeklyOffRequest.findUnique({
-        where: { employee_id_week_start: { employee_id: req.employee_id, week_start: monday } },
+    const destDow = data.day_of_week ?? req.day_of_week
+    // ย้ายข้ามสัปดาห์ (หรือย้ายวัน) ต้องเช็คว่าปลายทาง (สัปดาห์+วัน) ว่างไหมก่อน — เว้นตัวเอง
+    if (monday.getTime() !== req.week_start.getTime() || destDow !== req.day_of_week) {
+      const conflict = await prisma.weeklyOffRequest.findFirst({
+        where: { employee_id: req.employee_id, week_start: monday, day_of_week: destDow },
       })
       if (conflict && conflict.id !== id) throw new Error('ALREADY_REQUESTED')
     }
@@ -208,11 +211,14 @@ export async function deleteWeeklyOff(tenantId: string, id: string) {
   return count.count > 0
 }
 
-// ตรวจว่า employee มีวันหยุดในสัปดาห์นี้ไหม (ใช้ตอนเช็คอิน Phase 2)
+// ตรวจว่า employee มีวันหยุดตรงกับวันนี้เป๊ะไหม (ใช้ตอนเช็คอิน Phase 2) — เช็คทั้ง
+// week_start+day_of_week ตรงๆ เลย (เดิมเช็คแค่ week_start แล้วให้ผู้เรียกกรอง
+// day_of_week เอง สมัยที่ยังจำกัด 1 วัน/สัปดาห์ — ตอนนี้จองได้หลายวัน/สัปดาห์แล้ว
+// ต้องระบุวันให้ตรงเป๊ะตั้งแต่ query เลย)
 export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string, date: Date) {
   const monday = getMondayOf(date.toISOString().slice(0, 10))
-  return prisma.weeklyOffRequest.findUnique({
-    where: { employee_id_week_start: { employee_id: employeeId, week_start: monday } },
+  return prisma.weeklyOffRequest.findFirst({
+    where: { employee_id: employeeId, week_start: monday, day_of_week: date.getUTCDay() },
   })
 }
 
@@ -464,11 +470,13 @@ export async function swapWeeklyOff(tenantId: string, data: {
   if (!offA || !offB) throw new Error('NOT_FOUND')
   if (offA.employee_id === offB.employee_id) throw new Error('SAME_EMPLOYEE')
 
-  // กันชนกับสัปดาห์อื่นที่แต่ละคนอาจมีจองแยกไว้อยู่แล้ว (unique employee_id+week_start)
-  if (offA.week_start.getTime() !== offB.week_start.getTime()) {
+  // กันชนกับวันเดียวกันเป๊ะที่แต่ละคนอาจมีจองแยกไว้อยู่แล้ว (unique employee_id+
+  // week_start+day_of_week — จองได้หลายวัน/สัปดาห์แล้ว เลยเช็คแค่ week_start ไม่พอ
+  // ต้องเช็ค day_of_week ปลายทางด้วยว่าตรงกับวันที่กำลังจะย้ายไปชนไหม)
+  if (offA.week_start.getTime() !== offB.week_start.getTime() || offA.day_of_week !== offB.day_of_week) {
     const [conflictA, conflictB] = await Promise.all([
-      prisma.weeklyOffRequest.findUnique({ where: { employee_id_week_start: { employee_id: offA.employee_id, week_start: offB.week_start } } }),
-      prisma.weeklyOffRequest.findUnique({ where: { employee_id_week_start: { employee_id: offB.employee_id, week_start: offA.week_start } } }),
+      prisma.weeklyOffRequest.findFirst({ where: { employee_id: offA.employee_id, week_start: offB.week_start, day_of_week: offB.day_of_week } }),
+      prisma.weeklyOffRequest.findFirst({ where: { employee_id: offB.employee_id, week_start: offA.week_start, day_of_week: offA.day_of_week } }),
     ])
     if (conflictA && conflictA.id !== offB.id) throw new Error('CONFLICT_A')
     if (conflictB && conflictB.id !== offA.id) throw new Error('CONFLICT_B')
