@@ -540,6 +540,9 @@ function SwapPickerSheet({ employeeId, month, requesterOffId, onClose }: {
 function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
   const qc = useQueryClient()
   const [busyId, setBusyId] = useState<string | null>(null)
+  // เดิมกด "ยอมรับ" แล้วเงียบถ้า backend ปฏิเสธ (เช่นชนกับวันหยุดอื่นที่ตัวเองมีอยู่แล้ว)
+  // ผู้ใช้เห็นว่าปุ่มกดไม่ติด งง — ต้องโชว์เหตุผลให้ชัด (feedback 2026-09-14)
+  const [errorById, setErrorById] = useState<Record<string, string>>({})
 
   const { data: requests = [] } = useQuery<SwapRequestRow[]>({
     queryKey: ['employee', 'weekly-off-swap-requests', employeeId],
@@ -551,6 +554,16 @@ function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
   const respondMutation = useMutation({
     mutationFn: ({ id, accept }: { id: string; accept: boolean }) =>
       api.post(`/employee/weekly-off/swap-requests/${id}/respond`, { employee_id: employeeId, accept }),
+    onError: (err: any, { id }) => {
+      const code = err.response?.data?.error?.code
+      setErrorById(m => ({
+        ...m,
+        [id]: code === 'CONFLICT'     ? 'สลับไม่ได้ — คุณมีวันหยุดวันนั้นอยู่แล้ว (ชนกับที่จองไว้)' :
+              code === 'NOT_APPROVED' ? 'สลับไม่ได้ — วันหยุดฝั่งใดฝั่งหนึ่งไม่ใช่สถานะอนุมัติแล้ว' :
+              code === 'NOT_PENDING'  ? 'คำขอนี้ถูกตอบไปแล้ว' :
+              'เกิดข้อผิดพลาด กรุณาลองใหม่',
+      }))
+    },
     onSettled: () => {
       setBusyId(null)
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-swap-requests'] })
@@ -577,15 +590,20 @@ function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
               <b>{name}</b> ขอสลับวันหยุด <b>{r.target_date ? fmtDate(r.target_date) : '—'}</b> ของคุณ กับวันหยุด <b>{r.requester_date ? fmtDate(r.requester_date) : '—'}</b> ของเขา
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setBusyId(r.id); respondMutation.mutate({ id: r.id, accept: true }) }} disabled={busyId === r.id}
+              <button onClick={() => { setBusyId(r.id); setErrorById(m => ({ ...m, [r.id]: '' })); respondMutation.mutate({ id: r.id, accept: true }) }} disabled={busyId === r.id}
                 style={{ flex: 1, padding: '8px', borderRadius: 10, border: 'none', background: '#16A34A', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                 <Check size={14} /> ยอมรับ
               </button>
-              <button onClick={() => { setBusyId(r.id); respondMutation.mutate({ id: r.id, accept: false }) }} disabled={busyId === r.id}
+              <button onClick={() => { setBusyId(r.id); setErrorById(m => ({ ...m, [r.id]: '' })); respondMutation.mutate({ id: r.id, accept: false }) }} disabled={busyId === r.id}
                 style={{ flex: 1, padding: '8px', borderRadius: 10, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                 <X size={14} /> ปฏิเสธ
               </button>
             </div>
+            {errorById[r.id] && (
+              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.76rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={13} /> {errorById[r.id]}
+              </div>
+            )}
           </div>
         )
       })}

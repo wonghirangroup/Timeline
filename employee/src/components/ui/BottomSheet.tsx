@@ -76,6 +76,9 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
           padding: '24px 24px 40px', boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
           transform: `translateY(${dragY}px)`,
           transition: dragging ? 'none' : 'transform 0.25s cubic-bezier(0.16,1,0.3,1)',
+          // เนื้อหาอาจสูงเกินจอ (เช่น รายชื่อเพื่อนยาวๆ) — ต้อง scroll ได้เองถ้าเกิน
+          // maxHeight ที่เผื่อพื้นที่ด้านบนไว้หน่อย ไม่งั้นเนื้อหาจะโดนตัดจอโดยเลื่อนดูไม่ได้เลย
+          maxHeight: '85dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
         }}
         className="animate-slide-up"
         onClick={e => e.stopPropagation()}

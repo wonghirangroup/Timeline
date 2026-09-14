@@ -157,8 +157,8 @@ function UserManagementSettings() {
 
             {!modal.edit && (
               <>
-                <label style={fieldLabel}>อีเมล</label>
-                <input autoFocus style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@company.com" />
+                <label style={fieldLabel}>อีเมลหรือ Username</label>
+                <input autoFocus style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@company.com หรือ username" />
                 <label style={{ ...fieldLabel, margin: '10px 0 4px' }}>รหัสผ่านเริ่มต้น</label>
                 <input type="text" style={inputStyle} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="ตั้งรหัสผ่านชั่วคราว" />
               </>

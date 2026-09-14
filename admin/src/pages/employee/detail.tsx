@@ -682,7 +682,8 @@ function AdminAccessCard({ emp }: { emp: any }) {
   })
 
   const needEmail = !current && !!role
-  const canSave = role !== '' && role !== (active ? current!.role : '') && (!needEmail || /^\S+@\S+\.\S+$/.test(email))
+  // login identifier ไม่บังคับรูปแบบอีเมลแล้ว — ใช้เป็น username ล้วนก็ได้ (feedback 2026-09-14)
+  const canSave = role !== '' && role !== (active ? current!.role : '') && (!needEmail || email.trim().length > 0)
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -713,8 +714,8 @@ function AdminAccessCard({ emp }: { emp: any }) {
         </div>
         {needEmail && (
           <div style={{ flex: '1 1 180px' }}>
-            <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>อีเมลสำหรับล็อกอิน *</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com"
+            <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>อีเมลหรือ Username สำหรับล็อกอิน *</label>
+            <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com หรือ username"
               style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
           </div>
         )}

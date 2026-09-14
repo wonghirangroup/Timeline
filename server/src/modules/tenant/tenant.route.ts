@@ -184,7 +184,7 @@ export async function tenantRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['email', 'first_name', 'last_name'],
         properties: {
-          email:      { type: 'string', format: 'email' },
+          email:      { type: 'string', minLength: 1 }, // login identifier — username ล้วนก็ได้ ไม่บังคับรูปแบบอีเมล (feedback 2026-09-14)
           first_name: { type: 'string' },
           last_name:  { type: 'string' },
         },
@@ -254,7 +254,7 @@ export async function tenantRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['email', 'password', 'first_name', 'last_name', 'role'],
         properties: {
-          email:      { type: 'string', format: 'email' },
+          email:      { type: 'string', minLength: 1 }, // login identifier — username ล้วนก็ได้ ไม่บังคับรูปแบบอีเมล (feedback 2026-09-14)
           password:   { type: 'string' },
           first_name: { type: 'string' },
           last_name:  { type: 'string' },

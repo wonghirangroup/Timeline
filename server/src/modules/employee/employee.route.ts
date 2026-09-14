@@ -175,7 +175,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         required: ['role'],
         properties: {
           role:           { type: ['string', 'null'], enum: ['ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD', null] },
-          email:          { type: 'string', format: 'email' },
+          email:          { type: 'string', minLength: 1 }, // ใช้เป็น login identifier — ไม่บังคับรูปแบบอีเมล เป็น username ล้วนก็ได้ (feedback 2026-09-14)
           department_ids: { type: 'array', items: { type: 'string' } },
         },
       },
