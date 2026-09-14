@@ -173,10 +173,10 @@ export default function ReportPage() {
 
   const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
     queryKey: ['admin', 'employees', branch],
+    // เฉพาะพนักงานที่ยังใช้งานอยู่ — คนที่ลาออก/เลิกจ้างไปแล้วไม่ต้องขึ้นในรายงาน
+    // (ดูประวัติของคนที่ออกไปแล้วได้ที่หน้าพนักงาน → ตั้งสถานะ "ทั้งหมด")
     queryFn:  () => api.get('/api/v1/admin/employees', {
-      // includeInactive: รายงานย้อนหลังต้องเห็นพนักงานที่ลาออก/เลิกจ้างไปแล้วด้วย
-      // ถ้าเดือนที่ดูมีประวัติเข้างานของเขาอยู่ ไม่งั้นแถวข้อมูลจะหายจากรายงาน
-      params: { ...(branch ? { branchId: branch } : {}), includeInactive: true },
+      params: { ...(branch ? { branchId: branch } : {}) },
     }).then((r: any) => r.data.data),
   })
 
