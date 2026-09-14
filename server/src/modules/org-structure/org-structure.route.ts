@@ -27,12 +27,12 @@ function handleParentErrors(e: any, reply: any) {
 }
 
 export async function orgStructureRoutes(app: FastifyInstance) {
-  // ── ผังรวมของ "กลุ่ม" เดียว (สำหรับหน้าจัดการผังองค์กร) ─────
+  // ── ผังรวมของ "กลุ่ม" เดียว หรือทุกกลุ่มในเทแนนต์ (ไม่ระบุ group_id) ─────
   app.get('/org-structure/tree', {
     preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
     schema: {
-      tags: [TAG], summary: 'ดูผังองค์กรของกลุ่มหนึ่ง (Division→Department→Position)', security: [{ oauth2: [] }],
-      querystring: { type: 'object', required: ['group_id'], properties: { group_id: { type: 'string' } } },
+      tags: [TAG], summary: 'ดูผังองค์กร (Division→Department→Position) — ระบุ group_id เพื่อดูกลุ่มเดียว หรือไม่ระบุเพื่อดูทุกกลุ่มรวมกัน', security: [{ oauth2: [] }],
+      querystring: { type: 'object', properties: { group_id: { type: 'string' } } },
     },
   }, async (req: any, reply) => ok(await svc.getOrgTree(req.tenantId, req.query.group_id)))
 

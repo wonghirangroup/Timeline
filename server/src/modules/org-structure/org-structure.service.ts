@@ -137,23 +137,27 @@ export async function deletePosition(tenantId: string, id: string) {
   return count.count > 0
 }
 
-// ── Tree — โหลดผังทั้งหมดของ "กลุ่ม" เดียวในคำเรียกเดียว (สำหรับหน้าจัดการผังองค์กร) ──
-// ทุกชั้นตอนนี้ผูก parent ชัดเจนเสมอ (ไม่มี "ลอย"/unassigned เหมือนเวอร์ชันเดิมอีกต่อไป)
-// เพราะ Division ต้องมี group_id, Department ต้องมี division_id, Position ต้องมี department_id
-export async function getOrgTree(tenantId: string, groupId: string) {
+// ── Tree — โหลดผังทั้งหมดของ "กลุ่ม" เดียว หรือ "ทุกกลุ่มในเทแนนต์" (ถ้าไม่ระบุ groupId)
+// ในคำเรียกเดียว (สำหรับหน้าจัดการผังองค์กร) — ทุกชั้นตอนนี้ผูก parent ชัดเจนเสมอ (ไม่มี
+// "ลอย"/unassigned เหมือนเวอร์ชันเดิมอีกต่อไป) เพราะ Division ต้องมี group_id, Department
+// ต้องมี division_id, Position ต้องมี department_id — groupId ไม่ระบุ = โหมด "ผังรวมทุกกลุ่ม"
+// (feedback 2026-09-14: อยากเห็นผังทุกกลุ่มรวดเดียวไม่ต้องเลือกกลุ่มทีละอัน) แต่ละ division
+// ที่คืนกลับยังมี group_id ติดมาด้วยเสมอ ให้ฝั่ง frontend จัดกลุ่มเป็นชั้นบนสุดเองได้
+export async function getOrgTree(tenantId: string, groupId?: string) {
+  const groupFilter = groupId ? { group_id: groupId } : {}
   const [departments, positions] = await Promise.all([
     prisma.department.findMany({
-      where: { tenant_id: tenantId, deleted_at: null, division: { group_id: groupId } },
+      where: { tenant_id: tenantId, deleted_at: null, division: { ...groupFilter } },
       orderBy: { created_at: 'asc' },
     }),
     prisma.position.findMany({
-      where: { tenant_id: tenantId, deleted_at: null, department: { division: { group_id: groupId } } },
+      where: { tenant_id: tenantId, deleted_at: null, department: { division: { ...groupFilter } } },
       include: { _count: { select: { employees: true } } },
       orderBy: { created_at: 'asc' },
     }),
   ])
   const divisions = await prisma.division.findMany({
-    where: { tenant_id: tenantId, deleted_at: null, group_id: groupId },
+    where: { tenant_id: tenantId, deleted_at: null, ...groupFilter },
     orderBy: { created_at: 'asc' },
   })
 

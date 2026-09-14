@@ -121,7 +121,7 @@ const DayRuleInherit = ({ value, onChange, inheritLabel }: { value: DayRule | nu
 const quotaInputStyle: React.CSSProperties = { ...inputStyle, width: 90 }
 
 // ── กลุ่ม (บริษัท) Tab ───────────────────────────────────────────────────────
-function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string; onSelectGroup: (id: string) => void }) {
+function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
@@ -182,9 +182,8 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
         {groups.map(g => {
           const groupBranches = branches.filter(b => b.group_id === g.id)
           const unassignedBranches = branches.filter(b => b.group_id !== g.id)
-          const isSelected = selectedGroupId === g.id
           return (
-            <div key={g.id} style={{ ...card, padding: 14, border: isSelected ? '1.5px solid #f97316' : '1px solid #f1f5f9' }}>
+            <div key={g.id} style={{ ...card, padding: 14, border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
                   <Landmark size={17} />
@@ -202,8 +201,8 @@ function GroupsTab({ selectedGroupId, onSelectGroup }: { selectedGroupId: string
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 10px', borderRadius: 99 }}>
                   ส {g.saturday_rule === 'WORK' ? 'ทำงาน' : g.saturday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · อา {g.sunday_rule === 'WORK' ? 'ทำงาน' : g.sunday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · จอง {g.booking_quota ?? 5}/ด
                 </span>
-                <button onClick={() => onSelectGroup(g.id)} style={{ ...btnGhost('#f97316', '#fff7ed'), border: isSelected ? '1.5px solid #f97316' : '1px dashed #f9731655' }}>
-                  {isSelected ? '✓ กำลังดูผังกลุ่มนี้' : 'ดูผังองค์กร'}
+                <button onClick={onViewTree} style={btnGhost('#f97316', '#fff7ed')}>
+                  ดูผังองค์กร
                 </button>
                 <button onClick={() => openEdit(g)} style={{ padding: 6, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={13}/></button>
                 <button onClick={() => setDeleteTarget(g)} style={{ padding: 6, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={13}/></button>
@@ -511,22 +510,33 @@ function NodeDetailModal({ level, row, tree, grp, employees, onClose }: {
   )
 }
 
-function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string }) {
+// ผังรวมทุกกลุ่มในเทแนนต์เดียวกัน (feedback 2026-09-14: "เอา 3 กลุ่มมารวมกันในผังเดียว
+// ไม่ต้องมี dropdown เลือกกลุ่มแล้วค่อยดูผัง") — กล่องชื่อบริษัทอยู่บนสุด แตกเป็นกล่อง
+// แต่ละกลุ่ม แล้วค่อยเป็นฝ่าย/แผนก/ตำแหน่งของกลุ่มนั้นตามปกติ (โครงสร้างข้อมูลยังแยก
+// ตามกลุ่มเดิมทุกประการ — นี่คือการรวมแค่ "มุมมอง" เท่านั้น ไม่ได้ย้ายกลุ่ม/สาขาใดๆ)
+function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: string }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
-  const [addModal, setAddModal] = useState<Level | null>(null)
-  const [viewTarget, setViewTarget] = useState<{ level: Level; row: any } | null>(null)
+  const [addModal, setAddModal] = useState<{ level: Level; groupId: string } | null>(null)
+  const [viewTarget, setViewTarget] = useState<{ level: Level; row: any; groupId: string } | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
   const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string }>({ name: '', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
 
-  const { data: divs  = [], isLoading } = useQuery<Div[]>({ queryKey: ['divisions', groupId], queryFn: () => api.get('/api/v1/admin/divisions', { params: { group_id: groupId } }).then(r => r.data.data) })
-  const { data: depts = [] } = useQuery<Dept[]>({ queryKey: ['departments', groupId], queryFn: () => api.get('/api/v1/admin/departments').then(r => r.data.data) })
-  const { data: tree  = [] } = useQuery<TreeDiv[]>({ queryKey: ['org-tree', groupId], queryFn: () => api.get('/api/v1/admin/org-structure/tree', { params: { group_id: groupId } }).then(r => r.data.data) })
-  const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
+  // ไม่ส่ง group_id = ผังรวมทุกกลุ่ม (แต่ละ division มี group_id ติดมาด้วยเสมอ ใช้จัดกลุ่มเอง)
+  const { data: tree = [], isLoading } = useQuery<(TreeDiv & { group_id: string })[]>({
+    queryKey: ['org-tree', 'all'],
+    queryFn: () => api.get('/api/v1/admin/org-structure/tree').then(r => r.data.data),
+  })
   // queryKey ตรงกับ employee/index.tsx ('employees','all') — ดูคอมเมนต์เดียวกันที่นั่น
   const { data: allEmployees = [] } = useQuery<any[]>({ queryKey: ['employees', 'all'], queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive: true } }).then(r => r.data.data) })
-  const grp = groups.find(g => g.id === groupId)
+
+  const treeByGroup = new Map<string, TreeDiv[]>()
+  for (const dv of tree) {
+    const arr = treeByGroup.get(dv.group_id) ?? []
+    arr.push(dv)
+    treeByGroup.set(dv.group_id, arr)
+  }
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['divisions'] })
@@ -566,60 +576,86 @@ function OrgTreeTab({ groupId, groupName }: { groupId: string; groupName: string
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
 
+  const addModalGroupId = addModal?.groupId
+  const addModalDivs  = addModalGroupId ? (treeByGroup.get(addModalGroupId) ?? []) : []
+  const addModalDepts = addModalDivs.flatMap(d => d.departments)
+  const viewGrp = viewTarget ? groups.find(g => g.id === viewTarget.groupId) : undefined
+  const viewTree = viewTarget ? (treeByGroup.get(viewTarget.groupId) ?? []) : []
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-        <button style={btnGhost(LEVEL_COLOR.division, '#eef2ff')} onClick={() => setAddModal('division')}><Plus size={12}/> ฝ่าย</button>
-        <button style={btnGhost(LEVEL_COLOR.department, '#ecfeff')} onClick={() => setAddModal('department')} disabled={divs.length === 0}><Plus size={12}/> แผนก</button>
-        <button style={btnGhost(LEVEL_COLOR.position, '#f0fdf4')} onClick={() => setAddModal('position')} disabled={depts.length === 0}><Plus size={12}/> ตำแหน่ง</button>
-      </div>
-
       <div style={{ ...card, overflowX: 'auto' }}>
-        {tree.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
-            กลุ่มนี้ยังไม่มีฝ่าย — กดปุ่ม "ฝ่าย" ด้านบนเพื่อเริ่มสร้างผังองค์กร
-          </div>
-        ) : (
-          <>
-            <style>{TREE_CSS}</style>
-            <div className="org-chart-tree">
+        <style>{TREE_CSS}</style>
+        <div className="org-chart-tree">
+          <ul>
+            <li>
+              <div style={{ background: '#1e293b', border: '1.5px solid #1e293b', borderRadius: 12, padding: '11px 20px', minWidth: 140 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}>
+                  <Landmark size={15} color="#fff" />
+                  <span style={{ fontWeight: 800, fontSize: '13.5px', color: '#fff', whiteSpace: 'nowrap' }}>{companyName}</span>
+                </div>
+              </div>
               <ul>
-                <li>
-                  <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: 12, padding: '10px 18px', minWidth: 120 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                      <Landmark size={14} color="#f97316" />
-                      <span style={{ fontWeight: 800, fontSize: '13px', color: '#111827', whiteSpace: 'nowrap' }}>{groupName}</span>
-                    </div>
-                  </div>
-                  <ul>
-                    {tree.map(dv => (
-                      <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
-                        onView={() => setViewTarget({ level: 'division', row: dv })}
-                        onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
-                        {dv.departments.length > 0 ? dv.departments.map(dt => (
-                          <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
-                            onView={() => setViewTarget({ level: 'department', row: dt })}
-                            onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
-                            {dt.positions.map(p => (
-                              <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
-                                onView={() => setViewTarget({ level: 'position', row: p })}
-                                onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
-                            ))}
-                          </TreeNode>
-                        )) : null}
-                      </TreeNode>
-                    ))}
-                  </ul>
-                </li>
+                {groups.map(g => {
+                  const divs = treeByGroup.get(g.id) ?? []
+                  return (
+                    <li key={g.id}>
+                      <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: 12, padding: '10px 18px', minWidth: 120 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <Building2 size={14} color="#f97316" />
+                          <span style={{ fontWeight: 800, fontSize: '13px', color: '#111827', whiteSpace: 'nowrap' }}>{g.name}</span>
+                        </div>
+                        <div style={{ textAlign: 'center', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: 2 }}>{divs.length} ฝ่าย</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                          <button onClick={() => setAddModal({ level: 'division', groupId: g.id })}
+                            style={{ ...btnGhost(LEVEL_COLOR.division, '#eef2ff'), justifyContent: 'center', padding: '5px 10px', fontSize: '10.5px' }}>
+                            <Plus size={11}/> ฝ่าย
+                          </button>
+                          <button onClick={() => setAddModal({ level: 'department', groupId: g.id })} disabled={divs.length === 0}
+                            style={{ ...btnGhost(LEVEL_COLOR.department, '#ecfeff'), justifyContent: 'center', padding: '5px 10px', fontSize: '10.5px', opacity: divs.length === 0 ? 0.4 : 1 }}>
+                            <Plus size={11}/> แผนก
+                          </button>
+                          <button onClick={() => setAddModal({ level: 'position', groupId: g.id })} disabled={divs.every(d => d.departments.length === 0)}
+                            style={{ ...btnGhost(LEVEL_COLOR.position, '#f0fdf4'), justifyContent: 'center', padding: '5px 10px', fontSize: '10.5px', opacity: divs.every(d => d.departments.length === 0) ? 0.4 : 1 }}>
+                            <Plus size={11}/> ตำแหน่ง
+                          </button>
+                        </div>
+                      </div>
+                      {divs.length > 0 && (
+                        <ul>
+                          {divs.map(dv => (
+                            <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
+                              onView={() => setViewTarget({ level: 'division', row: dv, groupId: g.id })}
+                              onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
+                              {dv.departments.length > 0 ? dv.departments.map(dt => (
+                                <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
+                                  onView={() => setViewTarget({ level: 'department', row: dt, groupId: g.id })}
+                                  onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
+                                  {dt.positions.map(p => (
+                                    <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
+                                      onView={() => setViewTarget({ level: 'position', row: p, groupId: g.id })}
+                                      onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
+                                  ))}
+                                </TreeNode>
+                              )) : null}
+                            </TreeNode>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
-            </div>
-          </>
-        )}
+            </li>
+          </ul>
+        </div>
       </div>
 
-      {addModal && <AddEntityModal level={addModal} groupId={groupId} divs={divs} depts={depts} onClose={() => setAddModal(null)} />}
+      {addModal && (
+        <AddEntityModal level={addModal.level} groupId={addModal.groupId} divs={addModalDivs} depts={addModalDepts} onClose={() => setAddModal(null)} />
+      )}
 
-      {viewTarget && <NodeDetailModal level={viewTarget.level} row={viewTarget.row} tree={tree} grp={grp} employees={allEmployees} onClose={() => setViewTarget(null)} />}
+      {viewTarget && <NodeDetailModal level={viewTarget.level} row={viewTarget.row} tree={viewTree} grp={viewGrp} employees={allEmployees} onClose={() => setViewTarget(null)} />}
 
       {editModal && (
         <div style={modalOverlay} onClick={() => setEditModal(null)}>
@@ -829,9 +865,9 @@ function StatusTypesTab() {
 // ไม่มี h1/description ของตัวเอง เพราะ header ของหน้าพนักงานทำหน้าที่นั้นแทนแล้ว
 export default function OrgStructurePage() {
   const [tab, setTab] = useState<'groups' | 'tree' | 'status'>('groups')
-  const [selectedGroupId, setSelectedGroupId] = useState('')
 
   const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
+  const { data: settings } = useQuery<{ name: string }>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -860,34 +896,15 @@ export default function OrgStructurePage() {
       </div>
 
       {tab === 'groups' && (
-        <GroupsTab
-          selectedGroupId={selectedGroupId}
-          onSelectGroup={id => { setSelectedGroupId(id); setTab('tree') }}
-        />
+        <GroupsTab onViewTree={() => setTab('tree')} />
       )}
       {tab === 'tree' && (
         groups.length === 0 ? (
           <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
             ยังไม่มีกลุ่ม — ไปที่แท็บ "กลุ่ม (บริษัท)" เพื่อสร้างกลุ่มก่อน
           </div>
-        ) : !selectedGroupId ? (
-          <div style={{ ...card, padding: 16 }}>
-            <label style={label}>เลือกกลุ่มที่จะดูผังองค์กร</label>
-            <select style={inputStyle} value={selectedGroupId} onChange={e => setSelectedGroupId(e.target.value)}>
-              <option value="">— เลือกกลุ่ม —</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-          </div>
         ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ ...label, marginBottom: 0 }}>กลุ่ม:</label>
-              <select style={{ ...inputStyle, width: 'auto' }} value={selectedGroupId} onChange={e => setSelectedGroupId(e.target.value)}>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-            </div>
-            <OrgTreeTab groupId={selectedGroupId} groupName={groups.find(g => g.id === selectedGroupId)?.name ?? ''} />
-          </>
+          <OrgTreeTab groups={groups} companyName={settings?.name ?? ''} />
         )
       )}
       {tab === 'status' && <StatusTypesTab />}
