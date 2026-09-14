@@ -7,10 +7,30 @@ import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
 import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest, getMonthColleagueLeaves } from './leave.service'
 import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEmployeesWithBalances } from './leave-balance.service'
-import { notifyAdminsLine } from '../notifications/line-push.service'
+import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
 const LEAVE_LABEL_TH: Record<string, string> = {
   SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
+}
+
+// แจ้งพนักงานกลับทาง LINE ตอนใบลาถูกอนุมัติ/ปฏิเสธ — เดิมไม่มีเลย (มีแค่แจ้งแอดมิน
+// ตอนยื่นคำขอ) พนักงานเลยไม่รู้ผลจนกว่าจะเปิดแอปมาเช็คเอง (feedback 2026-09-14)
+function notifyLeaveResult(tenantId: string, req: { employee_id: string; leave_type: string; start_date: Date | string; end_date: Date | string; days: number; reject_note?: string | null }, approved: boolean) {
+  const start = new Date(req.start_date).toISOString().slice(0, 10)
+  const end   = new Date(req.end_date).toISOString().slice(0, 10)
+  const dateRange = start === end ? start : `${start} – ${end}`
+  const label = LEAVE_LABEL_TH[req.leave_type] ?? 'ลา'
+  notifyEmployeeLine(tenantId, req.employee_id, 'ฝ่ายบุคคล', approved ? {
+    title: 'ใบลาอนุมัติแล้ว',
+    detail: `${label} ${dateRange} (${req.days} วัน) ได้รับการอนุมัติแล้ว`,
+    color: '#16A34A',
+    path: '/leave?tab=request',
+  } : {
+    title: 'ใบลาไม่ได้รับการอนุมัติ',
+    detail: `${label} ${dateRange} (${req.days} วัน)${req.reject_note ? ` — เหตุผล: ${req.reject_note}` : ''}`,
+    color: '#DC2626',
+    path: '/leave?tab=request',
+  })
 }
 
 export async function leaveRoutes(app: FastifyInstance) {
@@ -53,6 +73,7 @@ export async function leaveRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const result = await approveLeaveRequest(req.tenantId, req.params.id, req.userId!, req.scopedEmployeeIds)
     if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือไม่อยู่ในสถานะ PENDING'))
+    notifyLeaveResult(req.tenantId, result, true)
     return ok(result, 'อนุมัติวันลาสำเร็จ')
   })
 
@@ -70,8 +91,9 @@ export async function leaveRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const ok_ = await rejectLeaveRequest(req.tenantId, req.params.id, req.userId!, req.body?.reject_note, req.scopedEmployeeIds)
-    if (!ok_) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือไม่อยู่ในสถานะ PENDING'))
+    const rejected = await rejectLeaveRequest(req.tenantId, req.params.id, req.userId!, req.body?.reject_note, req.scopedEmployeeIds)
+    if (!rejected) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือไม่อยู่ในสถานะ PENDING'))
+    notifyLeaveResult(req.tenantId, rejected, false)
     return ok(null, 'ปฏิเสธวันลาแล้ว')
   })
 
@@ -102,7 +124,7 @@ export async function leaveRoutes(app: FastifyInstance) {
           const r = action === 'approve'
             ? await approveLeaveRequest(req.tenantId, id, req.userId!, req.scopedEmployeeIds)
             : await rejectLeaveRequest(req.tenantId, id, req.userId!, req.body?.reject_note, req.scopedEmployeeIds)
-          if (r) done++; else skipped++
+          if (r) { done++; notifyLeaveResult(req.tenantId, r, action === 'approve') } else skipped++
         } catch { skipped++ }
       }
       return ok({ done, skipped }, `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'} ${done} รายการ${skipped ? ` · ข้าม ${skipped}` : ''}`)

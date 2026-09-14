@@ -380,6 +380,8 @@ export async function deleteLeaveRequest(tenantId: string, id: string) {
   return true
 }
 
+// คืน record เต็ม (ไม่ใช่แค่ boolean) — route layer ใช้แจ้ง LINE กลับไปหาพนักงาน
+// ว่าใบลาไหนถูกปฏิเสธ (feedback 2026-09-14: อนุมัติ/ปฏิเสธแล้วไม่แจ้งพนักงานกลับเลย)
 export async function rejectLeaveRequest(
   tenantId: string,
   id: string,
@@ -387,9 +389,12 @@ export async function rejectLeaveRequest(
   reject_note?: string,
   scopedEmployeeIds?: string[],
 ) {
-  const count = await prisma.leaveRequest.updateMany({
+  const req = await prisma.leaveRequest.findFirst({
     where: { id, tenant_id: tenantId, status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
+  })
+  if (!req) return null
+  return prisma.leaveRequest.update({
+    where: { id },
     data: { status: 'REJECTED', reviewed_by: reviewerId, reviewed_at: new Date(), reject_note },
   })
-  return count.count > 0
 }

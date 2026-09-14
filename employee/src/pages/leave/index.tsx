@@ -118,8 +118,8 @@ interface Holiday { date: string; name: string }
 // ═══════════════════════════════════════════════════════════════════════════════
 // Personal Calendar Tab
 // ═══════════════════════════════════════════════════════════════════════════════
-function PersonalCalendar({ requests, colleagues, holidays, statusType, onBooking }: {
-  requests: LeaveRequest[]; colleagues: ColleagueOff[]; holidays: Holiday[]
+function PersonalCalendar({ employeeId, requests, holidays, statusType, onBooking }: {
+  employeeId: string; requests: LeaveRequest[]; holidays: Holiday[]
   statusType?: { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; off_on_public_holiday?: boolean } | null
   onBooking: () => void
 }) {
@@ -132,12 +132,28 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
   const firstDow   = getFirstDow(month)
   const totalCells = Math.ceil((totalDays + firstDow) / 7) * 7
 
-  const getMyOff    = (_d: string) => null
+  // วันหยุดประจำ (จองผ่านแท็บ "จองหยุด") ของตัวเอง + เพื่อนร่วมงาน — เดิม
+  // component นี้ไม่เคยดึงข้อมูลนี้เลย (getMyOff คืน null ตายตัว, colleagues
+  // prop ส่ง [] ตายตัว) ปฏิทินเลยไม่เคยโชว์วันที่จองไว้จริง โชว์ได้แค่ "หยุด
+  // ประจำ (ตามสถานะ)" ที่คำนวณจาก saturday_rule/sunday_rule เท่านั้น — ผูก
+  // เข้ากับ endpoint เดียวกับที่ SwapPickerSheet/MonthlyBatchBooking ใช้อยู่
+  // แล้ว (queryKey ตรงกัน ไม่ fetch ซ้ำถ้าเปิดแท็บอื่นมาก่อน) feedback
+  // 2026-09-14: "ปฏิทิน รวมเฉพาะของตัวเอง ว่าตัวเองมีหยุดวันไหนบ้าง รวมหยุด
+  // ประจำเดือน + ลา"
+  const offQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+    queryKey: ['employee', 'weekly-off-view', employeeId, month],
+    queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
+    enabled:  !!employeeId,
+  })
+  const own        = offQ.data?.own ?? []
+  const colleagues = offQ.data?.colleagues ?? []
+
+  const getMyOff    = (d: string) => own.find(o => o.status !== 'REJECTED' && resolveDate(o.week_start, o.day_of_week) === d) ?? null
   const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
   const getColls    = (d: string) => colleagues.filter(c => resolveDate(c.week_start, c.day_of_week) === d)
   const getHoliday  = (d: string) => holidays.find(h => h.date === d) ?? null
 
-  const myOffThisMonth = 0
+  const myOffThisMonth = own.filter(o => o.status === 'APPROVED').length
 
   const selMyOff  = selDay ? getMyOff(selDay)    : null
   const selLeaves = selDay ? getMyLeaves(selDay)  : []
@@ -190,8 +206,8 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
             const holiday   = getHoliday(dateStr)
             const isToday   = dateStr === today
             const isSel     = selDay === dateStr
-            const isApprOff = false
-            const isPendOff = false
+            const isApprOff = myOff?.status === 'APPROVED'
+            const isPendOff = myOff?.status === 'PENDING'
             const firstLeave = myLeaves[0]
             const lCfg = firstLeave ? (firstLeave.leave_type === 'OTHER' && (firstLeave as any).custom_type ? { label: (firstLeave as any).custom_type.name, color: (firstLeave as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === firstLeave.leave_type)) : null
             const isPast     = dateStr < today
@@ -309,7 +325,18 @@ function PersonalCalendar({ requests, colleagues, holidays, statusType, onBookin
             </div>
           )}
 
-          {false && selMyOff && null}
+          {selMyOff && (() => {
+            const s = STATUS_CFG[selMyOff.status]
+            return (
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: '#FFF7ED', border: '1.5px solid #FED7AA' }}>
+                <Palmtree size={22} color="#EA580C" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>วันหยุดประจำ</div>
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99 }}>{s.label}</span>
+              </div>
+            )
+          })()}
 
           {selLeaves.map(lr => {
             const cfg = lr.leave_type === 'OTHER' && (lr as any).custom_type ? { label: (lr as any).custom_type.name, color: (lr as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === lr.leave_type)
@@ -1696,7 +1723,7 @@ export default function LeavePage() {
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
-          <PersonalCalendar requests={requests} colleagues={[]} holidays={holidays} statusType={employee?.employee_status_type} onBooking={() => setTab('booking')} />
+          <PersonalCalendar employeeId={employee?.id ?? ''} requests={requests} holidays={holidays} statusType={employee?.employee_status_type} onBooking={() => setTab('booking')} />
         )}
 
         {/* ── Request ─────────────────────────────────────────── */}
