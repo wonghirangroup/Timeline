@@ -35,6 +35,7 @@ interface ApiRecord {
   fine:            string
   carried_fine:    string
   is_outside_area: boolean
+  is_outside_shift: boolean
   gps_lat: number | null
   gps_lng: number | null
   note: string | null
@@ -732,6 +733,9 @@ export default function AttendancePage() {
                       {row.record?.is_outside_area && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={10}/>นอกพื้นที่</span>
                       )}
+                      {row.record?.is_outside_shift && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Clock size={10}/>นอกเวลากะ</span>
+                      )}
                       {row.record?.gps_lat && row.record?.gps_lng && (
                         <a href={`https://maps.google.com/?q=${row.record.gps_lat},${row.record.gps_lng}`} target="_blank" rel="noreferrer"
                           style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
@@ -790,6 +794,9 @@ export default function AttendancePage() {
                               : <span style={{ color: '#d1d5db' }}>—</span>}
                             {row.record?.is_outside_area && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#fef3c7', color: '#d97706', width: 'fit-content' }}><AlertTriangle size={9} /> นอกพื้นที่</span>
+                            )}
+                            {row.record?.is_outside_shift && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', width: 'fit-content' }}><Clock size={9} /> นอกเวลากะ</span>
                             )}
                           </div>
                         </td>
