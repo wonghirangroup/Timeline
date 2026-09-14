@@ -477,6 +477,10 @@ export default function WeeklyOffPage() {
   const [showCalendar, setShowCalendar] = useState(false)
   const [rejectId, setRejectId]   = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
+  // ปฏิเสธหลายรายการพร้อมกัน (ต่อการ์ดพนักงาน) — เก็บ employee_id ไว้ด้วยเพื่อ
+  // ปิดกล่อง note ของการ์ดที่ถูกต้องเท่านั้น (การ์ดอื่นกดปฏิเสธทั้งหมดพร้อมกันได้)
+  const [bulkRejectFor, setBulkRejectFor] = useState<{ employeeId: string; ids: string[] } | null>(null)
+  const [bulkRejectNote, setBulkRejectNote] = useState('')
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
 
@@ -511,10 +515,33 @@ export default function WeeklyOffPage() {
     return order[a.status] - order[b.status] || a.week_start.localeCompare(b.week_start)
   }), [requests, orgFilter, employeeOrgMap, statusFilter])
 
+  // จัดกลุ่มตามพนักงาน — คนเดียวจองหลายวันในเดือนนี้ให้รวมเป็นการ์ดเดียว
+  // (feedback 2026-09-14: "อนุมัติวันลาที่จองมากกว่า 1 วันให้รวมเป็นการ์ดเดียว
+  // อนุมัติ/ปฏิเสธได้ในครั้งเดียว") — เดิมตารางเก่า 1 แถว/1 วัน ทำให้คนที่จอง
+  // 3 วันต้องกดอนุมัติ 3 ครั้งแยกกัน
+  const groupedByEmployee = useMemo(() => {
+    const map = new Map<string, { employee: WeeklyOffRequest['employee']; items: WeeklyOffRequest[] }>()
+    for (const r of filtered) {
+      if (!map.has(r.employee_id)) map.set(r.employee_id, { employee: r.employee, items: [] })
+      map.get(r.employee_id)!.items.push(r)
+    }
+    const groups = [...map.values()].map(g => ({
+      ...g,
+      items: [...g.items].sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week))),
+    }))
+    // การ์ดที่มีรายการรอพิจารณาขึ้นก่อน แล้วเรียงชื่อ
+    groups.sort((a, b) => {
+      const aPending = a.items.some(i => i.status === 'PENDING') ? 0 : 1
+      const bPending = b.items.some(i => i.status === 'PENDING') ? 0 : 1
+      return aPending - bPending || a.employee.first_name.localeCompare(b.employee.first_name, 'th')
+    })
+    return groups
+  }, [filtered])
+
   const [reqPage, setReqPage] = useState(1)
-  const REQ_PAGE_SIZE = 15
-  const reqTotalPages = Math.max(1, Math.ceil(filtered.length / REQ_PAGE_SIZE))
-  const reqPaginated = filtered.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
+  const REQ_PAGE_SIZE = 10   // การ์ด/หน้า (คนละหน่วยกับตารางเดิมที่นับเป็นแถว)
+  const reqTotalPages = Math.max(1, Math.ceil(groupedByEmployee.length / REQ_PAGE_SIZE))
+  const reqPaginated = groupedByEmployee.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
   useEffect(() => { setReqPage(1) }, [orgFilter, statusFilter, month])
   useEffect(() => { if (reqPage > reqTotalPages) setReqPage(reqTotalPages) }, [reqTotalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -566,6 +593,21 @@ export default function WeeklyOffPage() {
       showToast('success', `อนุมัติ ${res.data?.data?.count ?? ''} รายการสำเร็จ`)
     },
     onError: () => showToast('error', 'ไม่สำเร็จ'),
+  })
+  // อนุมัติ/ปฏิเสธหลายรายการพร้อมกัน — ใช้กับปุ่ม "อนุมัติทั้งหมด/ปฏิเสธทั้งหมด" ต่อ
+  // การ์ดพนักงาน (feedback 2026-09-14: พนักงานคนเดียวจองหลายวัน อยากอนุมัติ/ปฏิเสธ
+  // ทีเดียวจากการ์ดเดียว ไม่ต้องกดทีละวัน) — ยิง per-item endpoint เดิมพร้อมกันผ่าน
+  // Promise.all แทนเพิ่ม endpoint bulk ใหม่ (pattern เดียวกับ PeriodManager)
+  const approveManyMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`))),
+    onSuccess: (_data, ids) => { invalidate(); showToast('success', `อนุมัติ ${ids.length} รายการสำเร็จ`) },
+    onError:   () => showToast('error', 'อนุมัติบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
+  })
+  const rejectManyMutation = useMutation({
+    mutationFn: ({ ids, note }: { ids: string[]; note: string }) =>
+      Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/reject`, { reject_note: note || undefined }))),
+    onSuccess: (_data, { ids }) => { invalidate(); showToast('success', `ปฏิเสธ ${ids.length} รายการแล้ว`); setBulkRejectFor(null); setBulkRejectNote('') },
+    onError:   () => showToast('error', 'ปฏิเสธบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
   })
 
   function handleAdd() {
@@ -735,78 +777,102 @@ export default function WeeklyOffPage() {
         <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        {isLoading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการวันหยุดในเดือนนี้</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ background: '#fff7ed' }}>
-                {['พนักงาน', 'สาขา', 'วันที่หยุด', 'สถานะ', 'จัดการ'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#c2410c', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {reqPaginated.map((r, i) => {
-                const sc   = STATUS_CFG[r.status]
-                const date = resolveDate(r.week_start, r.day_of_week)
-                return (
-                  <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    <td style={{ padding: '11px 14px' }}>
-                      <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {r.employee.first_name} {r.employee.last_name}
+      {/* Cards — 1 การ์ด/พนักงาน รวมทุกวันที่จองในเดือนนี้ (feedback 2026-09-14) */}
+      {isLoading ? (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการวันหยุดในเดือนนี้</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {reqPaginated.map(g => {
+            const pendingIds = g.items.filter(i => i.status === 'PENDING').map(i => i.id)
+            const isBulkRejecting = bulkRejectFor?.employeeId === g.employee.id
+            return (
+              <div key={g.employee.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+                {/* Card header — ชื่อพนักงาน + ปุ่ม bulk (เฉพาะเมื่อมีรอพิจารณา >1 วัน) */}
+                <div style={{ padding: '12px 14px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>
+                      {g.employee.first_name} {g.employee.last_name}{g.employee.nickname ? ` (${g.employee.nickname})` : ''}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                      {g.employee.employee_code} · {g.employee.branch.name} · {g.items.length} วัน
+                    </div>
+                  </div>
+                  {!isReadOnly && pendingIds.length > 1 && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => approveManyMutation.mutate(pendingIds)} disabled={approveManyMutation.isPending}
+                        style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Check size={12} /> อนุมัติทั้งหมด ({pendingIds.length})
+                      </button>
+                      <button onClick={() => { setBulkRejectFor({ employeeId: g.employee.id, ids: pendingIds }); setBulkRejectNote('') }}
+                        style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <X size={12} /> ปฏิเสธทั้งหมด
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bulk reject note — ปฏิเสธทุกวันที่รอพิจารณาของการ์ดนี้พร้อมกัน */}
+                {isBulkRejecting && (
+                  <div style={{ padding: '10px 14px', background: '#fef2f2', display: 'flex', gap: 6, alignItems: 'center', borderBottom: '1px solid #fecaca' }}>
+                    <input value={bulkRejectNote} onChange={e => setBulkRejectNote(e.target.value)}
+                      placeholder={`หมายเหตุ — ใช้กับทั้ง ${bulkRejectFor!.ids.length} วัน (ไม่บังคับ)`} autoFocus
+                      style={{ flex: 1, padding: '6px 9px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '12px', fontFamily: 'inherit' }}
+                      onKeyDown={e => { if (e.key === 'Enter') rejectManyMutation.mutate({ ids: bulkRejectFor!.ids, note: bulkRejectNote }) }}
+                    />
+                    <button onClick={() => rejectManyMutation.mutate({ ids: bulkRejectFor!.ids, note: bulkRejectNote })} disabled={rejectManyMutation.isPending}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      ยืนยันปฏิเสธ {bulkRejectFor!.ids.length} วัน
+                    </button>
+                    <button onClick={() => setBulkRejectFor(null)}
+                      style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
+                      ยกเลิก
+                    </button>
+                  </div>
+                )}
+
+                {/* รายวัน — ยังกดอนุมัติ/ปฏิเสธ/ลบทีละวันได้ตามปกติ (เผื่อบางวันไม่เหมือนกัน) */}
+                {g.items.map(r => {
+                  const sc   = STATUS_CFG[r.status]
+                  const date = resolveDate(r.week_start, r.day_of_week)
+                  return (
+                    <div key={r.id} style={{ padding: '10px 14px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                          {fmtDate(date)}
+                          <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>{DAYS_TH[r.day_of_week]}</span>
+                        </span>
                         {r.has_conflict && (
                           <span title="มีพนักงานตำแหน่งเดียวกันจองวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
                             <AlertTriangle size={10} /> ชนตำแหน่ง
                           </span>
                         )}
+                        <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600 }}>{sc.label}</span>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {r.employee.employee_code}{r.employee.nickname ? ` · ${r.employee.nickname}` : ''}
-                      </div>
-                    </td>
-                    <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
-                    <td style={{ padding: '11px 14px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
-                      {fmtDate(date)}
-                      <span style={{ marginLeft: 6, fontSize: '0.72rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>
-                        {DAYS_TH[r.day_of_week]}
-                      </span>
-                    </td>
-                    <td style={{ padding: '11px 14px' }}>
-                      <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>
-                        {sc.label}
-                      </span>
                       {r.status === 'REJECTED' && r.reject_note && (
-                        <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 3 }}>{r.reject_note}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#dc2626', flexBasis: '100%' }}>หมายเหตุ: {r.reject_note}</div>
                       )}
-                    </td>
-                    <td style={{ padding: '11px 14px' }}>
                       {!isReadOnly && (
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {r.status === 'PENDING' && <>
-                          <button onClick={() => approveMutation.mutate(r.id)} disabled={approveMutation.isPending}
-                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                            <Check size={12} /> อนุมัติ
+                        <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                          {r.status === 'PENDING' && <>
+                            <button onClick={() => approveMutation.mutate(r.id)} disabled={approveMutation.isPending}
+                              style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <Check size={12} /> อนุมัติ
+                            </button>
+                            <button onClick={() => { setRejectId(r.id); setRejectNote('') }}
+                              style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <X size={12} /> ปฏิเสธ
+                            </button>
+                          </>}
+                          <button onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>
+                            <Trash2 size={12} />
                           </button>
-                          <button onClick={() => { setRejectId(r.id); setRejectNote('') }}
-                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                            <X size={12} /> ปฏิเสธ
-                          </button>
-                        </>}
-                        <button onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}
-                          style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
+                        </div>
                       )}
-
-                      {/* Reject inline dialog */}
                       {rejectId === r.id && (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexBasis: '100%' }}>
                           <input value={rejectNote} onChange={e => setRejectNote(e.target.value)}
                             placeholder="หมายเหตุ (ไม่บังคับ)" autoFocus
                             style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '12px', fontFamily: 'inherit' }}
@@ -822,16 +888,16 @@ export default function WeeklyOffPage() {
                           </button>
                         </div>
                       )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-      <Pagination page={reqPage} totalPages={reqTotalPages} onChange={setReqPage} totalItems={filtered.length} itemLabel="รายการ" />
+      <Pagination page={reqPage} totalPages={reqTotalPages} onChange={setReqPage} totalItems={groupedByEmployee.length} itemLabel="คน" />
       </>}
 
       {/* ── ภาพรวม tab ─────────────────────────────────────────────────── */}
