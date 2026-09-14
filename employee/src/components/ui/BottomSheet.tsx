@@ -78,7 +78,10 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
           transition: dragging ? 'none' : 'transform 0.25s cubic-bezier(0.16,1,0.3,1)',
           // เนื้อหาอาจสูงเกินจอ (เช่น รายชื่อเพื่อนยาวๆ) — ต้อง scroll ได้เองถ้าเกิน
           // maxHeight ที่เผื่อพื้นที่ด้านบนไว้หน่อย ไม่งั้นเนื้อหาจะโดนตัดจอโดยเลื่อนดูไม่ได้เลย
-          maxHeight: '85dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
+          // ใช้หน่วย vh ไม่ใช่ dvh — เว็บวิว LINE in-app บางเวอร์ชันไม่รู้จัก dvh เลย
+          // เมิน (ignore) ค่าทั้งค่า ทำให้ maxHeight ไม่ถูกกำหนดเลย บั๊กเดิมกลับมาเหมือนไม่ได้แก้
+          // (feedback 2026-09-14: แก้ครั้งแรกด้วย dvh แล้วยังเลื่อนไม่ได้เหมือนเดิม)
+          maxHeight: '85vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
         }}
         className="animate-slide-up"
         onClick={e => e.stopPropagation()}
