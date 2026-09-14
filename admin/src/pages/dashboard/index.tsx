@@ -8,7 +8,6 @@ import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
-import { PlanUsageRow } from '../../components/shared/PlanUsage'
 import SetupChecklist from '../../components/shared/SetupChecklist'
 import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
@@ -378,9 +377,6 @@ export default function DashboardPage() {
 
         {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
         <RangeKpiSection branchFilter={branchFilter} />
-
-        {/* ── การใช้งานเทียบแพ็กเกจ ─────────────────────────────────── */}
-        <PlanUsageRow />
 
         {/* ── Action required ──────────────────────────────────────── */}
         {(pendingLeaveCount > 0 || pendingResignations.length > 0 || probationDue.length > 0 || expiringDocs.length > 0) && (
