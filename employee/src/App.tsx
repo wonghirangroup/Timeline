@@ -6,7 +6,7 @@ import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
 import { useAuthStore } from './stores/authStore'
 import { devLogin, liffLogin } from './lib/axios'
-import { initLiff, getLiffProfile, getChannelId } from './lib/liff'
+import { initLiff, getLiffProfile, getChannelId, forceRelogin } from './lib/liff'
 
 const CheckinPage  = lazy(() => import('./pages/checkin'))
 const CheckoutPage = lazy(() => import('./pages/checkout'))
@@ -184,6 +184,10 @@ export default function App() {
         if (code === 'EMPLOYEE_NOT_FOUND') {
           // ยังไม่ได้ผูก LINE → ไปหน้า verify
           setBootState('need-verify')
+        } else if (code === 'INVALID_TOKEN') {
+          // ID token ที่ liff SDK แคชไว้หมดอายุ (isLoggedIn() ยัง true อยู่ แต่ token ใช้ไม่ได้แล้ว) —
+          // บังคับ logout+login ใหม่เพื่อเอา token สดจริง ไม่งั้นกด "ลองใหม่" จะวนเจอ error เดิมไม่รู้จบ
+          await forceRelogin()
         } else {
           throw err
         }

@@ -131,19 +131,27 @@ export async function createWeeklyOff(tenantId: string, data: {
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
   const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, monday, data.day_of_week)
 
-  const created = await prisma.weeklyOffRequest.create({
-    data: {
-      tenant_id:   tenantId,
-      employee_id: data.employee_id,
-      week_start:  monday,
-      day_of_week: data.day_of_week,
-      has_conflict: conflict,
-      policy_override_by: overrideBy,
-    },
-    include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } },
-    },
-  })
+  let created
+  try {
+    created = await prisma.weeklyOffRequest.create({
+      data: {
+        tenant_id:   tenantId,
+        employee_id: data.employee_id,
+        week_start:  monday,
+        day_of_week: data.day_of_week,
+        has_conflict: conflict,
+        policy_override_by: overrideBy,
+      },
+      include: {
+        employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } },
+      },
+    })
+  } catch (e: any) {
+    // race กับ findUnique เช็คด้านบน (เช่น double-submit/2 แท็บพร้อมกัน) — map เป็น
+    // ALREADY_REQUESTED เหมือน createMonthlyBatchOff แทนที่จะปล่อย P2002 ดิบออกไปเป็น 500
+    if (e.code === 'P2002') throw new Error('ALREADY_REQUESTED')
+    throw e
+  }
   if (conflict && employee?.position_id) {
     await prisma.weeklyOffRequest.updateMany({
       where: {

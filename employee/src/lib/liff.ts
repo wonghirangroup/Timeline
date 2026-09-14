@@ -46,16 +46,31 @@ export async function getLiffProfile(): Promise<{
 }> {
   const liff = await _get()
   if (!liff.isLoggedIn()) {
-    // สร้าง redirectUri ที่มี ?lid= เสมอ เพื่อให้ getChannelId() ยังทำงานได้หลัง redirect
-    const liffId = getLiffId()
-    const base = `${window.location.origin}${window.location.pathname}`
-    const redirectUri = liffId ? `${base}?lid=${liffId}` : window.location.href
-    liff.login({ redirectUri })
+    liff.login({ redirectUri: liffRedirectUri() })
     await new Promise(() => {})
   }
   const profile = await liff.getProfile()
   const idToken = liff.getIDToken() ?? ''
   return { lineUserId: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl, idToken }
+}
+
+// redirectUri ที่มี ?lid= เสมอ เพื่อให้ getChannelId() ยังทำงานได้หลัง redirect
+function liffRedirectUri(): string {
+  const liffId = getLiffId()
+  const base = `${window.location.origin}${window.location.pathname}`
+  return liffId ? `${base}?lid=${liffId}` : window.location.href
+}
+
+// บังคับล็อกอินใหม่ทั้งหมด — ใช้ตอนเซิร์ฟเวอร์ตอบ INVALID_TOKEN (ID token หมดอายุ)
+// เพราะ liff.isLoggedIn() ยังคง true อยู่แม้ ID token ที่ SDK แคชไว้จะหมดอายุไปแล้ว
+// (login state กับอายุของ ID token เป็นคนละเรื่องกัน) ทำให้แค่เรียก getLiffProfile()
+// ซ้ำจะได้ token เดิมที่หมดอายุแล้วกลับมาทุกครั้ง กด "ลองใหม่" ก็วนลูปเดิมไม่รู้จบ —
+// ต้อง logout() ก่อนเพื่อเคลียร์ session แล้ว login() ใหม่ให้ได้ ID token ที่สดจริง
+export async function forceRelogin(): Promise<never> {
+  const liff = await _get()
+  liff.logout()
+  liff.login({ redirectUri: liffRedirectUri() })
+  return new Promise<never>(() => {})
 }
 
 export async function isInLiff(): Promise<boolean> {
