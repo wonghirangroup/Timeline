@@ -939,16 +939,39 @@ export default function LeaveRequestsTab() {
         />
       )}
 
-      {/* Approve confirm */}
+      {/* Approve confirm — เดิมใช้ ConfirmDialog ทั่วไป (มีแค่ ยกเลิก/อนุมัติ) เปิดจาก
+          กระดิ่งแจ้งเตือนแล้วเจอว่าไม่มีทางปฏิเสธจากตรงนี้เลย ต้องปิด popup แล้วไปหาแถว
+          เอง — เขียน dialog เองแยกต่างหาก เพิ่มปุ่ม "ปฏิเสธ" ตรงกลาง (feedback 2026-09-14) */}
       {approveTarget && (
-        <ConfirmDialog
-          title="อนุมัติวันลา?"
-          message={`${approveTarget.employee.first_name} ${approveTarget.employee.last_name} — ${TYPE_CFG[approveTarget.leave_type].label} ${approveTarget.days} วัน (${fmtDate(approveTarget.start_date)} – ${fmtDate(approveTarget.end_date)})`}
-          confirmLabel="อนุมัติ"
-          variant="default"
-          onConfirm={handleApprove}
-          onCancel={() => setApproveTarget(null)}
-        />
+        <Modal onClose={() => setApproveTarget(null)} width={360} labelledBy="approve-title" describedBy="approve-msg">
+          <div style={{ padding: '28px 28px 24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={22} color="var(--action-primary)" />
+              </div>
+              <div>
+                <p id="approve-title" style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>อนุมัติวันลา?</p>
+                <p id="approve-msg" style={{ fontSize: '13px', color: 'var(--text-gray)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  {approveTarget.employee.first_name} {approveTarget.employee.last_name} — {TYPE_CFG[approveTarget.leave_type].label} {approveTarget.days} วัน ({fmtDate(approveTarget.start_date)} – {fmtDate(approveTarget.end_date)})
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setApproveTarget(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 500, fontSize: '13px', cursor: 'pointer' }}>
+                ยกเลิก
+              </button>
+              <button onClick={() => { const t = approveTarget; setApproveTarget(null); setRejectTarget(t); setRejectNote('') }}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                ปฏิเสธ
+              </button>
+              <button onClick={handleApprove}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: 'var(--action-primary)', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                อนุมัติ
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Reject modal */}
