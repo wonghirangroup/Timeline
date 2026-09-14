@@ -497,6 +497,14 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const allOwn     = historyQ.data ?? []
   const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)))
   const colleagues = colleagueQ.data?.colleagues ?? []
+  // รายชื่อเพื่อนร่วมตำแหน่งที่จองวันไหนไปแล้วบ้าง — โชว์ให้เห็นชัดว่า "ใคร" กันวันไหน
+  // เพื่อจะได้ทักไปคุยขอสลับวันหยุดกันได้ตรงคน (ไม่ใช่แค่จุดแดงเฉยๆ)
+  const conflictsByDate: Record<string, ColleagueOff[]> = {}
+  for (const c of colleagues) {
+    if (!c.same_position) continue
+    const d = resolveDate(c.week_start, c.day_of_week)
+    ;(conflictsByDate[d] ??= []).push(c)
+  }
   const pickedCount = Object.keys(picks).length
   const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= quota) : (pickedCount === requiredWeeks.length)
 
@@ -667,10 +675,25 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
             })}
           </div>
 
-          {colleagues.some(c => c.same_position) && (
-            <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
-              เพื่อนร่วมตำแหน่งเดียวกันจองวันนี้แล้ว — ยังจองได้ แอดมินจะเป็นคนพิจารณา
+          {Object.keys(conflictsByDate).length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
+                เพื่อนร่วมตำแหน่งเดียวกันจองวันนี้แล้ว — ยังจองได้ แอดมินจะเป็นคนพิจารณา
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {Object.entries(conflictsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([d, list]) => (
+                  <div key={d} style={{
+                    display: 'flex', alignItems: 'baseline', gap: 6, fontSize: '0.74rem',
+                    background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '5px 10px',
+                  }}>
+                    <span style={{ fontWeight: 700, color: '#DC2626', flexShrink: 0 }}>{fmtDateShort(d)}</span>
+                    <span style={{ color: '#7C2D12' }}>
+                      ชนกับ {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -913,13 +936,22 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
             })}
           </div>
 
-          {selDow !== null && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: `${COLOR.primary}0C`, border: `1px solid ${COLOR.primary}22`, borderRadius: 12 }}>
-              <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Calendar size={15} /> เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
-              </span>
-            </div>
-          )}
+          {selDow !== null && (() => {
+            const dayColleagues = colleagues.filter(c => c.day_of_week === selDow)
+            return (
+              <div style={{ marginTop: 12, padding: '10px 14px', background: `${COLOR.primary}0C`, border: `1px solid ${COLOR.primary}22`, borderRadius: 12 }}>
+                <span style={{ fontSize: '0.85rem', color: COLOR.primary, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={15} /> เลือกหยุดวัน{DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(selDow)]} {fmtDate(weekDays[DISPLAY_TO_DOW.indexOf(selDow)])}
+                </span>
+                {dayColleagues.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: '0.76rem', color: '#7C2D12' }}>
+                    {dayColleagues.some(c => c.same_position) ? 'ชนกับ' : 'มีเพื่อนจองวันนี้แล้ว:'}{' '}
+                    {dayColleagues.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 8, paddingLeft: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
