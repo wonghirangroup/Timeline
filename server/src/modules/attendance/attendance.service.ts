@@ -942,3 +942,21 @@ export async function getEmployeeHistory(tenantId: string, employeeId: string, m
     ...(where.date ? {} : { take: 400 }),
   })
 }
+
+// วันเช็คอินแรกสุดของพนักงานแต่ละคน (employee_id → 'YYYY-MM-DD') — ใช้ตรวจสอบข้อมูล
+// ย้อนหลังในหน้ารายงาน โดยนับตั้งแต่วันที่มีการใช้งานจริงในระบบ (แม่นกว่า hired_at ซึ่ง
+// เป็นข้อมูลกรอกมือที่บางทีไม่ตรง/ไม่ได้กรอก)
+export async function getFirstCheckinDates(tenantId: string, branchId?: string): Promise<Record<string, string>> {
+  const rows = await prisma.attendanceRecord.groupBy({
+    by: ['employee_id'],
+    where: {
+      tenant_id: tenantId,
+      check_in_at: { not: null },
+      ...(branchId ? { employee: { branch_id: branchId } } : {}),
+    },
+    _min: { date: true },
+  })
+  const out: Record<string, string> = {}
+  for (const r of rows) if (r._min.date) out[r.employee_id] = r._min.date.toISOString().slice(0, 10)
+  return out
+}

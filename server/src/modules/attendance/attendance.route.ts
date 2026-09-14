@@ -8,7 +8,7 @@ import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime, deleteAttendanceRecord,
   checkIn, checkInQR, checkInAuto, checkInScan, checkInOffsite, checkOut, checkOutAuto, checkOutScan,
-  getTodayAttendance, getEmployeeHistory, getOffsiteShifts,
+  getTodayAttendance, getEmployeeHistory, getOffsiteShifts, getFirstCheckinDates,
 } from './attendance.service'
 import { verifyBranchQrPayload } from '../shift/shift.service'
 
@@ -42,6 +42,23 @@ export async function attendanceRoutes(app: FastifyInstance) {
       scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(records)
+  })
+
+  // ── Admin: วันเช็คอินแรกสุดของแต่ละคน — ใช้ตรวจสอบข้อมูลย้อนหลังในหน้ารายงาน ──
+  app.get('/admin/attendance/first-checkin', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'วันเช็คอินแรกสุดของพนักงานแต่ละคน (employee_id → YYYY-MM-DD)',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', properties: { branchId: { type: 'string' } } },
+    },
+  }, async (req: any) => {
+    const dates = await getFirstCheckinDates(req.tenantId, req.query.branchId)
+    if (!req.scopedEmployeeIds) return ok(dates)
+    const scoped: Record<string, string> = {}
+    for (const id of req.scopedEmployeeIds) if (dates[id]) scoped[id] = dates[id]
+    return ok(scoped)
   })
 
   // ── Admin: ลงเวลาแทนพนักงาน (manual) ────────────────────────────
