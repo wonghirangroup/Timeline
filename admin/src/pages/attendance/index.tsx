@@ -1,5 +1,6 @@
 // admin/src/pages/attendance/index.tsx
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search, CalendarClock } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
@@ -209,7 +210,11 @@ export default function AttendancePage() {
     () => setPage(p => Math.max(1, p - 1)),
   )
 
-  const [date, setDate]           = useState(todayStr())
+  // เข้ามาจากลิงก์ "ไม่มีข้อมูล" ในหน้ารายงาน — ?date=YYYY-MM-DD&employee=<id> พาตรงมาวันนั้น
+  // + เปิดโมดัลลงบันทึกให้คนนั้นทันที
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [date, setDate]           = useState(() => searchParams.get('date') || todayStr())
+  const autoOpenedRef = useRef(false)
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   // สาขายังเป็นตัวขับ query ฝั่ง server เหมือนเดิม (endpoint employees/attendance/shifts
   // รับ branchId param) — กลุ่ม/แผนก/ตำแหน่งกรองฝั่ง client เพิ่มเติมจาก employeeOrgMap
@@ -257,6 +262,21 @@ export default function AttendancePage() {
          .then(r => r.data.data),
   })
   const { activeOffsiteByEmployee } = useActiveOffsite()
+
+  // เปิดโมดัลลงบันทึกอัตโนมัติให้พนักงานที่ระบุมาใน ?employee= (จากลิงก์หน้ารายงาน)
+  useEffect(() => {
+    if (autoOpenedRef.current) return
+    const empId = searchParams.get('employee')
+    if (!empId || employees.length === 0) return
+    const emp = employees.find(e => e.id === empId)
+    if (!emp) return
+    autoOpenedRef.current = true
+    openManual(emp)
+    const next = new URLSearchParams(searchParams)
+    next.delete('employee')
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees])
 
   const { data: records = [], isLoading: recLoading, refetch } = useQuery<ApiRecord[]>({
     queryKey: ['admin', 'attendance', date, branchFilter],

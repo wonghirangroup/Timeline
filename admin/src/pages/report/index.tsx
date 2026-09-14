@@ -1,5 +1,6 @@
 // admin/src/pages/report/index.tsx — Attendance History Report
 import { useState, useMemo, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2 } from 'lucide-react'
 import { api } from '../../lib/axios'
@@ -67,6 +68,33 @@ function fmtMissingDates(dates: string[]): string {
 }
 const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
+// รายวันที่ "ไม่มีข้อมูล" แบบกดได้ทีละวัน — พาไปหน้า "เช็คอินวันนี้" ที่วันนั้น +
+// เปิดโมดัลลงบันทึกให้พนักงานคนนี้ทันที (อัปเดตให้มีข้อมูล)
+function MissingDateChips({ dates, onOpen }: { dates: string[]; onOpen: (dateKey: string) => void }) {
+  const shown = dates.slice(0, 6)
+  const extra = dates.length - shown.length
+  return (
+    <>
+      {shown.map((dk, i) => {
+        const d = new Date(dk + 'T00:00:00')
+        return (
+          <span key={dk}>
+            <button
+              onClick={e => { e.stopPropagation(); onOpen(dk) }}
+              title={`ไปลงบันทึกให้วันที่ ${dk}`}
+              style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer' }}
+            >
+              {d.getDate()} {MONTHS_TH[d.getMonth()].slice(0, 3)}
+            </button>
+            {i < shown.length - 1 ? ', ' : ''}
+          </span>
+        )
+      })}
+      {extra > 0 && ` และอีก ${extra} วัน`}
+    </>
+  )
+}
+
 function initials(first: string, last: string) {
   return (first.charAt(0) + last.charAt(0)).toUpperCase()
 }
@@ -74,6 +102,9 @@ function initials(first: string, last: string) {
 export default function ReportPage() {
   const now = new Date()
   const isMobile = useIsMobile()
+  const navigate = useNavigate()
+  // ไปหน้า "เช็คอินวันนี้" ที่วันนั้น + เปิดโมดัลลงบันทึกให้พนักงานคนนี้ (อัปเดตวัน "ไม่มีข้อมูล" ให้มี)
+  const goFixMissingDay = (employeeId: string, dateKey: string) => navigate(`/shift?date=${dateKey}&employee=${employeeId}`)
   const [year,   setYear]   = useState(now.getFullYear())
   const [month,  setMonth]  = useState(now.getMonth() + 1)
   const [branch, setBranch] = useState('')
@@ -559,8 +590,8 @@ export default function ReportPage() {
                       {fine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#be185d', background: '#fdf2f8', borderRadius: 6, padding: '2px 7px' }}><Wallet size={10} /> {fine} ฿</span>}
                     </div>
                     {noDataByEmp.has(info.id) && (
-                      <div style={{ marginTop: 5, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <AlertTriangle size={11} /> ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                      <div style={{ marginTop: 5, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }} title={fmtMissingDates(noDataByEmp.get(info.id)!)}>
+                        <AlertTriangle size={11} /> ไม่มีข้อมูล: <MissingDateChips dates={noDataByEmp.get(info.id)!} onOpen={dk => goFixMissingDay(info.id, dk)} />
                       </div>
                     )}
                   </div>
@@ -659,8 +690,8 @@ export default function ReportPage() {
                       </div>
                     </div>
                     {noDataByEmp.has(info.id) && (
-                      <div style={{ marginTop: 6, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <AlertTriangle size={11} /> ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                      <div style={{ marginTop: 6, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }} title={fmtMissingDates(noDataByEmp.get(info.id)!)}>
+                        <AlertTriangle size={11} /> ไม่มีข้อมูล: <MissingDateChips dates={noDataByEmp.get(info.id)!} onOpen={dk => goFixMissingDay(info.id, dk)} />
                       </div>
                     )}
                   </div>
@@ -834,8 +865,8 @@ export default function ReportPage() {
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
                             {noDataByEmp.has(info.id) && (
-                              <div style={{ fontSize: '0.66rem', color: '#7c3aed', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap' }}>
-                                ไม่มีข้อมูล: {fmtMissingDates(noDataByEmp.get(info.id)!)}
+                              <div style={{ fontSize: '0.66rem', color: '#7c3aed', fontWeight: 600, marginTop: 2 }} title={fmtMissingDates(noDataByEmp.get(info.id)!)}>
+                                ไม่มีข้อมูล: <MissingDateChips dates={noDataByEmp.get(info.id)!} onOpen={dk => goFixMissingDay(info.id, dk)} />
                               </div>
                             )}
                           </div>
