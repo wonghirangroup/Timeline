@@ -689,14 +689,17 @@ export default function HolidayPage() {
                   ) : listFiltered.map((h, idx) => {
                     const tc = TYPE_CFG[h.type]
                     const isSelected = selectedDate === h.date
+                    // กันเหนียว: บังคับตัด date ให้เหลือ YYYY-MM-DD เสมอตรงจุดใช้งาน — เผื่อ
+                    // ค่าที่มาถึงตรงนี้ยังมีเวลาติดมา (เช่น ISO string เต็ม) จะได้ไม่ล้นไปทับชื่อวันหยุด
+                    const dOnly = (h.date ?? '').slice(0, 10)
                     return (
                       <div key={h.id} onClick={() => setSelectedDate(s => s === h.date ? null : h.date)}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: idx < listFiltered.length - 1 ? '1px solid #f8fafc' : 'none', background: isSelected ? '#f8f9ff' : 'transparent', transition: 'background 0.1s' }}
                         onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#fafbff' }}
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}>
-                        <div style={{ width: 40, textAlign: 'center', flexShrink: 0 }}>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: tc.color, lineHeight: 1 }}>{h.date.slice(8)}</div>
-                          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 1 }}>{MONTH_TH[Number(h.date.slice(5, 7)) - 1].slice(0, 3)}</div>
+                        <div style={{ width: 40, textAlign: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: tc.color, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden' }}>{dOnly.slice(8, 10)}</div>
+                          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden' }}>{MONTH_TH[Number(dOnly.slice(5, 7)) - 1]?.slice(0, 3) ?? ''}</div>
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</div>
