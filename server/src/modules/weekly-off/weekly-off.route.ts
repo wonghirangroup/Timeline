@@ -331,6 +331,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     try {
       const result = await createWeeklyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
         detail: `หยุดวัน${DOW_TH[req.body.day_of_week]} สัปดาห์ ${req.body.week_start}`,
         color: '#2563EB',
@@ -384,6 +385,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     try {
       const result = await createMonthlyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
         detail: `วันหยุดประจำเดือน ${req.body.date}`,
         color: '#2563EB',
@@ -419,6 +421,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     try {
       const result = await createMonthlyBatchOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
+        type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
         detail: `วันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน`,
         color: '#2563EB',
@@ -573,6 +576,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
           color: '#16A34A',
         })
         notifyAdminsLine(req.tenantId, swapReq.requester_employee_id, {
+          type: 'weekly_off_swap',
           title: 'พนักงานสลับวันหยุดกันเอง',
           detail: `${requesterName} ↔ ${targetName}: ${requesterName} เปลี่ยนไปหยุด ${newReqDate}, ${targetName} เปลี่ยนไปหยุด ${newTargetDate}`,
           color: '#7C3AED',

@@ -252,6 +252,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       // ระบบเลยหากะที่ใกล้เคียงที่สุดมาให้แทน (ยังเช็คอินได้ปกติ แค่ผิดปกติ ให้แอดมินรู้)
       if (result.is_outside_shift) {
         notifyAdminsLine(req.tenantId, req.body.employee_id, {
+          type: 'attendance_anomaly',
           title: 'เช็คอินนอกเวลากะ',
           detail: `เช็คอินสำเร็จ แต่ไม่มีกะที่ตรงเวลาเช็คอินพอดี — ระบบจับเข้ากะ "${result.shift.name}" (${result.shift.start_time}-${result.shift.end_time}) ให้แทน`,
           color: '#7C3AED',
@@ -270,6 +271,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
         // ยังไม่ได้ย้ายสาขาในระบบให้ตรง ฯลฯ)
         const branch = await prisma.branch.findFirst({ where: { id: payload.bid }, select: { name: true } })
         notifyAdminsLine(req.tenantId, req.body.employee_id, {
+          type: 'attendance_anomaly',
           title: 'เช็คอินผิดสาขา (ถูกบล็อก)',
           detail: `พยายามเช็คอินที่สาขา "${branch?.name ?? payload.bid}" แต่ไม่ได้สังกัดสาขานี้ — เช็คอินไม่สำเร็จ`,
           color: '#DC2626',

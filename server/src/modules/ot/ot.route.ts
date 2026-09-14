@@ -123,6 +123,7 @@ export async function otRoutes(app: FastifyInstance) {
     const request = await createOtRequest(req.tenantId, req.body)
     const { employee_id, date, start_time, end_time, hours } = req.body
     notifyAdminsLine(req.tenantId, employee_id, {
+      type: 'ot',
       title: 'คำขอ OT รออนุมัติ',
       detail: `${date} ${start_time}–${end_time} (${hours} ชม.)`,
       color: '#7C3AED',

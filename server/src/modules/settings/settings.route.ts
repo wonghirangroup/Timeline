@@ -5,7 +5,8 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { ok, fail }         from '../../common/utils/response'
-import { getTenantSettings, updateTenantSettings } from '../tenant/tenant.service'
+import { getTenantSettings, updateTenantSettings, updateTenantNotificationPrefs } from '../tenant/tenant.service'
+import { NOTIFICATION_TYPES } from '../../common/utils/notificationPrefs'
 
 export async function settingsRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/tenant-settings
@@ -40,5 +41,23 @@ export async function settingsRoutes(app: FastifyInstance) {
     const s = await updateTenantSettings(req.tenantId, req.body)
     if (!s) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบริษัท'))
     return ok(s, 'บันทึกการตั้งค่าแล้ว')
+  })
+
+  // PATCH /api/v1/admin/tenant-settings/notification-prefs — เปิด/ปิดการแจ้งเตือน LINE
+  // ไปแอดมินแต่ละประเภท (ต่างจาก enabled_features ที่ Super Admin เท่านั้น อันนี้ Admin
+  // ของ tenant แก้เองได้เลย) merge เฉพาะ key ที่ส่งมา ไม่เขียนทับ key อื่น
+  app.patch('/tenant-settings/notification-prefs', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    schema: {
+      tags: ['Admin'], summary: 'เปิด/ปิดการแจ้งเตือน LINE ไปแอดมินแต่ละประเภท', security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        properties: Object.fromEntries(NOTIFICATION_TYPES.map(k => [k, { type: 'boolean' }])),
+      },
+    },
+  }, async (req: any, reply) => {
+    const s = await updateTenantNotificationPrefs(req.tenantId, req.body)
+    if (!s) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบริษัท'))
+    return ok(s, 'บันทึกการตั้งค่าแจ้งเตือนแล้ว')
   })
 }

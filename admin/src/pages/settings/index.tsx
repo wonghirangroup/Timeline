@@ -13,7 +13,7 @@
 // employee/src/components/ui/index.tsx PageLoader)
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock } from 'lucide-react'
+import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock, Bell } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
@@ -261,7 +261,7 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()
@@ -378,6 +378,65 @@ function LeavePolicyTab() {
   )
 }
 
+// ── การแจ้งเตือน LINE ไปแอดมิน ────────────────────────────────────────────────
+// ตรงกับ NOTIFICATION_TYPES ฝั่ง backend (server/src/common/utils/notificationPrefs.ts)
+// key ที่ไม่มี/ไม่เคยตั้งไว้ = เปิดอยู่ (ค่าเริ่มต้น backward-compatible)
+const NOTIF_TYPES: { key: string; label: string; desc: string }[] = [
+  { key: 'leave',              label: 'ใบลารออนุมัติ',           desc: 'พนักงานยื่นลาป่วย/ลากิจ/ลาพักร้อน ฯลฯ' },
+  { key: 'ot',                 label: 'คำขอ OT รออนุมัติ',        desc: 'พนักงานขอทำ OT' },
+  { key: 'weekly_off',         label: 'จองวันหยุดรออนุมัติ',      desc: 'พนักงานจองวันหยุดประจำสัปดาห์/เดือน' },
+  { key: 'weekly_off_swap',    label: 'พนักงานสลับวันหยุดกันเอง', desc: 'แจ้งให้ทราบหลังตกลงสลับกันสำเร็จแล้ว — ไม่ต้องอนุมัติอะไร' },
+  { key: 'resignation',        label: 'คำขอลาออกรอพิจารณา',      desc: 'พนักงานยื่นลาออกผ่าน LINE' },
+  { key: 'attendance_anomaly', label: 'เช็คอินผิดปกติ',           desc: 'เช็คอินนอกเวลากะ หรือเช็คอินผิดสาขา (ถูกบล็อก)' },
+]
+
+function NotificationPrefsTab() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const { data } = useQuery<TenantSettings>({
+    queryKey: ['tenant-settings'],
+    queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data),
+  })
+  const prefs = data?.notification_prefs ?? {}
+
+  const mut = useMutation({
+    mutationFn: (patch: Record<string, boolean>) => api.patch('/api/v1/admin/tenant-settings/notification-prefs', patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-settings'] }),
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  return (
+    <div style={{ ...card, padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', flexShrink: 0 }}><Bell size={18} /></div>
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>การแจ้งเตือน LINE ไปแอดมิน</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
+            เลือกได้ว่าจะให้ส่งแจ้งเตือนประเภทไหนเข้า LINE ของแอดมิน/หัวหน้าแผนกบ้าง — ปิดแล้วยังเห็นคำขอในเว็บแอดมินตามปกติ แค่ไม่มี LINE เด้งมาเตือน (เปลี่ยนแล้วบันทึกทันที)
+          </p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {NOTIF_TYPES.map(n => {
+          const checked = prefs[n.key] !== false
+          return (
+            <label key={n.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 4px', borderBottom: '1px solid #f8fafc', cursor: readOnly ? 'default' : 'pointer' }}>
+              <input type="checkbox" checked={checked} disabled={readOnly || mut.isPending}
+                onChange={e => mut.mutate({ [n.key]: e.target.checked })}
+                style={{ marginTop: 3 }} />
+              <span>
+                <span style={{ fontWeight: 600, fontSize: '13px', color: '#374151' }}>{n.label}</span>
+                <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>{n.desc}</span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── ทางลัดไปตั้งค่าที่อยู่ที่อื่น ──────────────────────────────────────────────
 function ShortcutCard() {
   return (
@@ -400,12 +459,13 @@ function ShortcutCard() {
   )
 }
 
-type SettingsTab = 'general' | 'users' | 'leave' | 'plan'
+type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'plan'
 const TABS: { key: SettingsTab; label: string }[] = [
-  { key: 'general', label: 'ทั่วไป' },
-  { key: 'users',   label: 'ผู้ใช้งาน' },
-  { key: 'leave',   label: 'นโยบายการลา' },
-  { key: 'plan',    label: 'แพ็กเกจ' },
+  { key: 'general',       label: 'ทั่วไป' },
+  { key: 'users',         label: 'ผู้ใช้งาน' },
+  { key: 'leave',         label: 'นโยบายการลา' },
+  { key: 'notifications', label: 'การแจ้งเตือน' },
+  { key: 'plan',          label: 'แพ็กเกจ' },
 ]
 
 export default function SettingsPage() {
@@ -431,6 +491,7 @@ export default function SettingsPage() {
       {tab === 'general' && <><CompanyProfileTab /><ShortcutCard /></>}
       {tab === 'users' && <><SelfPasswordCard /><UserManagementSettings /></>}
       {tab === 'leave' && <><LeavePolicyTab /><LeaveTypesManager /></>}
+      {tab === 'notifications' && <NotificationPrefsTab />}
       {tab === 'plan' && (
         <div style={{ ...card, padding: 20 }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>

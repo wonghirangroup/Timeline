@@ -233,6 +233,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
       const dateRange = start_date === end_date ? start_date : `${start_date} – ${end_date}`
       notifyAdminsLine(req.tenantId, employee_id, {
+        type: 'leave',
         title: 'ใบลารออนุมัติ',
         detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)`,
         color: '#EA580C',

@@ -194,6 +194,7 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
       const { employee_id, last_working_date, reason } = req.body
       const r = await svc.createResignation(req.tenantId, { employee_id, last_working_date, reason })
       notifyAdminsLine(req.tenantId, employee_id, {
+        type: 'resignation',
         title: 'คำขอลาออกรอพิจารณา',
         detail: `วันทำงานสุดท้าย ${last_working_date}`,
         color: '#DC2626',

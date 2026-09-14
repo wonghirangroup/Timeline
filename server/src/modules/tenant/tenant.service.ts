@@ -120,6 +120,7 @@ export async function assertPlanCapacity(tenantId: string, kind: 'employees' | '
 const TENANT_SETTINGS_SELECT = {
   name: true, address: true, tax_id: true, logo_url: true, primary_color: true,
   leave_backdate_days: true, self_resignation_enabled: true, plan: true,
+  notification_prefs: true,
 } as const
 
 export async function getTenantSettings(tenantId: string) {
@@ -152,6 +153,24 @@ export async function updateTenantFeatures(id: string, features: Partial<Record<
   return prisma.tenant.update({
     where: { id },
     data: { enabled_features: merged },
+  })
+}
+
+// เปิด/ปิดการแจ้งเตือน LINE ไปแอดมินแต่ละประเภท — Admin ของ tenant แก้เองได้ (ต่างจาก
+// enabled_features ที่ Super Admin เท่านั้น) merge pattern เดียวกันทุกประการ
+export async function updateTenantNotificationPrefs(id: string, prefs: Partial<Record<string, boolean>>) {
+  const existing = await prisma.tenant.findFirst({ where: { id, deleted_at: null }, select: { notification_prefs: true } })
+  if (!existing) return null
+
+  const current = (existing.notification_prefs && typeof existing.notification_prefs === 'object')
+    ? existing.notification_prefs as Record<string, boolean>
+    : {}
+  const merged = { ...current, ...prefs }
+
+  return prisma.tenant.update({
+    where: { id },
+    data: { notification_prefs: merged },
+    select: { notification_prefs: true },
   })
 }
 

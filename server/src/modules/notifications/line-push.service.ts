@@ -8,19 +8,26 @@
 // best-effort เสมอ — พังยังไงก็ห้ามทำให้ flow หลัก (สร้างคำขอ) ล้มตาม จับ error ทั้งหมดในนี้
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast } from '../announcement/announcement.service'
+import { isNotificationEnabled, type NotificationType } from '../../common/utils/notificationPrefs'
 
 const ADMIN_APP_URL    = process.env.ADMIN_APP_URL    || 'https://timeline-admin.vercel.app'
 const EMPLOYEE_APP_URL = process.env.EMPLOYEE_APP_URL || 'https://timeline-employee.vercel.app'
 
-export interface AdminLineNotice {
+// ฟิลด์ร่วมของการ์ดแจ้งเตือนทั้งสองแบบ (ฝั่งแอดมิน/ฝั่งพนักงาน) — buildFlexMessage
+// ใช้แค่ฟิลด์พวกนี้ ไม่แตะ `type` (เป็นแค่ตัวเช็ค pref ก่อนส่ง ไม่ได้โผล่ในการ์ด)
+interface LineNoticeCard {
   title: string     // หัวการ์ด เช่น "ใบลารออนุมัติ"
   detail: string    // รายละเอียด เช่น "ลาป่วย 11 ก.ย. (1 วัน)"
   color: string     // สีหัวการ์ด/ปุ่ม (hex)
-  path?: string     // path สัมพัทธ์ในเว็บแอดมิน เช่น "/leave?tab=requests&approve=<id>" — ไม่ใส่ = ไม่มีปุ่ม
+  path?: string     // path สัมพัทธ์ — ไม่ใส่ = ไม่มีปุ่ม
   buttonLabel?: string
 }
 
-function buildFlexMessage(empName: string, n: AdminLineNotice, baseUrl: string = ADMIN_APP_URL) {
+export interface AdminLineNotice extends LineNoticeCard {
+  type: NotificationType  // ประเภทการแจ้งเตือน — เช็คกับ Tenant.notification_prefs ก่อนส่งเสมอ
+}
+
+function buildFlexMessage(empName: string, n: LineNoticeCard, baseUrl: string = ADMIN_APP_URL) {
   const footer = n.path ? {
     footer: {
       type: 'box', layout: 'vertical', paddingAll: '12px', spacing: 'sm',
@@ -53,10 +60,12 @@ function buildFlexMessage(empName: string, n: AdminLineNotice, baseUrl: string =
 
 export async function notifyAdminsLine(tenantId: string, employeeId: string, notice: AdminLineNotice): Promise<void> {
   try {
-    const [lineConfig, emp] = await Promise.all([
+    const [tenant, lineConfig, emp] = await Promise.all([
+      prisma.tenant.findFirst({ where: { id: tenantId }, select: { notification_prefs: true } }),
       prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true } }),
       prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { first_name: true, last_name: true, nickname: true, position_id: true } }),
     ])
+    if (!isNotificationEnabled(tenant?.notification_prefs, notice.type)) return
     if (!lineConfig?.line_channel_access_token || !emp) return
 
     // ADMIN/MANAGER เห็นทั้ง tenant — ได้แจ้งเตือนทุกคำขอ
