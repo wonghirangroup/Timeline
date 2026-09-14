@@ -1,4 +1,4 @@
-// employee/src/components/layout/BottomNav.tsx — Premium Floating Bottom Navigation
+// employee/src/components/layout/BottomNav.tsx — Docked Bottom Navigation Bar
 import { NavLink, useLocation } from 'react-router-dom'
 import { QrCode, BarChart2, Layers, User } from 'lucide-react'
 import { COLOR } from '../ui/tokens'
@@ -31,13 +31,13 @@ export default function BottomNav() {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', left: 12, right: 12,
+      position: 'fixed', bottom: 0, left: 0, right: 0,
       background: COLOR.navBg,
-      borderRadius: 18,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-      border: `1px solid ${COLOR.navBorder}`,
+      borderRadius: 0,
+      boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+      borderTop: `1px solid ${COLOR.navBorder}`,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '8px',
+      padding: '8px 8px calc(8px + env(safe-area-inset-bottom, 0px))',
       zIndex: 50,
     }}>
       {NAV_ITEMS.map(({ path, label, Icon }) => {
