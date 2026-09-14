@@ -33,19 +33,32 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
   const lastT    = useRef(0)
   const cardRef  = useRef<HTMLDivElement>(null)
 
+  // onClose มักเป็น inline arrow function ที่ parent สร้างใหม่ทุกครั้งที่ re-render
+  // (เช่น onClose={() => setSwapPickerFor(null)}) — ถ้า effect ผูกกับ [onClose]
+  // ตรงๆ มันจะ cleanup+รันใหม่ทุกครั้งที่ parent re-render (เช่น react-query
+  // refetch พื้นหลัง) แต่ละรอบ cleanup จะ "คืนค่า overflow เดิม" (ซึ่งตอนนั้น
+  // ถูกตั้งเป็น 'hidden' ไปแล้วจากรอบก่อน) แล้วรันใหม่จับ prevOverflow เป็น
+  // 'hidden' แทนค่าจริงก่อนเปิด sheet — พอปิด sheet จริงๆ เลย "คืนค่า" กลับเป็น
+  // 'hidden' ค้างตลอดไป ทั้งหน้าเลื่อนไม่ได้แม้ปิด sheet ไปแล้ว (feedback
+  // 2026-09-14: "ตอนนี้จอมันเลื่อนไม่ได้ เลย") — แก้โดยแยก onClose ออกเป็น ref
+  // ให้ effect หลักรันแค่ตอน mount/unmount ครั้งเดียวจริงๆ ไม่ผูกกับ identity
+  // ของ onClose เลย
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     cardRef.current?.querySelector<HTMLElement>('button,a,input,textarea,select,[tabindex]')?.focus()
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current() } }
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
       document.body.style.overflow = prevOverflow
       prevFocus?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   function handleTouchStart(e: React.TouchEvent) {
     const y = e.touches[0].clientY
