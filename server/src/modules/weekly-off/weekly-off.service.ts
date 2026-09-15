@@ -372,10 +372,34 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     orderBy: { week_start: 'asc' },
   })
   const all = allRaw.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === month)
+  const ownRecords = all.filter(r => r.employee_id === employeeId)
+
+  // วันไหนที่มาจากการสลับ (WeeklyOffSwap — swapWeeklyOff() อัปเดต week_start/
+  // day_of_week ของ record เดิมในที่ id คงเดิม เลยยัง match ผ่าน off_id ได้)
+  // แนบชื่อคู่สลับให้ ปฏิทินจะได้โชว์ "สลับกับ [ชื่อ]" ได้ (feedback 2026-09-15:
+  // "ถ้ามีการสลับวันหยุดให้ขึ้นด้วย ว่าสลับมาจากใครแล้วสลับวันไหนกันบ้าง")
+  const ownIds = ownRecords.map(r => r.id)
+  const swaps = ownIds.length > 0 ? await prisma.weeklyOffSwap.findMany({
+    where: { tenant_id: tenantId, OR: [{ employee_a_off_id: { in: ownIds } }, { employee_b_off_id: { in: ownIds } }] },
+  }) : []
+  const otherEmployeeIds = [...new Set(swaps.map(s => s.employee_a_id === employeeId ? s.employee_b_id : s.employee_a_id))]
+  const otherEmployees = otherEmployeeIds.length > 0 ? await prisma.employee.findMany({
+    where: { id: { in: otherEmployeeIds } },
+    select: { id: true, first_name: true, last_name: true, nickname: true },
+  }) : []
+  const otherEmpMap = new Map(otherEmployees.map(e => [e.id, e]))
+  const swapNameByOffId = new Map<string, string>()
+  for (const s of swaps) {
+    const mine = ownIds.includes(s.employee_a_off_id) ? s.employee_a_off_id : ownIds.includes(s.employee_b_off_id) ? s.employee_b_off_id : null
+    if (!mine) continue
+    const otherId = mine === s.employee_a_off_id ? s.employee_b_id : s.employee_a_id
+    const other = otherEmpMap.get(otherId)
+    if (other) swapNameByOffId.set(mine, other.nickname || `${other.first_name} ${other.last_name}`)
+  }
 
   // same_position: คนตำแหน่งเดียวกับตัวเอง — ใช้กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน (ยังจองซ้ำได้ แต่ให้เห็น flag)
   return {
-    own: all.filter(r => r.employee_id === employeeId),
+    own: ownRecords.map(r => ({ ...r, swapped_with: swapNameByOffId.get(r.id) ?? null })),
     colleagues: all.filter(r => r.employee_id !== employeeId).map(r => ({
       ...r,
       same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,

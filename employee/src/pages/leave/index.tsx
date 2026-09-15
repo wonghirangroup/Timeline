@@ -33,6 +33,7 @@ interface ColleagueOff {
 interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
+  swapped_with?: string | null // ชื่อคนที่สลับวันหยุดด้วย (ถ้าวันนี้มาจากการสลับ) — มีเฉพาะใน "own" ของ month-view
 }
 interface PeriodStatus { is_open: boolean; deadline: string | null; note: string | null }
 interface SwapRequestRow {
@@ -328,13 +329,28 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
           {selMyOff && (() => {
             const s = STATUS_CFG[selMyOff.status]
             return (
-              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: '#FFF7ED', border: '1.5px solid #FED7AA' }}>
-                <Palmtree size={22} color="#EA580C" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>วันหยุดประจำ</div>
+              // กดการ์ดนี้ทั้งใบ → ไปแท็บ "จองหยุด" เลย (feedback 2026-09-15: "กด
+              // จาก [ปฏิทิน] แล้วไปยังหน้าจองหยุดในเดือนนั้นๆ เลย") — เก็บ inline
+              // detail (สลับกับใคร/สถานะ) ไว้ก่อนเผื่ออยากดูก่อนตัดสินใจกดต่อ
+              <button onClick={onBooking} style={{
+                width: '100%', textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
+                marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8,
+                padding: '12px 14px', borderRadius: 12, background: '#FFF7ED', border: '1.5px solid #FED7AA',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Palmtree size={22} color="#EA580C" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>วันหยุดประจำ</div>
+                    <div style={{ fontSize: '0.7rem', color: '#EA580C', marginTop: 1 }}>แตะเพื่อไปหน้าจองหยุดเดือนนี้ →</div>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99, flexShrink: 0 }}>{s.label}</span>
                 </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99 }}>{s.label}</span>
-              </div>
+                {selMyOff.swapped_with && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', color: '#7C3AED', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '5px 9px' }}>
+                    <Repeat size={12} /> สลับวันหยุดกับ <b>{selMyOff.swapped_with}</b> แล้ว
+                  </div>
+                )}
+              </button>
             )
           })()}
 
@@ -695,11 +711,12 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const allOwn     = historyQ.data ?? []
   const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)))
   const colleagues = colleagueQ.data?.colleagues ?? []
-  // รายชื่อเพื่อนร่วมตำแหน่งที่จองวันไหนไปแล้วบ้าง — โชว์ให้เห็นชัดว่า "ใคร" กันวันไหน
-  // เพื่อจะได้ทักไปคุยขอสลับวันหยุดกันได้ตรงคน (ไม่ใช่แค่จุดแดงเฉยๆ)
+  // รายชื่อเพื่อน "ทุกคน" (ไม่ใช่แค่ร่วมตำแหน่งเดียวกันเหมือนเดิม) ที่จองวันไหน
+  // ไปแล้วบ้าง — โชว์ให้เห็นชัดว่า "ใคร" จองวันไหนก่อน เพื่อจะได้ทักไปคุยขอ
+  // สลับวันหยุดกันได้ตรงคน ไม่ใช่แค่จุดสีเฉยๆ (feedback 2026-09-15: "จองทีหลัง
+  // แล้วต้องเห็นรายชื่อเพื่อนที่จองก่อนเมื่อกดไปยังวันที่ต้องการจอง")
   const conflictsByDate: Record<string, ColleagueOff[]> = {}
   for (const c of colleagues) {
-    if (!c.same_position) continue
     const d = resolveDate(c.week_start, c.day_of_week)
     ;(conflictsByDate[d] ??= []).push(c)
   }
@@ -898,21 +915,24 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
           {Object.keys(conflictsByDate).length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
-                เพื่อนร่วมตำแหน่งเดียวกันจองวันนี้แล้ว — ยังจองได้ แอดมินจะเป็นคนพิจารณา
+                <Users size={11} /> เพื่อนที่จองวันเหล่านี้ไปก่อนแล้ว — ยังจองได้ตามปกติ (สีแดง = ตำแหน่งเดียวกัน ต้องรอแอดมินพิจารณา)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {Object.entries(conflictsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([d, list]) => (
-                  <div key={d} style={{
-                    display: 'flex', alignItems: 'baseline', gap: 6, fontSize: '0.74rem',
-                    background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '5px 10px',
-                  }}>
-                    <span style={{ fontWeight: 700, color: '#DC2626', flexShrink: 0 }}>{fmtDateShort(d)}</span>
-                    <span style={{ color: '#7C2D12' }}>
-                      ชนกับ {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
-                    </span>
-                  </div>
-                ))}
+                {Object.entries(conflictsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([d, list]) => {
+                  const hasSamePosition = list.some(c => c.same_position)
+                  return (
+                    <div key={d} style={{
+                      display: 'flex', alignItems: 'baseline', gap: 6, fontSize: '0.74rem',
+                      background: hasSamePosition ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${hasSamePosition ? '#FECACA' : '#FDE68A'}`, borderRadius: 8, padding: '5px 10px',
+                    }}>
+                      <span style={{ fontWeight: 700, color: hasSamePosition ? '#DC2626' : '#B45309', flexShrink: 0 }}>{fmtDateShort(d)}</span>
+                      <span style={{ color: hasSamePosition ? '#7C2D12' : '#78350F' }}>
+                        {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
+                        {hasSamePosition ? ' (ตำแหน่งเดียวกัน)' : ' หยุดวันนี้ด้วย'}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

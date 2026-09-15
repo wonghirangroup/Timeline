@@ -286,6 +286,13 @@ export default function HistoryPage() {
   const leaveFiltered   = leaveRecords.filter(r => r.start_date.slice(0, 7) === selectedMonth).sort((a, b) => b.start_date.localeCompare(a.start_date))
   const dayoffFiltered  = dayoffRecords.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === selectedMonth).sort((a, b) => b.week_start.localeCompare(a.week_start))
   const offsiteFiltered = offsiteRecords.filter(r => r.check_in_at.slice(0, 7) === selectedMonth).sort((a, b) => b.check_in_at.localeCompare(a.check_in_at))
+  // แท็บ "วันหยุด" รวมทั้งวันหยุดที่จองประจำเดือน + วันหยุดนักขัตฤกษ์ เข้าด้วยกัน
+  // (feedback 2026-09-15: เดิมแยกกันคนละที่ ดูยาก) — เรียงตามวันที่ล่าสุดก่อน
+  const holidayFiltered = holidayRecs.filter(h => h.date.startsWith(selectedMonth))
+  const dayoffMerged: ({ kind: 'booking'; date: string; rec: WeeklyOffRecord } | { kind: 'holiday'; date: string; name: string })[] = [
+    ...dayoffFiltered.map(r => ({ kind: 'booking' as const, date: resolveDate(r.week_start, r.day_of_week), rec: r })),
+    ...holidayFiltered.map(h => ({ kind: 'holiday' as const, date: h.date, name: h.name })),
+  ].sort((a, b) => b.date.localeCompare(a.date))
 
   const TABS: { id: RecordType; label: string; Icon: typeof CheckCircle2 }[] = [
     { id: 'attendance', label: 'เช็คชื่อ',     Icon: CheckCircle2 },
@@ -479,17 +486,32 @@ export default function HistoryPage() {
           )
         )}
 
-        {/* ── วันหยุด ───────────────────────────────────────────── */}
+        {/* ── วันหยุด (วันหยุดที่จอง + วันหยุดนักขัตฤกษ์ รวมกัน) ──── */}
         {!isLoading && recordType === 'dayoff' && (
-          dayoffFiltered.length === 0 ? (
+          dayoffMerged.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '64px 0' }}>
               <Palmtree size={48} style={{ opacity: 0.4, marginBottom: 16 }} color={COLOR.textMuted} />
               <div style={{ fontWeight: 600, fontSize: '1rem', color: COLOR.textMuted }}>ไม่มีวันหยุดในเดือนนี้</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
-              {dayoffFiltered.map((r, i) => {
-                const date = resolveDate(r.week_start, r.day_of_week)
+              {dayoffMerged.map((item, i) => {
+                if (item.kind === 'holiday') {
+                  return (
+                    <div key={`hol-${item.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <PartyPopper size={20} color="#4338ca" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary }}>
+                          {fmtDateShort(item.date)} · {item.name}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '5px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}>นักขัตฤกษ์</span>
+                    </div>
+                  )
+                }
+                const r = item.rec
                 const sc = STATUS_CFG[r.status]
                 return (
                   <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
@@ -498,7 +520,7 @@ export default function HistoryPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {DAYS_TH_FULL[r.day_of_week]} {fmtDateShort(date)}
+                        {DAYS_TH_FULL[r.day_of_week]} {fmtDateShort(item.date)}
                         {r.has_conflict && <ConflictBadge />}
                       </div>
                       {r.status === 'REJECTED' && r.reject_note && (
