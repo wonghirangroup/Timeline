@@ -187,17 +187,37 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
   )
 }
 
+// เครือข่ายตอนเปิดแอป (LIFF init / LINE login / เรียก backend ครั้งแรก) มีโอกาส
+// สะดุดชั่วคราวได้ (สัญญาณอ่อน ๆ, สลับ WiFi↔มือถือ, แอป LINE เพิ่งตื่นจาก background)
+// — ก่อนหน้านี้ error พวกนี้ (ไม่มี err.response เลย เช่น "Failed to fetch") จะโชว์
+// หน้า error ทันทีให้ผู้ใช้กด "ลองใหม่" เอง หรือต้องปิด-เปิดแอปใหม่ทั้งแอป — ลองซ้ำ
+// อัตโนมัติแบบมี backoff สั้นๆ ก่อน ถ้ายังไม่ได้จริงๆ ค่อยโชว์หน้า error ให้กดเอง
+// (feedback 2026-09-15: "บางคนชอบขึ้น Failed To Fetch มันไม่ควรขึ้น... ทำให้ปัญหานี้
+// หายไปถาวรได้ไหม" — แก้ไม่ได้ที่ต้นตอเครือข่ายจริงๆ (ควบคุมไม่ได้) แต่ทำให้ผู้ใช้ไม่ต้อง
+// รู้ตัวว่ามันสะดุดได้ในเคสส่วนใหญ่)
+const AUTO_RETRY_DELAYS = [1500, 3000, 6000] // ms — ยิ่งลองซ้ำยิ่งเว้นนานขึ้น
+
+// error จาก fetch/axios ที่ "เน็ตหลุดจริงๆ" ไม่มี HTTP response กลับมาเลย (ต่างจาก
+// error ที่ backend ตอบมาแล้วแต่เป็น 4xx/5xx ซึ่งลองซ้ำไปก็ไม่ช่วย เช่น token ผิด)
+function isNetworkGlitch(err: any): boolean {
+  if (err?.response) return false // มี HTTP response แปลว่าเน็ตถึง server จริง ไม่ใช่ปัญหาเครือข่าย
+  const msg = String(err?.message ?? '').toLowerCase()
+  return err?.code === 'ERR_NETWORK' || err?.code === 'ECONNABORTED'
+    || msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { setAuth, isAuthenticated } = useAuthStore()
   const [bootState, setBootState] = useState<BootState>('loading')
   const [devToken,  setDevToken]  = useState('')
   const [errMsg,    setErrMsg]    = useState('')
+  const [retrying,  setRetrying]  = useState<number | null>(null) // ครั้งที่กำลังลองซ้ำอัตโนมัติ (1-based) — null = ไม่ได้ลองซ้ำอยู่
   // เก็บไว้ให้ ErrorScreen ใช้แนบไปกับ "แจ้งปัญหาให้แอดมิน" — ดึงจาก LIFF SDK ได้
   // (ไม่ต้องเรียก API เรา) แม้ boot ล้มเหลวตอนเรียก backend ก็ตาม
   const [reportCtx, setReportCtx] = useState<{ lineUserId?: string; displayName?: string }>({})
 
-  async function boot() {
+  async function boot(attempt = 0) {
     setBootState('loading')
     try {
       if (import.meta.env.DEV) {
@@ -239,11 +259,13 @@ export default function App() {
           line_channel_id: channelId,
         })
         setAuth(employee, token)
+        setRetrying(null)
         setBootState('authed')
       } catch (err: any) {
         const code = err?.response?.data?.error?.code
         if (code === 'EMPLOYEE_NOT_FOUND') {
           // ยังไม่ได้ผูก LINE → ไปหน้า verify
+          setRetrying(null)
           setBootState('need-verify')
         } else if (code === 'INVALID_TOKEN') {
           // ID token ที่ liff SDK แคชไว้หมดอายุ (isLoggedIn() ยัง true อยู่ แต่ token ใช้ไม่ได้แล้ว) —
@@ -254,6 +276,12 @@ export default function App() {
         }
       }
     } catch (err: any) {
+      if (isNetworkGlitch(err) && attempt < AUTO_RETRY_DELAYS.length) {
+        setRetrying(attempt + 1)
+        setTimeout(() => boot(attempt + 1), AUTO_RETRY_DELAYS[attempt])
+        return // ยังอยู่หน้า loading เดิม ไม่โชว์ error ให้ผู้ใช้เห็นเลยถ้าลองซ้ำแล้วผ่าน
+      }
+      setRetrying(null)
       setErrMsg(err?.response?.data?.error?.message ?? err?.message ?? 'เกิดข้อผิดพลาด')
       setBootState('error')
     }
@@ -270,7 +298,7 @@ export default function App() {
     setBootState('authed')
   }
 
-  if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub="TimeLine HR" />
+  if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub={retrying ? `สัญญาณไม่นิ่ง กำลังลองใหม่ (${retrying}/${AUTO_RETRY_DELAYS.length})` : 'TimeLine HR'} />
   if (bootState === 'error')    return <ErrorScreen message={errMsg} onRetry={boot} reportCtx={reportCtx} />
   if (bootState === 'dev-pick') return <DevPicker onPick={handleDevPick} />
 
