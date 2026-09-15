@@ -60,6 +60,9 @@ export async function offsiteRoutes(app: FastifyInstance) {
       if (e.message === 'ALREADY_CHECKED_IN') {
         return reply.code(400).send(fail('ALREADY_CHECKED_IN', 'มีการเช็คอินนอกสถานที่ที่ยังไม่เช็คเอาต์อยู่'))
       }
+      if (e.message === 'NOT_ALLOWED') {
+        return reply.code(403).send(fail('NOT_ALLOWED', 'คุณไม่มีสิทธิ์เช็คอินนอกสถานที่ — ติดต่อแอดมิน'))
+      }
       throw e
     }
   })

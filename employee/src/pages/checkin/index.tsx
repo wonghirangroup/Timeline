@@ -783,7 +783,10 @@ export default function CheckinPage() {
           )}
         </div>
 
-        {/* เช็คอินนอกสถานที่ — ปักหมุด GPS อิสระจากกะปกติ ใช้ได้ทุกเมื่อ */}
+        {/* เช็คอินนอกสถานที่ — ปักหมุด GPS อิสระจากกะปกติ ใช้ได้ทุกเมื่อ แต่ต้องมี
+            สิทธิ์รายบุคคลก่อน (feedback 2026-09-15: "ใช้ได้สำหรับคนที่มีสิทธิเท่านั้น")
+            default false — แอดมินต้องเปิดให้ทีละคนที่หน้าแก้ไขพนักงาน */}
+        {employee.offsite_checkin_enabled && (
         <div style={{
           margin: '24px 0 0', padding: '20px', borderRadius: 20,
           background: activeOffsite ? '#EFF6FF' : '#F0FDF4',
@@ -824,6 +827,7 @@ export default function CheckinPage() {
             {activeOffsite ? 'ปักหมุดเช็คเอาต์นอกสถานที่' : 'ปักหมุดเช็คอินนอกสถานที่'}
           </button>
         </div>
+        )}
       </div>
 
       {/* Overlays */}

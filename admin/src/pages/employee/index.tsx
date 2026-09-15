@@ -50,6 +50,7 @@ interface ApiEmployee {
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
+  offsite_checkin_enabled?: boolean
   photo_url?: string | null
 }
 
@@ -109,6 +110,7 @@ const EMPTY_FORM = {
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
   position_id: '', employee_status_type_id: '',
   booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
+  offsite_checkin_enabled: false, // สิทธิ์เช็คอินนอกสถานที่รายคน — default ปิด ต้องเปิดเอง
   extra_branch_ids: [] as string[], // สาขาเสริม นอกเหนือจากสาขาหลัก — เช็คอิน/ขึ้นในรายงานของสาขานี้ได้ด้วย
 }
 
@@ -276,6 +278,7 @@ export default function EmployeePage() {
       employee_status_type_id: e.employee_status_type_id ?? '',
       booking_override: toOverrideVal(e.booking_enabled_override),
       leave_override: toOverrideVal(e.leave_enabled_override),
+      offsite_checkin_enabled: e.offsite_checkin_enabled ?? false,
       extra_branch_ids: (e.extra_branches ?? []).map(b => b.branch.id),
     })
     setEditTarget(e)
@@ -358,6 +361,7 @@ export default function EmployeePage() {
         employee_status_type_id: form.employee_status_type_id || null,
         booking_enabled_override: fromOverrideVal(form.booking_override),
         leave_enabled_override: fromOverrideVal(form.leave_override),
+        offsite_checkin_enabled: form.offsite_checkin_enabled,
         extra_branch_ids: form.extra_branch_ids,
       }})
     }
@@ -1290,6 +1294,16 @@ export default function EmployeePage() {
                       <option value="off">ปิด — ลาไม่ได้</option>
                     </select>
                   </div>
+                </div>
+              )}
+              {editTarget && (
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '14px', color: '#374151', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.offsite_checkin_enabled}
+                      onChange={e => setForm(f => ({ ...f, offsite_checkin_enabled: e.target.checked }))}
+                      style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                    สิทธิ์เช็คอินนอกสถานที่ (GPS) — ปิดเป็นค่าเริ่มต้น ต้องเปิดให้ทีละคน
+                  </label>
                 </div>
               )}
               {editTarget && (

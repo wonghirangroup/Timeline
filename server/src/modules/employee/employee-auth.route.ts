@@ -83,6 +83,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       leave_backdate_days: tenant?.leave_backdate_days ?? null,
       feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true),
       feat_document_request: ff('document_request'),
+      offsite_checkin_enabled: employee.offsite_checkin_enabled,
       admin_access, admin_url: admin_access ? ADMIN_APP_URL : null,
     } }, 'เข้าสู่ระบบสำเร็จ')
   })

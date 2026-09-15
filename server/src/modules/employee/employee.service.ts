@@ -240,6 +240,7 @@ export async function updateEmployee(
     employee_status_type_id?: string | null
     booking_enabled_override?: boolean | null
     leave_enabled_override?: boolean | null
+    offsite_checkin_enabled?: boolean
     photo_url?: string | null
     extra_branch_ids?: string[]   // undefined = ไม่แตะ, [] = ล้างสาขาเสริมทั้งหมด
   },

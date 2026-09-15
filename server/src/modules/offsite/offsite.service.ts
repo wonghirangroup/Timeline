@@ -37,6 +37,14 @@ export async function createOffsiteCheckin(
   tenantId: string,
   data: { employee_id: string; lat: number; lng: number; note?: string },
 ) {
+  // สิทธิ์เช็คอินนอกสถานที่ — ตั้งรายบุคคลเท่านั้น (feedback 2026-09-15: "ใช้ได้
+  // สำหรับคนที่มีสิทธิเท่านั้น") default false ต้องแอดมินเปิดให้ทีละคนก่อน
+  const employee = await prisma.employee.findFirst({
+    where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null },
+    select: { offsite_checkin_enabled: true },
+  })
+  if (!employee?.offsite_checkin_enabled) throw new Error('NOT_ALLOWED')
+
   const open = await prisma.offsiteCheckin.findFirst({
     where: { tenant_id: tenantId, employee_id: data.employee_id, check_out_at: null },
   })

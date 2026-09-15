@@ -31,6 +31,7 @@ export interface EmployeeProfile {
   feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม
   feat_resignation?: boolean  // tenant เปิดให้พนักงานยื่นลาออกผ่าน LIFF ไหม
   feat_document_request?: boolean // tenant เปิดฟีเจอร์ขอเอกสาร HR ผ่าน LIFF ไหม
+  offsite_checkin_enabled?: boolean // สิทธิ์เช็คอินนอกสถานที่รายคน — default false ต้องแอดมินเปิดให้ (ไม่ cascade)
   admin_access?: boolean      // พนักงานคนนี้มีบัญชีแอดมิน (active) — โชว์เมนู "สลับไปเว็บแอดมิน"
   admin_url?: string | null   // URL เว็บแอดมินสำหรับกดสลับ
   photo_url?: string | null   // รูปโปรไฟล์ (URL จาก Cloudinary)
