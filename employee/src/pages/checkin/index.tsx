@@ -666,9 +666,6 @@ export default function CheckinPage() {
 
         {/* Employee card */}
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', marginBottom: 32 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: COLOR.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
-            {employee.first_name.charAt(0)}
-          </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary }}>{employee.first_name} {employee.last_name}</div>
             <div style={{ fontSize: '0.8rem', color: COLOR.info, marginTop: 2, fontWeight: 500 }}>{employee.employee_code} · {employee.branch.name}</div>
