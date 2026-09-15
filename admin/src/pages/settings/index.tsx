@@ -388,6 +388,7 @@ const NOTIF_TYPES: { key: string; label: string; desc: string }[] = [
   { key: 'weekly_off_swap',    label: 'พนักงานสลับวันหยุดกันเอง', desc: 'แจ้งให้ทราบหลังตกลงสลับกันสำเร็จแล้ว — ไม่ต้องอนุมัติอะไร' },
   { key: 'resignation',        label: 'คำขอลาออกรอพิจารณา',      desc: 'พนักงานยื่นลาออกผ่าน LINE' },
   { key: 'attendance_anomaly', label: 'เช็คอินผิดปกติ',           desc: 'เช็คอินนอกเวลากะ หรือเช็คอินผิดสาขา (ถูกบล็อก)' },
+  { key: 'document_request',   label: 'ขอเอกสาร HR รอดำเนินการ',  desc: 'พนักงานขอสลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน' },
 ]
 
 function NotificationPrefsTab() {

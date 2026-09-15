@@ -1,7 +1,7 @@
 // employee/src/pages/profile/index.tsx
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera } from 'lucide-react'
+import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera, CalendarDays, FileText } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/axios'
@@ -41,6 +41,7 @@ export default function ProfilePage() {
 
   const MENU_ITEMS = [
     { Icon: Clock,          label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot',       show: true },
+    { Icon: FileText,       label: 'ขอเอกสาร HR',    sub: 'สลิปเงินเดือน / หนังสือรับรอง', bubbleClass: 'icon-bubble-teal', path: '/documents', show: !!employee && employee.feat_document_request !== false },
     { Icon: AlertTriangle,  label: 'หนังสือเตือน',   sub: 'ดู + กดรับทราบ',       bubbleClass: 'icon-bubble-orange', path: '/notices',  show: !!employee && employee.feat_disciplinary !== false },
     { Icon: MessageCircle,  label: 'ส่งความคิดเห็น', sub: 'ไม่ระบุตัวตน',         bubbleClass: 'icon-bubble-purple', path: '/feedback', show: true },
     { Icon: DoorOpen,       label: 'ยื่นลาออก',      sub: 'ผู้ดูแลจะตรวจสอบ',      bubbleClass: 'icon-bubble-orange', path: '/resign',   show: !!employee && employee.feat_resignation !== false },
@@ -49,6 +50,16 @@ export default function ProfilePage() {
   if (!employee) return <PageLoader />
 
   const fullName = `${employee.first_name} ${employee.last_name}`
+  const STATUS_CFG: Record<string, { label: string; dot: string }> = {
+    ACTIVE:     { label: 'พนักงานประจำ', dot: '#4ADE80' },
+    INACTIVE:   { label: 'ไม่ได้ปฏิบัติงาน', dot: '#9CA3AF' },
+    RESIGNED:   { label: 'ลาออกแล้ว',    dot: '#F97316' },
+    TERMINATED: { label: 'เลิกจ้าง',     dot: '#EF4444' },
+  }
+  const statusInfo = STATUS_CFG[employee.status ?? 'ACTIVE'] ?? STATUS_CFG.ACTIVE
+  const hiredAtLabel = employee.hired_at
+    ? new Date(employee.hired_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
 
   return (
     <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
@@ -74,11 +85,11 @@ export default function ProfilePage() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{fullName}</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>{employee.branch.name}</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>{employee.nickname || employee.branch.name}</div>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 14px' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ADE80', display: 'inline-block' }} />
-            <span style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>พนักงานประจำ</span>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusInfo.dot, display: 'inline-block' }} />
+            <span style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>{statusInfo.label}</span>
           </div>
         </div>
       </div>
@@ -91,12 +102,18 @@ export default function ProfilePage() {
           <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 4 }}>ข้อมูลการทำงาน</div>
           {[
             { label: 'รหัสพนักงาน', value: employee.employee_code, Icon: IdCard },
-            { label: 'สาขา',        value: employee.branch.name,    Icon: Building2 },
+            {
+              label: 'สาขา', Icon: Building2,
+              value: employee.extra_branches && employee.extra_branches.length > 0
+                ? `${employee.branch.name} + ${employee.extra_branches.map(b => b.name).join(', ')}`
+                : employee.branch.name,
+            },
+            ...(hiredAtLabel ? [{ label: 'วันที่เข้าทำงาน', value: hiredAtLabel, Icon: CalendarDays }] : []),
           ].map(row => (
             <div key={row.label} className="fw-row">
               <row.Icon size={17} color="#6B7D90" style={{ width: 22, flexShrink: 0 }} />
               <span style={{ fontSize: '0.82rem', color: '#6B7D90', flex: 1 }}>{row.label}</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1A2B3C' }}>{row.value}</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1A2B3C', textAlign: 'right' }}>{row.value}</span>
             </div>
           ))}
         </div>

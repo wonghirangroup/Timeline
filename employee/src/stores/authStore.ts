@@ -5,8 +5,12 @@ export interface EmployeeProfile {
   id: string
   first_name: string
   last_name: string
+  nickname?: string | null
   employee_code: string
   branch: { id: string; name: string }
+  extra_branches?: { id: string; name: string }[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch (สาขาหลัก)
+  hired_at?: string | null
+  status?: 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
   weekly_off_mode?: 'WEEKLY' | 'MONTHLY_BATCH'
   employee_status_type?: {
     id: string; name: string; monthly_off_quota: number
@@ -26,6 +30,7 @@ export interface EmployeeProfile {
   leave_backdate_days?: number | null
   feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม
   feat_resignation?: boolean  // tenant เปิดให้พนักงานยื่นลาออกผ่าน LIFF ไหม
+  feat_document_request?: boolean // tenant เปิดฟีเจอร์ขอเอกสาร HR ผ่าน LIFF ไหม
   admin_access?: boolean      // พนักงานคนนี้มีบัญชีแอดมิน (active) — โชว์เมนู "สลับไปเว็บแอดมิน"
   admin_url?: string | null   // URL เว็บแอดมินสำหรับกดสลับ
   photo_url?: string | null   // รูปโปรไฟล์ (URL จาก Cloudinary)

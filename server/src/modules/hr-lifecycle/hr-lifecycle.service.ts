@@ -248,3 +248,63 @@ export async function reviewResignation(tenantId: string, id: string, data: {
   }
   return updated
 }
+
+// ═══ ขอเอกสาร HR (document_request) ═════════════════════════════════════════
+// พนักงานขอเอกสาร (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน)
+// ผ่าน LIFF — ไม่มีระบบ payroll ในนี้ ไฟล์จริงแอดมินอัปโหลดเองตอน mark เสร็จ
+// (ผ่าน Cloudinary เหมือนเอกสารอื่นๆ ในระบบ) ต่างจาก EmployeeDocument (แอดมินเก็บ
+// เอกสารของพนักงานไว้เอง ไม่ใช่คำขอที่พนักงานเริ่ม)
+export const DOCUMENT_REQUEST_TYPES = ['PAYSLIP', 'SALARY_CERT', 'WORK_CERT', 'OTHER'] as const
+
+export async function listDocumentRequests(tenantId: string, filters: { status?: string; scoped?: string[] }) {
+  return prisma.documentRequest.findMany({
+    where: {
+      tenant_id: tenantId,
+      ...(filters.status ? { status: filters.status as any } : {}),
+      ...(filters.scoped ? { employee_id: { in: filters.scoped } } : {}),
+    },
+    orderBy: { created_at: 'desc' },
+    include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { name: true } } } } },
+  })
+}
+
+// LIFF: พนักงานขอเอกสาร — ไม่กันยื่นซ้ำ (ต่างจากลาออก) เพราะขอสลิปเดือนต่างกัน
+// หรือขอซ้ำเพื่อยื่นธุรกรรมคนละที่ได้ตามปกติ
+export async function createDocumentRequest(tenantId: string, data: {
+  employee_id: string; type: string; custom_type?: string | null; period?: string | null; note?: string | null
+}) {
+  return prisma.documentRequest.create({
+    data: {
+      tenant_id: tenantId, employee_id: data.employee_id, type: data.type as any,
+      custom_type: data.type === 'OTHER' ? (data.custom_type ?? null) : null,
+      period: data.period ?? null, note: data.note ?? null,
+    },
+  })
+}
+
+export async function listOwnDocumentRequests(tenantId: string, employeeId: string) {
+  return prisma.documentRequest.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId },
+    orderBy: { created_at: 'desc' },
+  })
+}
+
+// แอดมิน mark เสร็จ (แนบไฟล์) หรือปฏิเสธพร้อมเหตุผล
+export async function reviewDocumentRequest(tenantId: string, id: string, data: {
+  approve: boolean; reviewed_by: string; file_url?: string | null; reject_note?: string
+}, scoped?: string[]) {
+  const req = await prisma.documentRequest.findFirst({ where: { id, tenant_id: tenantId } })
+  if (!req || req.status !== 'PENDING') return null
+  if (scoped && !scoped.includes(req.employee_id)) throw new Error('OUT_OF_SCOPE')
+  if (data.approve && !data.file_url) throw new Error('FILE_REQUIRED')
+
+  return prisma.documentRequest.update({
+    where: { id },
+    data: {
+      status: data.approve ? 'COMPLETED' : 'REJECTED',
+      reviewed_by: data.reviewed_by, reviewed_at: new Date(),
+      file_url: data.approve ? data.file_url : null,
+      reject_note: data.approve ? null : (data.reject_note ?? null),
+    },
+  })
+}

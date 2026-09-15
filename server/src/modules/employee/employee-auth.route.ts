@@ -48,6 +48,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
         branch: { select: { id: true, name: true } },
         employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
         admin_user: { select: { is_active: true } },
+        extra_branches: { select: { branch: { select: { id: true, name: true } } } },
       },
     })
     if (!employee) {
@@ -72,7 +73,18 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const admin_access = !!employee.admin_user?.is_active
 
-    return ok({ token, employee: { id: employee.id, first_name: employee.first_name, last_name: employee.last_name, employee_code: employee.employee_code, branch: employee.branch, weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type, photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null } }, 'เข้าสู่ระบบสำเร็จ')
+    return ok({ token, employee: {
+      id: employee.id, first_name: employee.first_name, last_name: employee.last_name, nickname: employee.nickname,
+      employee_code: employee.employee_code, branch: employee.branch,
+      extra_branches: employee.extra_branches.map(eb => eb.branch),
+      hired_at: employee.hired_at, status: employee.status,
+      weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type,
+      photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota,
+      leave_backdate_days: tenant?.leave_backdate_days ?? null,
+      feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true),
+      feat_document_request: ff('document_request'),
+      admin_access, admin_url: admin_access ? ADMIN_APP_URL : null,
+    } }, 'เข้าสู่ระบบสำเร็จ')
   })
 
   // GET /api/v1/employee/list?line_channel_id=xxx

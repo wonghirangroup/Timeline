@@ -9,6 +9,7 @@ export const NOTIFICATION_TYPES = [
   'weekly_off_swap',     // พนักงานสลับวันหยุดกันเอง (แจ้งให้ทราบ หลังสลับสำเร็จแล้ว)
   'resignation',         // คำขอลาออกรอพิจารณา
   'attendance_anomaly',  // เช็คอินผิดปกติ — นอกเวลากะ / เช็คอินผิดสาขา (ถูกบล็อก)
+  'document_request',    // ขอเอกสาร HR รอดำเนินการ (สลิป/หนังสือรับรอง)
 ] as const
 
 export type NotificationType = typeof NOTIFICATION_TYPES[number]
@@ -20,6 +21,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   weekly_off_swap:     'พนักงานสลับวันหยุดกันเอง',
   resignation:         'คำขอลาออกรอพิจารณา',
   attendance_anomaly:  'เช็คอินผิดปกติ (นอกเวลากะ / ผิดสาขา)',
+  document_request:    'ขอเอกสาร HR รอดำเนินการ',
 }
 
 export function isNotificationEnabled(prefs: unknown, type: NotificationType): boolean {

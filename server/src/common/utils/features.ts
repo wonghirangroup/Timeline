@@ -20,6 +20,7 @@ export const FEATURE_KEYS = [
   'resignation',        // พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ
   'custom_leave_types', // ประเภทการลาที่ tenant กำหนดเอง (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน)
   'leave_accrual',      // สะสมวันลาต่อเดือน + ยกยอดข้ามปี
+  'document_request',   // ขอเอกสาร HR ผ่าน LIFF (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน)
 ] as const
 
 export type FeatureKey = typeof FEATURE_KEYS[number]
@@ -41,6 +42,7 @@ export const ENFORCED_FEATURES: FeatureKey[] = [
   'resignation',
   'custom_leave_types',
   'leave_accrual',
+  'document_request',
 ]
 
 export function isFeatureEnabled(enabledFeatures: unknown, key: FeatureKey): boolean {

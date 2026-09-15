@@ -27,6 +27,7 @@ export async function employeeMeRoutes(app: FastifyInstance) {
       include: {
         branch: { select: { id: true, name: true } },
         admin_user: { select: { is_active: true } },
+        extra_branches: { select: { branch: { select: { id: true, name: true } } } },
       },
     })
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
@@ -46,11 +47,11 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     ])
     const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota } = policy
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
-    const { admin_user, ...empRest } = employee as any
+    const { admin_user, extra_branches, ...empRest } = employee as any
     const admin_access = !!admin_user?.is_active
     const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
-    return ok({ employee: { ...empRest, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
+    return ok({ employee: { ...empRest, extra_branches: extra_branches.map((eb: any) => eb.branch), booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), feat_document_request: ff('document_request'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
   })
 
   // PATCH /api/v1/employee/photo — พนักงานตั้ง/ลบรูปโปรไฟล์ตัวเองผ่าน LIFF

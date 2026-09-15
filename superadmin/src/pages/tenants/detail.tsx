@@ -27,8 +27,9 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'resignation',      label: 'ลาออก (พนักงานยื่นเอง)', desc: 'พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ',   icon: '🚪' },
   { key: 'custom_leave_types', label: 'ประเภทการลากำหนดเอง', desc: 'ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน — tenant ตั้งเอง', icon: '🗂' },
   { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
+  { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
 ]
-const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin', 'employee_documents', 'probation', 'disciplinary', 'resignation', 'custom_leave_types', 'leave_accrual'])
+const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin', 'employee_documents', 'probation', 'disciplinary', 'resignation', 'custom_leave_types', 'leave_accrual', 'document_request'])
 
 const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: string }> = {
   ACTIVE:    { label: 'ใช้งาน',   color: 'var(--success-text)', bg: '#dcfce7' },

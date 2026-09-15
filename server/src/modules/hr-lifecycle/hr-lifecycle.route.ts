@@ -7,7 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
 import * as svc             from './hr-lifecycle.service'
-import { notifyAdminsLine } from '../notifications/line-push.service'
+import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
 const ADMIN_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'] as const
 const READ_ROLES   = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] as const
@@ -204,5 +204,81 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     } catch (e: any) {
       return reply.code(e.message === 'ALREADY_PENDING' ? 409 : 400).send(fail(e.message, e.message === 'ALREADY_PENDING' ? 'มีคำขอลาออกที่รออนุมัติอยู่แล้ว' : 'ยื่นไม่สำเร็จ'))
     }
+  })
+
+  // ═══ ขอเอกสาร HR (feature: document_request) ═════════════════════════════
+  const DOC_REQUEST_LABEL_TH: Record<string, string> = {
+    PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'เอกสารอื่นๆ',
+  }
+  app.get('/admin/document-requests', {
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), resolveDeptScope, requireFeature('document_request')],
+    schema: { tags: ['Admin'], summary: 'คำขอเอกสาร HR', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'REJECTED'] } } } },
+  }, async (req: any) => ok(await svc.listDocumentRequests(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
+
+  app.post('/admin/document-requests/:id/review', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), resolveDeptScope, requireFeature('document_request')],
+    schema: {
+      tags: ['Admin'], summary: 'แนบไฟล์ + mark เสร็จ หรือปฏิเสธคำขอเอกสาร', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object', required: ['approve'],
+        properties: { approve: { type: 'boolean' }, file_url: { type: 'string', nullable: true }, reject_note: { type: 'string', nullable: true } },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const r = await svc.reviewDocumentRequest(req.tenantId, req.params.id, { ...req.body, reviewed_by: req.userId }, req.scopedEmployeeIds)
+      if (!r) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือดำเนินการไปแล้ว'))
+      const label = DOC_REQUEST_LABEL_TH[r.type] ?? r.type
+      if (req.body.approve) {
+        notifyEmployeeLine(req.tenantId, r.employee_id, 'ฝ่ายบุคคล', {
+          title: 'เอกสารพร้อมแล้ว', detail: `${label}${r.period ? ` (${r.period})` : ''} — กดดูรายละเอียดในแอป`, color: '#16A34A', path: '/documents',
+        })
+      } else {
+        notifyEmployeeLine(req.tenantId, r.employee_id, 'ฝ่ายบุคคล', {
+          title: 'คำขอเอกสารไม่สำเร็จ', detail: `${label}${r.reject_note ? ` — เหตุผล: ${r.reject_note}` : ''}`, color: '#DC2626', path: '/documents',
+        })
+      }
+      return ok(r, req.body.approve ? 'บันทึกเอกสารสำเร็จ' : 'ปฏิเสธคำขอแล้ว')
+    } catch (e: any) {
+      if (e.message === 'FILE_REQUIRED') return reply.code(400).send(fail('FILE_REQUIRED', 'ต้องแนบไฟล์ก่อนถึงจะ mark ว่าเสร็จได้'))
+      if (e.message === 'OUT_OF_SCOPE') return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
+      throw e
+    }
+  })
+
+  // LIFF: พนักงานขอเอกสาร + ดูประวัติคำขอของตัวเอง
+  app.get('/employee/document-requests', {
+    preHandler: [tenantMiddleware, requireFeature('document_request')],
+    schema: { tags: ['Employee'], summary: 'ประวัติคำขอเอกสารของฉัน (LIFF)', security: [{ oauth2: [] }], querystring: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } } },
+  }, async (req: any) => ok(await svc.listOwnDocumentRequests(req.tenantId, req.query.employee_id)))
+
+  app.post('/employee/document-requests', {
+    preHandler: [tenantMiddleware, requireFeature('document_request')],
+    schema: {
+      tags: ['Employee'], summary: 'ขอเอกสาร HR (LIFF)', security: [{ oauth2: [] }],
+      body: {
+        type: 'object', required: ['employee_id', 'type'],
+        properties: {
+          employee_id: { type: 'string' },
+          type: { type: 'string', enum: svc.DOCUMENT_REQUEST_TYPES as unknown as string[] },
+          custom_type: { type: 'string', nullable: true },
+          period: { type: 'string', nullable: true, description: 'เดือนที่ต้องการ YYYY-MM — ใช้กับสลิปเงินเดือนเป็นหลัก' },
+          note: { type: 'string', nullable: true },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const { employee_id, type, custom_type, period, note } = req.body
+    const r = await svc.createDocumentRequest(req.tenantId, { employee_id, type, custom_type, period, note })
+    const label = DOC_REQUEST_LABEL_TH[type] ?? type
+    notifyAdminsLine(req.tenantId, employee_id, {
+      type: 'document_request',
+      title: 'คำขอเอกสาร HR',
+      detail: `${label}${period ? ` (${period})` : ''}`,
+      color: '#7C3AED',
+      path: `/document-requests?approve=${r.id}`,
+    })
+    return reply.code(201).send(ok({ id: r.id }, 'ส่งคำขอแล้ว รอฝ่ายบุคคลดำเนินการ'))
   })
 }

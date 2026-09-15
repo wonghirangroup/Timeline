@@ -24,6 +24,7 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'resignation',      label: 'ลาออก (พนักงานยื่นเอง)', desc: 'พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ',   icon: '🚪' },
   { key: 'custom_leave_types', label: 'ประเภทการลากำหนดเอง', desc: 'ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน — tenant ตั้งเอง', icon: '🗂' },
   { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
+  { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
 ]
 
 const PLAN_ORDER: TenantPlan[] = ['STARTER', 'PROFESSIONAL', 'ENTERPRISE']

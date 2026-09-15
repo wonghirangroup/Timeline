@@ -74,6 +74,7 @@ export interface PlanFeatures {
   resignation?: boolean        // ลาออก (พนักงานยื่นเอง)
   custom_leave_types?: boolean // ประเภทการลากำหนดเอง
   leave_accrual?: boolean      // สะสมวันลา + ยกยอด
+  document_request?: boolean   // ขอเอกสาร HR ผ่าน LIFF (สลิปเงินเดือน/หนังสือรับรอง)
 }
 
 export interface PlanConfig {

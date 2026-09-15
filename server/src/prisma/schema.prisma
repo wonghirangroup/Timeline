@@ -192,6 +192,7 @@ model Employee {
   documents            EmployeeDocument[]
   disciplinary_records DisciplinaryRecord[]
   resignation_requests ResignationRequest[]
+  document_requests    DocumentRequest[]
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
   extra_branches         EmployeeBranch[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch_id (สาขาหลัก) — ดู model EmployeeBranch
@@ -290,6 +291,34 @@ model ResignationRequest {
   @@index([tenant_id])
   @@index([employee_id])
   @@map("resignation_requests")
+}
+
+// ── ขอเอกสาร HR (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน) ──
+// พนักงานยื่นขอผ่าน LIFF → แอดมิน/ฝ่ายบุคคลอัปโหลดไฟล์ (ผ่าน Cloudinary เหมือน
+// เอกสารอื่นในระบบ) แล้ว mark COMPLETED หรือปฏิเสธพร้อมเหตุผล — ต่างจาก
+// EmployeeDocument (แอดมินเก็บเอกสารของพนักงานไว้เอง เช่น สำเนาบัตร/สัญญาจ้าง)
+// ตรงนี้คือ "คำขอ" ที่พนักงานเป็นคนเริ่มเอง (feedback 2026-09-15)
+model DocumentRequest {
+  id          String                @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  type        DocumentRequestType
+  custom_type String? // ระบุเองเมื่อ type = OTHER
+  period      String? // เดือนที่ต้องการ เช่น "2026-09" — ใช้กับสลิปเงินเดือนเป็นหลัก ไม่บังคับ
+  note        String? @db.Text // รายละเอียดเพิ่มเติมจากพนักงาน เช่น ใช้ยื่นกู้ธนาคาร
+  status      DocumentRequestStatus @default(PENDING)
+  file_url    String? @db.Text // ไฟล์ที่แอดมินอัปโหลดให้เมื่อเสร็จ
+  reject_note String?
+  reviewed_by String? // user_id
+  reviewed_at DateTime?
+  created_at  DateTime              @default(now())
+  updated_at  DateTime              @updatedAt
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("document_requests")
 }
 
 model EmployeeStatusLog {
@@ -811,6 +840,19 @@ enum LeaveType {
 enum LeaveStatus {
   PENDING
   APPROVED
+  REJECTED
+}
+
+enum DocumentRequestType {
+  PAYSLIP     // สลิปเงินเดือน
+  SALARY_CERT // หนังสือรับรองเงินเดือน
+  WORK_CERT   // หนังสือรับรองการทำงาน
+  OTHER
+}
+
+enum DocumentRequestStatus {
+  PENDING
+  COMPLETED
   REJECTED
 }
 
