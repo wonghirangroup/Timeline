@@ -146,21 +146,21 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
     queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
   })
+  // เดิมเคยดึง colleagues มาโชว์จุดสี/รายชื่อเพื่อนร่วมงานในแท็บนี้ด้วย — feedback
+  // 2026-09-15: "Tab ปฏิทินให้ขึ้นแค่ข้อมูลการหยุดของเราก็พอ" ตัดออก ข้อมูล
+  // เพื่อนร่วมงานย้ายไปอยู่ที่แท็บ "จองหยุด" อย่างเดียว (แตะวันดูได้ที่นั่น)
   const own        = offQ.data?.own ?? []
-  const colleagues = offQ.data?.colleagues ?? []
 
   const getMyOff    = (d: string) => own.find(o => o.status !== 'REJECTED' && resolveDate(o.week_start, o.day_of_week) === d) ?? null
   const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
-  const getColls    = (d: string) => colleagues.filter(c => resolveDate(c.week_start, c.day_of_week) === d)
   const getHoliday  = (d: string) => holidays.find(h => h.date === d) ?? null
 
   const myOffThisMonth = own.filter(o => o.status === 'APPROVED').length
 
   const selMyOff  = selDay ? getMyOff(selDay)    : null
   const selLeaves = selDay ? getMyLeaves(selDay)  : []
-  const selColls  = selDay ? getColls(selDay)     : []
   const selHol    = selDay ? getHoliday(selDay)   : null
-  const selEmpty  = !selMyOff && !selLeaves.length && !selColls.length && !selHol
+  const selEmpty  = !selMyOff && !selLeaves.length && !selHol
 
   return (
     <div>
@@ -203,7 +203,6 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             const dateStr   = toDateStr(month, day)
             const myOff     = getMyOff(dateStr)
             const myLeaves  = getMyLeaves(dateStr)
-            const colls     = getColls(dateStr)
             const holiday   = getHoliday(dateStr)
             const isToday   = dateStr === today
             const isSel     = selDay === dateStr
@@ -267,16 +266,6 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                 {/* Leave bar */}
                 {firstLeave && lCfg && (
                   <div style={{ width: '75%', height: 5, borderRadius: 99, background: lCfg.color, opacity: firstLeave.status === 'PENDING' ? 0.55 : 1 }} />
-                )}
-
-                {/* Colleague dots */}
-                {colls.length > 0 && (
-                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    {colls.slice(0, 3).map((c, ci) => (
-                      <div key={ci} style={{ width: 5, height: 5, borderRadius: '50%', background: c.status === 'APPROVED' ? '#16a34a' : '#d97706' }} />
-                    ))}
-                    {colls.length > 3 && <span style={{ fontSize: '0.42rem', color: '#6B7280' }}>+{colls.length - 3}</span>}
-                  </div>
                 )}
               </button>
             )
@@ -369,25 +358,6 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               </div>
             )
           })}
-
-          {selColls.length > 0 && (
-            <div style={{ marginTop: selMyOff || selLeaves.length ? 10 : 0 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7280', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Users size={13} /> เพื่อนร่วมงานที่หยุดด้วย</div>
-              {selColls.map(c => {
-                const name = c.employee.nickname ?? c.employee.first_name
-                const s    = STATUS_CFG[c.status]
-                return (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                      {c.employee.first_name.charAt(0)}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1A2B3C' }}>{name}</div>
-                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700, color: s.color, background: s.bg, padding: '2px 8px', borderRadius: 99 }}>{s.label}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
       )}
 
