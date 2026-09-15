@@ -5,6 +5,7 @@ import { Pencil, Trash2, X, Check, Repeat2, Plus, Landmark, Building2, Target, F
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
@@ -264,8 +265,8 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
   const canSave = date.length === 10 && name.trim().length > 0
 
   return (
-    <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-      <div style={{ background: '#fff', borderRadius: 18, width: 480, maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
+    <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 18, width: 480, maxWidth: '100%', maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>{initial?.id ? 'แก้ไขวันหยุด' : <><Plus size={16} /> เพิ่มวันหยุด</>}</div>
@@ -404,6 +405,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function HolidayPage() {
+  const isMobile = useIsMobile()
   const { showToast } = useToast()
   const qc = useQueryClient()
 
@@ -586,10 +588,11 @@ export default function HolidayPage() {
             ))}
           </div>
 
-          {/* Main layout */}
-          <div style={{ padding: '0 0 24px', display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+          {/* Main layout — 2 คอลัมน์บน desktop, สลับเป็นซ้อนกันบนมือถือ (ปฏิทินก่อน
+              แล้วค่อยรายละเอียดวันที่เลือก) feedback 2026-09-14 */}
+          <div style={{ padding: '0 0 24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 20, alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fit,minmax(150px,1fr))' : 'repeat(4,1fr)', gap: 12 }}>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                   <MiniMonth key={m} year={year} month={m} holidayMap={holidayMap}
                     onDayClick={date => setSelectedDate(s => s === date ? null : date)} selectedDate={selectedDate} />
@@ -609,7 +612,7 @@ export default function HolidayPage() {
               </div>
             </div>
 
-            <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ width: isMobile ? '100%' : 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {selectedDate && (
                 <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                   <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -738,8 +741,8 @@ export default function HolidayPage() {
 
       {/* Delete confirm */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 360, padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 360, maxWidth: '100%', boxSizing: 'border-box', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#dc2626' }}><Trash2 size={28} /></div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: 8 }}>ยืนยันการลบ</div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', textAlign: 'center', marginBottom: 20, lineHeight: 1.6 }}>
@@ -756,8 +759,8 @@ export default function HolidayPage() {
 
       {/* Import confirm */}
       {importConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '100%', boxSizing: 'border-box', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#4f46e5' }}><Download size={28} /></div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: 8 }}>นำเข้าวันหยุดนักขัตฤกษ์ {year}</div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', textAlign: 'center', marginBottom: 6, lineHeight: 1.6 }}>

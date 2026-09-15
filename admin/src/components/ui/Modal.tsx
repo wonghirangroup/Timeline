@@ -66,7 +66,7 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
         aria-describedby={describedBy}
         tabIndex={-1}
         onClick={e => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 16, width, maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', outline: 'none' }}
+        style={{ background: '#fff', borderRadius: 16, width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', outline: 'none' }}
         className="animate-slide-up"
       >
         {children}

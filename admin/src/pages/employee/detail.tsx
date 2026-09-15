@@ -17,6 +17,7 @@ import { deptName } from '../../lib/format'
 import { useAuthStore } from '../../stores/authStore'
 import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
 import AvatarUpload from '../../components/ui/AvatarUpload'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -291,7 +292,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>สถิติเดือน{MONTH_TH[month-1]} {year}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(84px,1fr))', gap: 10 }}>
           {([
             { label: 'วันทำงาน', value: stats.work,   icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5' },
             { label: 'มาสาย',   value: stats.late,   icon: <Clock size={18}/>,        color: '#d97706', bg: '#fef3c7' },
@@ -337,7 +338,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
 
       <div>
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>โควต้าวันลาคงเหลือ</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(84px,1fr))', gap: 10 }}>
           {leaveTypes.map(lt => {
             const used  = bal(lt.key, 'used_days')
             const quota = bal(lt.key, 'total_days')
@@ -524,8 +525,8 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>กำลังโหลด...</div>
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr', minWidth: 620, background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
             {['วันที่','วัน','เวลาเข้า','เวลาออก','สถานะ','หมายเหตุ'].map(h => (
               <div key={h} style={{ padding: '9px 12px', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</div>
             ))}
@@ -542,7 +543,7 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             })
             return (
               <div key={dateKey} style={{
-                display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr',
+                display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr', minWidth: 620,
                 borderBottom: dayNum < daysInMonth(year, month) ? '1px solid #f8fafc' : 'none',
                 background: bg,
               }}>
@@ -609,8 +610,8 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div>
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', minWidth: 620, background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
         {['ประเภท','ช่วงวันที่','จำนวน','เหตุผล','สถานะ'].map(h => (
           <div key={h} style={{ padding: '9px 12px', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</div>
         ))}
@@ -625,7 +626,7 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
         }
         const sc = STATUS_COLOR[r.status] ?? { color: '#64748b', bg: '#f1f5f9' }
         return (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', borderBottom: idx < paginated.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '130px 130px 80px 1fr 90px', minWidth: 620, borderBottom: idx < paginated.length - 1 ? '1px solid #f8fafc' : 'none' }}>
             <div style={{ padding: '11px 12px', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: `${tc.color}20`, color: tc.color }}>{tc.label}</span>
             </div>
@@ -815,6 +816,7 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function EmployeeDetailPage() {
+  const isMobile = useIsMobile()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [sp] = useSearchParams()
@@ -901,7 +903,7 @@ export default function EmployeeDetailPage() {
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
 
       {/* ── Profile Header ── */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px' }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: isMobile ? '16px' : '20px 28px' }}>
         <button
           onClick={() => navigate('/employee')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '0.84rem', marginBottom: 16, padding: 0 }}
@@ -983,7 +985,7 @@ export default function EmployeeDetailPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 2, marginTop: 20, borderBottom: '2px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', gap: 2, marginTop: 20, borderBottom: '2px solid #f1f5f9', overflowX: 'auto' }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '9px 18px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
@@ -991,7 +993,7 @@ export default function EmployeeDetailPage() {
               background: tab === t.key ? '#fff' : 'transparent',
               color: tab === t.key ? '#ea580c' : '#64748b',
               borderBottom: tab === t.key ? '2px solid #f97316' : '2px solid transparent',
-              marginBottom: -2, display: 'flex', alignItems: 'center', gap: 6,
+              marginBottom: -2, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               {t.icon}{t.label}
             </button>
@@ -999,7 +1001,7 @@ export default function EmployeeDetailPage() {
         </div>
       </div>
 
-      <div style={{ padding: '24px 28px' }}>
+      <div style={{ padding: isMobile ? '16px' : '24px 28px' }}>
         {tab === 'overview'   && <OverviewTab   employeeId={emp.id} emp={emp} />}
         {tab === 'attendance' && <AttendanceTab employeeId={emp.id} emp={emp} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}

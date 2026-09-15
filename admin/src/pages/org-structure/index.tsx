@@ -29,8 +29,10 @@ const btnGhost = (color: string, bg: string): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 8, border: `1px dashed ${color}55`, cursor: 'pointer',
   background: bg, color, fontSize: '12.5px', fontWeight: 700,
 })
-const modalOverlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }
-const modalBox: React.CSSProperties = { background: '#fff', borderRadius: 16, width: 400, maxWidth: '92vw', padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }
+const modalOverlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }
+// maxHeight/overflowY กันเนื้อหายาว (เช่น modal นโยบาย+รายชื่อสมาชิก) ล้นจอบนมือถือจอเตี้ย
+// (feedback 2026-09-14: "ปรับหน้าจอ Admin ให้ responsive mobile ได้หมด")
+const modalBox: React.CSSProperties = { background: '#fff', borderRadius: 16, width: 400, maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto', padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.15)', boxSizing: 'border-box' }
 const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
 
 type WeekendQuota = { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null }

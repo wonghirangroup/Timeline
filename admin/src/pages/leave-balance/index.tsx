@@ -7,6 +7,7 @@ import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
@@ -102,9 +103,9 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
   return (
     <div ref={overlayRef} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16,
     }}>
-      <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 18, width: 460, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
         {/* Header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', flexShrink: 0 }}><CalendarDays size={18} /></div>
@@ -258,6 +259,7 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
 export default function LeaveBalancePage() {
   const { showToast } = useToast()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
 
   const [year,         setYear]         = useState(new Date().getFullYear())
   const [defaults,     setDefaults]     = useState<Quotas>(DEFAULT_QUOTAS)
@@ -493,7 +495,8 @@ export default function LeaveBalancePage() {
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 14, fontSize: '0.85rem' }}>
+          <div style={{ overflowX: 'auto', marginBottom: 14 }}>
+          <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ background: '#fef3c7' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>อายุงาน</th>
@@ -542,6 +545,7 @@ export default function LeaveBalancePage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button
@@ -601,7 +605,79 @@ export default function LeaveBalancePage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Table (desktop) / Cards (mobile — grid 7 คอลัมน์เดิมแคบเกินไปบนจอเล็ก,
+          feedback 2026-09-14: "ปรับหน้าจอ Admin ให้ responsive mobile ได้หมด") */}
+      {filtered.length === 0 ? (
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', textAlign: 'center', padding: '50px 0', color: '#94a3b8', fontSize: '0.9rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</div>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {paginated.map(b => {
+            const isSelected = selectedIds.has(b.employee_id)
+            const hasOverQuota = LEAVE_TYPES.some(lt => usedOf(b, lt.key) > quotaOf(b, lt.key))
+            const hasNearLimit = !hasOverQuota && LEAVE_TYPES.some(lt => {
+              const q = quotaOf(b, lt.key)
+              return q > 0 && usedOf(b, lt.key) / q >= 0.8
+            })
+            return (
+              <div key={b.employee_id} style={{
+                background: isSelected ? '#fafbff' : hasOverQuota ? '#fff5f5' : '#fff',
+                border: `1px solid ${isSelected ? '#c7d2fe' : '#e2e8f0'}`, borderRadius: 14, padding: '12px 14px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(b.employee_id)}
+                    style={{ accentColor: '#4f46e5', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                  <div style={{
+                    width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                    background: hasOverQuota ? '#fee2e2' : '#eef2ff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.72rem', fontWeight: 800, color: hasOverQuota ? '#dc2626' : '#4f46e5',
+                  }}>{b.nickname.slice(0, 2)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.full_name}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{b.nickname} · {b.branch_name}</div>
+                  </div>
+                  <button onClick={() => setEditTarget(b)}
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#4f46e5', flexShrink: 0 }}>
+                    <Pencil size={13}/>
+                  </button>
+                </div>
+                {(hasOverQuota || hasNearLimit) && (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                    {hasOverQuota && (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <AlertOctagon size={10} /> เกินโควต้า
+                      </span>
+                    )}
+                    {hasNearLimit && (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <AlertTriangle size={10} /> ใกล้หมด
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8, marginTop: 10 }}>
+                  {LEAVE_TYPES.map(lt => {
+                    const used = usedOf(b, lt.key)
+                    const quota = quotaOf(b, lt.key)
+                    const sc = statusColor(used, quota)
+                    return (
+                      <div key={lt.key} style={{ background: '#f8fafc', borderRadius: 8, padding: '6px 8px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 3 }}>{lt.icon}{lt.short}</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: sc }}>{used}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>/{quota === 0 ? '—' : quota}</span>
+                        </div>
+                        <MiniBar used={used} quota={quota} color={lt.color} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         {/* Table head */}
         <div style={{
@@ -629,9 +705,7 @@ export default function LeaveBalancePage() {
         </div>
 
         {/* Rows */}
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8', fontSize: '0.9rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</div>
-        ) : paginated.map((b, idx) => {
+        {paginated.map((b, idx) => {
           const isSelected = selectedIds.has(b.employee_id)
           const hasOverQuota = LEAVE_TYPES.some(lt => usedOf(b, lt.key) > quotaOf(b, lt.key))
           const hasNearLimit = !hasOverQuota && LEAVE_TYPES.some(lt => {
@@ -737,6 +811,7 @@ export default function LeaveBalancePage() {
           )
         })}
       </div>
+      )}
 
       <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="คน" />
 
@@ -751,8 +826,8 @@ export default function LeaveBalancePage() {
 
       {/* Bulk edit modal */}
       {bulkEditOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-          <div style={{ background: '#fff', borderRadius: 18, width: 460, boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 18, width: 460, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าพร้อมกัน</div>
