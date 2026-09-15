@@ -5,6 +5,7 @@ import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCirc
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -29,12 +30,14 @@ interface LeaveBalance {
   compensate: { total: number; used: number }
 }
 
-// ── Seniority Rule ────────────────────────────────────────────────────────────
-interface SeniorityRule {
-  id: string
-  min_years: number
-  max_years: number | null
-  vacation_days: number
+// ── รายงานพักร้อนคงเหลือ (นโยบายพักร้อนตามอายุงาน — feedback 2026-09-15) ────────
+// แทนที่เครื่องมือ "เงื่อนไขอายุงาน" เดิม (hardcode 6/8/10/15 วัน เขียนทับ balance
+// ตรงๆ) ด้วยสูตรที่ตั้งค่าต่อตำแหน่งในผังองค์กรแทน (ดู resolveVacationEntitlement
+// ใน vacation-policy.service.ts) — ที่นี่เหลือแค่ปุ่มรันมือ + ดูรายงานคงเหลือ
+interface VacationRemainingRow {
+  employee_id: string; full_name: string; nickname: string | null; employee_code: string
+  branch_name: string | null; position_name: string | null
+  total_days: number; used_days: number; remaining: number; sellable: number
 }
 
 type LeaveKey = 'sick' | 'personal' | 'vacation' | 'compensate'
@@ -273,13 +276,30 @@ export default function LeaveBalancePage() {
   const [page,         setPage]        = useState(1)
   const PAGE_SIZE = 10
 
-  const [seniorityRules, setSeniorityRules] = useState<SeniorityRule[]>([
-    { id: 's1', min_years: 0,  max_years: 1,    vacation_days: 6  },
-    { id: 's2', min_years: 1,  max_years: 3,    vacation_days: 8  },
-    { id: 's3', min_years: 3,  max_years: 5,    vacation_days: 10 },
-    { id: 's4', min_years: 5,  max_years: null, vacation_days: 15 },
-  ])
-  const [showSeniority, setShowSeniority] = useState(false)
+  const [showVacationPolicy, setShowVacationPolicy] = useState(false)
+  const { data: remainingReport = [], isLoading: loadingRemaining, refetch: refetchRemaining } = useQuery<VacationRemainingRow[]>({
+    queryKey: ['admin', 'vacation-policy', 'remaining-report', year - 1],
+    queryFn: () => api.get('/api/v1/admin/vacation-policy/remaining-report', { params: { year: year - 1 } }).then(r => r.data.data),
+    enabled: showVacationPolicy,
+  })
+  const runBonusMutation = useMutation({
+    mutationFn: () => api.post('/api/v1/admin/vacation-policy/run-bonus').then(r => r.data),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
+      showToast('success', res?.message ?? 'รันโบนัสเสร็จแล้ว')
+    },
+    onError: () => showToast('error', 'รันไม่สำเร็จ'),
+  })
+  const runResetMutation = useMutation({
+    mutationFn: () => api.post('/api/v1/admin/vacation-policy/run-reset').then(r => r.data),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
+      refetchRemaining()
+      showToast('success', res?.message ?? 'รัน reset เสร็จแล้ว')
+    },
+    onError: () => showToast('error', 'รันไม่สำเร็จ'),
+  })
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const { data: balances = [], isLoading: loading, refetch } = useQuery<LeaveBalance[]>({
     queryKey: ['admin', 'leave-balances', year],
@@ -379,21 +399,6 @@ export default function LeaveBalancePage() {
     } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
   }
 
-  async function handleApplySeniority() {
-    const today = new Date()
-    try {
-      const items = balances.flatMap(b => {
-        if (!b.hired_at) return []
-        const years = (today.getTime() - new Date(b.hired_at).getTime()) / (365.25 * 24 * 3600 * 1000)
-        const rule  = seniorityRules.find(r => years >= r.min_years && (r.max_years === null || years < r.max_years))
-        if (!rule) return []
-        return [{ employee_id: b.employee_id, leave_type: 'VACATION', total_days: rule.vacation_days }]
-      })
-      await saveBatch(items)
-      showToast('success', `อัปเดตวันพักร้อนตามอายุงานให้ ${items.length} คนแล้ว`)
-    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
-  }
-
   async function handleBulkSave() {
     try {
       const items = [...selectedIds].flatMap(empId => [
@@ -441,16 +446,16 @@ export default function LeaveBalancePage() {
               ))}
             </select>
             <button
-              onClick={() => setShowSeniority(s => !s)}
+              onClick={() => setShowVacationPolicy(s => !s)}
               style={{
                 padding: '9px 16px', borderRadius: 9,
-                border: `1.5px solid ${showSeniority ? '#fcd34d' : '#e2e8f0'}`,
-                background: showSeniority ? '#fef3c7' : '#fff',
+                border: `1.5px solid ${showVacationPolicy ? '#fcd34d' : '#e2e8f0'}`,
+                background: showVacationPolicy ? '#fef3c7' : '#fff',
                 fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer',
-                color: showSeniority ? '#d97706' : '#374151',
+                color: showVacationPolicy ? '#d97706' : '#374151',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
-            ><CalendarDays size={14} /> เงื่อนไขอายุงาน {showSeniority ? '▲' : '▼'}</button>
+            ><CalendarDays size={14} /> นโยบายพักร้อนตามอายุงาน {showVacationPolicy ? '▲' : '▼'}</button>
             <button
               onClick={() => setShowDefault(s => !s)}
               style={{
@@ -484,79 +489,77 @@ export default function LeaveBalancePage() {
         </div>
       </div>
 
-      {/* Seniority rules panel */}
-      {showSeniority && (
+      {/* นโยบายพักร้อนตามอายุงาน — base/อัตราเพิ่มตั้งที่ผังองค์กร→ตำแหน่ง, ที่นี่แค่รัน
+          โบนัส/reset ด้วยมือ + ดูรายงานคงเหลือปีก่อน (feedback 2026-09-15) */}
+      {showVacationPolicy && (
         <div style={{ background: '#fff', border: '2px solid #fcd34d', borderRadius: 14, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(217,119,6,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{ width: 34, height: 34, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}><CalendarDays size={15} /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>เงื่อนไขวันพักร้อนตามอายุงาน</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>กำหนดจำนวนวันพักร้อนตามระยะเวลาทำงาน</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>นโยบายพักร้อนตามอายุงาน</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>
+                ตั้งสูตร (ครบ 1 ปีได้กี่วัน / เพิ่มครั้งละกี่วันทุกกี่ปี) ได้ที่ <strong>ผังองค์กร → แก้ไขตำแหน่ง</strong> — ที่นี่ไว้รันด้วยมือ/ดูรายงานเท่านั้น
+              </div>
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', marginBottom: 14 }}>
-          <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ background: '#fef3c7' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>อายุงาน</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>วันพักร้อน</th>
-                <th style={{ padding: '8px 12px', width: 40 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {seniorityRules.map((rule, idx) => (
-                <tr key={rule.id} style={{ borderBottom: '1px solid #fef3c7' }}>
-                  <td style={{ padding: '8px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
-                        type="number" min={0} value={rule.min_years}
-                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, min_years: parseInt(e.target.value) || 0 } : r))}
-                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
-                      />
-                      <span style={{ color: 'var(--text-muted)' }}>–</span>
-                      <input
-                        type="number" min={0} value={rule.max_years ?? ''}
-                        placeholder="∞"
-                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, max_years: e.target.value === '' ? null : parseInt(e.target.value) || null } : r))}
-                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
-                      />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>ปี</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '8px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
-                        type="number" min={0} value={rule.vacation_days}
-                        onChange={e => setSeniorityRules(rs => rs.map(r => r.id === rule.id ? { ...r, vacation_days: parseInt(e.target.value) || 0 } : r))}
-                        style={{ width: 56, padding: '4px 6px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', textAlign: 'center' }}
-                      />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>วัน</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '8px 12px' }}>
-                    <button
-                      onClick={() => setSeniorityRules(rs => rs.filter(r => r.id !== rule.id))}
-                      style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      aria-label="ลบ"
-                    ><X size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+            <button onClick={() => runBonusMutation.mutate()} disabled={runBonusMutation.isPending}
+              style={{ padding: '9px 16px', borderRadius: 9, border: '1.5px solid #fcd34d', background: '#fef3c7', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={14} /> {runBonusMutation.isPending ? 'กำลังรัน...' : 'รันโบนัส "หยุดไม่ครบโควต้า" เดือนที่แล้ว'}
+            </button>
+            <button onClick={() => setConfirmReset(true)} disabled={runResetMutation.isPending}
+              style={{ padding: '9px 16px', borderRadius: 9, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={14} /> {runResetMutation.isPending ? 'กำลังรัน...' : `รัน reset พักร้อนประจำปี ${year + 543}`}
+            </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={() => setSeniorityRules(rs => [...rs, { id: `s${Date.now()}`, min_years: 0, max_years: null, vacation_days: 6 }])}
-              style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #fcd34d', background: '#fef3c7', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#d97706' }}
-            >+ เพิ่มเงื่อนไข</button>
-            <button
-              onClick={handleApplySeniority}
-              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}
-            ><RefreshCw size={14}/> คำนวณและนำไปใช้</button>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+            พักร้อนคงเหลือปี {year - 1 + 543} (ขายคืนบริษัทได้สูงสุด 10 วัน — HR คิดจ่ายนอกระบบ)
           </div>
+          {loadingRemaining ? (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>กำลังโหลด...</div>
+          ) : remainingReport.length === 0 ? (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>ยังไม่มีข้อมูลพักร้อนปี {year - 1 + 543}</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ background: '#fef3c7' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>พนักงาน</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>ตำแหน่ง</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>โควต้า</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>ใช้ไป</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>คงเหลือ</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>ขายคืนได้</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remainingReport.map(row => (
+                    <tr key={row.employee_id} style={{ borderBottom: '1px solid #fef3c7' }}>
+                      <td style={{ padding: '7px 10px' }}>{row.full_name}{row.nickname ? ` (${row.nickname})` : ''}</td>
+                      <td style={{ padding: '7px 10px', color: '#64748b' }}>{row.position_name ?? '—'}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.total_days}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.used_days}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{row.remaining}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: row.sellable > 0 ? '#d97706' : '#94a3b8', fontWeight: 700 }}>{row.sellable}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {confirmReset && (
+            <ConfirmDialog
+              variant="warning"
+              title={`รัน reset พักร้อนประจำปี ${year + 543}?`}
+              message="ระบบจะตั้งวันพักร้อนของพนักงานทุกคนที่มีสิทธิ์ใหม่ตามสูตรอายุงาน (ไม่ยกยอดจากปีก่อน) — คนที่ตำแหน่งยังไม่ได้ตั้งค่าโปรแกรมพักร้อนจะไม่ถูกแตะ"
+              confirmLabel="ยืนยันรัน"
+              onConfirm={() => { setConfirmReset(false); runResetMutation.mutate() }}
+              onCancel={() => setConfirmReset(false)}
+            />
+          )}
         </div>
       )}
 
