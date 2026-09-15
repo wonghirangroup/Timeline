@@ -15,7 +15,8 @@ Light accent: `#EEF2FF` (indigo-50) — backgrounds for active pills, stat cards
 
 Surface: `#F1F5F9` (slate-100) — page background  
 Card: `#FFFFFF`  
-Sidebar: `#0F172A` (slate-900) — dark, anchoring
+Sidebar: `#0F172A` (slate-900) — dark, anchoring  
+Topbar glass: `rgba(255,248,240,0.88)` (warm orange-tinted, blur 12px) — border `rgba(234,88,12,0.1)`; was plain white glass, tinted warmer toward brand so Header doesn't read as flat white next to the orange-accented Sidebar (feedback 2026-09-15)
 
 Text primary: `#0F172A` (slate-900)  
 Text muted: `#64748B` (slate-500)  
@@ -75,7 +76,7 @@ Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #f1f5f9`
 **Table** — thead `bg #fff7ed` / `color #c2410c` / `fontWeight 700` ; row hover `#fff7ed`  
 **Modal overlay** — `position:fixed; inset:0; z-index:200` (above sidebar 100, topbar 98)  
 **Add button** — orange gradient `linear-gradient(135deg, #f97316, #ea580c)` + shadow  
-**Sidebar nav item active** — orange `#f97316` bg subtle, text orange
+**Sidebar nav item active** — orange `#FB923C` (orange-400, tuned for dark bg) bg subtle `rgba(249,115,22,0.16)`, text orange — same accent for every nav section (not per-section colors) so the brand orange stays dominant throughout the Sidebar
 
 ## Motion
 

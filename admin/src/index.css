@@ -48,9 +48,13 @@
   --shadow-float: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
   --shadow-accent: 0 8px 16px -4px rgba(234, 88, 12, 0.3);
 
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  /* Glassmorphism — เดิมเป็นขาวล้วน (rgba(255,255,255,.85)) ทำให้ Topbar รู้สึก
+     "ขาว" เกินไปทั้งที่ Sidebar ข้างๆ เป็นสีเข้ม + ส้ม — เปลี่ยนเป็นกระจกอุ่นโทน
+     ส้มอ่อน (จาก --accent-light ตระกูลเดียวกับ #FFF7ED/#FFEDD5 ที่ใช้ทั้งแอปอยู่
+     แล้ว) ให้เข้าธีมส้มของแบรนด์มากขึ้นแต่ยังคงความ "Calm authority" ตาม
+     PRODUCT.md (Restrained ไม่ใช่ Drenched) — feedback 2026-09-15 "ส้มมากกว่า ขาวน้อยลง" */
+  --glass-bg: rgba(255, 248, 240, 0.88);
+  --glass-border: rgba(234, 88, 12, 0.1);
 
   /* Radius */
   --radius-md: 12px;

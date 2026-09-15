@@ -132,16 +132,13 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
   )
 }
 
-// ── สีประจำหมวด (เฉดสว่างสำหรับ sidebar พื้นเข้ม) ──────────────────────────────
-// เรียงตาม NAV_SECTIONS: [ภาพรวม, บุคลากร, กะ&เวลา, การลา, รายงาน&อื่นๆ]
+// ── สีประจำหมวด ── เดิมแยกสีต่อหมวด (teal/blue/violet/amber) ทำให้แบรนด์ส้มเจือ
+// จางไปเหลือแค่หมวดแรก ขัดกับ DESIGN.md ("Sidebar nav item active — orange bg
+// subtle, text orange" ไม่ได้ระบุไว้เป็นสีรุ้งต่อหมวด) — รวมเป็นส้มเดียวกันหมด
+// ทุกหมวด (feedback 2026-09-15 "ส้มมากกว่า") ใช้ orange-400 (#FB923C) แทน
+// accent-primary ตรงๆ เพราะเฉดนี้ปรับให้อ่านง่ายบนพื้นเข้มของ sidebar แล้ว
 interface SecAccent { text: string; bg: string }
-const SECTION_ACCENT: SecAccent[] = [
-  { text: '#FB923C', bg: 'rgba(249,115,22,0.16)' },  // ภาพรวม — ส้ม (brand)
-  { text: '#2DD4BF', bg: 'rgba(45,212,191,0.15)' },  // บุคลากร — teal
-  { text: '#60A5FA', bg: 'rgba(96,165,250,0.15)' },  // กะ & เวลา — blue
-  { text: '#A78BFA', bg: 'rgba(167,139,250,0.15)' }, // การลา — violet
-  { text: '#FBBF24', bg: 'rgba(251,191,36,0.15)' },  // รายงาน & อื่นๆ — amber
-]
+const ACTIVE_ACCENT: SecAccent = { text: '#FB923C', bg: 'rgba(249,115,22,0.16)' }
 const SETTINGS_ACCENT: SecAccent = { text: '#94A3B8', bg: 'rgba(148,163,184,0.16)' } // slate
 
 const ROLE_CHIP: Partial<Record<string, { label: string; bg: string; color: string }>> = {
@@ -248,7 +245,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         {NAV_SECTIONS.map((section, si) => {
           const visItems = section.items.filter(it => visible(it.feature, it.roles))
           if (visItems.length === 0) return null
-          const accent = SECTION_ACCENT[si] ?? SECTION_ACCENT[0]
+          const accent = ACTIVE_ACCENT
           return (
             <div key={si} style={{ marginBottom: 8 }}>
               {section.label && !collapsed && (

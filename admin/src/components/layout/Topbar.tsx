@@ -327,7 +327,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         background: 'var(--glass-bg)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(0,0,0,0.05)',
+        borderBottom: '1px solid var(--glass-border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
