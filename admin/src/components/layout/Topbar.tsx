@@ -1,8 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
+import { api } from '../../lib/axios'
 import NotificationBell from './NotificationBell'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -48,6 +50,26 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const role = useAuthStore(s => s.role)
   const clear = useAuthStore(s => s.clear)
   const setName = useAuthStore(s => s.setName)
+  const token = useAuthStore(s => s.token)
+  const qc = useQueryClient()
+
+  // Layout.tsx โพลล์ query key เดียวกันนี้อยู่แล้วทุก 30 วิ (เอาไว้ sync
+  // enabled_features) — ใช้ key เดียวกันเพื่อแชร์ cache ได้อีเมล/ชื่อจริงจาก DB
+  // มาโชว์ ไม่ต้องยิง request ซ้ำ
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => api.get('/api/v1/auth/me').then((r: any) => r.data.data),
+    enabled: !!token,
+    staleTime: 0,
+  })
+
+  // เผื่อชื่อถูกเปลี่ยนจากอุปกรณ์/เซสชันอื่น — sync ชื่อใน authStore (เดิมมาจาก
+  // login ครั้งเดียวเท่านั้น) ให้ตรงกับ DB จริงทุกครั้งที่ query นี้รีเฟรช
+  useEffect(() => {
+    if (!me?.first_name) return
+    const full = `${me.first_name} ${me.last_name ?? ''}`.trim()
+    if (full && full !== name) setName(full)
+  }, [me, name, setName])
 
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
     ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#fff7ed', color: '#c2410c' },
@@ -87,20 +109,49 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
     setPanelOpen(true)
   }
 
+  // เดิม 2 ฟังก์ชันนี้ไม่เรียก API เลย แค่โชว์ toast "สำเร็จ" เฉยๆ (แก้ชื่อ
+  // เปลี่ยนแค่ localStorage ในเครื่อง ไม่ลงฐานข้อมูล — เปลี่ยนรหัสผ่านไม่เรียก
+  // ไปที่ /auth/change-password ที่มีอยู่แล้วด้วยซ้ำ) แก้ให้เรียก API จริงแล้ว
+  const saveNameMut = useMutation({
+    mutationFn: (fullName: string) => {
+      const parts = fullName.split(/\s+/)
+      const first_name = parts[0]
+      const last_name = parts.slice(1).join(' ')
+      return api.post('/api/v1/auth/update-profile', { first_name, last_name })
+    },
+    onSuccess: (_res, fullName) => {
+      setName(fullName)
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] })
+      showToast('success', `เปลี่ยนชื่อเป็น "${fullName}" เรียบร้อยแล้ว`)
+      setView('profile')
+    },
+    onError: () => showToast('error', 'เปลี่ยนชื่อไม่สำเร็จ กรุณาลองใหม่'),
+  })
+
   function handleSaveName() {
     const trimmed = nameInput.trim()
     if (!trimmed) { showToast('warning', 'กรุณากรอกชื่อที่ต้องการแสดง'); return }
-    setName(trimmed)
-    showToast('success', `เปลี่ยนชื่อเป็น "${trimmed}" เรียบร้อยแล้ว`)
-    setView('profile')
+    saveNameMut.mutate(trimmed)
   }
+
+  const resetPwMut = useMutation({
+    mutationFn: () => api.post('/api/v1/auth/change-password', { current_password: pwForm.current, new_password: pwForm.next }),
+    onSuccess: () => {
+      showToast('success', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว')
+      setPwForm({ current: '', next: '', confirm: '' })
+      setPanelOpen(false)
+    },
+    onError: (err: any) => {
+      const code = err?.response?.data?.error?.code
+      showToast('error', code === 'WRONG_PASSWORD' ? 'รหัสผ่านปัจจุบันไม่ถูกต้อง' : 'เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองใหม่')
+    },
+  })
 
   function handleResetPassword() {
     if (!pwForm.current) { showToast('warning', 'กรุณากรอกรหัสผ่านปัจจุบัน'); return }
     if (pwForm.next.length < 6) { showToast('warning', 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'); return }
     if (pwForm.next !== pwForm.confirm) { showToast('error', 'รหัสผ่านใหม่ไม่ตรงกัน'); return }
-    showToast('success', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว')
-    setPanelOpen(false)
+    resetPwMut.mutate()
   }
 
   function handleLogout() {
@@ -130,7 +181,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>admin@timeline.app</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{me?.email ?? '…'}</div>
             <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: roleColor.bg, color: roleColor.color, marginTop: 4, display: 'inline-block' }}>{roleLabel}</span>
           </div>
         </div>
@@ -264,8 +315,8 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button onClick={() => setView('profile')} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>
               ยกเลิก
             </button>
-            <button onClick={handleResetPassword} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              บันทึก
+            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
+              {resetPwMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
         </div>
@@ -305,10 +356,10 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             </button>
             <button
               onClick={handleSaveName}
-              disabled={!nameInput.trim()}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#f97316' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: nameInput.trim() ? 'pointer' : 'not-allowed' }}
+              disabled={!nameInput.trim() || saveNameMut.isPending}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#f97316' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
             >
-              บันทึก
+              {saveNameMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
         </div>

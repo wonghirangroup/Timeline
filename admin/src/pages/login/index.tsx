@@ -51,7 +51,10 @@ export default function LoginPage() {
       if (remember) localStorage.setItem(REMEMBER_KEY, username)
       else localStorage.removeItem(REMEMBER_KEY)
 
-      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', user.full_name ?? user.email, user.enabled_features ?? null)
+      // เดิมอ่าน user.full_name ซึ่ง backend ไม่เคยส่งฟิลด์นี้มา (มีแต่
+      // first_name/last_name แยก) เลยเด้งเป็น user.email เสมอ — ประกอบชื่อเองแทน
+      const displayName = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
+      setAuth(accessToken, user.role as Role, user.tenant_id ?? '', displayName, user.enabled_features ?? null)
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {

@@ -13,6 +13,7 @@ import {
 } from './auth.service'
 import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
+import { updateUser } from '../tenant/user.service'
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -180,12 +181,22 @@ export async function authRoutes(app: FastifyInstance) {
         })
         enabled_features = tenant?.enabled_features ?? null
       }
-      // อ่านสดจาก DB — ต้องอัปเดตทันทีหลังผู้ใช้เปลี่ยนรหัส (JWT ไม่ได้ refresh)
+      // อ่านสดจาก DB — ต้องอัปเดตทันทีหลังผู้ใช้เปลี่ยนรหัส/ชื่อ (JWT ไม่ได้ refresh)
       const fresh = await prisma.user.findUnique({
         where: { id: request.user.id },
-        select: { must_change_password: true, is_active: true },
+        select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true },
       })
-      return { success: true, data: { ...request.user, enabled_features, must_change_password: fresh?.must_change_password ?? false } }
+      return {
+        success: true,
+        data: {
+          ...request.user,
+          email: fresh?.email ?? request.user.email,
+          first_name: fresh?.first_name ?? null,
+          last_name: fresh?.last_name ?? null,
+          enabled_features,
+          must_change_password: fresh?.must_change_password ?? false,
+        },
+      }
     } catch (err) {
       reply.code(401)
       return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
@@ -216,6 +227,38 @@ export async function authRoutes(app: FastifyInstance) {
       if (err?.message === 'WRONG_PASSWORD') { reply.code(400); return { success: false, error: { code: 'WRONG_PASSWORD', message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' } } }
       if (err?.message === 'NOT_FOUND')      { reply.code(404); return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบผู้ใช้' } } }
       reply.code(401); return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
+    }
+  })
+
+  // ── แก้ไขชื่อที่แสดงของตัวเอง ──────────────────────────────────────
+  app.post('/update-profile', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'แก้ไขชื่อที่แสดง (first_name/last_name) ของผู้ใช้ที่ล็อกอินอยู่',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['first_name'],
+        properties: {
+          first_name: { type: 'string', minLength: 1, maxLength: 100 },
+          last_name:  { type: 'string', maxLength: 100 },
+        },
+      },
+    },
+  }, async (request: any, reply) => {
+    try {
+      await request.jwtVerify()
+      const first_name = String(request.body.first_name ?? '').trim()
+      const last_name  = String(request.body.last_name ?? '').trim()
+      if (!first_name) {
+        reply.code(400)
+        return { success: false, error: { code: 'INVALID_PAYLOAD', message: 'กรุณากรอกชื่อ' } }
+      }
+      await updateUser(request.user.tenant_id, request.user.id, { first_name, last_name })
+      return { success: true, data: { first_name, last_name } }
+    } catch (err: any) {
+      reply.code(401)
+      return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
     }
   })
 }
