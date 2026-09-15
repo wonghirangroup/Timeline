@@ -372,7 +372,7 @@ export default function OtPage() {
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ color: s.color, display: 'flex' }}>{s.icon}</span>
+              <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${s.color} 55%, white), ${s.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{s.label}</div>

@@ -439,13 +439,16 @@ export default function LeaveBalancePage() {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 16 }}>
           {[
-            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#4f46e5', bg: '#eef2ff', iconColor: '#4f46e5' },
+            // "พนักงานทั้งหมด" เดิมใช้ indigo (#4f46e5) ซึ่งเป็นสี Super Admin โดยเฉพาะ
+            // (--sa-accent) ขัดกับ DESIGN.md "never mix orange and indigo" — เปลี่ยน
+            // เป็นส้มแบรนด์แทน (feedback 2026-09-15 "คุมธีมส้มไปเลย")
+            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#EA580C', bg: '#fff7ed', iconColor: '#EA580C' },
             { label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
             { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
             { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
           ].map(s => (
             <div key={s.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.iconColor, flexShrink: 0 }}>{s.icon}</div>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${s.iconColor} 55%, white), ${s.iconColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${s.iconColor}4D`, flexShrink: 0 }}>{s.icon}</div>
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>{s.label}</div>

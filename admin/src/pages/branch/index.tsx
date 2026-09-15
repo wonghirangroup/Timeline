@@ -705,7 +705,7 @@ export default function BranchPage() {
         ].map(k => (
           <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
+              <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${k.color} 55%, white), ${k.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
@@ -732,8 +732,8 @@ export default function BranchPage() {
             <div key={b.id} data-tour={idx === 0 ? 'branch-card-0' : undefined} style={{ ...card, padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Building2 size={18} color="#f97316" />
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #FB923C, #EA580C)', boxShadow: '0 4px 10px rgba(234,88,12,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Building2 size={18} color="#fff" />
                   </div>
                   <div>
                     <p style={{ fontWeight: 700, color: '#111827', margin: 0, fontSize: '13px' }}>{b.name}</p>

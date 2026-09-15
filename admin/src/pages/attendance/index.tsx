@@ -654,7 +654,7 @@ export default function AttendancePage() {
           ].map(k => (
             <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '12px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
+                <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${k.color} 55%, white), ${k.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{k.icon}</span>
                 <span style={{ fontSize: '1.6rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
