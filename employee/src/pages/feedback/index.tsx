@@ -84,7 +84,10 @@ export default function FeedbackPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 16px' }}>
+      {/* padding-bottom เพิ่มอีกชั้น (นอกจาก .page-container เอง) — เผื่อไว้ให้ปุ่ม
+          "ส่งความคิดเห็น" ที่เป็น element ท้ายสุดของหน้าห่างจาก BottomNav ชัดเจน
+          ไม่ใช่แค่พอดีเป๊ะ (feedback 2026-09-15: "ปุ่มส่งมันไปซ้อน navbar") */}
+      <div style={{ padding: '0 16px 20px' }}>
         {/* Category */}
         <div className="glass-card animate-slide-up" style={{ padding: '18px 16px', marginBottom: 12 }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>เลือกหัวข้อ</div>

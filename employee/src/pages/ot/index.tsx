@@ -262,6 +262,9 @@ export default function OtPage() {
                   boxShadow: canSubmit ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                   transition: 'all 0.2s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  // เผื่อระยะห่างจาก BottomNav เพิ่มอีกชั้นนอกจาก .page-container เอง
+                  // (feedback 2026-09-15: ปุ่มท้ายหน้าไปติด/ซ้อน navbar)
+                  marginBottom: 20,
                 }}
               >
                 {submitMutation.isPending

@@ -187,7 +187,9 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <div style={{ margin: '24px 16px 0', textAlign: 'center' }}>
+      {/* margin-bottom เผื่อระยะห่างจาก BottomNav เพิ่มอีกชั้นนอกจาก .page-container
+          เอง (feedback 2026-09-15: ปุ่มท้ายหน้าไปติด/ซ้อน navbar) */}
+      <div style={{ margin: '24px 16px 20px', textAlign: 'center' }}>
         <button
           onClick={() => { setErrorMsg(null); checkoutMutation.mutate() }}
           disabled={unchecked.length === 0 || loading}
