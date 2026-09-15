@@ -73,7 +73,10 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
       <button onClick={() => count > 0 && setOpen(o => !o)}
         style={{ width: '100%', padding: '18px 20px', border: 'none', background: 'var(--bg-card)', cursor: count > 0 ? 'pointer' : 'default', textAlign: 'left', fontFamily: 'inherit' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
+          {/* ไอคอนแบดจ์ gradient แทนพื้นจางเดิม — ปรับ "ความรู้สึก" จาก reference
+              สีสันสดที่ user ส่งมา (feedback 2026-09-15 "คุมธีมส้มไปเลย") ยังใช้สี
+              ความหมายเดิม (color/bg ต่อ card) แค่เพิ่มมิติให้มีชีวิตชีวาขึ้น */}
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${color} 55%, white), ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${color}4D` }}>{icon}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: '30px', fontWeight: 800, color, lineHeight: 1 }}>{count}</span>
             {count > 0 && <ChevronDown size={16} color="var(--text-muted)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />}
@@ -493,10 +496,13 @@ export default function DashboardPage() {
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 12 }}>แตะการ์ดเพื่อดูรายชื่อในหมวดนั้น</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             {([
-              { label: 'ทั้งหมด',    value: total,   filter: 'ALL' as TodayFilter,     icon: <Users size={18}/>,         color: 'var(--info)',    bg: 'var(--info-bg)',    iconColor: '#3b82f6', ring: '#3b82f6' },
-              { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', bg: 'var(--success-bg)', iconColor: '#10b981', ring: '#10b981' },
-              { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', bg: 'var(--warning-bg)', iconColor: '#f59e0b', ring: '#f59e0b' },
-              { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: 'var(--text-muted)', bg: '#f8fafc',       iconColor: '#94a3b8', ring: '#94a3b8' },
+              // "ทั้งหมด" เปลี่ยนจากฟ้า(info) เป็นส้ม(แบรนด์) — ไม่ใช่สถานะเชิงความหมาย
+              // (success/warning) เหมือนอีก 3 การ์ด เลยเหมาะเป็นจุดที่ใช้สีแบรนด์แทน
+              // (feedback 2026-09-15 "คุมธีมส้มไปเลย") ส่วนอีก 3 การ์ดคงสีความหมายเดิม
+              { label: 'ทั้งหมด',    value: total,   filter: 'ALL' as TodayFilter,     icon: <Users size={18}/>,         color: 'var(--accent-primary)', ring: '#EA580C' },
+              { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', ring: '#10b981' },
+              { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', ring: '#f59e0b' },
+              { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: '#64748b', ring: '#94a3b8' },
             ]).map(card => {
               const active = todayFilter === card.filter
               return (
@@ -504,7 +510,7 @@ export default function DashboardPage() {
                   aria-pressed={active}
                   style={{ padding: '20px', border: active ? `2px solid ${card.ring}` : '2px solid transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', background: 'var(--bg-card)', boxShadow: active ? `0 0 0 3px ${card.ring}22` : undefined, transition: 'border-color 0.15s, box-shadow 0.15s' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.iconColor }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${card.color} 55%, white), ${card.color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${card.color}4D` }}>
                       {card.icon}
                     </div>
                     <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
@@ -524,8 +530,8 @@ export default function DashboardPage() {
             { label: 'จัดการกะ',       icon: <Clock size={20}/>,    path: '/shift' },
           ].map(q => (
             <button key={q.path} onClick={() => navigate(q.path)} className="premium-card"
-              style={{ padding: '16px', border: '1px solid #e2e8f0', cursor: 'pointer', background: '#f8fafc', textAlign: 'center', fontFamily: 'inherit' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', color: '#64748b' }}>{q.icon}</div>
+              style={{ padding: '16px', border: '1px solid #fed7aa', cursor: 'pointer', background: '#fff', textAlign: 'center', fontFamily: 'inherit' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #FB923C, #EA580C)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', color: '#fff', boxShadow: '0 4px 10px rgba(234,88,12,0.3)' }}>{q.icon}</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{q.label}</div>
             </button>
           ))}

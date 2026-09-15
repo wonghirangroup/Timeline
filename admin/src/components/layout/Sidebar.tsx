@@ -184,7 +184,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           boxShadow: isActive ? `inset 3px 0 0 ${accent.text}` : 'none',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#f8fafc'; } }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(251,146,60,0.1)'; e.currentTarget.style.color = '#f8fafc'; } }}
         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)'; } }}
       >
         <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>

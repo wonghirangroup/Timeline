@@ -5,7 +5,12 @@
   /* Colors - Premium Slate & Vibrant Orange Accent */
   --bg-page: #F1F5F9; /* slate-100 */
   --bg-card: #FFFFFF;
-  --bg-sidebar: #0F172A; /* slate-900 */
+  /* เดิม slate-900 เย็น (#0F172A) — คุมธีมส้มเต็มที่ตามคำขอ 2026-09-15 ("ขอแบบ
+     คุมธีมส้มไปเลย แตะ sidebar ได้") เปลี่ยนเป็นสีเข้มโทนอุ่นเดียวกับแบรนด์
+     (ฮิว/โครมาเดียวกับ --accent-primary แค่ลด lightness ลงมาก — ตามหลัก dark
+     surface ที่ใช้สีแบรนด์เดียวกันแทนสีเทา/น้ำเงินทั่วไป) ยังเข้มพอทำหน้าที่
+     "anchoring" เหมือนเดิม แค่เปลี่ยนจากเย็นเป็นอุ่น */
+  --bg-sidebar: #1F140A;
   
   --accent-primary: #EA580C; /* orange-600 */
   --accent-hover: #C2410C;   /* orange-700 */

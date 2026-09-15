@@ -77,6 +77,7 @@ Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #f1f5f9`
 **Modal overlay** — `position:fixed; inset:0; z-index:200` (above sidebar 100, topbar 98)  
 **Add button** — orange gradient `linear-gradient(135deg, #f97316, #ea580c)` + shadow  
 **Sidebar nav item active** — orange `#FB923C` (orange-400, tuned for dark bg) bg subtle `rgba(249,115,22,0.16)`, text orange — same accent for every nav section (not per-section colors) so the brand orange stays dominant throughout the Sidebar
+**Stat/KPI card icon badge** — `linear-gradient(135deg, color-mix(in srgb, {color} 55%, white), {color})`, icon `#fff`, `box-shadow: 0 4px 10px {color}4D` — replaces the older flat-pastel-tint badge (`background: {bg}, color: {iconColor}`). Applied so far: Dashboard (KPI cards, RangeKpiCard, quick links). Roll out to other pages' stat cards over time — not done everywhere yet (feedback 2026-09-15, adapted from a colorful reference mockup's "feel" while keeping TimeLine's own orange-led palette, not the reference's literal purple/blue/pink)
 
 ## Motion
 
