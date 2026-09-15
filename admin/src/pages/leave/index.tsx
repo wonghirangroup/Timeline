@@ -1,25 +1,30 @@
 // admin/src/pages/leave/index.tsx — combined leave hub
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarDays, CalendarOff, BarChart3, LayoutGrid, Palmtree } from 'lucide-react'
+import { CalendarDays, CalendarOff, BarChart3, LayoutGrid, Palmtree, Sparkles } from 'lucide-react'
 import LeaveRequestsTab  from './requests'
 import WeeklyOffPage     from '../weekly-off'
 import LeaveBalancePage  from '../leave-balance'
 import TeamCalendarTab   from './TeamCalendarTab'
 import HolidayPage       from '../holiday'
+import VacationPolicyTab from './VacationPolicyTab'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
-type LeaveTab = 'requests' | 'time-off' | 'balance' | 'calendar' | 'holiday'
+type LeaveTab = 'requests' | 'time-off' | 'vacation-policy' | 'holiday' | 'balance' | 'calendar'
 
+// นโยบายพักร้อนตามอายุงาน (feedback 2026-09-15) เดิมกระจายอยู่ 3 แท็บ (ตั้งสูตรที่ตำแหน่ง,
+// เลือกชดเชย/พักร้อนที่วันหยุด, ปุ่มรัน+รายงานที่โควต้า) — user บอกว่างง เลยรวมมาเป็นแท็บ
+// เดียวที่นี่ (VacationPolicyTab) เป็นจุดเริ่มต้น ส่วนการแก้ไขเต็มรูปแบบยังอยู่ที่เดิม
 const TABS: { id: LeaveTab; label: string; mobileLabel: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
   { id: 'requests',  label: 'วันลา',              mobileLabel: 'ลา',    icon: <CalendarDays size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
   { id: 'time-off',  label: 'จองวันหยุดประจำเดือน', mobileLabel: 'หยุด', icon: <CalendarOff  size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
+  { id: 'vacation-policy', label: 'นโยบายพักร้อน', mobileLabel: 'พักร้อน', icon: <Sparkles size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
   { id: 'holiday',   label: 'วันหยุดนักขัตฤกษ์', mobileLabel: 'ขัตฤกษ์', icon: <Palmtree  size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
   { id: 'balance',   label: 'โควต้า',             mobileLabel: 'โควต้า', icon: <BarChart3  size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
   { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/>, color: '#ea580c', activeBg: '#fff7ed', activeBorder: '#f97316' },
 ]
 
-const VALID_TABS: LeaveTab[] = ['requests', 'time-off', 'holiday', 'balance', 'calendar']
+const VALID_TABS: LeaveTab[] = ['requests', 'time-off', 'vacation-policy', 'holiday', 'balance', 'calendar']
 
 export default function LeavePage() {
   const [sp] = useSearchParams()
@@ -79,6 +84,9 @@ export default function LeavePage() {
       <div style={{ display: activeTab === 'time-off' ? 'block' : 'none' }}>
         <WeeklyOffPage />
       </div>
+
+      {/* นโยบายพักร้อน — รวมทุกอย่างเกี่ยวกับพักร้อนตามอายุงาน */}
+      {activeTab === 'vacation-policy' && <VacationPolicyTab />}
 
       {/* วันหยุดนักขัตฤกษ์ */}
       <div style={{ display: activeTab === 'holiday' ? 'block' : 'none' }}>

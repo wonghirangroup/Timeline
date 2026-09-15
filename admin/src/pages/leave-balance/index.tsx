@@ -1,11 +1,11 @@
 // admin/src/pages/leave-balance/index.tsx
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon, Sparkles, ExternalLink } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
-import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -28,16 +28,6 @@ interface LeaveBalance {
   vacation:   { total: number; used: number }
   maternity:  { total: number; used: number }
   compensate: { total: number; used: number }
-}
-
-// ── รายงานพักร้อนคงเหลือ (นโยบายพักร้อนตามอายุงาน — feedback 2026-09-15) ────────
-// แทนที่เครื่องมือ "เงื่อนไขอายุงาน" เดิม (hardcode 6/8/10/15 วัน เขียนทับ balance
-// ตรงๆ) ด้วยสูตรที่ตั้งค่าต่อตำแหน่งในผังองค์กรแทน (ดู resolveVacationEntitlement
-// ใน vacation-policy.service.ts) — ที่นี่เหลือแค่ปุ่มรันมือ + ดูรายงานคงเหลือ
-interface VacationRemainingRow {
-  employee_id: string; full_name: string; nickname: string | null; employee_code: string
-  branch_name: string | null; position_name: string | null
-  total_days: number; used_days: number; remaining: number; sellable: number
 }
 
 type LeaveKey = 'sick' | 'personal' | 'vacation' | 'compensate'
@@ -276,30 +266,7 @@ export default function LeaveBalancePage() {
   const [page,         setPage]        = useState(1)
   const PAGE_SIZE = 10
 
-  const [showVacationPolicy, setShowVacationPolicy] = useState(false)
-  const { data: remainingReport = [], isLoading: loadingRemaining, refetch: refetchRemaining } = useQuery<VacationRemainingRow[]>({
-    queryKey: ['admin', 'vacation-policy', 'remaining-report', year - 1],
-    queryFn: () => api.get('/api/v1/admin/vacation-policy/remaining-report', { params: { year: year - 1 } }).then(r => r.data.data),
-    enabled: showVacationPolicy,
-  })
-  const runBonusMutation = useMutation({
-    mutationFn: () => api.post('/api/v1/admin/vacation-policy/run-bonus').then(r => r.data),
-    onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
-      showToast('success', res?.message ?? 'รันโบนัสเสร็จแล้ว')
-    },
-    onError: () => showToast('error', 'รันไม่สำเร็จ'),
-  })
-  const runResetMutation = useMutation({
-    mutationFn: () => api.post('/api/v1/admin/vacation-policy/run-reset').then(r => r.data),
-    onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
-      refetchRemaining()
-      showToast('success', res?.message ?? 'รัน reset เสร็จแล้ว')
-    },
-    onError: () => showToast('error', 'รันไม่สำเร็จ'),
-  })
-  const [confirmReset, setConfirmReset] = useState(false)
+  const navigate = useNavigate()
 
   const { data: balances = [], isLoading: loading, refetch } = useQuery<LeaveBalance[]>({
     queryKey: ['admin', 'leave-balances', year],
@@ -446,16 +413,15 @@ export default function LeaveBalancePage() {
               ))}
             </select>
             <button
-              onClick={() => setShowVacationPolicy(s => !s)}
+              onClick={() => navigate('/leave?tab=vacation-policy')}
               style={{
                 padding: '9px 16px', borderRadius: 9,
-                border: `1.5px solid ${showVacationPolicy ? '#fcd34d' : '#e2e8f0'}`,
-                background: showVacationPolicy ? '#fef3c7' : '#fff',
+                border: '1.5px solid #fcd34d', background: '#fef3c7',
                 fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer',
-                color: showVacationPolicy ? '#d97706' : '#374151',
+                color: '#d97706',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
-            ><CalendarDays size={14} /> นโยบายพักร้อนตามอายุงาน {showVacationPolicy ? '▲' : '▼'}</button>
+            ><Sparkles size={14} /> นโยบายพักร้อนตามอายุงาน <ExternalLink size={12} /></button>
             <button
               onClick={() => setShowDefault(s => !s)}
               style={{
@@ -489,79 +455,9 @@ export default function LeaveBalancePage() {
         </div>
       </div>
 
-      {/* นโยบายพักร้อนตามอายุงาน — base/อัตราเพิ่มตั้งที่ผังองค์กร→ตำแหน่ง, ที่นี่แค่รัน
-          โบนัส/reset ด้วยมือ + ดูรายงานคงเหลือปีก่อน (feedback 2026-09-15) */}
-      {showVacationPolicy && (
-        <div style={{ background: '#fff', border: '2px solid #fcd34d', borderRadius: 14, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(217,119,6,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}><CalendarDays size={15} /></div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>นโยบายพักร้อนตามอายุงาน</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>
-                ตั้งสูตร (ครบ 1 ปีได้กี่วัน / เพิ่มครั้งละกี่วันทุกกี่ปี) ได้ที่ <strong>ผังองค์กร → แก้ไขตำแหน่ง</strong> — ที่นี่ไว้รันด้วยมือ/ดูรายงานเท่านั้น
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
-            <button onClick={() => runBonusMutation.mutate()} disabled={runBonusMutation.isPending}
-              style={{ padding: '9px 16px', borderRadius: 9, border: '1.5px solid #fcd34d', background: '#fef3c7', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <RefreshCw size={14} /> {runBonusMutation.isPending ? 'กำลังรัน...' : 'รันโบนัส "หยุดไม่ครบโควต้า" เดือนที่แล้ว'}
-            </button>
-            <button onClick={() => setConfirmReset(true)} disabled={runResetMutation.isPending}
-              style={{ padding: '9px 16px', borderRadius: 9, border: 'none', background: '#d97706', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <RefreshCw size={14} /> {runResetMutation.isPending ? 'กำลังรัน...' : `รัน reset พักร้อนประจำปี ${year + 543}`}
-            </button>
-          </div>
-
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
-            พักร้อนคงเหลือปี {year - 1 + 543} (ขายคืนบริษัทได้สูงสุด 10 วัน — HR คิดจ่ายนอกระบบ)
-          </div>
-          {loadingRemaining ? (
-            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>กำลังโหลด...</div>
-          ) : remainingReport.length === 0 ? (
-            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>ยังไม่มีข้อมูลพักร้อนปี {year - 1 + 543}</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                <thead>
-                  <tr style={{ background: '#fef3c7' }}>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>พนักงาน</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#92400e' }}>ตำแหน่ง</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>โควต้า</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>ใช้ไป</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>คงเหลือ</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#92400e' }}>ขายคืนได้</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {remainingReport.map(row => (
-                    <tr key={row.employee_id} style={{ borderBottom: '1px solid #fef3c7' }}>
-                      <td style={{ padding: '7px 10px' }}>{row.full_name}{row.nickname ? ` (${row.nickname})` : ''}</td>
-                      <td style={{ padding: '7px 10px', color: '#64748b' }}>{row.position_name ?? '—'}</td>
-                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.total_days}</td>
-                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.used_days}</td>
-                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{row.remaining}</td>
-                      <td style={{ padding: '7px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: row.sellable > 0 ? '#d97706' : '#94a3b8', fontWeight: 700 }}>{row.sellable}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {confirmReset && (
-            <ConfirmDialog
-              variant="warning"
-              title={`รัน reset พักร้อนประจำปี ${year + 543}?`}
-              message="ระบบจะตั้งวันพักร้อนของพนักงานทุกคนที่มีสิทธิ์ใหม่ตามสูตรอายุงาน (ไม่ยกยอดจากปีก่อน) — คนที่ตำแหน่งยังไม่ได้ตั้งค่าโปรแกรมพักร้อนจะไม่ถูกแตะ"
-              confirmLabel="ยืนยันรัน"
-              onConfirm={() => { setConfirmReset(false); runResetMutation.mutate() }}
-              onCancel={() => setConfirmReset(false)}
-            />
-          )}
-        </div>
-      )}
+      {/* นโยบายพักร้อนตามอายุงาน (สูตร/โบนัส/reset/รายงาน) ย้ายไปรวมที่แท็บ
+          "นโยบายพักร้อน" ของหน้าการลา&วันหยุดแล้ว (feedback 2026-09-15 — เดิม
+          กระจาย 3 ที่ทำให้งง) ปุ่มด้านบนพาไปที่นั่น */}
 
       {/* Default quota panel */}
       {showDefault && (
