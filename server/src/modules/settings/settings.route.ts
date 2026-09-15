@@ -32,6 +32,8 @@ export async function settingsRoutes(app: FastifyInstance) {
           tax_id:        { type: ['string', 'null'] },
           logo_url:      { type: ['string', 'null'] },
           primary_color: { type: ['string', 'null'], description: '#RRGGBB' },
+          signer_name:   { type: ['string', 'null'], description: 'ชื่อผู้ลงนามท้ายเอกสาร HR เช่น "นางสาวเภาไพรรำ หิรัญประทีป"' },
+          signer_title:  { type: ['string', 'null'], description: 'ตำแหน่งผู้ลงนาม เช่น "กรรมการผู้จัดการ"' },
           leave_backdate_days: { type: ['integer', 'null'], minimum: 0, description: 'null = ยื่นลาย้อนหลังได้ไม่จำกัด' },
           self_resignation_enabled: { type: 'boolean', description: 'เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF' },
         },

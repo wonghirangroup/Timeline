@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Check, X, Upload, Loader2, Paperclip } from 'lucide-react'
+import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { uploadFile } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
@@ -14,6 +14,7 @@ import Button from '../../components/ui/Button'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
+import HrDocumentGenerateModal from '../hr-documents/generate'
 
 const TYPE_LABEL: Record<string, string> = {
   PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'อื่นๆ',
@@ -37,6 +38,7 @@ export default function DocumentRequestsPage() {
   const [rejectNote, setRejectNote] = useState('')
   const [pickedFile, setPickedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [genTarget, setGenTarget] = useState<any>(null)
 
   const { data: rows = [], isLoading } = useQuery<any[]>({
     queryKey: ['admin', 'document-requests', statusFilter],
@@ -114,7 +116,10 @@ export default function DocumentRequestsPage() {
                 <span style={{ background: sc.bg, color: sc.c, borderRadius: 99, padding: '3px 12px', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
               </div>
               {r.status === 'PENDING' && !isReadOnly && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  {(r.type === 'PAYSLIP' || r.type === 'SALARY_CERT') && (
+                    <Button variant="secondary" size="sm" icon={<Sparkles size={13} />} onClick={() => setGenTarget(r)}>สร้างในระบบ</Button>
+                  )}
                   <Button variant="success" size="sm" icon={<Upload size={13} />} onClick={() => { setCompleteTarget(r); setPickedFile(null) }}>แนบไฟล์ + เสร็จ</Button>
                   <Button variant="danger-soft" size="sm" icon={<X size={13} />} onClick={() => { setRejectTarget(r); setRejectNote('') }}>ปฏิเสธ</Button>
                 </div>
@@ -123,6 +128,17 @@ export default function DocumentRequestsPage() {
           )
         })}
       </div>
+
+      {genTarget && (
+        <HrDocumentGenerateModal
+          employeeId={genTarget.employee.id}
+          type={genTarget.type}
+          documentRequestId={genTarget.id}
+          period={genTarget.period ?? undefined}
+          onClose={() => setGenTarget(null)}
+          onCreated={() => showToast('success', 'พิมพ์/บันทึกเป็น PDF แล้วกลับมากด "แนบไฟล์ + เสร็จ" เพื่อปิดคำขอนี้')}
+        />
+      )}
 
       {completeTarget && (
         <Modal onClose={() => { setCompleteTarget(null); setPickedFile(null) }} width={400}>

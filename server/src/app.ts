@@ -34,6 +34,7 @@ import { notificationRoutes } from './modules/notifications/notifications.route'
 import { settingsRoutes } from './modules/settings/settings.route'
 import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
 import { hrLifecycleRoutes } from './modules/hr-lifecycle/hr-lifecycle.route'
+import { hrDocumentRoutes } from './modules/hr-document/hr-document.route'
 import { leaveTypesRoutes } from './modules/leave-types/leave-types.route'
 import { vacationPolicyRoutes } from './modules/leave/vacation-policy.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
@@ -146,6 +147,7 @@ app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: K
 app.register(notificationRoutes, { prefix: '/api/v1/admin' })        // ADMIN: กระดิ่งแจ้งเตือนรวม
 app.register(settingsRoutes,     { prefix: '/api/v1/admin' })        // ADMIN: การตั้งค่าบริษัท (โปรไฟล์/แบรนด์/นโยบาย)
 app.register(hrLifecycleRoutes,  { prefix: '/api/v1' })              // ADMIN: เอกสาร/ทดลองงาน/หนังสือเตือน/ลาออก + EMPLOYEE (LIFF) รับทราบ/ยื่นลาออก
+app.register(hrDocumentRoutes,   { prefix: '/api/v1' })              // ADMIN: สร้างเอกสาร HR ในระบบ (สลิป/รับรองเงินเดือน/ใบลาออก) — feedback 2026-09-15
 app.register(leaveTypesRoutes,   { prefix: '/api/v1' })              // ADMIN: ประเภทการลากำหนดเอง + accrual · EMPLOYEE (LIFF) ดูประเภท
 app.register(vacationPolicyRoutes, { prefix: '/api/v1' })            // ADMIN: นโยบายพักร้อนตามอายุงาน (preview/run-bonus/run-reset/รายงาน)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook

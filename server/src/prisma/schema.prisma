@@ -21,6 +21,8 @@ model Tenant {
   tax_id                   String? // เลขประจำตัวผู้เสียภาษี
   logo_url                 String? // white-label — โลโก้บริษัท (URL)
   primary_color            String? // white-label — สีหลัก (#RRGGBB)
+  signer_name              String? // ชื่อผู้ลงนามท้ายเอกสาร HR ที่ออกในระบบ (เช่น "นางสาวเภาไพรรำ หิรัญประทีป") — feedback 2026-09-15 ตั้งครั้งเดียวใช้ซ้ำทุกเอกสาร
+  signer_title             String? // ตำแหน่งผู้ลงนาม (เช่น "กรรมการผู้จัดการ") คู่กับ signer_name
   leave_backdate_days      Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
   self_resignation_enabled Boolean    @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
   plan                     TenantPlan @default(FREE)
@@ -194,6 +196,7 @@ model Employee {
   disciplinary_records   DisciplinaryRecord[]
   resignation_requests   ResignationRequest[]
   document_requests      DocumentRequest[]
+  hr_documents           HrDocument[]
   vacation_grant_logs    VacationGrantLog[]
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
@@ -316,11 +319,46 @@ model DocumentRequest {
   created_at  DateTime              @default(now())
   updated_at  DateTime              @updatedAt
 
-  employee Employee @relation(fields: [employee_id], references: [id])
+  employee     Employee     @relation(fields: [employee_id], references: [id])
+  hr_documents HrDocument[]
 
   @@index([tenant_id])
   @@index([employee_id])
   @@map("document_requests")
+}
+
+// ── เอกสาร HR ที่แอดมินสร้างในระบบ (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/ใบลาออก) ──
+// ต่างจาก DocumentRequest (คำขอที่พนักงานยื่น + แอดมินอัปโหลดไฟล์แนบเอาเอง) — อันนี้คือ
+// "สร้างเอกสารในระบบ" จริง ดึงข้อมูลพนักงาน/บริษัทที่มีอยู่แล้วมาเติมอัตโนมัติ ส่วนตัวเลข
+// การเงิน (เงินเดือน/ค่าคอมมิชชั่น ฯลฯ) แอดมินกรอกเองเสมอ เพราะระบบไม่มีข้อมูลการเงิน —
+// เก็บ data เป็น snapshot ตอนสร้าง (ไม่อ้างอิงสดจาก Employee) กันข้อมูลเปลี่ยนภายหลังแล้ว
+// พิมพ์ซ้ำได้ค่าไม่ตรงกับตอนออกจริง (feedback 2026-09-15: "เก็บไว้จริง มีเลขที่เอกสาร +
+// ประวัติย้อนหลัง")
+model HrDocument {
+  id                  String       @id @default(uuid())
+  tenant_id           String
+  employee_id         String
+  type                HrDocumentType
+  doc_number          String? // เลขที่เอกสาร (auto-suggest ตอนสร้าง แอดมินแก้ได้) — RESIGNATION_LETTER ไม่มีเลขที่ในเทมเพลตต้นแบบ ปล่อย null ได้
+  period              String? // เดือนที่เกี่ยวข้อง เช่น "2026-09" — ใช้กับ PAYSLIP เป็นหลัก
+  data                Json // ฟิลด์ทั้งหมดที่ใช้ render เอกสาร ณ ตอนสร้าง (auto-fill + กรอกเอง) — snapshot
+  document_request_id String? // อ้างอิงคำขอ HR ที่มาจาก (ถ้ามี) — traceability เฉยๆ ไม่ auto-complete คำขอ
+  created_by          String // user_id ของแอดมินที่สร้าง
+  created_at          DateTime     @default(now())
+
+  employee         Employee         @relation(fields: [employee_id], references: [id])
+  document_request DocumentRequest? @relation(fields: [document_request_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@index([document_request_id])
+  @@map("hr_documents")
+}
+
+enum HrDocumentType {
+  PAYSLIP
+  SALARY_CERT
+  RESIGNATION_LETTER
 }
 
 model EmployeeStatusLog {

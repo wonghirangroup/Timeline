@@ -7,7 +7,7 @@ import {
   Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft,
   BarChart2, CalendarDays, Umbrella, Info,
   CheckCircle2, Clock, XCircle, Scale, Folder, Phone,
-  Building2, Smartphone, AlertTriangle, Users, Wallet,
+  Building2, Smartphone, AlertTriangle, Users, Wallet, FileText,
 } from 'lucide-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import Pagination from '../../components/ui/Pagination'
@@ -16,6 +16,7 @@ import { useToast } from '../../components/ui/Toast'
 import { deptName } from '../../lib/format'
 import { useAuthStore } from '../../stores/authStore'
 import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
+import EmployeeDocsTab from '../hr-documents/EmployeeDocsTab'
 import AvatarUpload from '../../components/ui/AvatarUpload'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -217,7 +218,7 @@ function avatarPalette(id: string) {
   return AVATAR_PALETTES[i]
 }
 
-type Tab = 'overview' | 'attendance' | 'leave' | 'hr' | 'info'
+type Tab = 'overview' | 'attendance' | 'leave' | 'hr' | 'docs' | 'info'
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
@@ -823,7 +824,7 @@ export default function EmployeeDetailPage() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>(() => {
     const t = sp.get('tab') as Tab | null
-    return t && ['overview', 'attendance', 'leave', 'hr', 'info'].includes(t) ? t : 'overview'
+    return t && ['overview', 'attendance', 'leave', 'hr', 'docs', 'info'].includes(t) ? t : 'overview'
   })
   const [inviteSent, setInviteSent] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -896,6 +897,7 @@ export default function EmployeeDetailPage() {
     { key: 'attendance', label: 'ประวัติเช็คอิน', icon: <ClipboardList size={15}/> },
     { key: 'leave',      label: 'วันลา',          icon: <Umbrella size={15}/> },
     ...(showHr ? [{ key: 'hr' as Tab, label: 'เอกสาร & วินัย', icon: <Folder size={15}/> }] : []),
+    { key: 'docs',       label: 'ออกเอกสาร',      icon: <FileText size={15}/> },
     { key: 'info',       label: 'ข้อมูลส่วนตัว',  icon: <Info size={15}/> },
   ]
 
@@ -1006,6 +1008,7 @@ export default function EmployeeDetailPage() {
         {tab === 'attendance' && <AttendanceTab employeeId={emp.id} emp={emp} />}
         {tab === 'leave'      && <LeaveTab      employeeId={emp.id} />}
         {tab === 'hr'         && <HrLifecyclePanel employeeId={emp.id} emp={emp} features={{ employee_documents: hrOn('employee_documents'), probation: hrOn('probation'), disciplinary: hrOn('disciplinary') }} />}
+        {tab === 'docs'       && <EmployeeDocsTab employeeId={emp.id} />}
         {tab === 'info'       && <InfoTab       emp={emp} onResetLine={() => setConfirmReset(true)} />}
       </div>
 

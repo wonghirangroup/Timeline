@@ -261,15 +261,15 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const readOnly = useIsReadOnly()
   const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
-  const [form, setForm] = useState({ name: '', address: '', tax_id: '', logo_url: '', primary_color: '' })
-  useEffect(() => { if (data) setForm({ name: data.name ?? '', address: data.address ?? '', tax_id: data.tax_id ?? '', logo_url: data.logo_url ?? '', primary_color: data.primary_color ?? '' }) }, [data])
+  const [form, setForm] = useState({ name: '', address: '', tax_id: '', logo_url: '', primary_color: '', signer_name: '', signer_title: '' })
+  useEffect(() => { if (data) setForm({ name: data.name ?? '', address: data.address ?? '', tax_id: data.tax_id ?? '', logo_url: data.logo_url ?? '', primary_color: data.primary_color ?? '', signer_name: data.signer_name ?? '', signer_title: data.signer_title ?? '' }) }, [data])
 
   const mut = useMutation({
     mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
@@ -278,6 +278,8 @@ function CompanyProfileTab() {
       tax_id: form.tax_id.trim() || null,
       logo_url: form.logo_url.trim() || null,
       primary_color: form.primary_color.trim() || null,
+      signer_name: form.signer_name.trim() || null,
+      signer_title: form.signer_title.trim() || null,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกข้อมูลบริษัทแล้ว') },
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
@@ -311,6 +313,16 @@ function CompanyProfileTab() {
           <img src={form.logo_url} alt="logo" style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain', borderRadius: 6, border: '1px solid #f1f5f9', padding: 4, background: '#fff' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         </div>
       )}
+
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+        <p style={{ fontSize: '12.5px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>ผู้ลงนามท้ายเอกสาร HR</p>
+        <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: '0 0 10px' }}>ใช้เติมอัตโนมัติทุกครั้งที่สร้างเอกสาร (สลิปเงินเดือน/รับรองเงินเดือน/ใบลาออก) ในหน้าเอกสารของพนักงาน</p>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div><label style={fieldLabel}>ชื่อ-นามสกุลผู้ลงนาม</label><input style={inputStyle} value={form.signer_name} disabled={readOnly} onChange={e => setForm(f => ({ ...f, signer_name: e.target.value }))} placeholder="เช่น นางสาวเภาไพรรำ หิรัญประทีป" /></div>
+          <div><label style={fieldLabel}>ตำแหน่งผู้ลงนาม</label><input style={inputStyle} value={form.signer_title} disabled={readOnly} onChange={e => setForm(f => ({ ...f, signer_title: e.target.value }))} placeholder="เช่น กรรมการผู้จัดการ" /></div>
+        </div>
+      </div>
+
       {!readOnly && (
         <Button variant="primary" disabled={!form.name.trim()} loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
       )}

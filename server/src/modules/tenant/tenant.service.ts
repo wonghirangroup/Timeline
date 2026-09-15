@@ -119,6 +119,7 @@ export async function assertPlanCapacity(tenantId: string, kind: 'employees' | '
 // ── การตั้งค่าที่ Admin ของ tenant แก้ได้เอง (แยกจาก max_* / plan ที่เป็นของ Super Admin) ──
 const TENANT_SETTINGS_SELECT = {
   name: true, address: true, tax_id: true, logo_url: true, primary_color: true,
+  signer_name: true, signer_title: true,
   leave_backdate_days: true, self_resignation_enabled: true, plan: true,
   notification_prefs: true,
 } as const
@@ -133,6 +134,8 @@ export async function updateTenantSettings(tenantId: string, data: {
   tax_id?: string | null
   logo_url?: string | null
   primary_color?: string | null
+  signer_name?: string | null
+  signer_title?: string | null
   leave_backdate_days?: number | null
   self_resignation_enabled?: boolean
 }) {

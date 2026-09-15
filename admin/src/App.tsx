@@ -20,6 +20,7 @@ import EmployeeDetailPage   from './pages/employee/detail'
 import MasterDataPage       from './pages/master-data'
 import ResignationsPage     from './pages/resignations'
 import DocumentRequestsPage from './pages/document-requests'
+import HrDocumentPrintPage  from './pages/hr-documents/print'
 import UiKitPage            from './pages/ui-kit'
 
 function AdminRoutes() {
@@ -65,6 +66,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* เอกสาร HR ที่พิมพ์/พิมพ์ซ้ำ — จงใจอยู่นอก Layout (ไม่มี Sidebar/Topbar) เพื่อให้
+            หน้าพิมพ์สะอาด ไม่มีอะไรติดไปตอนสั่งพิมพ์/บันทึกเป็น PDF */}
+        <Route path="/hr-documents/:id/print" element={<HrDocumentPrintPage />} />
         <Route path="/*"     element={<AdminRoutes />} />
       </Routes>
     </BrowserRouter>
