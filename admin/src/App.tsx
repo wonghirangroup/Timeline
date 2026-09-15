@@ -21,6 +21,7 @@ import MasterDataPage       from './pages/master-data'
 import ResignationsPage     from './pages/resignations'
 import DocumentRequestsPage from './pages/document-requests'
 import HrDocumentPrintPage  from './pages/hr-documents/print'
+import MagicLoginPage       from './pages/magic-login'
 import UiKitPage            from './pages/ui-kit'
 
 function AdminRoutes() {
@@ -66,6 +67,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* auto-login ครั้งเดียวจากลิงก์แจ้งเตือนไลน์/ปุ่มสลับจาก LIFF — นอก Layout เหมือน /login */}
+        <Route path="/magic-login" element={<MagicLoginPage />} />
         {/* เอกสาร HR ที่พิมพ์/พิมพ์ซ้ำ — จงใจอยู่นอก Layout (ไม่มี Sidebar/Topbar) เพื่อให้
             หน้าพิมพ์สะอาด ไม่มีอะไรติดไปตอนสั่งพิมพ์/บันทึกเป็น PDF */}
         <Route path="/hr-documents/:id/print" element={<HrDocumentPrintPage />} />

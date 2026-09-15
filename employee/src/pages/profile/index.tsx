@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const patchEmployee = useAuthStore(s => s.patchEmployee)
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [switchingToAdmin, setSwitchingToAdmin] = useState(false)
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -37,7 +38,23 @@ export default function ProfilePage() {
     }
   }
 
-  const adminUrl = employee?.admin_access && employee.admin_url ? employee.admin_url : null
+  const showSwitchToAdmin = !!employee?.admin_access
+
+  // เดิม employee.admin_url เป็นลิงก์เปล่าพาไปหน้า login เฉยๆ (ต้องล็อกอินซ้ำ) — feedback
+  // 2026-09-15 "อยาก login อัตโนมัติเลย" เปลี่ยนเป็นขอ token auto-login สดตอนกดปุ่มแทน
+  // (token หมดอายุเร็วมาก ฝังไว้ล่วงหน้าใน /employee/me จะหมดอายุก่อนกดจริง)
+  async function handleSwitchToAdmin() {
+    if (switchingToAdmin) return
+    setSwitchingToAdmin(true)
+    try {
+      const res = await api.post('/employee/switch-to-admin')
+      window.open(res.data.data.url, '_blank', 'noopener')
+    } catch {
+      alert('เปิดเว็บแอดมินไม่สำเร็จ ลองใหม่อีกครั้ง')
+    } finally {
+      setSwitchingToAdmin(false)
+    }
+  }
 
   const MENU_ITEMS = [
     { Icon: Clock,          label: 'รายการ OT',       sub: 'ประวัติทำงานล่วงเวลา', bubbleClass: 'icon-bubble-blue',   path: '/ot',       show: true },
@@ -133,15 +150,16 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {adminUrl && (
+        {showSwitchToAdmin && (
           <button
-            onClick={() => window.open(adminUrl, '_blank', 'noopener')}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 14, padding: '13px 14px', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 24 }}>
+            onClick={handleSwitchToAdmin}
+            disabled={switchingToAdmin}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 14, padding: '13px 14px', cursor: switchingToAdmin ? 'default' : 'pointer', fontFamily: 'inherit', marginBottom: 24, opacity: switchingToAdmin ? 0.7 : 1 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: '#4F46E5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <ExternalLink size={19} />
             </div>
             <div style={{ flex: 1, textAlign: 'left' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#312E81' }}>สลับไปเว็บแอดมิน</div>
+              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#312E81' }}>{switchingToAdmin ? 'กำลังเปิด...' : 'สลับไปเว็บแอดมิน'}</div>
               <div style={{ fontSize: '0.75rem', color: '#6366F1', marginTop: 2 }}>เปิดหน้าจัดการสำหรับแอดมิน</div>
             </div>
             <span style={{ color: '#A5B4FC', fontSize: '1.1rem' }}>›</span>

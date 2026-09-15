@@ -28,6 +28,21 @@ export async function lineMulticast(accessToken: string, toIds: string[], messag
   return { sent: toIds.length }
 }
 
+// ส่งหาคนเดียว (ต่างจาก multicast ที่ส่งข้อความเดียวกันหาหลายคน) — ใช้ตอนต้องปรับ
+// เนื้อหาต่อคน เช่น ลิงก์ auto-login ที่ฝัง token เฉพาะของแต่ละคน ส่งพร้อมกันซ้ำไม่ได้
+export async function linePush(accessToken: string, toId: string, message: string | object) {
+  const messages = typeof message === 'string' ? [{ type: 'text', text: message }] : [message]
+  const res = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: toId, messages }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(`LINE push failed: ${JSON.stringify(err)}`)
+  }
+}
+
 export async function listAnnouncements(tenantId: string) {
   return prisma.announcement.findMany({
     where: { ...(tenantId ? { tenant_id: tenantId } : {}) },

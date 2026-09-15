@@ -10,6 +10,7 @@ import {
   verifyRefreshToken,
   findUserById,
   changeOwnPassword,
+  consumeMagicLoginToken,
 } from './auth.service'
 import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
@@ -153,6 +154,42 @@ export async function authRoutes(app: FastifyInstance) {
     } catch (error: any) {
       reply.code(401)
       return { success: false, error: { code: 'AUTH_FAILED', message: error?.message || 'Invalid token' } }
+    }
+  })
+
+  // ── Auto-login ครั้งเดียว (magic link) — จากลิงก์แจ้งเตือนไลน์ / ปุ่ม "สลับไปเว็บ
+  // แอดมิน" ใน LIFF ─────────────────────────────────────────────────────────
+  app.post('/magic-login', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ล็อกอินอัตโนมัติด้วย token ครั้งเดียว (จากลิงก์แจ้งเตือนไลน์/สลับจาก LIFF)',
+      security: [],
+      body: { type: 'object', required: ['token'], properties: { token: { type: 'string', minLength: 1 } } },
+    },
+  }, async (req: any, reply) => {
+    const result = await consumeMagicLoginToken(req.body.token)
+    if (!result) {
+      reply.code(401)
+      return { success: false, error: { code: 'INVALID_TOKEN', message: 'ลิงก์หมดอายุหรือถูกใช้ไปแล้ว กรุณาล็อกอินใหม่' } }
+    }
+    const { user, next_path } = result
+    if (user.role === 'SUPER_ADMIN') {
+      reply.code(403)
+      return { success: false, error: { code: 'FORBIDDEN', message: 'บัญชี Super Admin ต้องเข้าสู่ระบบผ่านพอร์ทัลแยกต่างหาก' } }
+    }
+    const accessToken = createAccessToken(app, user)
+    const refreshToken = createRefreshToken(app, user)
+    return {
+      success: true,
+      data: {
+        user: {
+          id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name,
+          role: user.role, tenant_id: user.tenant_id,
+          enabled_features: (user as any).tenant?.enabled_features ?? null,
+          must_change_password: user.must_change_password,
+        },
+        accessToken, refreshToken, next_path,
+      },
     }
   })
 

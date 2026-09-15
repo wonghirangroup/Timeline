@@ -7,8 +7,9 @@
 //
 // best-effort เสมอ — พังยังไงก็ห้ามทำให้ flow หลัก (สร้างคำขอ) ล้มตาม จับ error ทั้งหมดในนี้
 import { prisma } from '../../common/utils/prisma'
-import { lineMulticast } from '../announcement/announcement.service'
+import { lineMulticast, linePush } from '../announcement/announcement.service'
 import { isNotificationEnabled, type NotificationType } from '../../common/utils/notificationPrefs'
+import { createMagicLoginToken } from '../auth/auth.service'
 
 const ADMIN_APP_URL    = process.env.ADMIN_APP_URL    || 'https://timeline-admin.vercel.app'
 const EMPLOYEE_APP_URL = process.env.EMPLOYEE_APP_URL || 'https://timeline-employee.vercel.app'
@@ -27,13 +28,16 @@ export interface AdminLineNotice extends LineNoticeCard {
   type: NotificationType  // ประเภทการแจ้งเตือน — เช็คกับ Tenant.notification_prefs ก่อนส่งเสมอ
 }
 
-function buildFlexMessage(empName: string, n: LineNoticeCard, baseUrl: string = ADMIN_APP_URL) {
-  const footer = n.path ? {
+// actionUrl = URI เต็มพร้อมใช้ (เช่น magic-login link ที่มี token เฉพาะคนแล้ว) — ถ้าไม่ส่งมา
+// จะประกอบจาก baseUrl+path แบบเดิม (ใช้กับฝั่งพนักงาน/LIFF ที่ยังไม่มี auto-login)
+function buildFlexMessage(empName: string, n: LineNoticeCard, baseUrl: string = ADMIN_APP_URL, actionUrl?: string) {
+  const uri = actionUrl ?? (n.path ? `${baseUrl}${n.path}` : undefined)
+  const footer = uri ? {
     footer: {
       type: 'box', layout: 'vertical', paddingAll: '12px', spacing: 'sm',
       contents: [{
         type: 'button', style: 'primary', color: n.color, height: 'sm',
-        action: { type: 'uri', label: n.buttonLabel ?? 'เปิดดู / อนุมัติ', uri: `${baseUrl}${n.path}` },
+        action: { type: 'uri', label: n.buttonLabel ?? 'เปิดดู / อนุมัติ', uri },
       }],
     },
   } : {}
@@ -71,9 +75,11 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
     // ADMIN/MANAGER เห็นทั้ง tenant — ได้แจ้งเตือนทุกคำขอ
     const admins = await prisma.user.findMany({
       where: { tenant_id: tenantId, is_active: true, role: { in: ['ADMIN', 'MANAGER'] } },
-      select: { linked_employee: { select: { line_user_id: true } } },
+      select: { id: true, linked_employee: { select: { line_user_id: true } } },
     })
-    const ids = admins.map(a => a.linked_employee?.line_user_id).filter((v): v is string => !!v)
+    const pairs = admins
+      .filter(a => a.linked_employee?.line_user_id)
+      .map(a => ({ userId: a.id, lineUserId: a.linked_employee!.line_user_id! }))
 
     // DEPT_HEAD เห็นเฉพาะแผนกตัวเอง — แจ้งเฉพาะเมื่อพนักงานเจ้าของคำขออยู่ในแผนกที่ดูแล
     if (emp.position_id) {
@@ -81,17 +87,35 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
       if (pos) {
         const heads = await prisma.user.findMany({
           where: { tenant_id: tenantId, is_active: true, role: 'DEPT_HEAD', managed_departments: { some: { department_id: pos.department_id } } },
-          select: { linked_employee: { select: { line_user_id: true } } },
+          select: { id: true, linked_employee: { select: { line_user_id: true } } },
         })
-        for (const h of heads) if (h.linked_employee?.line_user_id) ids.push(h.linked_employee.line_user_id)
+        for (const h of heads) if (h.linked_employee?.line_user_id) pairs.push({ userId: h.id, lineUserId: h.linked_employee.line_user_id })
       }
     }
 
-    const uniqueIds = [...new Set(ids)]
-    if (uniqueIds.length === 0) return
+    // กันซ้ำด้วย lineUserId (คนเดียวโดนแจ้งซ้ำจาก role ต่างกันไม่ได้ในทางปฏิบัติ แต่กันไว้)
+    const uniquePairs = [...new Map(pairs.map(p => [p.lineUserId, p])).values()]
+    if (uniquePairs.length === 0) return
 
     const empName = emp.nickname ? `${emp.first_name} (${emp.nickname})` : `${emp.first_name} ${emp.last_name}`
-    await lineMulticast(lineConfig.line_channel_access_token, uniqueIds, buildFlexMessage(empName, notice))
+
+    if (!notice.path) {
+      // ไม่มีปุ่ม/ลิงก์ — ไม่ต้อง personalize ส่ง multicast เดียวจบแบบเดิม (ประหยัด API call)
+      await lineMulticast(lineConfig.line_channel_access_token, uniquePairs.map(p => p.lineUserId), buildFlexMessage(empName, notice))
+      return
+    }
+
+    // มีปุ่ม — ออก magic-login token เฉพาะคน (feedback 2026-09-15: กดจากไลน์แล้วอยาก
+    // login อัตโนมัติ) เลยต้อง push แยกทีละคนแทน multicast ข้อความเดียวกัน
+    await Promise.all(uniquePairs.map(async p => {
+      try {
+        const token = await createMagicLoginToken(p.userId, notice.path)
+        const url = `${ADMIN_APP_URL}/magic-login?token=${token}`
+        await linePush(lineConfig.line_channel_access_token!, p.lineUserId, buildFlexMessage(empName, notice, ADMIN_APP_URL, url))
+      } catch (e) {
+        console.error('[line-push] ส่ง magic-login ให้ผู้รับรายคนไม่สำเร็จ:', e)
+      }
+    }))
   } catch (e) {
     console.error('[line-push] ส่งแจ้งเตือนแอดมินทาง LINE ไม่สำเร็จ:', e)
   }

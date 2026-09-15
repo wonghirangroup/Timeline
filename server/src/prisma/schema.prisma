@@ -111,9 +111,29 @@ model User {
   managed_branches    BranchManager[]
   managed_departments UserDepartment[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (many-to-many, ดูแลได้หลายแผนก)
   linked_employee     Employee?        @relation("EmployeeAdminUser") // พนักงานที่ผูกบัญชีนี้ไว้ (ถ้าสร้างผ่านหน้าพนักงาน)
+  magic_login_tokens  MagicLoginToken[]
 
   @@index([tenant_id])
   @@map("users")
+}
+
+// ── auto-login ทางเดียว (magic link) — feedback 2026-09-15: "กดเข้าจากแจ้งเตือนไลน์/
+// หน้าโปรไฟล์ อยากให้ login อัตโนมัติเลย" ใช้กับ 2 จุด: (1) ปุ่ม "สลับไปเว็บแอดมิน" ใน
+// โปรไฟล์ LIFF ของพนักงานที่มีบัญชีแอดมินผูกอยู่ (2) ลิงก์ในการ์ดแจ้งเตือนไลน์ที่ส่งหา
+// แอดมิน/หัวหน้าแผนก — ใช้ครั้งเดียวหมดอายุเร็ว (~2 นาที) กันแชร์ลิงก์ต่อ/เปิดซ้ำ
+model MagicLoginToken {
+  id         String    @id @default(uuid())
+  token      String    @unique
+  user_id    String
+  next_path  String? // path ในแอดมินที่จะพาไปหลัง login เช่น "/document-requests?approve=<id>"
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@map("magic_login_tokens")
 }
 
 enum UserRole {

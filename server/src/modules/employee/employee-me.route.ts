@@ -6,6 +6,7 @@ import { prisma }           from '../../common/utils/prisma'
 import { listHolidays, holidayAppliesTo } from '../tenant/holiday.service'
 import { resolveHolidayPolicy } from '../group/group.service'
 import { isFeatureEnabled } from '../../common/utils/features'
+import { createMagicLoginToken } from '../auth/auth.service'
 
 export async function employeeMeRoutes(app: FastifyInstance) {
 
@@ -49,9 +50,29 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const { admin_user, extra_branches, ...empRest } = employee as any
     const admin_access = !!admin_user?.is_active
-    const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
-    return ok({ employee: { ...empRest, extra_branches: extra_branches.map((eb: any) => eb.branch), booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), feat_document_request: ff('document_request'), admin_access, admin_url: admin_access ? ADMIN_APP_URL : null }, shifts })
+    return ok({ employee: { ...empRest, extra_branches: extra_branches.map((eb: any) => eb.branch), booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), feat_document_request: ff('document_request'), admin_access }, shifts })
+  })
+
+  // POST /api/v1/employee/switch-to-admin — ออก token auto-login สดใหม่ตอนกดปุ่มเท่านั้น
+  // (เดิม admin_url เป็นลิงก์เปล่าพาไปหน้า login เฉยๆ — feedback 2026-09-15 "อยาก login
+  // อัตโนมัติ") token หมดอายุเร็ว ต้องสร้างตอนกดจริง ไม่ฝังไว้ล่วงหน้าใน /employee/me
+  app.post('/employee/switch-to-admin', {
+    preHandler: [tenantMiddleware],
+    schema: { tags: ['Employee'], summary: 'ขอลิงก์ auto-login ไปเว็บแอดมิน (LIFF)', security: [{ oauth2: [] }] },
+  }, async (req: any, reply) => {
+    const employeeId = req.employeeId
+    if (!employeeId) return reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบข้อมูล employee'))
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, tenant_id: req.tenantId, deleted_at: null, is_active: true },
+      select: { admin_user: { select: { id: true, is_active: true } } },
+    })
+    if (!employee?.admin_user?.is_active) return reply.code(403).send(fail('NO_ADMIN_ACCESS', 'บัญชีนี้ไม่มีสิทธิ์เข้าเว็บแอดมิน'))
+
+    const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
+    const token = await createMagicLoginToken(employee.admin_user.id)
+    return ok({ url: `${ADMIN_APP_URL}/magic-login?token=${token}` })
   })
 
   // PATCH /api/v1/employee/photo — พนักงานตั้ง/ลบรูปโปรไฟล์ตัวเองผ่าน LIFF
