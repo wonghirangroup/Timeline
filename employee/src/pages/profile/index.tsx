@@ -15,9 +15,12 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    // eslint-disable-next-line no-console
+    console.log('[pickPhoto] fired, files=', e.target.files)
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file) return
+    if (!file) { console.log('[pickPhoto] no file, aborting'); return }
+    console.log('[pickPhoto] file picked:', file.name, file.type, file.size)
     // เดิมเช็ค file.type.startsWith('image/') แล้ว return เงียบๆ ถ้าไม่ตรง — เว็บวิว
     // LINE บางเครื่อง/บางรุ่น (โดยเฉพาะรูปที่ถ่ายจากกล้องตรงๆ ไม่ได้เลือกจากคลัง) รายงาน
     // file.type เป็นค่าว่างหรือไม่ตรงกับที่คาด ทำให้เงียบไปเลย กดแล้วไม่มีอะไรเกิดขึ้น
@@ -27,14 +30,18 @@ export default function ProfilePage() {
     if (file.type && !file.type.startsWith('image/')) { alert('กรุณาเลือกไฟล์รูปภาพ'); return }
     setUploading(true)
     try {
+      console.log('[pickPhoto] uploading to cloudinary...')
       const url = await uploadImage(file)
+      console.log('[pickPhoto] cloudinary ok, url=', url)
       // api instance มี baseURL = .../api/v1 อยู่แล้ว — ใส่ /api/v1 ซ้ำในนี้ทำให้เป็น
       // .../api/v1/api/v1/employee/photo แล้วโดน 404 (จริงตัวจริงของบั๊กอัปโหลดไม่ได้
       // ไม่ใช่แค่เรื่อง MIME type ข้างบน — feedback 2026-09-14 ยืนยันจาก console error)
       await api.patch('/employee/photo', { photo_url: url })
+      console.log('[pickPhoto] backend PATCH ok')
       patchEmployee({ photo_url: url })
-    } catch {
-      alert('อัปโหลดรูปไม่สำเร็จ')
+    } catch (err) {
+      console.error('[pickPhoto] FAILED:', err)
+      alert('อัปโหลดรูปไม่สำเร็จ: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setUploading(false)
     }
