@@ -1,11 +1,13 @@
 // admin/src/pages/weekly-off/index.tsx
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
+import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { deptName } from '../../lib/format'
@@ -524,8 +526,15 @@ export default function WeeklyOffPage() {
   const isMobile = useIsMobile()
   const isReadOnly = useIsReadOnly()
   const now = new Date()
-  const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>('periods')
+  // กระดิ่งแจ้งเตือนไลน์ส่ง ?month=&focus= มา — เดิมไม่อ่านเลย เข้าหน้านี้ทีไรเจอ
+  // เดือนปัจจุบันเสมอ (ไม่ใช่เดือนที่พนักงานจองจริง) + แท็บในย่อยเริ่มที่ "เปิด/ปิด
+  // การจอง" ไม่ใช่ "รายการคำขอ" เลยดูเหมือนกดแล้วไม่ไปไหน (feedback 2026-09-15:
+  // "กดแล้วมันไม่ไปยังหน้านั้นเลย")
+  const [sp] = useSearchParams()
+  const focusMonth = sp.get('month')
+  const { focusId, focusRef, rowHighlight } = useFocusHighlight()
+  const [month, setMonth] = useState(focusMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>(focusId ? 'requests' : 'periods')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
@@ -618,6 +627,18 @@ export default function WeeklyOffPage() {
   const reqPaginated = groupedByEmployee.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
   useEffect(() => { setReqPage(1) }, [orgFilter, statusFilter, month])
   useEffect(() => { if (reqPage > reqTotalPages) setReqPage(reqTotalPages) }, [reqTotalPages]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // กระดิ่งแจ้งเตือนส่ง ?focus=<requestId> มา — หา block/การ์ดที่มีรายการนั้น แล้ว
+  // เปิดหน้า+กางชิปให้อัตโนมัติ ไม่งั้นต้องไล่หาเองทีละหน้า/ทีละชิป
+  useEffect(() => {
+    if (!focusId) return
+    const idx = groupedByEmployee.findIndex(g => g.items.some(i => i.id === focusId))
+    if (idx === -1) return
+    setReqPage(Math.floor(idx / REQ_PAGE_SIZE) + 1)
+    const block = groupConsecutiveDays(groupedByEmployee[idx].items).find(b => b.ids.includes(focusId))
+    if (block) setOpenBlockKey(block.ids.join(','))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, groupedByEmployee])
 
   const summary = useMemo(() => ({
     pending:  requests.filter(r => r.status === 'PENDING').length,
@@ -938,14 +959,16 @@ export default function WeeklyOffPage() {
                           const sc = STATUS_CFG[block.status]
                           const isRange = block.items.length > 1
                           const isOpen = openBlockKey === key
+                          const isFocused = !!focusId && block.ids.includes(focusId)
                           return (
-                            <button key={key} onClick={() => toggleBlock(key)}
+                            <button key={key} ref={isFocused ? (focusRef as any) : undefined} onClick={() => toggleBlock(key)}
                               title={block.hasConflict ? 'มีพนักงานตำแหน่งเดียวกันจองวันที่ทับซ้อนไว้แล้ว' : undefined}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 10px', borderRadius: 99,
                                 border: `1.5px solid ${block.hasConflict ? '#fca5a5' : (isOpen ? sc.color : sc.bg)}`,
                                 background: isOpen ? sc.bg : '#fff', color: sc.color,
                                 fontSize: '0.76rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                                ...(isFocused ? rowHighlight(focusId!) : {}),
                               }}>
                               {fmtDateRange(block.startDate, block.endDate)}
                               {isRange

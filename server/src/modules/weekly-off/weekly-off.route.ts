@@ -342,7 +342,10 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         title: 'จองวันหยุดรออนุมัติ',
         detail: `หยุดวัน${DOW_TH[req.body.day_of_week]} สัปดาห์ ${req.body.week_start}`,
         color: '#2563EB',
-        path: `/leave?tab=time-off&focus=${result.id}`,
+        // ต้องส่ง month มาด้วยเสมอ ไม่งั้นแอดมินกดจากไลน์แล้วหน้า weekly-off จะโชว์
+        // เดือนปัจจุบันตามค่า default เฉยๆ ไม่ใช่เดือนที่พนักงานจองจริง (feedback
+        // 2026-09-15: "กดแล้วมันไม่ไปยังหน้านั้นเลย")
+        path: `/leave?tab=time-off&month=${req.body.week_start.slice(0, 7)}&focus=${result.id}`,
         buttonLabel: 'เปิดดู',
       })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
@@ -397,7 +400,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         title: 'จองวันหยุดรออนุมัติ',
         detail: `วันหยุดประจำเดือน ${req.body.date}`,
         color: '#2563EB',
-        path: `/leave?tab=time-off&focus=${result.id}`,
+        path: `/leave?tab=time-off&month=${req.body.date.slice(0, 7)}&focus=${result.id}`,
         buttonLabel: 'เปิดดู',
       })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดสำเร็จ'))
@@ -433,7 +436,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         title: 'จองวันหยุดรออนุมัติ',
         detail: `วันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน`,
         color: '#2563EB',
-        path: '/leave?tab=time-off',
+        // เดิมไม่ส่ง month/focus มาเลย — กดจากไลน์แล้วเจอหน้าเดือนปัจจุบัน (ไม่ใช่
+        // เดือนที่จอง) ไม่มีวันไหนให้โฟกัส มองเหมือนกดแล้วไม่ไปไหน (feedback 2026-09-15)
+        path: `/leave?tab=time-off&month=${req.body.month}&focus=${result[0]?.id ?? ''}`,
         buttonLabel: 'เปิดดู',
       })
       return reply.code(201).send(ok(result, 'ส่งคำขอวันหยุดทั้งเดือนสำเร็จ'))
@@ -589,7 +594,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
           title: 'พนักงานสลับวันหยุดกันเอง',
           detail: `${requesterName} ↔ ${targetName}: ${requesterName} เปลี่ยนไปหยุด ${newReqDate}, ${targetName} เปลี่ยนไปหยุด ${newTargetDate}`,
           color: '#7C3AED',
-          path: `/leave?tab=time-off`,
+          path: `/leave?tab=time-off&month=${newReqDate.slice(0, 7)}&focus=${swapped.a.id}`,
           buttonLabel: 'เปิดดู',
         })
       } else if (!req.body.accept) {
