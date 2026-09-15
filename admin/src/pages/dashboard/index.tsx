@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2 } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
@@ -17,6 +17,8 @@ import { avatarUrl } from '../../lib/upload'
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
 
 interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null; late_count?: number }
+interface OffTodayPerson extends RangePerson { label: string }
+interface OffTodayResult { count: number; employees: OffTodayPerson[] }
 interface DashboardSummary {
   totalEmployees: number
   late:     { count: number; employees: RangePerson[] }
@@ -105,7 +107,8 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
 function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
   const isMobile = useIsMobile()
   const now = useMemo(() => new Date(), [])
-  const [preset, setPreset] = useState<RangePreset>('7d')
+  // Default = วันนี้ ไม่ใช่ 7 วัน (feedback 2026-09-15: "เอาวันนี้ขึ้นก่อนเมื่อกดมาหน้า dashboard")
+  const [preset, setPreset] = useState<RangePreset>('today')
   const [customMonth, setCustomMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
   const { startDate, endDate } = useMemo(() => resolveRange(preset, customMonth), [preset, customMonth])
@@ -281,6 +284,18 @@ export default function DashboardPage() {
     queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { status: 'PENDING' } }).then(r => r.data.data),
   })
 
+  // ── พนักงานที่หยุดวันนี้ (feedback 2026-09-15: "ขาดการ์ด พนักงานที่หยุดวันนี้") ──
+  const { data: offToday } = useQuery<OffTodayResult>({
+    queryKey: ['admin', 'dashboard', 'off-today', today, branchFilter],
+    queryFn: () => api.get('/api/v1/admin/dashboard/off-today', {
+      params: { date: today, branchId: branchFilter === 'all' ? undefined : branchFilter },
+    }).then(r => r.data.data),
+  })
+  const offTodayFiltered = useMemo(
+    () => (offToday?.employees ?? []).filter(p => matchesOrgFilter(employeeOrgMap[p.id], orgFilter)),
+    [offToday, employeeOrgMap, orgFilter],
+  )
+
   // ── HR lifecycle alerts (feature-gated — 403 = ปิดอยู่ ก็แค่ว่างไป) ──
   const ef = useAuthStore(s => s.enabledFeatures)
   const featOn = (k: string) => !ef || ef[k] !== false
@@ -351,11 +366,16 @@ export default function DashboardPage() {
   // ── กดการ์ด KPI เพื่อกรอง "รายชื่อวันนี้" ───────────────────────────────
   type TodayFilter = 'ALL' | 'ON_TIME' | 'LATE' | 'PENDING'
   const [todayFilter, setTodayFilter] = useState<TodayFilter>('ALL')
+  // มือถือ: ไม่โชว์รายชื่อทั้งหมดตั้งแต่แรก (ยาวเกินไป มองว่ายาก) — ต้องแตะการ์ด
+  // สถานะก่อนถึงเปิดรายชื่อ (feedback 2026-09-15: "กดการ์ดแล้วค่อยขึ้นรายชื่อ")
+  const [mobileListRevealed, setMobileListRevealed] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const pickFilter = (f: TodayFilter) => {
     setTodayFilter(prev => (prev === f ? 'ALL' : f))
+    setMobileListRevealed(true)
     if (isMobile) setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
+  const showList = !isMobile || mobileListRevealed
   const listFiltered = useMemo(() => {
     if (todayFilter === 'ALL') return filtered
     if (todayFilter === 'LATE') return filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2')
@@ -455,6 +475,16 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── พนักงานที่หยุดวันนี้ (ลา + วันหยุดประจำ ที่อนุมัติแล้ว) ────── */}
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Palmtree size={12} style={{ color: '#0891b2' }}/> พนักงานที่หยุดวันนี้
+          </div>
+          <RangeKpiCard label="หยุดวันนี้" unit="คน" count={offTodayFiltered.length} color="#0891b2" bg="#e0f2fe"
+            icon={<Palmtree size={18} />} people={offTodayFiltered} emptyLabel="วันนี้ไม่มีใครหยุด"
+            extraLine={p => (p as OffTodayPerson).label} />
+        </div>
+
         {/* ── KPI cards ────────────────────────────────────────────── */}
         <div>
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -526,7 +556,12 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {recordsLoading && listFiltered.length === 0 ? (
+            {!showList ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <div style={{ marginBottom: 12, opacity: 0.4, display: 'flex', justifyContent: 'center' }}><Users size={40}/></div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>แตะการ์ดสถานะด้านล่างเพื่อดูรายชื่อ</div>
+              </div>
+            ) : recordsLoading && listFiltered.length === 0 ? (
               <SkeletonRows rows={8} />
             ) : listFiltered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>

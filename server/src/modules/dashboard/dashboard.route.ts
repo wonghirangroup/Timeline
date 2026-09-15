@@ -4,7 +4,7 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok }                from '../../common/utils/response'
-import { getDashboardSummary } from './dashboard.service'
+import { getDashboardSummary, getOffToday } from './dashboard.service'
 import { getPlanUsage }       from '../tenant/tenant.service'
 
 export async function dashboardRoutes(app: FastifyInstance) {
@@ -33,6 +33,30 @@ export async function dashboardRoutes(app: FastifyInstance) {
       scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(summary)
+  })
+
+  // GET /api/v1/admin/dashboard/off-today — พนักงานที่หยุดวันนี้ (ลา + วันหยุดประจำ ที่อนุมัติแล้ว)
+  app.get('/dashboard/off-today', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'พนักงานที่หยุดวันนี้ (ลาที่อนุมัติแล้ว + วันหยุดประจำที่จองไว้และอนุมัติแล้ว)',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        required: ['date'],
+        properties: {
+          date:     { type: 'string', description: 'YYYY-MM-DD' },
+          branchId: { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const result = await getOffToday(req.tenantId, req.query.date, {
+      branchId: req.query.branchId,
+      scopedEmployeeIds: req.scopedEmployeeIds,
+    })
+    return ok(result)
   })
 
   // GET /api/v1/admin/plan-usage — การใช้งานเทียบขีดจำกัดแพ็กเกจ (พนักงาน/สาขา/กลุ่ม)

@@ -5,26 +5,33 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, Users, Smartphone, ExternalLink } from 'lucide-react'
+import { Search, Users, Smartphone, ExternalLink, ShieldAlert } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { useAuthStore } from '../../stores/authStore'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
 
+// สิทธิ์จอง/ลา + โควต้า ที่ resolve จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→แผนก→
+// ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag() ฝั่ง server / resolveEmpPolicy() ใน
+// employee/detail.tsx (พอร์ตย่อยมาเฉพาะที่ตารางนี้ต้องใช้)
+interface PolicyFields { booking_enabled?: boolean | null; leave_enabled?: boolean | null; booking_quota?: number | null }
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
   department: string | null; phone: string | null; hired_at: string | null
   line_user_id: string | null; status: EmployeeStatusValue
-  branch: { id: string; name: string; group_id?: string | null }
+  branch: { id: string; name: string; group_id?: string | null } & PolicyFields & { group?: PolicyFields | null }
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
   default_shift_id: string | null
   position_id: string | null
-  position?: { id: string; name: string } | null
-  employee_status_type?: { id: string; name: string } | null
+  position?: ({ id: string; name: string } & PolicyFields & { department?: ({ id: string } & PolicyFields & { division?: ({ group_id?: string | null } & PolicyFields) | null }) | null }) | null
+  employee_status_type?: { id: string; name: string; monthly_off_quota?: number } | null
+  booking_enabled_override?: boolean | null
+  leave_enabled_override?: boolean | null
   pending_fine: string
 }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
@@ -36,6 +43,32 @@ interface ApiLeaveBalance {
   personal:   { total: number; used: number }
   vacation:   { total: number; used: number }
   compensate: { total: number; used: number }
+}
+interface ApiDayoffCount { employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+
+// เดินไล่ chain องค์กรจากล่างขึ้นบน (ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) — null/undefined
+// ตรงไหนข้ามไปชั้นถัดไป (เหมือน resolveEmpPolicy ใน employee/detail.tsx)
+function orgChain(emp: ApiEmployee): (PolicyFields | null | undefined)[] {
+  return [emp.position, emp.position?.department, emp.position?.department?.division, emp.branch, emp.branch?.group]
+}
+function resolveFlag(emp: ApiEmployee, key: 'booking_enabled' | 'leave_enabled'): boolean {
+  const ov = key === 'booking_enabled' ? emp.booking_enabled_override : emp.leave_enabled_override
+  if (ov != null) return ov
+  for (const n of orgChain(emp)) { const v = n?.[key]; if (v != null) return v }
+  return true
+}
+function resolveQuota(emp: ApiEmployee): number {
+  if (emp.employee_status_type?.monthly_off_quota != null) return emp.employee_status_type.monthly_off_quota
+  for (const n of orgChain(emp)) { if (n?.booking_quota != null) return n.booking_quota }
+  return 5
+}
+// week_start + day_of_week → วันที่จริง (เหมือนหน้า weekly-off/leave อื่นๆ)
+function resolveDayoffDate(weekStart: string, dayOfWeek: number): string {
+  const d = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
+  if (d.getUTCDay() === dayOfWeek) return weekStart.slice(0, 10)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString().slice(0, 10)
 }
 
 const STATUS_CFG: Record<EmployeeStatusValue, { label: string; color: string; bg: string; border: string }> = {
@@ -92,8 +125,16 @@ function BalanceCell({ v }: { v?: { total: number; used: number } }) {
   )
 }
 
+// จำกัดเฉพาะระดับผู้บริหาร (feedback 2026-09-15: "ดูได้เฉพาะระดับผู้บริหาร") —
+// MANAGER/DEPT_HEAD เห็นข้อมูลพนักงานอยู่แล้วผ่านหน้าอื่น (เช่น "พนักงาน") แต่มุมมอง
+// รวมทุกคนพร้อมกันแบบตารางนี้จำกัดไว้เฉพาะ SUPER_ADMIN/ADMIN/EXECUTIVE เท่านั้น —
+// ซ่อนเมนูใน Sidebar ด้วยแล้ว (defense in depth เผื่อพิมพ์ URL ตรงๆ)
+const MASTER_DATA_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EXECUTIVE'] as const
+
 export default function MasterDataPage() {
   const navigate = useNavigate()
+  const role = useAuthStore(s => s.role)
+  const allowed = !!role && (MASTER_DATA_ROLES as readonly string[]).includes(role)
   const [search, setSearch]         = useState('')
   const [orgFilter, setOrgFilter]   = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatusFilter] = useState<EmployeeStatusValue | 'ALL'>('ACTIVE')
@@ -103,24 +144,39 @@ export default function MasterDataPage() {
   const { data: employees = [], isLoading } = useQuery<ApiEmployee[]>({
     queryKey: ['admin', 'employees', 'master-data', includeInactive],
     queryFn: () => api.get('/api/v1/admin/employees', { params: { includeInactive } }).then(r => r.data.data),
+    enabled: allowed,
   })
   const { data: groups = [] } = useQuery<ApiGroup[]>({
     queryKey: ['groups'],
     queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
+    enabled: allowed,
   })
   const { data: positions = [] } = useQuery<ApiPosition[]>({
     queryKey: ['positions'],
     queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+    enabled: allowed,
   })
   const { data: shifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['shifts'],
     queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
+    enabled: allowed,
   })
   // วันลาคงเหลืออาจปิดใช้งานเป็นรายเทแนนต์ (feature toggle) — ถ้า 403/error ให้ปล่อย
   // เป็น [] เฉยๆ คอลัมน์วันลาจะโชว์ "—" แทนทั้งหมด ไม่บล็อกส่วนที่เหลือของหน้า
   const { data: balances = [] } = useQuery<ApiLeaveBalance[]>({
     queryKey: ['admin', 'leave-balances', 'master-data', new Date().getFullYear()],
     queryFn: () => api.get('/api/v1/admin/leave-balances/employees', { params: { year: new Date().getFullYear() } }).then(r => r.data.data),
+    enabled: allowed,
+    retry: false,
+    throwOnError: false,
+  })
+  // วันหยุดที่จองไปแล้วเดือนนี้ (สำหรับคอลัมน์ "วันหยุดที่ใช้ไป/โควต้า")
+  const now = useMemo(() => new Date(), [])
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const { data: dayoffThisMonth = [] } = useQuery<ApiDayoffCount[]>({
+    queryKey: ['admin', 'weekly-off', 'master-data', thisMonth],
+    queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { month: thisMonth } }).then(r => r.data.data),
+    enabled: allowed,
     retry: false,
     throwOnError: false,
   })
@@ -129,6 +185,16 @@ export default function MasterDataPage() {
   const shiftName  = useMemo(() => Object.fromEntries(shifts.map(s => [s.id, s.name])), [shifts])
   const balanceByEmp = useMemo(() => Object.fromEntries(balances.map(b => [b.employee_id, b])), [balances])
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
+  // นับเฉพาะที่ "อนุมัติแล้ว" เป็นวันที่ใช้ไปจริง (เหมือนที่อื่นในระบบ เช่น ปฏิทินส่วนตัวฝั่งพนักงาน)
+  const dayoffUsedByEmp = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const r of dayoffThisMonth) {
+      if (r.status !== 'APPROVED') continue
+      if (resolveDayoffDate(r.week_start, r.day_of_week).slice(0, 7) !== thisMonth) continue
+      m[r.employee_id] = (m[r.employee_id] ?? 0) + 1
+    }
+    return m
+  }, [dayoffThisMonth, thisMonth])
 
   const filtered = useMemo(() => employees.filter(e => {
     if (statusFilter !== 'ALL' && e.status !== statusFilter) return false
@@ -140,6 +206,18 @@ export default function MasterDataPage() {
     }
     return true
   }), [employees, statusFilter, orgFilter, employeeOrgMap, search])
+
+  if (!allowed) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '80px 20px', textAlign: 'center' }}>
+        <ShieldAlert size={40} color="#f59e0b" />
+        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#111827' }}>หน้านี้เฉพาะระดับผู้บริหารเท่านั้น</div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: 360 }}>
+          Master Data พนักงาน จำกัดสิทธิ์ดูเฉพาะ SUPER_ADMIN / ADMIN / EXECUTIVE — ติดต่อผู้ดูแลระบบถ้าต้องการสิทธิ์เข้าถึง
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -199,6 +277,8 @@ export default function MasterDataPage() {
                   <th style={th}>LINE</th>
                   <th style={th}>กะหลัก</th>
                   <th style={th}>โหมดวันหยุด</th>
+                  <th style={th}>วันหยุดใช้ไป/โควต้า</th>
+                  <th style={th}>สิทธิ์จอง/ลา</th>
                   <th style={th}>ลาป่วย</th>
                   <th style={th}>ลากิจ</th>
                   <th style={th}>พักร้อน</th>
@@ -210,6 +290,10 @@ export default function MasterDataPage() {
                 {filtered.map((e, i) => {
                   const bal = balanceByEmp[e.id]
                   const fine = Number(e.pending_fine)
+                  const quota = resolveQuota(e)
+                  const used  = dayoffUsedByEmp[e.id] ?? 0
+                  const bookingOk = resolveFlag(e, 'booking_enabled')
+                  const leaveOk   = resolveFlag(e, 'leave_enabled')
                   return (
                     <tr key={e.id}
                       style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
@@ -253,6 +337,21 @@ export default function MasterDataPage() {
                       </td>
                       <td style={td}>{e.default_shift_id ? (shiftName[e.default_shift_id] ?? '—') : '—'}</td>
                       <td style={td}>{e.weekly_off_mode === 'MONTHLY_BATCH' ? 'รายเดือน' : 'รายสัปดาห์'}</td>
+                      <td style={td}>
+                        <span style={{ fontVariantNumeric: 'tabular-nums', color: used >= quota ? '#dc2626' : '#374151', fontWeight: used >= quota ? 700 : 400 }}>
+                          {used}/{quota} วัน
+                        </span>
+                      </td>
+                      <td style={td}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <span title="สิทธิ์จองวันหยุด" style={{ fontSize: '0.68rem', fontWeight: 700, borderRadius: 5, padding: '2px 6px', background: bookingOk ? '#dcfce7' : '#fee2e2', color: bookingOk ? '#16a34a' : '#dc2626' }}>
+                            จอง {bookingOk ? '✓' : '✕'}
+                          </span>
+                          <span title="สิทธิ์ยื่นลา" style={{ fontSize: '0.68rem', fontWeight: 700, borderRadius: 5, padding: '2px 6px', background: leaveOk ? '#dcfce7' : '#fee2e2', color: leaveOk ? '#16a34a' : '#dc2626' }}>
+                            ลา {leaveOk ? '✓' : '✕'}
+                          </span>
+                        </div>
+                      </td>
                       <td style={td}><BalanceCell v={bal?.sick} /></td>
                       <td style={td}><BalanceCell v={bal?.personal} /></td>
                       <td style={td}><BalanceCell v={bal?.vacation} /></td>

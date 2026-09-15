@@ -6,6 +6,7 @@ import {
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2, DoorOpen, FileText,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
+import type { Role } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
 
 // re-export สำหรับหน้าอื่น
@@ -16,6 +17,7 @@ interface NavItem {
   label: string
   icon: JSX.Element
   feature?: keyof PlanFeatures
+  roles?: Role[] // ไม่ระบุ = ทุกบทบาทเห็น — ระบุ = จำกัดเฉพาะบทบาทในลิสต์
   badge?: number
 }
 
@@ -36,7 +38,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/employee',     label: 'พนักงาน',      icon: <Users     size={16}/> },
       { path: '/branch',       label: 'สาขา',         icon: <Building2 size={16}/> },
-      { path: '/master-data',  label: 'Master Data',  icon: <Table2    size={16}/> },
+      { path: '/master-data',  label: 'Master Data',  icon: <Table2    size={16}/>, roles: ['SUPER_ADMIN', 'ADMIN', 'EXECUTIVE'] },
     ],
   },
   {
@@ -158,7 +160,8 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
 
   // ปิดจริงที่ backend ด้วย (requireFeature middleware) — ตรงนี้แค่ซ่อนเมนูให้ตรงกับสิทธิ์
   // ไม่มี key ใน enabledFeatures เลย (tenant ไม่เคยถูกตั้งค่า) = เปิดใช้งานทุกฟีเจอร์ (ค่า default)
-  function visible(feature?: keyof PlanFeatures) {
+  function visible(feature?: keyof PlanFeatures, roles?: Role[]) {
+    if (roles && (!role || !roles.includes(role))) return false
     return !feature || !enabledFeatures || enabledFeatures[feature] !== false
   }
 
@@ -243,7 +246,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
       {/* Nav */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '16px 12px', overflowX: 'hidden' }}>
         {NAV_SECTIONS.map((section, si) => {
-          const visItems = section.items.filter(it => visible(it.feature))
+          const visItems = section.items.filter(it => visible(it.feature, it.roles))
           if (visItems.length === 0) return null
           const accent = SECTION_ACCENT[si] ?? SECTION_ACCENT[0]
           return (

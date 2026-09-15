@@ -191,7 +191,8 @@ export default function EmployeePage() {
   const [orgFilter, setOrgFilter]     = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
   const [lineFilter, setLineFilter]   = useState<'' | 'linked' | 'unlinked'>('')
-  const [statusFilter, setStatusFilter] = useState<'' | EmployeeStatusValue>('')
+  // Default = เฉพาะพนักงานที่ใช้งานอยู่ (feedback 2026-09-15: "เอาคนที่มีสถานะใช้งานแทนทุกสถานะ")
+  const [statusFilter, setStatusFilter] = useState<'' | EmployeeStatusValue>('ACTIVE')
 
   const [page, setPage]               = useState(1)
   const pageSize                      = isMobile ? 5 : 10

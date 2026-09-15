@@ -1,7 +1,7 @@
 // admin/src/pages/weekly-off/index.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Lock, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -75,6 +75,66 @@ function resolveDate(weekStart: string, dayOfWeek: number): string {
   const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
   d.setUTCDate(d.getUTCDate() + offset)
   return d.toISOString().slice(0, 10)
+}
+
+// สวิตช์เปิด/ปิด (เดิมเป็น 2 ปุ่ม "เปิดจอง"/"ปิดจอง" สลับกันตามสถานะ ใช้ไอคอน
+// กุญแจ Lock/Unlock — feedback 2026-09-15: "เป็นปุ่ม Toggle เปิดปิดเอา แทนไอคอน
+// กุญแจ") กดครั้งเดียวสลับสถานะได้เลย ไม่ต้องหาว่าปุ่มไหนคือปุ่มที่ต้องกด
+function ToggleSwitch({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button onClick={onChange} disabled={disabled} role="switch" aria-checked={on}
+      style={{
+        width: 42, height: 23, borderRadius: 99, border: 'none', padding: 0, flexShrink: 0,
+        cursor: disabled ? 'not-allowed' : 'pointer', position: 'relative',
+        background: on ? '#16a34a' : '#d1d5db', opacity: disabled ? 0.6 : 1,
+        transition: 'background 0.2s',
+      }}>
+      <span style={{
+        position: 'absolute', top: 3, left: on ? 22 : 3, width: 17, height: 17, borderRadius: '50%',
+        background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left 0.2s',
+      }} />
+    </button>
+  )
+}
+
+function addDaysStr(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+function fmtDateRange(start: string, end: string): string {
+  if (start === end) return fmtDate(start)
+  const d1 = new Date(start + 'T00:00:00'), d2 = new Date(end + 'T00:00:00')
+  if (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth()) {
+    return `${d1.getDate()} – ${d2.getDate()} ${MONTHS_SHORT[d1.getMonth()]} ${d1.getFullYear() + 543}`
+  }
+  return `${fmtDate(start)} – ${fmtDate(end)}`
+}
+
+interface OffBlock {
+  ids: string[]; items: WeeklyOffRequest[]
+  startDate: string; endDate: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  hasConflict: boolean
+  rejectNote: string | null
+}
+// รวมวันที่ต่อเนื่องกัน (สถานะเดียวกัน) เป็นแถวเดียว — feedback 2026-09-15: "ถ้ามี
+// ขอหยุดมากกว่า 1 วัน ให้นับเป็นแถวเดียว เช่น 2-4 พ.ย. ไม่ใช่ 2 พ.ย. 3 พ.ย. 4 พ.ย."
+// (ต้องรับ items ที่ sort ตามวันที่มาก่อนแล้ว)
+function groupConsecutiveDays(items: WeeklyOffRequest[]): OffBlock[] {
+  const blocks: OffBlock[] = []
+  for (const r of items) {
+    const date = resolveDate(r.week_start, r.day_of_week)
+    const last = blocks[blocks.length - 1]
+    if (last && last.status === r.status && addDaysStr(last.endDate, 1) === date) {
+      last.ids.push(r.id); last.items.push(r); last.endDate = date
+      last.hasConflict = last.hasConflict || !!r.has_conflict
+      if (!last.rejectNote) last.rejectNote = r.reject_note
+    } else {
+      blocks.push({ ids: [r.id], items: [r], startDate: date, endDate: date, status: r.status, hasConflict: !!r.has_conflict, rejectNote: r.reject_note })
+    }
+  }
+  return blocks
 }
 
 const STATUS_CFG = {
@@ -340,20 +400,17 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
 
             {/* Actions */}
             {!isEditing && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                {!effectiveOpen ? (
-                  <button onClick={() => openMutation.mutate({ branch_id: p.branch_id, month })}
-                    disabled={openMutation.isPending}
-                    style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                    <Unlock size={13} /> เปิดจอง
-                  </button>
-                ) : (
-                  <button onClick={() => closeMutation.mutate({ branch_id: p.branch_id, month })}
-                    disabled={closeMutation.isPending}
-                    style={{ flex: 1, padding: '7px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                    <Lock size={13} /> ปิดจอง
-                  </button>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fafafa' }}>
+                  <ToggleSwitch on={effectiveOpen}
+                    disabled={openMutation.isPending || closeMutation.isPending}
+                    onChange={() => effectiveOpen
+                      ? closeMutation.mutate({ branch_id: p.branch_id, month })
+                      : openMutation.mutate({ branch_id: p.branch_id, month })} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: effectiveOpen ? '#16a34a' : 'var(--text-muted)' }}>
+                    {effectiveOpen ? 'เปิดรับจอง' : 'ปิดรับจอง'}
+                  </span>
+                </div>
                 <button onClick={() => {
                   setEditId(p.branch_id)
                   setEditDeadline(p.deadline ? p.deadline.slice(0, 10) : '')
@@ -481,6 +538,10 @@ export default function WeeklyOffPage() {
   // ปิดกล่อง note ของการ์ดที่ถูกต้องเท่านั้น (การ์ดอื่นกดปฏิเสธทั้งหมดพร้อมกันได้)
   const [bulkRejectFor, setBulkRejectFor] = useState<{ employeeId: string; ids: string[] } | null>(null)
   const [bulkRejectNote, setBulkRejectNote] = useState('')
+  // ปฏิเสธทั้งช่วง — สำหรับแถวที่รวมวันต่อเนื่องกันแล้ว (groupConsecutiveDays) แยกจาก
+  // bulkRejectFor ด้านบน (นั้นคือ "ปฏิเสธทั้งหมดของการ์ด" ระดับพนักงาน คนละปุ่มกัน)
+  const [rangeRejectFor, setRangeRejectFor] = useState<string[] | null>(null)
+  const [rangeRejectNote, setRangeRejectNote] = useState('')
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
 
@@ -606,8 +667,18 @@ export default function WeeklyOffPage() {
   const rejectManyMutation = useMutation({
     mutationFn: ({ ids, note }: { ids: string[]; note: string }) =>
       Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/reject`, { reject_note: note || undefined }))),
-    onSuccess: (_data, { ids }) => { invalidate(); showToast('success', `ปฏิเสธ ${ids.length} รายการแล้ว`); setBulkRejectFor(null); setBulkRejectNote('') },
+    onSuccess: (_data, { ids }) => {
+      invalidate(); showToast('success', `ปฏิเสธ ${ids.length} รายการแล้ว`)
+      setBulkRejectFor(null); setBulkRejectNote('')
+      setRangeRejectFor(null); setRangeRejectNote('')
+    },
     onError:   () => showToast('error', 'ปฏิเสธบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
+  })
+  // ลบหลายวันพร้อมกัน — ใช้กับแถวที่รวมวันต่อเนื่องกันแล้ว (groupConsecutiveDays)
+  const deleteManyMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/api/v1/admin/weekly-off/${id}`))),
+    onSuccess: (_data, ids) => { invalidate(); showToast('success', `ลบ ${ids.length} วันแล้ว`) },
+    onError:   () => showToast('error', 'ลบบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
   })
 
   function handleAdd() {
@@ -832,46 +903,56 @@ export default function WeeklyOffPage() {
                   </div>
                 )}
 
-                {/* รายวัน — ยังกดอนุมัติ/ปฏิเสธ/ลบทีละวันได้ตามปกติ (เผื่อบางวันไม่เหมือนกัน) */}
-                {g.items.map(r => {
-                  const sc   = STATUS_CFG[r.status]
-                  const date = resolveDate(r.week_start, r.day_of_week)
+                {/* วันต่อเนื่องกัน (สถานะเดียวกัน) รวมเป็นแถวเดียว — feedback 2026-09-15:
+                    "ขอหยุดมากกว่า 1 วัน ให้นับเป็นแถวเดียว เช่น 2-4 พ.ย. ไม่ใช่ 2 พ.ย. 3 พ.ย. 4 พ.ย." */}
+                {groupConsecutiveDays(g.items).map(block => {
+                  const sc = STATUS_CFG[block.status]
+                  const isRange = block.items.length > 1
+                  const r = block.items[0] // ใช้เมื่อเป็นวันเดียว (isRange = false)
+                  const isRowRejecting = rangeRejectFor?.join(',') === block.ids.join(',')
                   return (
-                    <div key={r.id} style={{ padding: '10px 14px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div key={block.ids.join(',')} style={{ padding: '10px 14px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                          {fmtDate(date)}
-                          <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>{DAYS_TH[r.day_of_week]}</span>
+                          {fmtDateRange(block.startDate, block.endDate)}
+                          {!isRange && (
+                            <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>{DAYS_TH[r.day_of_week]}</span>
+                          )}
+                          {isRange && (
+                            <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#fff7ed', color: '#ea580c', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>{block.items.length} วัน</span>
+                          )}
                         </span>
-                        {r.has_conflict && (
-                          <span title="มีพนักงานตำแหน่งเดียวกันจองวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
+                        {block.hasConflict && (
+                          <span title="มีพนักงานตำแหน่งเดียวกันจองวันที่ทับซ้อนไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
                             <AlertTriangle size={10} /> ชนตำแหน่ง
                           </span>
                         )}
                         <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600 }}>{sc.label}</span>
                       </div>
-                      {r.status === 'REJECTED' && r.reject_note && (
-                        <div style={{ fontSize: '0.72rem', color: '#dc2626', flexBasis: '100%' }}>หมายเหตุ: {r.reject_note}</div>
+                      {block.status === 'REJECTED' && block.rejectNote && (
+                        <div style={{ fontSize: '0.72rem', color: '#dc2626', flexBasis: '100%' }}>หมายเหตุ: {block.rejectNote}</div>
                       )}
                       {!isReadOnly && (
                         <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                          {r.status === 'PENDING' && <>
-                            <button onClick={() => approveMutation.mutate(r.id)} disabled={approveMutation.isPending}
+                          {block.status === 'PENDING' && <>
+                            <button onClick={() => isRange ? approveManyMutation.mutate(block.ids) : approveMutation.mutate(r.id)}
+                              disabled={isRange ? approveManyMutation.isPending : approveMutation.isPending}
                               style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                              <Check size={12} /> อนุมัติ
+                              <Check size={12} /> {isRange ? `อนุมัติทั้งหมด (${block.items.length})` : 'อนุมัติ'}
                             </button>
-                            <button onClick={() => { setRejectId(r.id); setRejectNote('') }}
+                            <button onClick={() => isRange ? (setRangeRejectFor(block.ids), setRangeRejectNote('')) : (setRejectId(r.id), setRejectNote(''))}
                               style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
                               <X size={12} /> ปฏิเสธ
                             </button>
                           </>}
-                          <button onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}
+                          <button onClick={() => isRange ? deleteManyMutation.mutate(block.ids) : deleteMutation.mutate(r.id)}
+                            disabled={isRange ? deleteManyMutation.isPending : deleteMutation.isPending}
                             style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>
                             <Trash2 size={12} />
                           </button>
                         </div>
                       )}
-                      {rejectId === r.id && (
+                      {!isRange && rejectId === r.id && (
                         <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexBasis: '100%' }}>
                           <input value={rejectNote} onChange={e => setRejectNote(e.target.value)}
                             placeholder="หมายเหตุ (ไม่บังคับ)" autoFocus
@@ -883,6 +964,23 @@ export default function WeeklyOffPage() {
                             ยืนยัน
                           </button>
                           <button onClick={() => setRejectId(null)}
+                            style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
+                            ยกเลิก
+                          </button>
+                        </div>
+                      )}
+                      {isRange && isRowRejecting && (
+                        <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexBasis: '100%' }}>
+                          <input value={rangeRejectNote} onChange={e => setRangeRejectNote(e.target.value)}
+                            placeholder={`หมายเหตุ — ใช้กับทั้ง ${block.items.length} วัน (ไม่บังคับ)`} autoFocus
+                            style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '12px', fontFamily: 'inherit' }}
+                            onKeyDown={e => { if (e.key === 'Enter') rejectManyMutation.mutate({ ids: block.ids, note: rangeRejectNote }) }}
+                          />
+                          <button onClick={() => rejectManyMutation.mutate({ ids: block.ids, note: rangeRejectNote })} disabled={rejectManyMutation.isPending}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
+                            ยืนยันปฏิเสธ {block.items.length} วัน
+                          </button>
+                          <button onClick={() => setRangeRejectFor(null)}
                             style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
                             ยกเลิก
                           </button>

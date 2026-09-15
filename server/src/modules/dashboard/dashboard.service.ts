@@ -81,3 +81,63 @@ export async function getDashboardSummary(tenantId: string, filters: {
     newHires: { count: newHires.length, employees: newHires },
   }
 }
+
+const LEAVE_LABEL_TH: Record<string, string> = {
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'ลาชดเชย', OTHER: 'ลา',
+}
+
+function mondayOf(dateStr: string): Date {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  const day = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day))
+  d.setUTCHours(0, 0, 0, 0)
+  return d
+}
+
+// พนักงานที่หยุดวันนี้ (Dashboard requirement 2026-09-15: "ขาดการ์ดพนักงานที่หยุด
+// วันนี้") — รวม 2 แหล่ง: ลาที่อนุมัติแล้วครอบคลุมวันนี้ (LeaveRequest) + วันหยุด
+// ประจำที่จองไว้และอนุมัติแล้วตรงกับวันนี้ (WeeklyOffRequest) — dedupe รายคน
+// (เผื่อกรณีมีทั้ง 2 อย่างพร้อมกัน ซึ่งไม่ควรเกิดแต่กันไว้)
+export async function getOffToday(tenantId: string, dateStr: string, filters: {
+  branchId?: string
+  scopedEmployeeIds?: string[]
+}) {
+  const date = new Date(`${dateStr}T00:00:00.000Z`)
+  const dow  = date.getUTCDay()
+  const monday = mondayOf(dateStr)
+
+  const empSelect = { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } } as const
+
+  const [leaves, dayoffs] = await Promise.all([
+    prisma.leaveRequest.findMany({
+      where: {
+        tenant_id: tenantId, status: 'APPROVED',
+        start_date: { lte: date }, end_date: { gte: date },
+        ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
+        ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
+      },
+      select: { leave_type: true, custom_type: { select: { name: true } }, employee: { select: empSelect } },
+    }),
+    prisma.weeklyOffRequest.findMany({
+      where: {
+        tenant_id: tenantId, status: 'APPROVED', week_start: monday, day_of_week: dow,
+        ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
+        ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
+      },
+      select: { employee: { select: empSelect } },
+    }),
+  ])
+
+  const byEmployee = new Map<string, { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null; label: string }>()
+  for (const l of leaves) {
+    if (byEmployee.has(l.employee.id)) continue
+    byEmployee.set(l.employee.id, { ...l.employee, label: l.custom_type?.name ?? LEAVE_LABEL_TH[l.leave_type] ?? 'ลา' })
+  }
+  for (const d of dayoffs) {
+    if (byEmployee.has(d.employee.id)) continue
+    byEmployee.set(d.employee.id, { ...d.employee, label: 'วันหยุดประจำ' })
+  }
+
+  const list = [...byEmployee.values()]
+  return { count: list.length, employees: list }
+}
