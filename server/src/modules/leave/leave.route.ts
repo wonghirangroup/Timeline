@@ -10,7 +10,7 @@ import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEm
 import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
 const LEAVE_LABEL_TH: Record<string, string> = {
-  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
 
 // แจ้งพนักงานกลับทาง LINE ตอนใบลาถูกอนุมัติ/ปฏิเสธ — เดิมไม่มีเลย (มีแค่แจ้งแอดมิน

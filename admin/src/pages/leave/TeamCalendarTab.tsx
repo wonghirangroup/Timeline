@@ -33,7 +33,7 @@ const STATUS_LABEL_TH: Record<string, string> = { PENDING: 'รอพิจา�
 const LEAVE_CFG: Record<string, { label: string; color: string; light: string; icon: React.ReactNode }> = {
   SICK:      { label: 'ลาป่วย',    color: '#3B82F6', light: '#EFF6FF', icon: <Stethoscope size={12}/> },
   PERSONAL:  { label: 'ลากิจ',     color: '#8B5CF6', light: '#F5F3FF', icon: <Briefcase   size={12}/> },
-  VACATION:  { label: 'ลาพักร้อน', color: '#F59E0B', light: '#FFFBEB', icon: <Sun         size={12}/> },
+  VACATION:  { label: 'พักร้อน',   color: '#F59E0B', light: '#FFFBEB', icon: <Sun         size={12}/> },
   MATERNITY: { label: 'ลาคลอด',   color: '#EC4899', light: '#FDF2F8', icon: <Heart       size={12}/> },
   COMPENSATE: { label: 'ชดเชย',   color: '#0891B2', light: '#ECFEFF', icon: <RefreshCw   size={12}/> },
 }
@@ -324,7 +324,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
 type QuickLeaveType = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
 const QUICK_LEAVE_TYPES: { value: QuickLeaveType; label: string }[] = [
   { value: 'SICK', label: 'ลาป่วย' }, { value: 'PERSONAL', label: 'ลากิจ' },
-  { value: 'VACATION', label: 'ลาพักร้อน' }, { value: 'MATERNITY', label: 'ลาคลอด' },
+  { value: 'VACATION', label: 'พักร้อน' }, { value: 'MATERNITY', label: 'ลาคลอด' },
   { value: 'COMPENSATE', label: 'ชดเชย' }, { value: 'OTHER', label: 'อื่นๆ' },
 ]
 

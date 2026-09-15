@@ -19,6 +19,20 @@ const orgPolicyData = (d: OrgPolicyInput) => ({
   booking_quota: d.booking_quota ?? null,
 })
 
+// สิทธิ์พักร้อนตามอายุงาน — เฉพาะ Position เท่านั้น (feedback 2026-09-15 ข้อ 6) ไม่ใช้
+// OrgPolicyInput/orgPolicyData ร่วมกับชั้นอื่น เพราะ group/division/department ไม่มี
+// คอลัมน์นี้ — null ทั้ง 3 = ตำแหน่งนี้ไม่มีโปรแกรมพักร้อนตามอายุงาน
+type PositionVacationInput = {
+  vacation_base_days?: number | null
+  vacation_increment_days?: number | null
+  vacation_increment_years?: number | null
+}
+const positionVacationData = (d: PositionVacationInput) => ({
+  vacation_base_days: d.vacation_base_days ?? null,
+  vacation_increment_days: d.vacation_increment_days ?? null,
+  vacation_increment_years: d.vacation_increment_years ?? null,
+})
+
 // ── Division (ฝ่าย) ──────────────────────────────────────────
 export async function listDivisions(tenantId: string, groupId?: string) {
   return prisma.division.findMany({
@@ -109,15 +123,15 @@ export async function listPositions(tenantId: string, departmentId?: string) {
   })
 }
 
-export async function createPosition(tenantId: string, data: { department_id: string; name: string } & OrgPolicyInput) {
+export async function createPosition(tenantId: string, data: { department_id: string; name: string } & OrgPolicyInput & PositionVacationInput) {
   const dept = await prisma.department.findFirst({ where: { id: data.department_id, tenant_id: tenantId, deleted_at: null } })
   if (!dept) throw new Error('DEPARTMENT_NOT_FOUND')
   return prisma.position.create({
-    data: { tenant_id: tenantId, department_id: data.department_id, name: data.name, ...orgPolicyData(data) },
+    data: { tenant_id: tenantId, department_id: data.department_id, name: data.name, ...orgPolicyData(data), ...positionVacationData(data) },
   })
 }
 
-export async function updatePosition(tenantId: string, id: string, data: { name?: string; department_id?: string; is_active?: boolean } & OrgPolicyInput) {
+export async function updatePosition(tenantId: string, id: string, data: { name?: string; department_id?: string; is_active?: boolean } & OrgPolicyInput & PositionVacationInput) {
   if (data.department_id) {
     const dept = await prisma.department.findFirst({ where: { id: data.department_id, tenant_id: tenantId, deleted_at: null } })
     if (!dept) throw new Error('DEPARTMENT_NOT_FOUND')

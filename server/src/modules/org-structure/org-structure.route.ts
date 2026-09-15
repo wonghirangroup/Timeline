@@ -19,6 +19,15 @@ const POLICY_PROPS = {
   booking_quota:   { type: ['integer', 'null'], minimum: 0, maximum: 31 },
 } as const
 
+// สิทธิ์พักร้อนตามอายุงาน — เฉพาะระดับ "ตำแหน่ง" เท่านั้น ไม่ cascade เหมือน POLICY_PROPS
+// ด้านบน (feedback 2026-09-15 ข้อ 6) จึงแยกเป็น const ของตัวเอง สเปรดเฉพาะ route
+// /positions ไม่ใส่ปนกับ group/division/department ที่ไม่มีคอลัมน์นี้
+const VACATION_PROPS = {
+  vacation_base_days:       { type: ['integer', 'null'], minimum: 0 },
+  vacation_increment_days:  { type: ['integer', 'null'], minimum: 0 },
+  vacation_increment_years: { type: ['integer', 'null'], minimum: 1 },
+} as const
+
 function handleParentErrors(e: any, reply: any) {
   if (e.message === 'GROUP_NOT_FOUND')      return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบกลุ่มที่อ้างอิง'))
   if (e.message === 'DIVISION_NOT_FOUND')   return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบฝ่ายที่อ้างอิง'))
@@ -148,7 +157,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
     schema: {
       tags: [TAG], summary: 'สร้างตำแหน่งใหม่ในแผนก (booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
-      body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' }, ...POLICY_PROPS } },
+      body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' }, ...POLICY_PROPS, ...VACATION_PROPS } },
     },
   }, async (req: any, reply) => {
     try {
@@ -164,7 +173,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     schema: {
       tags: [TAG], summary: 'แก้ไขตำแหน่ง (ย้ายไปแผนกอื่นได้ด้วย — booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: 'string' }, ...POLICY_PROPS, is_active: { type: 'boolean' } } },
+      body: { type: 'object', properties: { name: { type: 'string' }, department_id: { type: 'string' }, ...POLICY_PROPS, ...VACATION_PROPS, is_active: { type: 'boolean' } } },
     },
   }, async (req: any, reply) => {
     try {

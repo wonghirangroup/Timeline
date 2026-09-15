@@ -44,7 +44,7 @@ interface Quotas { sick: number; personal: number; vacation: number; compensate:
 const LEAVE_TYPES: { key: LeaveKey; label: string; short: string; icon: ReactNode; color: string; bg: string; border: string }[] = [
   { key: 'sick',        label: 'ลาป่วย',      short: 'ป่วย',    icon: <Thermometer  size={16}/>, color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
   { key: 'personal',    label: 'ลากิจ',       short: 'กิจ',     icon: <ClipboardList size={16}/>, color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
-  { key: 'vacation',    label: 'ลาพักร้อน',   short: 'พักร้อน', icon: <Sun           size={16}/>, color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
+  { key: 'vacation',    label: 'พักร้อน',      short: 'พักร้อน', icon: <Sun           size={16}/>, color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
   { key: 'compensate',  label: 'ลาชดเชย',     short: 'ชดเชย',   icon: <RefreshCw     size={16}/>, color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe' },
 ]
 

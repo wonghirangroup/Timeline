@@ -106,7 +106,7 @@ function holidayApplies(
   return branchOk && deptOk
 }
 const LEAVE_LABEL_TH: Record<string, string> = {
-  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -1075,7 +1075,7 @@ export default function AttendancePage() {
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>ประเภทการลา</label>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {([['SICK', 'ลาป่วย'], ['PERSONAL', 'ลากิจ'], ['VACATION', 'ลาพักร้อน'], ['MATERNITY', 'ลาคลอด'], ['COMPENSATE', 'หยุดชดเชย']] as const).map(([t, label]) => (
+                    {([['SICK', 'ลาป่วย'], ['PERSONAL', 'ลากิจ'], ['VACATION', 'พักร้อน'], ['MATERNITY', 'ลาคลอด'], ['COMPENSATE', 'หยุดชดเชย']] as const).map(([t, label]) => (
                       <button key={t} onClick={() => setManualLeaveType(t)}
                         style={{ padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${manualLeaveType === t ? '#0891b2' : '#e5e7eb'}`, background: manualLeaveType === t ? '#e0f2fe' : '#fff', color: manualLeaveType === t ? '#0e7490' : '#64748b', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                         {label}

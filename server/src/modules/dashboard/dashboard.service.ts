@@ -83,7 +83,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
 }
 
 const LEAVE_LABEL_TH: Record<string, string> = {
-  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'ลาชดเชย', OTHER: 'ลา',
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'ลาชดเชย', OTHER: 'ลา',
 }
 
 function mondayOf(dateStr: string): Date {

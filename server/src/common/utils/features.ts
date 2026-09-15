@@ -21,6 +21,7 @@ export const FEATURE_KEYS = [
   'custom_leave_types', // ประเภทการลาที่ tenant กำหนดเอง (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน)
   'leave_accrual',      // สะสมวันลาต่อเดือน + ยกยอดข้ามปี
   'document_request',   // ขอเอกสาร HR ผ่าน LIFF (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน)
+  'vacation_policy',    // นโยบายพักร้อนตามอายุงาน + โบนัสรายเดือน + reset ประจำปี (feedback 2026-09-15)
 ] as const
 
 export type FeatureKey = typeof FEATURE_KEYS[number]

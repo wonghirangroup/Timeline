@@ -40,7 +40,8 @@ interface GroupT extends WeekendQuota { id: string; name: string; booking_enable
 interface BranchT { id: string; name: string; group_id: string | null }
 interface Div  extends WeekendQuota { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
 interface Dept extends WeekendQuota { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
-interface Pos  extends WeekendQuota { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { employees: number } }
+interface Pos  extends WeekendQuota { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { employees: number }
+  vacation_base_days?: number | null; vacation_increment_days?: number | null; vacation_increment_years?: number | null }
 
 interface TreePos extends Pos {}
 interface TreeDept extends Dept { positions: TreePos[] }
@@ -459,6 +460,11 @@ function NodeDetailModal({ level, row, tree, grp, employees, onClose }: {
     { label: 'วันเสาร์',         ...resolve('saturday_rule', v => RULE_TH[v] ?? v) },
     { label: 'วันอาทิตย์',       ...resolve('sunday_rule', v => RULE_TH[v] ?? v) },
     { label: 'จองวันหยุด/เดือน', ...resolve('booking_quota', v => `${v} วัน`) },
+    // พักร้อนตามอายุงาน — ไม่ cascade (ตั้งตรงต่อตำแหน่งเท่านั้น) เลยไม่ใช้ resolve()
+    ...(level === 'position' && row.vacation_base_days != null ? (() => {
+      const txt = `ครบ 1 ปี = ${row.vacation_base_days} วัน · +${row.vacation_increment_days ?? 1} ทุก ${row.vacation_increment_years ?? 2} ปี`
+      return [{ label: 'พักร้อนตามอายุงาน', own: txt, eff: txt, from: '' }]
+    })() : []),
   ]
 
   return (
@@ -522,7 +528,11 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
   const [addModal, setAddModal] = useState<{ level: Level; groupId: string } | null>(null)
   const [viewTarget, setViewTarget] = useState<{ level: Level; row: any; groupId: string } | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
-  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string }>({ name: '', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
+  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string
+    vacation_base_days: string; vacation_increment_days: string; vacation_increment_years: string }>({
+    name: '', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '',
+    vacation_base_days: '', vacation_increment_days: '', vacation_increment_years: '',
+  })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
 
   // ไม่ส่ง group_id = ผังรวมทุกกลุ่ม (แต่ละ division มี group_id ติดมาด้วยเสมอ ใช้จัดกลุ่มเอง)
@@ -559,7 +569,12 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
     onError: (err: any) => showToast('error', err.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
   })
 
-  const openEdit = (level: Level, row: any) => { setEditForm({ name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota) }); setEditModal({ level, row }) }
+  const openEdit = (level: Level, row: any) => { setEditForm({
+    name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota),
+    vacation_base_days: row.vacation_base_days == null ? '' : String(row.vacation_base_days),
+    vacation_increment_days: row.vacation_increment_days == null ? '' : String(row.vacation_increment_days),
+    vacation_increment_years: row.vacation_increment_years == null ? '' : String(row.vacation_increment_years),
+  }); setEditModal({ level, row }) }
   const handleEditSave = () => {
     if (!editModal || !editForm.name.trim()) return
     // ทุกชั้น (รวมตำแหน่ง) รับ policy fields แล้ว — null/'' = inherit
@@ -567,6 +582,12 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
       name: editForm.name, booking_enabled: editForm.booking_enabled, leave_enabled: editForm.leave_enabled,
       saturday_rule: editForm.saturday_rule, sunday_rule: editForm.sunday_rule,
       booking_quota: editForm.booking_quota.trim() === '' ? null : (parseInt(editForm.booking_quota) || 0),
+      // สิทธิ์พักร้อนตามอายุงาน — เฉพาะตำแหน่งเท่านั้น (feedback 2026-09-15 ข้อ 6)
+      ...(editModal.level === 'position' ? {
+        vacation_base_days: editForm.vacation_base_days.trim() === '' ? null : (parseInt(editForm.vacation_base_days) || 0),
+        vacation_increment_days: editForm.vacation_increment_days.trim() === '' ? null : (parseInt(editForm.vacation_increment_days) || 0),
+        vacation_increment_years: editForm.vacation_increment_years.trim() === '' ? null : (parseInt(editForm.vacation_increment_years) || 0),
+      } : {}),
     } })
   }
   const policyBadge = (v: boolean | null, on: string, off: string) => v === null ? null : (
@@ -679,6 +700,38 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                   <DayRuleInherit value={editForm.sunday_rule} onChange={v => setEditForm(f => ({ ...f, sunday_rule: v }))} inheritLabel={inheritLabel} />
                   <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุด/เดือน <span style={{ fontWeight: 400, color: '#9ca3af' }}>(ว่าง = {inheritLabel})</span></label>
                   <input type="number" min={0} max={31} style={quotaInputStyle} value={editForm.booking_quota} placeholder="—" onChange={e => setEditForm(f => ({ ...f, booking_quota: e.target.value }))} />
+                  {editModal.level === 'position' && (
+                    <>
+                      <label style={{ ...label, margin: '14px 0 6px', paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>สิทธิ์พักร้อนตามอายุงาน <span style={{ fontWeight: 400, color: '#9ca3af' }}>(ว่าง = ไม่มีโปรแกรมพักร้อน)</span></label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <div>
+                          <label style={{ ...label, fontSize: '11px', fontWeight: 500 }}>ครบ 1 ปี (วัน)</label>
+                          <input type="number" min={0} style={quotaInputStyle} placeholder="—" value={editForm.vacation_base_days} onChange={e => setEditForm(f => ({ ...f, vacation_base_days: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label style={{ ...label, fontSize: '11px', fontWeight: 500 }}>เพิ่มครั้งละ (วัน)</label>
+                          <input type="number" min={0} style={quotaInputStyle} placeholder="1" value={editForm.vacation_increment_days} onChange={e => setEditForm(f => ({ ...f, vacation_increment_days: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label style={{ ...label, fontSize: '11px', fontWeight: 500 }}>ทุกๆ (ปี)</label>
+                          <input type="number" min={1} style={quotaInputStyle} placeholder="2" value={editForm.vacation_increment_years} onChange={e => setEditForm(f => ({ ...f, vacation_increment_years: e.target.value }))} />
+                        </div>
+                      </div>
+                      {(() => {
+                        const base = parseInt(editForm.vacation_base_days)
+                        if (!Number.isFinite(base) || editForm.vacation_base_days.trim() === '') {
+                          return <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 6 }}>ตำแหน่งนี้ยังไม่มีสิทธิ์พักร้อนตามอายุงาน</div>
+                        }
+                        const incDays  = parseInt(editForm.vacation_increment_days) || 1
+                        const incYears = parseInt(editForm.vacation_increment_years) || 0
+                        const preview = [1, 3, 5].map(years => {
+                          const steps = incYears > 0 ? Math.floor((years - 1) / incYears) : 0
+                          return `ครบ ${years} ปี = ${base + incDays * steps} วัน`
+                        }).join(' · ')
+                        return <div style={{ fontSize: '11px', color: '#0369a1', marginTop: 6, background: '#f0f9ff', borderRadius: 6, padding: '5px 8px' }}>{preview}</div>
+                      })()}
+                    </>
+                  )}
                 </>
               )
             })()}

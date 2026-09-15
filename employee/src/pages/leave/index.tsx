@@ -65,7 +65,7 @@ const STATUS_CFG = {
 const LEAVE_TYPES = [
   { code: 'SICK',       label: 'ลาป่วย',       color: '#3B82F6' },
   { code: 'PERSONAL',   label: 'ลากิจ',        color: '#8B5CF6' },
-  { code: 'VACATION',   label: 'ลาพักร้อน',    color: '#F59E0B' },
+  { code: 'VACATION',   label: 'พักร้อน',      color: '#F59E0B' },
   { code: 'MATERNITY',  label: 'ลาคลอด',      color: '#EC4899' },
   { code: 'COMPENSATE', label: 'วันหยุดชดเชย', color: '#10B981' },
 ]

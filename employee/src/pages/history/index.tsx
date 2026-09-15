@@ -41,7 +41,7 @@ const DAYS_TH_FULL = ['วันอาทิตย์','วันจันทร
 const LEAVE_TYPE_CFG: Record<string, { label: string; color: string }> = {
   SICK:       { label: 'ลาป่วย',       color: '#3B82F6' },
   PERSONAL:   { label: 'ลากิจ',        color: '#8B5CF6' },
-  VACATION:   { label: 'ลาพักร้อน',    color: '#F59E0B' },
+  VACATION:   { label: 'พักร้อน',      color: '#F59E0B' },
   MATERNITY:  { label: 'ลาคลอด',       color: '#EC4899' },
   COMPENSATE: { label: 'วันหยุดชดเชย', color: '#10B981' },
 }

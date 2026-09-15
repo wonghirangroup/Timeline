@@ -31,15 +31,20 @@ export function resolveActualDateStr(weekStart: Date, dayOfWeek: number): string
   return d.toISOString().slice(0, 10)
 }
 
-// นับวันหยุดที่พนักงานจองไว้แล้ว (PENDING+APPROVED) ในเดือนหนึ่ง — ใช้เช็คโควต้าจอง/เดือน
-async function countMonthOffRequests(tenantId: string, employeeId: string, month: string, excludeId?: string): Promise<number> {
+// นับวันหยุดที่พนักงานจองไว้แล้ว ในเดือนหนึ่ง — default PENDING+APPROVED (เช็คโควต้าจอง/
+// เดือน) — statuses ปรับได้ (เช่น ['APPROVED'] เท่านั้น ใช้ใน vacation-policy.service.ts
+// ข้อ 2 "หยุดไม่ครบโควต้า" ที่นับเฉพาะที่อนุมัติแล้วจริงๆ ไม่นับ PENDING ที่ยังค้างอยู่)
+export async function countMonthOffRequests(
+  tenantId: string, employeeId: string, month: string, excludeId?: string,
+  statuses: ('PENDING' | 'APPROVED' | 'REJECTED')[] = ['PENDING', 'APPROVED'],
+): Promise<number> {
   const [y, m] = month.split('-').map(Number)
   const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
   const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
   const rows = await prisma.weeklyOffRequest.findMany({
     where: {
       tenant_id: tenantId, employee_id: employeeId,
-      status: { in: ['PENDING', 'APPROVED'] },
+      status: { in: statuses },
       week_start: { gte: rangeStart, lte: rangeEnd },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },

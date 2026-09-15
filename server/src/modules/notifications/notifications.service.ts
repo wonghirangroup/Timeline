@@ -30,7 +30,7 @@ const EMP_SELECT = {
 } as const
 
 const LEAVE_LABEL: Record<string, string> = {
-  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'ลาพักร้อน',
+  SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน',
   MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา (อื่นๆ)',
 }
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']

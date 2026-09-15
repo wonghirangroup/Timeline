@@ -382,7 +382,7 @@ function LeavePolicyTab() {
 // ตรงกับ NOTIFICATION_TYPES ฝั่ง backend (server/src/common/utils/notificationPrefs.ts)
 // key ที่ไม่มี/ไม่เคยตั้งไว้ = เปิดอยู่ (ค่าเริ่มต้น backward-compatible)
 const NOTIF_TYPES: { key: string; label: string; desc: string }[] = [
-  { key: 'leave',              label: 'ใบลารออนุมัติ',           desc: 'พนักงานยื่นลาป่วย/ลากิจ/ลาพักร้อน ฯลฯ' },
+  { key: 'leave',              label: 'ใบลารออนุมัติ',           desc: 'พนักงานยื่นลาป่วย/ลากิจ/พักร้อน ฯลฯ' },
   { key: 'ot',                 label: 'คำขอ OT รออนุมัติ',        desc: 'พนักงานขอทำ OT' },
   { key: 'weekly_off',         label: 'จองวันหยุดรออนุมัติ',      desc: 'พนักงานจองวันหยุดประจำสัปดาห์/เดือน' },
   { key: 'weekly_off_swap',    label: 'พนักงานสลับวันหยุดกันเอง', desc: 'แจ้งให้ทราบหลังตกลงสลับกันสำเร็จแล้ว — ไม่ต้องอนุมัติอะไร' },

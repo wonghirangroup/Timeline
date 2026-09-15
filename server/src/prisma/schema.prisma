@@ -15,27 +15,27 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model Tenant {
-  id                    String     @id @default(uuid())
-  name                  String
-  address               String? // ที่อยู่บริษัท (แสดงบนเอกสาร/report) — Admin แก้ได้ที่ การตั้งค่า
-  tax_id                String? // เลขประจำตัวผู้เสียภาษี
-  logo_url              String? // white-label — โลโก้บริษัท (URL)
-  primary_color         String? // white-label — สีหลัก (#RRGGBB)
-  leave_backdate_days   Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
-  self_resignation_enabled Boolean @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
-  plan                  TenantPlan @default(FREE)
-  max_employees         Int        @default(5)
-  max_branches          Int        @default(1)
-  max_groups            Int        @default(1) // จำนวนกลุ่ม(บริษัท)สูงสุดที่สร้างได้ — จำกัดตาม package, Super Admin ปรับได้
-  is_active             Boolean    @default(true)
-  enabled_features      Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
-  notification_prefs    Json? // Record<NotificationType, boolean> — เปิด/ปิดการแจ้งเตือน LINE ไปแอดมินแต่ละประเภท, key ที่ไม่มี/เป็น null = เปิดใช้งาน (ดู common/utils/notificationPrefs.ts)
-  firebase_sync_enabled Boolean    @default(true) // ซิงค์ข้อมูลจากระบบเก่า (Firebase) รายวันอัตโนมัติ — ใช้จริงแค่
+  id                       String     @id @default(uuid())
+  name                     String
+  address                  String? // ที่อยู่บริษัท (แสดงบนเอกสาร/report) — Admin แก้ได้ที่ การตั้งค่า
+  tax_id                   String? // เลขประจำตัวผู้เสียภาษี
+  logo_url                 String? // white-label — โลโก้บริษัท (URL)
+  primary_color            String? // white-label — สีหลัก (#RRGGBB)
+  leave_backdate_days      Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
+  self_resignation_enabled Boolean    @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
+  plan                     TenantPlan @default(FREE)
+  max_employees            Int        @default(5)
+  max_branches             Int        @default(1)
+  max_groups               Int        @default(1) // จำนวนกลุ่ม(บริษัท)สูงสุดที่สร้างได้ — จำกัดตาม package, Super Admin ปรับได้
+  is_active                Boolean    @default(true)
+  enabled_features         Json? // Record<FeatureKey, boolean> — key ที่ไม่มี/เป็น null = เปิดใช้งาน (default backward-compatible)
+  notification_prefs       Json? // Record<NotificationType, boolean> — เปิด/ปิดการแจ้งเตือน LINE ไปแอดมินแต่ละประเภท, key ที่ไม่มี/เป็น null = เปิดใช้งาน (ดู common/utils/notificationPrefs.ts)
+  firebase_sync_enabled    Boolean    @default(true) // ซิงค์ข้อมูลจากระบบเก่า (Firebase) รายวันอัตโนมัติ — ใช้จริงแค่
   // tenant-demo-001 ตอนนี้ (bespoke tooling ช่วงย้ายระบบ ไม่ใช่ feature ทั่วไปของ SaaS) Super Admin ปิดได้เองตอน
   // เลิกใช้ระบบเก่าแล้ว — ดู server/src/modules/firebase-sync/
-  created_at            DateTime   @default(now())
-  updated_at            DateTime   @updatedAt
-  deleted_at            DateTime?
+  created_at               DateTime   @default(now())
+  updated_at               DateTime   @updatedAt
+  deleted_at               DateTime?
 
   line_config           TenantLineConfig?
   users                 User[]
@@ -175,25 +175,26 @@ model Employee {
   updated_at               DateTime         @updatedAt
   deleted_at               DateTime?
 
-  tenant               Tenant               @relation(fields: [tenant_id], references: [id])
-  branch               Branch               @relation(fields: [branch_id], references: [id])
-  admin_user           User?                @relation("EmployeeAdminUser", fields: [user_id], references: [id], onDelete: SetNull)
-  default_shift        Shift?               @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
-  position             Position?            @relation(fields: [position_id], references: [id], onDelete: SetNull)
-  employee_status_type EmployeeStatusType?  @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)
-  attendance_records   AttendanceRecord[]
-  offsite_checkins     OffsiteCheckin[]
-  leave_requests       LeaveRequest[]
-  leave_balances       LeaveBalance[]
-  ot_requests          OtRequest[]
-  weekly_off_requests  WeeklyOffRequest[]
-  status_logs          EmployeeStatusLog[]
-  shift_assignments    ShiftAssignment[]
-  employee_shifts      EmployeeShift[] // กะที่ประจำอยู่ (many-to-many — 1 คนอยู่ได้หลายกะ) ต่างจาก default_shift_id ที่เป็นแค่ข้อมูล 1 กะหลักเดิม
-  documents            EmployeeDocument[]
-  disciplinary_records DisciplinaryRecord[]
-  resignation_requests ResignationRequest[]
-  document_requests    DocumentRequest[]
+  tenant                 Tenant                 @relation(fields: [tenant_id], references: [id])
+  branch                 Branch                 @relation(fields: [branch_id], references: [id])
+  admin_user             User?                  @relation("EmployeeAdminUser", fields: [user_id], references: [id], onDelete: SetNull)
+  default_shift          Shift?                 @relation("EmployeeDefaultShift", fields: [default_shift_id], references: [id], onDelete: SetNull)
+  position               Position?              @relation(fields: [position_id], references: [id], onDelete: SetNull)
+  employee_status_type   EmployeeStatusType?    @relation(fields: [employee_status_type_id], references: [id], onDelete: SetNull)
+  attendance_records     AttendanceRecord[]
+  offsite_checkins       OffsiteCheckin[]
+  leave_requests         LeaveRequest[]
+  leave_balances         LeaveBalance[]
+  ot_requests            OtRequest[]
+  weekly_off_requests    WeeklyOffRequest[]
+  status_logs            EmployeeStatusLog[]
+  shift_assignments      ShiftAssignment[]
+  employee_shifts        EmployeeShift[] // กะที่ประจำอยู่ (many-to-many — 1 คนอยู่ได้หลายกะ) ต่างจาก default_shift_id ที่เป็นแค่ข้อมูล 1 กะหลักเดิม
+  documents              EmployeeDocument[]
+  disciplinary_records   DisciplinaryRecord[]
+  resignation_requests   ResignationRequest[]
+  document_requests      DocumentRequest[]
+  vacation_grant_logs    VacationGrantLog[]
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
   extra_branches         EmployeeBranch[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch_id (สาขาหลัก) — ดู model EmployeeBranch
@@ -306,9 +307,9 @@ model DocumentRequest {
   type        DocumentRequestType
   custom_type String? // ระบุเองเมื่อ type = OTHER
   period      String? // เดือนที่ต้องการ เช่น "2026-09" — ใช้กับสลิปเงินเดือนเป็นหลัก ไม่บังคับ
-  note        String? @db.Text // รายละเอียดเพิ่มเติมจากพนักงาน เช่น ใช้ยื่นกู้ธนาคาร
+  note        String?               @db.Text // รายละเอียดเพิ่มเติมจากพนักงาน เช่น ใช้ยื่นกู้ธนาคาร
   status      DocumentRequestStatus @default(PENDING)
-  file_url    String? @db.Text // ไฟล์ที่แอดมินอัปโหลดให้เมื่อเสร็จ
+  file_url    String?               @db.Text // ไฟล์ที่แอดมินอัปโหลดให้เมื่อเสร็จ
   reject_note String?
   reviewed_by String? // user_id
   reviewed_at DateTime?
@@ -427,19 +428,26 @@ model Department {
 }
 
 model Position {
-  id              String    @id @default(uuid())
-  tenant_id       String
-  department_id   String
-  name            String
-  booking_enabled Boolean? // null = inherit จาก Department.booking_enabled
-  leave_enabled   Boolean? // null = inherit จาก Department.leave_enabled
-  saturday_rule   DayRule? // null = inherit
-  sunday_rule     DayRule? // null = inherit
-  booking_quota   Int? // null = inherit
-  is_active       Boolean   @default(true)
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-  deleted_at      DateTime?
+  id                       String    @id @default(uuid())
+  tenant_id                String
+  department_id            String
+  name                     String
+  booking_enabled          Boolean? // null = inherit จาก Department.booking_enabled
+  leave_enabled            Boolean? // null = inherit จาก Department.leave_enabled
+  saturday_rule            DayRule? // null = inherit
+  sunday_rule              DayRule? // null = inherit
+  booking_quota            Int? // null = inherit
+  // สิทธิ์พักร้อนตามอายุงาน — ตั้งตรงต่อตำแหน่งเท่านั้น ไม่ cascade ผ่านผังองค์กร
+  // (feedback 2026-09-15: "ตอนนี้จะมีตำแหน่งแล้วการได้พักร้อน") null = ตำแหน่งนี้ไม่มี
+  // โปรแกรมพักร้อนตามอายุงาน (ทั้ง 3 field ต้องตั้งพร้อมกันถึงจะมีผล — ดู
+  // resolveVacationEntitlementFromChain ใน vacation-policy.service.ts)
+  vacation_base_days       Int? // วันพักร้อนเมื่อครบ 1 ปี เช่น 11
+  vacation_increment_days  Int? // เพิ่มครั้งละกี่วัน เช่น 1
+  vacation_increment_years Int? // ทุกๆ กี่ปี เช่น 2 (ครบ 1 ปี=11, ครบ 3 ปี=12, ครบ 5 ปี=13)
+  is_active                Boolean   @default(true)
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+  deleted_at               DateTime?
 
   tenant     Tenant     @relation(fields: [tenant_id], references: [id])
   department Department @relation(fields: [department_id], references: [id])
@@ -744,27 +752,30 @@ model OffsiteCheckin {
 // ─────────────────────────────────────────────
 
 model LeaveRequest {
-  id                 String      @id @default(uuid())
-  tenant_id          String
-  employee_id        String
-  leave_type         LeaveType
-  start_date         DateTime    @db.Date
-  end_date           DateTime    @db.Date
-  days               Float // จำนวนวันที่หักโควต้า — รองรับครึ่งวัน (0.5) และเศษวันจากลาระบุช่วงเวลา
-  leave_period       LeavePeriod @default(FULL) // FULL=เต็มวัน, MORNING/AFTERNOON=ครึ่งวัน, CUSTOM=ระบุช่วงเวลา (ใช้กับลา 1 วันเท่านั้น)
-  start_time         String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
-  end_time           String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
-  reason             String?
-  attachment_url     String? // ใบรับรองแพทย์
-  status             LeaveStatus @default(PENDING)
-  reviewed_by        String? // user_id
-  reviewed_at        DateTime?
-  reject_note        String?
-  has_conflict       Boolean     @default(false) // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ยังขอได้ปกติ แค่ flag ให้แอดมินเห็นตอนอนุมัติ
-  policy_override_by String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ leave_enabled cascade = ปิด (null = สร้างตามปกติ)
-  custom_type_id     String? // เมื่อ leave_type = OTHER — ชี้ไปที่ TenantLeaveType (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน ฯลฯ)
-  created_at         DateTime    @default(now())
-  updated_at         DateTime    @updatedAt
+  id                   String      @id @default(uuid())
+  tenant_id            String
+  employee_id          String
+  leave_type           LeaveType
+  start_date           DateTime    @db.Date
+  end_date             DateTime    @db.Date
+  days                 Float // จำนวนวันที่หักโควต้า — รองรับครึ่งวัน (0.5) และเศษวันจากลาระบุช่วงเวลา
+  leave_period         LeavePeriod @default(FULL) // FULL=เต็มวัน, MORNING/AFTERNOON=ครึ่งวัน, CUSTOM=ระบุช่วงเวลา (ใช้กับลา 1 วันเท่านั้น)
+  start_time           String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
+  end_time             String? // "HH:mm" — เฉพาะ leave_period=CUSTOM
+  reason               String?
+  attachment_url       String? // ใบรับรองแพทย์
+  status               LeaveStatus @default(PENDING)
+  reviewed_by          String? // user_id
+  reviewed_at          DateTime?
+  reject_note          String?
+  has_conflict         Boolean     @default(false) // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ยังขอได้ปกติ แค่ flag ให้แอดมินเห็นตอนอนุมัติ
+  conflict_deduct_type LeaveType? // แอดมินเลือกตอนอนุมัติคำขอที่ has_conflict=true ว่าจะหัก
+  // 1 วันจากโควต้าประเภทไหน (เช่น พักร้อน) — null = ไม่ได้หัก (ค่าเริ่มต้น) เก็บไว้เพื่อ
+  // ย้อนกลับได้ตอนลบ/ปฏิเสธทีหลัง (feedback 2026-09-15 ข้อ 1)
+  policy_override_by   String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ leave_enabled cascade = ปิด (null = สร้างตามปกติ)
+  custom_type_id       String? // เมื่อ leave_type = OTHER — ชี้ไปที่ TenantLeaveType (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน ฯลฯ)
+  created_at           DateTime    @default(now())
+  updated_at           DateTime    @updatedAt
 
   employee    Employee         @relation(fields: [employee_id], references: [id])
   custom_type TenantLeaveType? @relation(fields: [custom_type_id], references: [id], onDelete: SetNull)
@@ -845,9 +856,9 @@ enum LeaveStatus {
 }
 
 enum DocumentRequestType {
-  PAYSLIP     // สลิปเงินเดือน
+  PAYSLIP // สลิปเงินเดือน
   SALARY_CERT // หนังสือรับรองเงินเดือน
-  WORK_CERT   // หนังสือรับรองการทำงาน
+  WORK_CERT // หนังสือรับรองการทำงาน
   OTHER
 }
 
@@ -891,7 +902,7 @@ model WeeklyOffSwap {
 }
 
 enum WeeklyOffSwapRequestStatus {
-  PENDING  // รอเพื่อนตอบรับ
+  PENDING // รอเพื่อนตอบรับ
   ACCEPTED // ยอมรับแล้ว — สลับจริงแล้ว
   REJECTED // ปฏิเสธ
   CANCELED // ผู้ขอยกเลิกเอง ก่อนอีกฝ่ายตอบ
@@ -941,6 +952,39 @@ model LeaveBalance {
   @@map("leave_balances")
 }
 
+// audit log การให้/หักวันพักร้อนอัตโนมัติทุกครั้ง (โบนัสไม่ครบโควต้า, reset ประจำปี,
+// มาทำงานวันหยุดบริษัท, หักตอนชนตำแหน่ง) — เก็บไว้ตอบคำถาม HR "ทำไมพักร้อนเพิ่ม/ลด"
+// และกัน cron รันซ้ำแล้วให้ซ้ำ (unique ต่อ employee+source+year+ym)
+// (feedback 2026-09-15 — นโยบายพักร้อนชุดใหม่)
+model VacationGrantLog {
+  id          String              @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  year        Int // ปีของ LeaveBalance ที่กระทบ
+  ym          String // "2026-09" (รายเดือน) หรือ "-" (เหตุการณ์รายปี/ครั้งเดียว) — NOT NULL
+  // เพื่อให้ unique key ด้านล่างกันซ้ำได้จริง (MySQL ถือ NULL แต่ละแถวไม่ซ้ำกันเสมอ)
+  source      VacationGrantSource
+  days        Float // + = ให้เพิ่ม, - = หัก
+  note        String?
+  created_by  String? // user_id ถ้าเป็นการหักที่แอดมินเลือกเอง (ข้อ 1) — null = ระบบทำอัตโนมัติ
+  created_at  DateTime            @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, source, year, ym])
+  @@index([tenant_id])
+  @@index([employee_id])
+  @@map("vacation_grant_logs")
+}
+
+enum VacationGrantSource {
+  UNDER_QUOTA_BONUS // ข้อ 2 — หยุดไม่ครบโควต้า/เดือน
+  ANNUAL_RESET // ข้อ 8 — reset ประจำปี 1 ม.ค.
+  HOLIDAY_WORKED // ข้อ 3 — มาทำงานวันหยุดบริษัท
+  CONFLICT_DEDUCTION // ข้อ 1 — แอดมินหักตอนอนุมัติกรณีชนตำแหน่ง
+  MANUAL // แอดมินปรับเอง / ย้อนกลับการหักตอนลบคำขอ
+}
+
 // ─────────────────────────────────────────────
 // OT (Phase 2)
 // ─────────────────────────────────────────────
@@ -978,19 +1022,22 @@ enum WeeklyOffMode {
 }
 
 model WeeklyOffRequest {
-  id                 String          @id @default(uuid())
-  tenant_id          String
-  employee_id        String
-  week_start         DateTime        @db.Date // วันจันทร์ของสัปดาห์นั้น
-  day_of_week        Int // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
-  status             WeeklyOffStatus @default(PENDING)
-  reviewed_by        String? // user_id ของ admin/manager
-  reviewed_at        DateTime?
-  reject_note        String?
-  has_conflict       Boolean         @default(false) // true = มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ยังจองได้ปกติ แต่ flag ให้แอดมินเห็นตอนอนุมัติ
-  policy_override_by String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking_enabled cascade = ปิด (null = สร้างตามปกติ)
-  created_at         DateTime        @default(now())
-  updated_at         DateTime        @updatedAt
+  id                   String          @id @default(uuid())
+  tenant_id            String
+  employee_id          String
+  week_start           DateTime        @db.Date // วันจันทร์ของสัปดาห์นั้น
+  day_of_week          Int // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
+  status               WeeklyOffStatus @default(PENDING)
+  reviewed_by          String? // user_id ของ admin/manager
+  reviewed_at          DateTime?
+  reject_note          String?
+  has_conflict         Boolean         @default(false) // true = มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ยังจองได้ปกติ แต่ flag ให้แอดมินเห็นตอนอนุมัติ
+  conflict_deduct_type LeaveType? // แอดมินเลือกตอนอนุมัติวันที่ has_conflict=true ว่าจะหัก
+  // 1 วันจากโควต้าประเภทไหน (เช่น พักร้อน) — null = ไม่ได้หัก (ค่าเริ่มต้น) (feedback
+  // 2026-09-15 ข้อ 1) เก็บไว้ย้อนกลับได้ตอนลบคำขอทีหลัง
+  policy_override_by   String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking_enabled cascade = ปิด (null = สร้างตามปกติ)
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
@@ -1027,18 +1074,21 @@ model WeeklyOffPeriod {
 // ─────────────────────────────────────────────
 
 model Holiday {
-  id                 String      @id @default(uuid())
-  tenant_id          String
-  name               String
-  date               DateTime    @db.Date
-  type               HolidayType @default(NATIONAL)
-  recurring          Boolean     @default(false)
-  target_branches    Json? // string[] ของ branch_id — null/[] = ทุกสาขา
-  target_departments Json? // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
-  employee_includes  Json? // string[] employee_id ที่ "ได้หยุด" เพิ่มจากที่ branch/dept ครอบคลุมอยู่แล้ว
-  employee_excludes  Json? // string[] employee_id ที่ "ไม่ได้หยุด" แม้ branch/dept จะครอบคลุมก็ตาม (สำคัญกว่า include)
-  compensate_days    Int         @default(1) // วันชดเชยที่ได้ถ้ามาทำงานในวันนี้ทั้งที่ควรหยุด (เฉพาะคนที่ holiday นี้ apply ด้วย)
-  created_at         DateTime    @default(now())
+  id                    String      @id @default(uuid())
+  tenant_id             String
+  name                  String
+  date                  DateTime    @db.Date
+  type                  HolidayType @default(NATIONAL)
+  recurring             Boolean     @default(false)
+  target_branches       Json? // string[] ของ branch_id — null/[] = ทุกสาขา
+  target_departments    Json? // string[] ของรหัสแผนก 2 ตัวแรก (เช่น "03") — null/[] = ทุกแผนก
+  employee_includes     Json? // string[] employee_id ที่ "ได้หยุด" เพิ่มจากที่ branch/dept ครอบคลุมอยู่แล้ว
+  employee_excludes     Json? // string[] employee_id ที่ "ไม่ได้หยุด" แม้ branch/dept จะครอบคลุมก็ตาม (สำคัญกว่า include)
+  compensate_days       Int         @default(1) // วันชดเชยที่ได้ถ้ามาทำงานในวันนี้ทั้งที่ควรหยุด (เฉพาะคนที่ holiday นี้ apply ด้วย)
+  compensate_leave_type LeaveType   @default(COMPENSATE) // เลือกได้ต่อวันหยุดว่า +1 ที่ได้
+  // ให้ลงประเภทไหน — บางบริษัทเรียก "ชดเชย" บางบริษัทเรียก "พักร้อนเพิ่ม" (feedback
+  // 2026-09-15 ข้อ 3/6) default เดิมกันพฤติกรรม tenant อื่นเปลี่ยนโดยไม่รู้ตัว
+  created_at            DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 
