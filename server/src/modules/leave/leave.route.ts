@@ -166,6 +166,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'LEAVE_DISABLED')       return reply.code(403).send(fail('LEAVE_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว (วันเริ่ม = วันสิ้นสุด)'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง (เวลาสิ้นสุดต้องหลังเวลาเริ่ม)'))
+      if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       throw e
     }
   })
@@ -270,6 +271,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'PARTIAL_LEAVE_SINGLE_DAY') return reply.code(400).send(fail('PARTIAL_LEAVE_SINGLE_DAY', 'ลาครึ่งวัน/ระบุช่วงเวลา ต้องเป็นวันเดียว'))
       if (e.message === 'INVALID_TIME_RANGE')  return reply.code(400).send(fail('INVALID_TIME_RANGE', 'ช่วงเวลาที่ลาไม่ถูกต้อง'))
       if (e.message === 'INVALID_LEAVE_TYPE') return reply.code(400).send(fail('INVALID_LEAVE_TYPE', 'ประเภทการลาไม่ถูกต้อง'))
+      if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว'))
       throw e
     }
   })

@@ -3,6 +3,7 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
 import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
+import { assertMonthlyCap } from '../leave/vacation-policy.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -129,11 +130,20 @@ export async function createWeeklyOff(tenantId: string, data: {
   })
   if (existing) throw new Error('ALREADY_REQUESTED')
 
-  // โควต้าจอง/เดือน — cascade 6 ชั้น (default 5) · แอดมิน force ข้ามได้
+  const actualMonth = resolveActualDateStr(monday, data.day_of_week).slice(0, 7)
+
+  // โควต้าจอง/เดือน — cascade 6 ชั้น (default 5) · แอดมิน force ข้ามได้ (ผูกกับ
+  // overrideBy เดิม = force ที่ใช้ข้าม booking cascade ปิด)
   if (!overrideBy) {
-    const actualMonth = resolveActualDateStr(monday, data.day_of_week).slice(0, 7)
     const quota = await resolveBookingQuota(tenantId, data.employee_id)
     if (await countMonthOffRequests(tenantId, data.employee_id, actualMonth) >= quota) throw new Error('OVER_QUOTA')
+  }
+  // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15
+  // ข้อ 5 — เช็คแยกจาก overrideBy ด้านบน (คนละเหตุผลกัน): พนักงานจองเองโดน block
+  // เสมอ (opts.force ไม่มีทางเป็น true), แอดมิน force ข้ามได้เสมอไม่ว่า booking
+  // cascade จะเปิด/ปิดอยู่ก็ตาม
+  if (!opts.force) {
+    await assertMonthlyCap(tenantId, data.employee_id, actualMonth, 1)
   }
 
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
@@ -272,6 +282,9 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
   const uniqueDates = new Set(picked.map(p => p.dateStr))
   if (uniqueDates.size !== picked.length) throw new Error('DUPLICATE_DATE')
   if (picked.length > quota) throw new Error('OVER_QUOTA')
+  // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15 ข้อ 5
+  // (endpoint นี้พนักงานจองเองเท่านั้น ไม่มี force — block เสมอ)
+  await assertMonthlyCap(tenantId, data.employee_id, data.month, picked.length)
 
   try {
     return await prisma.$transaction(async tx => {

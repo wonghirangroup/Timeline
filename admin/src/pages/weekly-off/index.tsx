@@ -530,7 +530,8 @@ export default function WeeklyOffPage() {
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
   const [addForm, setAddForm]     = useState({ employee_id: '', date: '' })
-  const [forcePrompt, setForcePrompt] = useState<any>(null)  // body ที่รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์จอง
+  const [forcePrompt, setForcePrompt] = useState<any>(null)  // body ที่รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์จอง หรือเกินโควต้า 10 วัน/เดือน
+  const [forcePromptReason, setForcePromptReason] = useState<'BOOKING_DISABLED' | 'MONTHLY_CAP_EXCEEDED'>('BOOKING_DISABLED')
   const [showCalendar, setShowCalendar] = useState(false)
   const [rejectId, setRejectId]   = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
@@ -643,7 +644,9 @@ export default function WeeklyOffPage() {
     },
     onError: (err: any, body: any) => {
       const code = err.response?.data?.error?.code
-      if (code === 'BOOKING_DISABLED') { setForcePrompt({ ...body, force: true }); return }
+      if (code === 'BOOKING_DISABLED' || code === 'MONTHLY_CAP_EXCEEDED') {
+        setForcePromptReason(code); setForcePrompt({ ...body, force: true }); return
+      }
       showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : 'เพิ่มไม่สำเร็จ')
     },
   })
@@ -835,8 +838,10 @@ export default function WeeklyOffPage() {
       {forcePrompt && (
         <ConfirmDialog
           variant="warning"
-          title="สาขา/กลุ่มปิดสิทธิ์จองวันหยุด"
-          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์จองวันหยุด ยืนยันเพิ่มวันหยุดให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          title={forcePromptReason === 'MONTHLY_CAP_EXCEEDED' ? 'เกินโควต้ารวม 10 วัน/เดือน' : 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด'}
+          message={forcePromptReason === 'MONTHLY_CAP_EXCEEDED'
+            ? 'รวมวันหยุดที่จอง + วันลาพักร้อนของพนักงานคนนี้เดือนนี้เกิน 10 วันแล้ว ยืนยันเพิ่มวันหยุดให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'
+            : 'พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์จองวันหยุด ยืนยันเพิ่มวันหยุดให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'}
           confirmLabel="ยืนยันเพิ่มให้"
           onConfirm={() => { const b = forcePrompt; setForcePrompt(null); addMutation.mutate(b) }}
           onCancel={() => setForcePrompt(null)}

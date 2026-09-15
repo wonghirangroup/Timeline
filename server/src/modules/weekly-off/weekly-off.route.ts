@@ -73,6 +73,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว'))
       if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'สาขา/กลุ่มของพนักงานนี้ปิดสิทธิ์จองวันหยุด — ส่ง force=true เพื่อยืนยันเพิ่มให้อยู่ดี'))
       if (e.message === 'OVER_QUOTA') return reply.code(400).send(fail('OVER_QUOTA', 'จองวันหยุดครบโควต้าของเดือนนี้แล้ว — ส่ง force=true เพื่อเพิ่มให้อยู่ดี'))
+      if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว — ส่ง force=true เพื่อเพิ่มให้อยู่ดี'))
       throw e
     }
   })
@@ -343,6 +344,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (e.message === 'ALREADY_REQUESTED') return reply.code(409).send(fail('ALREADY_REQUESTED', 'มีการขอวันหยุดสัปดาห์นี้แล้ว'))
       if (e.message === 'BOOKING_DISABLED') return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของคุณปิดสิทธิ์จองวันหยุด'))
       if (e.message === 'OVER_QUOTA') return reply.code(400).send(fail('OVER_QUOTA', 'จองวันหยุดครบโควต้าของเดือนนี้แล้ว'))
+      if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว'))
       throw e
     }
   })
@@ -436,6 +438,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (e.message === 'DUPLICATE_DATE')    return reply.code(400).send(fail('DUPLICATE_DATE', 'เลือกวันที่ซ้ำกัน'))
       if (e.message === 'OVER_QUOTA')        return reply.code(400).send(fail('OVER_QUOTA', 'เลือกวันหยุดเกินโควต้าจองต่อเดือน'))
       if (e.message === 'BOOKING_DISABLED')  return reply.code(403).send(fail('BOOKING_DISABLED', 'กลุ่มของคุณปิดสิทธิ์จองวันหยุด'))
+      if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว'))
       throw e
     }
   })

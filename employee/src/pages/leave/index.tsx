@@ -710,6 +710,7 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
         code === 'INCOMPLETE_MONTH'  ? 'กรุณาเลือกวันหยุดให้ครบทุกสัปดาห์ก่อนส่ง' :
         code === 'OVER_QUOTA'        ? `เลือกวันหยุดเกินโควต้า (สูงสุด ${quota} วัน/เดือน)` :
         code === 'DUPLICATE_DATE'    ? 'เลือกวันที่ซ้ำกัน' :
+        code === 'MONTHLY_CAP_EXCEEDED' ? 'รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว' :
         'เกิดข้อผิดพลาด กรุณาลองใหม่'
       )
     },
@@ -1020,6 +1021,7 @@ function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId:
       const code = err.response?.data?.error?.code
       setErrorMsg(code === 'ALREADY_REQUESTED' ? 'มีวันที่เลือกไว้บางวันถูกจองไปแล้ว — เช็คสถานะแล้วเลือกใหม่'
         : code === 'OVER_QUOTA' ? `จองวันหยุดเกินโควต้าของเดือนนี้แล้ว (${quota} วัน/เดือน)`
+        : code === 'MONTHLY_CAP_EXCEEDED' ? 'รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว'
         : 'เกิดข้อผิดพลาดระหว่างส่งคำขอ — เช็คสถานะแล้วลองใหม่')
     },
   })
@@ -1402,6 +1404,7 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
       setErrorMsg(
         code === 'LEAVE_OVERLAP'        ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว — บางวันอาจส่งไปแล้วก่อนเจอ error นี้' :
         code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่เพียงพอ' :
+        code === 'MONTHLY_CAP_EXCEEDED' ? 'รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว' :
         'เกิดข้อผิดพลาด กรุณาลองใหม่'
       )
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
@@ -1607,6 +1610,7 @@ export default function LeavePage() {
       else if (code === 'INSUFFICIENT_BALANCE') setErrorMsg('วันลาคงเหลือไม่เพียงพอ')
       else if (code === 'LEAVE_DISABLED')  setErrorMsg('สาขาของคุณปิดการลาประเภทนี้ — ยื่นได้เฉพาะลาป่วย/ลาคลอด')
       else if (code === 'INVALID_TIME_RANGE') setErrorMsg('ช่วงเวลาที่ลาไม่ถูกต้อง')
+      else if (code === 'MONTHLY_CAP_EXCEEDED') setErrorMsg('รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว')
       else setErrorMsg('เกิดข้อผิดพลาด กรุณาลองใหม่')
     },
   })

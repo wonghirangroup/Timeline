@@ -203,7 +203,8 @@ export default function LeaveRequestsTab() {
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
   const [addForm, setAddForm]             = useState({ employee_id: '', leave_type: 'SICK' as LeaveType, custom_type_id: '', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
-  const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา
+  const [forcePrompt, setForcePrompt]     = useState<any>(null)  // body รอ retry ด้วย force=true เมื่อ cascade ปิดสิทธิ์การลา หรือเกินโควต้า 10 วัน/เดือน
+  const [forcePromptReason, setForcePromptReason] = useState<'LEAVE_DISABLED' | 'MONTHLY_CAP_EXCEEDED'>('LEAVE_DISABLED')
   const [page, setPage]                   = useState(1)
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
   const [bulkConfirm, setBulkConfirm]     = useState<null | 'approve' | 'reject'>(null)
@@ -290,7 +291,9 @@ export default function LeaveRequestsTab() {
     },
     onError: (err: any, body: any) => {
       const code = err.response?.data?.error?.code
-      if (code === 'LEAVE_DISABLED') setForcePrompt({ ...body, force: true })
+      if (code === 'LEAVE_DISABLED' || code === 'MONTHLY_CAP_EXCEEDED') {
+        setForcePromptReason(code); setForcePrompt({ ...body, force: true })
+      }
       else if (code === 'LEAVE_OVERLAP') showToast('error', 'มีวันลาที่ทับซ้อนกัน')
       else if (code === 'INSUFFICIENT_BALANCE') showToast('error', 'วันลาคงเหลือไม่เพียงพอ')
       else showToast('error', 'สร้างไม่สำเร็จ')
@@ -915,8 +918,10 @@ export default function LeaveRequestsTab() {
 
       {forcePrompt && (
         <ConfirmDialog
-          title="สาขา/กลุ่มปิดการลาประเภทนี้"
-          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          title={forcePromptReason === 'MONTHLY_CAP_EXCEEDED' ? 'เกินโควต้ารวม 10 วัน/เดือน' : 'สาขา/กลุ่มปิดการลาประเภทนี้'}
+          message={forcePromptReason === 'MONTHLY_CAP_EXCEEDED'
+            ? 'รวมวันหยุดที่จอง + วันลาพักร้อนของพนักงานคนนี้เดือนนี้เกิน 10 วันแล้ว ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'
+            : 'พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'}
           confirmLabel="ยืนยันเพิ่มให้"
           variant="warning"
           onConfirm={() => { const b = forcePrompt; setForcePrompt(null); addMutation.mutate(b) }}

@@ -3,6 +3,7 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
+import { assertMonthlyCap } from './vacation-policy.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
 const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
@@ -189,6 +190,12 @@ export async function createLeaveRequest(
 
   if (balance && (balance.used_days + days) > balance.total_days) {
     throw new Error('INSUFFICIENT_BALANCE')
+  }
+
+  // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15 ข้อ 5
+  // เฉพาะลาพักร้อน (ประเภทอื่นไม่นับรวมในโควต้านี้) · แอดมิน force ข้ามได้เหมือน LEAVE_DISABLED
+  if (data.leave_type === 'VACATION' && !data.force) {
+    await assertMonthlyCap(tenantId, data.employee_id, data.start_date.slice(0, 7), days)
   }
 
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
