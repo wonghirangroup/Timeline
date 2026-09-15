@@ -23,7 +23,13 @@ export async function resizeImage(file: File, maxDim = 640, quality = 0.85): Pro
 export async function uploadImage(file: File): Promise<string> {
   const blob = await resizeImage(file).catch(() => file)
   const fd = new FormData()
-  fd.append('file', blob)
+  // ต้องตั้งชื่อไฟล์เองตอน append — resizeImage คืน Blob เปล่าๆ ไม่มี .name ถ้าไม่ใส่
+  // browser จะส่งชื่อ multipart เป็น "blob" ตายตัวเสมอ ทำให้ Cloudinary มองว่าทุกการ
+  // อัปโหลด (ไม่ว่าใคร ไม่ว่าไฟล์ไหน) เป็น public_id เดียวกัน "timeline/employees/blob"
+  // ชนกันหมด — คนแรกที่อัปโหลด (ในที่นี้คือแอดมินตั้งรูปให้ตอนแรก) เลย "ชนะ" ตลอดไป
+  // คนหลังอัปโหลดสำเร็จ (200, ได้ URL กลับมา) แต่เนื้อหารูปไม่เคยเปลี่ยนเป็นของตัวเองเลย
+  // (feedback 2026-09-15: "เปลี่ยนรูปโปรไฟล์แล้วกลับไปเป็นรูปแรกที่แอดมินตั้งให้")
+  fd.append('file', blob, `photo_${Date.now()}.jpg`)
   fd.append('upload_preset', UPLOAD_PRESET)
   fd.append('folder', FOLDER)
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd })

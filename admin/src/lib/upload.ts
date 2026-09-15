@@ -24,7 +24,13 @@ export async function resizeImage(file: File, maxDim = 640, quality = 0.85): Pro
 export async function uploadImage(file: File): Promise<string> {
   const blob = await resizeImage(file).catch(() => file) // ย่อไม่ได้ก็ส่งไฟล์เดิม
   const fd = new FormData()
-  fd.append('file', blob)
+  // ต้องตั้งชื่อไฟล์เองตอน append — resizeImage คืน Blob เปล่าๆ ไม่มี .name
+  // ถ้าไม่ใส่ browser จะส่งชื่อ multipart เป็น "blob" ตายตัวเสมอ ทำให้ Cloudinary
+  // มองว่าทุกการอัปโหลด (ไม่ว่าใคร ไม่ว่าไฟล์ไหน) เป็น public_id เดียวกัน
+  // "timeline/employees/blob" ชนกันหมด — คนที่อัปโหลดคนแรกเลย "ชนะ" ตลอดไป คนหลังๆ
+  // อัปโหลดสำเร็จ (200, ได้ URL กลับมา) แต่เนื้อหารูปไม่เคยเปลี่ยนเป็นของตัวเองเลย
+  // (feedback 2026-09-15: "เปลี่ยนรูปโปรไฟล์แล้วกลับไปเป็นรูปแรกที่แอดมินตั้งให้")
+  fd.append('file', blob, `photo_${Date.now()}.jpg`)
   fd.append('upload_preset', UPLOAD_PRESET)
   fd.append('folder', FOLDER)
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd })
@@ -36,7 +42,9 @@ export async function uploadImage(file: File): Promise<string> {
 // อัปโหลดไฟล์ใดๆ (PDF / รูป / เอกสาร) — ไม่ย่อ, ใช้ resource_type auto
 export async function uploadFile(file: File, folder = 'timeline/documents'): Promise<string> {
   const fd = new FormData()
-  fd.append('file', file)
+  // ไฟล์นี้มี file.name อยู่แล้ว (ไม่ใช่ Blob เปล่าเหมือน resizeImage) แต่ยังเสี่ยงชนกัน
+  // ถ้าหลายคนอัปโหลดไฟล์ชื่อเดียวกัน (เช่น "สลิป.pdf") — ใส่ timestamp ไว้ข้างหน้ากันชน
+  fd.append('file', file, `${Date.now()}_${file.name}`)
   fd.append('upload_preset', UPLOAD_PRESET)
   fd.append('folder', folder)
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: fd })
