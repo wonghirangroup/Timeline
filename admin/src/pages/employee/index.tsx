@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -134,9 +134,12 @@ export default function EmployeePage() {
   const isReadOnly = useIsReadOnly()
   const navigate = useNavigate()
   // เปิดตรงไปแท็บ "ผังองค์กร" ได้ผ่าน ?tab=org (ใช้กับ redirect จาก /org-structure เดิม)
-  const [activeTab, setActiveTab] = useState<'employee' | 'org' | 'policy'>(() => {
+  // feedback 2026-09-15: "เอากลุ่มและสถานะพนักงานมาไว้ Layer เดียวกับ พนักงาน/
+  // สิทธิ์วันหยุด/การลา" — เดิมแท็บ "ผังองค์กร" ซ่อนแท็บย่อย 3 อัน (กลุ่ม/ผังองค์กร/
+  // สถานะพนักงาน) ไว้ข้างใน ยกขึ้นมาเป็น top-level tab ทั้งหมดแล้ว
+  const [activeTab, setActiveTab] = useState<'employee' | 'groups' | 'org' | 'status' | 'policy'>(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    return t === 'org' ? 'org' : t === 'policy' ? 'policy' : 'employee'
+    return (t === 'org' || t === 'groups' || t === 'status' || t === 'policy') ? t : 'employee'
   })
   const swipeHandlers = useSwipePage(
     () => setPage(p => Math.min(totalPages, p + 1)),
@@ -401,7 +404,9 @@ export default function EmployeePage() {
       {([
         { id: 'employee', label: 'พนักงาน',   icon: <Users size={15}/>,   color: '#f97316', activeBg: '#fff7ed' },
         { id: 'policy',   label: 'สิทธิ์วันหยุด/การลา', icon: <CalendarDays size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
-        { id: 'org',       label: 'ผังองค์กร', icon: <Network size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
+        { id: 'groups',   label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
+        { id: 'org',      label: 'ผังองค์กร',   icon: <Network size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
+        { id: 'status',   label: 'สถานะพนักงาน', icon: <IdCard size={15}/>,  color: '#f97316', activeBg: '#fff7ed' },
       ] as const).map(t => {
         const isActive = activeTab === t.id
         return (
@@ -422,12 +427,13 @@ export default function EmployeePage() {
     </div>
   )
 
-  // แท็บผังองค์กร — คนละหน้าจอเลย ไม่ต้องยุ่งกับ tree ของแท็บพนักงานด้านล่าง
-  if (activeTab === 'org') {
+  // แท็บกลุ่ม/ผังองค์กร/สถานะพนักงาน — คนละหน้าจอเลย ไม่ต้องยุ่งกับ tree ของแท็บพนักงานด้านล่าง
+  // (เดิมทั้ง 3 แท็บนี้ซ้อนอยู่ในแท็บ "ผังองค์กร" อันเดียว ยกขึ้นมาเป็น top-level แล้ว)
+  if (activeTab === 'org' || activeTab === 'groups' || activeTab === 'status') {
     return (
       <div>
         {tabBar}
-        <OrgStructurePage />
+        <OrgStructurePage view={activeTab === 'org' ? 'tree' : activeTab} onViewTree={() => setActiveTab('org')} />
       </div>
     )
   }

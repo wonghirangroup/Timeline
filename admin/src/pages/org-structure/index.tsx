@@ -916,44 +916,21 @@ function StatusTypesTab() {
   )
 }
 
-// ฝังในหน้า "จัดการพนักงาน" เป็นแท็บย่อย (admin/src/pages/employee/index.tsx) —
-// ไม่มี h1/description ของตัวเอง เพราะ header ของหน้าพนักงานทำหน้าที่นั้นแทนแล้ว
-export default function OrgStructurePage() {
-  const [tab, setTab] = useState<'groups' | 'tree' | 'status'>('groups')
-
+// เดิมฝังในหน้า "จัดการพนักงาน" เป็นแท็บย่อย 1 อัน ("ผังองค์กร") แล้วมีแท็บซ้อน
+// อีกชั้นข้างในเอง (กลุ่ม/ผังองค์กร/สถานะพนักงาน) — feedback 2026-09-15
+// "เอากลุ่มและสถานะพนักงานมาไว้ Layer เดียวกับ พนักงาน/สิทธิ์วันหยุด/การลา"
+// เลยยกแท็บย่อยทั้ง 3 ขึ้นไปเป็น top-level tab ที่ employee/index.tsx แทน —
+// คอมโพเนนต์นี้เหลือแค่ "แสดงมุมมองเดียวตาม view ที่รับมา" ไม่มีแท็บของตัวเองแล้ว
+export default function OrgStructurePage({ view, onViewTree }: { view: 'groups' | 'tree' | 'status'; onViewTree: () => void }) {
   const { data: groups = [] } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
   const { data: settings } = useQuery<{ name: string }>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 4, overflowX: 'auto' }}>
-        {([
-          { id: 'groups', label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/>,  color: '#f97316', activeBg: '#fff7ed' },
-          { id: 'tree',   label: 'ผังองค์กร',      icon: <Building2 size={15}/>, color: '#f97316', activeBg: '#fff7ed' },
-          { id: 'status', label: 'สถานะพนักงาน',   icon: <IdCard size={15}/>,    color: '#ea580c', activeBg: '#fff7ed' },
-        ] as const).map(t => {
-          const isActive = tab === t.id
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', border: 'none', cursor: 'pointer',
-              fontSize: '14px', fontWeight: isActive ? 700 : 600,
-              color: isActive ? t.color : 'var(--text-muted)',
-              background: isActive ? t.activeBg : 'transparent',
-              borderBottom: `3px solid ${isActive ? t.color : 'transparent'}`,
-              borderRadius: '8px 8px 0 0', marginBottom: -4, transition: 'all 0.2s', whiteSpace: 'nowrap',
-            }}>
-              <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {tab === 'groups' && (
-        <GroupsTab onViewTree={() => setTab('tree')} />
+      {view === 'groups' && (
+        <GroupsTab onViewTree={onViewTree} />
       )}
-      {tab === 'tree' && (
+      {view === 'tree' && (
         groups.length === 0 ? (
           <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
             ยังไม่มีกลุ่ม — ไปที่แท็บ "กลุ่ม (บริษัท)" เพื่อสร้างกลุ่มก่อน
@@ -962,7 +939,7 @@ export default function OrgStructurePage() {
           <OrgTreeTab groups={groups} companyName={settings?.name ?? ''} />
         )
       )}
-      {tab === 'status' && <StatusTypesTab />}
+      {view === 'status' && <StatusTypesTab />}
     </div>
   )
 }
