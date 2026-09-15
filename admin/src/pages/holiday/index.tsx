@@ -21,6 +21,7 @@ interface Holiday {
   employee_includes?: string[] | null   // employee_id ที่ "ได้หยุด" เพิ่ม แม้ branch/dept จะไม่ครอบคลุม
   employee_excludes?: string[] | null   // employee_id ที่ "ไม่ได้หยุด" แม้ branch/dept จะครอบคลุม (ชนะทุกอย่าง)
   compensate_days?: number              // วันชดเชยถ้ามาทำงานในวันที่ควรหยุด
+  compensate_leave_type?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER' // ลงประเภทไหน (default COMPENSATE)
 }
 
 interface HolidayEmployee {
@@ -237,6 +238,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
   const [employeeIncludes,  setEmployeeIncludes]  = useState<Set<string>>(new Set(initial?.employee_includes ?? []))
   const [employeeExcludes,  setEmployeeExcludes]  = useState<Set<string>>(new Set(initial?.employee_excludes ?? []))
   const [compensateDays,    setCompensateDays]    = useState(initial?.compensate_days ?? 1)
+  const [compensateLeaveType, setCompensateLeaveType] = useState<'COMPENSATE' | 'VACATION'>(initial?.compensate_leave_type === 'VACATION' ? 'VACATION' : 'COMPENSATE')
   const [showIndividual,    setShowIndividual]    = useState(() => (initial?.employee_includes?.length ?? 0) > 0 || (initial?.employee_excludes?.length ?? 0) > 0)
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -374,13 +376,18 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Gift size={14} color="#d97706" /> วันชดเชยถ้ามาทำงาน
+                <Gift size={14} color="#d97706" /> วันที่ได้ถ้ามาทำงาน
               </label>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ถ้าพนักงานเช็คอินในวันนี้ทั้งที่ควรหยุด ระบบจะให้วันหยุดชดเชยอัตโนมัติ</div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ถ้าพนักงานเช็คอินในวันนี้ทั้งที่ควรหยุด ระบบจะให้วันหยุดอัตโนมัติ — เลือกได้ว่าจะลงเป็น "ชดเชย" หรือ "พักร้อน" (บางบริษัทเรียกกรณีนี้ว่าพักร้อนเพิ่ม)</div>
             </div>
             <input type="number" min={0} max={5} value={compensateDays}
               onChange={e => setCompensateDays(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
               style={{ width: 60, padding: '8px 6px', borderRadius: 9, border: '1.5px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', textAlign: 'center', boxSizing: 'border-box' }} />
+            <select value={compensateLeaveType} onChange={e => setCompensateLeaveType(e.target.value as 'COMPENSATE' | 'VACATION')}
+              style={{ padding: '8px 10px', borderRadius: 9, border: '1.5px solid #e2e8f0', fontSize: '0.85rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+              <option value="COMPENSATE">ชดเชย</option>
+              <option value="VACATION">พักร้อน</option>
+            </select>
           </div>
         </div>
         <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
@@ -392,6 +399,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
               employee_includes:  employeeIncludes.size   > 0 ? [...employeeIncludes]  : null,
               employee_excludes:  employeeExcludes.size   > 0 ? [...employeeExcludes]  : null,
               compensate_days:    compensateDays,
+              compensate_leave_type: compensateLeaveType,
             })} disabled={!canSave}
             style={{ padding: '9px 22px', borderRadius: 9, border: 'none', fontSize: '0.875rem', fontWeight: 700, cursor: canSave ? 'pointer' : 'not-allowed', background: canSave ? '#4f46e5' : '#e2e8f0', color: canSave ? '#fff' : '#94a3b8' }}>
             บันทึก

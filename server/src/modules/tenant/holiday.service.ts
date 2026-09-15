@@ -1,5 +1,8 @@
 // server/src/modules/tenant/holiday.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { logHolidayWorkedVacationGrant } from '../leave/vacation-policy.service'
+
+type LeaveTypeStr = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
 
 export async function listHolidays(tenantId: string, year?: number) {
   const y = year ?? new Date().getFullYear()
@@ -21,6 +24,7 @@ export async function createHoliday(
     name: string; date: string; type?: string; recurring?: boolean
     target_branches?: string[]; target_departments?: string[]
     employee_includes?: string[]; employee_excludes?: string[]; compensate_days?: number
+    compensate_leave_type?: LeaveTypeStr
   },
 ) {
   return prisma.holiday.create({
@@ -35,6 +39,7 @@ export async function createHoliday(
       employee_includes:  data.employee_includes?.length ? data.employee_includes : undefined,
       employee_excludes:  data.employee_excludes?.length ? data.employee_excludes : undefined,
       compensate_days:    data.compensate_days ?? 1,
+      compensate_leave_type: data.compensate_leave_type ?? 'COMPENSATE',
     },
   })
 }
@@ -46,6 +51,7 @@ export async function updateHoliday(
     name?: string; date?: string; type?: string; recurring?: boolean
     target_branches?: string[] | null; target_departments?: string[] | null
     employee_includes?: string[] | null; employee_excludes?: string[] | null; compensate_days?: number
+    compensate_leave_type?: LeaveTypeStr
   },
 ) {
   const count = await prisma.holiday.updateMany({
@@ -60,6 +66,7 @@ export async function updateHoliday(
       ...(data.employee_includes  !== undefined ? { employee_includes:  (data.employee_includes?.length  ? data.employee_includes  : null) as any } : {}),
       ...(data.employee_excludes  !== undefined ? { employee_excludes:  (data.employee_excludes?.length  ? data.employee_excludes  : null) as any } : {}),
       ...(data.compensate_days    !== undefined ? { compensate_days: data.compensate_days } : {}),
+      ...(data.compensate_leave_type !== undefined ? { compensate_leave_type: data.compensate_leave_type } : {}),
     },
   })
   return count.count > 0
@@ -131,16 +138,27 @@ export async function findApplicableHolidayToday(tenantId: string, employee: { i
   return holidays.find(h => holidayAppliesTo(h, employee)) ?? null
 }
 
-// ให้วันชดเชย (COMPENSATE) อัตโนมัติเมื่อมาทำงานในวันหยุดที่ควรหยุด — เพิ่มเข้า
-// LeaveBalance.total_days ปีนั้นตรงๆ (ไม่ผ่านคำขอลา เพราะเป็น "ได้สิทธิ์" ไม่ใช่ "ขอลา")
-export async function grantHolidayCompensation(tenantId: string, employeeId: string, compensateDays: number, year: number) {
+// ให้วันชดเชยอัตโนมัติเมื่อมาทำงานในวันหยุดที่ควรหยุด — เพิ่มเข้า LeaveBalance.total_days
+// ปีนั้นตรงๆ (ไม่ผ่านคำขอลา เพราะเป็น "ได้สิทธิ์" ไม่ใช่ "ขอลา") — leaveType เลือกได้ว่า
+// จะลงประเภทไหน (default COMPENSATE เดิม กันพฤติกรรม caller อื่นเปลี่ยนโดยไม่รู้ตัว)
+// feedback 2026-09-15 ข้อ 3/6: วันหยุดบริษัทตั้งค่าได้ต่อรายการว่า +1 ลงพักร้อนแทนได้
+// (holiday.compensate_leave_type) — ส่ง 'VACATION' มาจาก attendance.service.ts เมื่อ
+// holiday นั้นตั้งไว้แบบนั้น ส่วน caller อื่น (เช่น resolveWorkedOnOwnDayOffAlert ที่ไม่
+// เกี่ยวกับวันหยุดบริษัท) ยังคงส่ง 'COMPENSATE' ตรงๆ เหมือนเดิม ไม่กระทบ
+export async function grantHolidayCompensation(
+  tenantId: string, employeeId: string, compensateDays: number, year: number,
+  leaveType: LeaveTypeStr = 'COMPENSATE',
+) {
   const existing = await prisma.leaveBalance.findFirst({
-    where: { employee_id: employeeId, leave_type: 'COMPENSATE', custom_type_id: null, year },
+    where: { employee_id: employeeId, leave_type: leaveType, custom_type_id: null, year },
   })
   if (existing) {
     await prisma.leaveBalance.update({ where: { id: existing.id }, data: { total_days: { increment: compensateDays } } })
   } else {
-    await prisma.leaveBalance.create({ data: { tenant_id: tenantId, employee_id: employeeId, leave_type: 'COMPENSATE', year, total_days: compensateDays } })
+    await prisma.leaveBalance.create({ data: { tenant_id: tenantId, employee_id: employeeId, leave_type: leaveType, year, total_days: compensateDays } })
+  }
+  if (leaveType === 'VACATION') {
+    await logHolidayWorkedVacationGrant(tenantId, employeeId, year, compensateDays)
   }
 }
 

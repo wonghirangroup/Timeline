@@ -199,6 +199,8 @@ export default function LeaveRequestsTab() {
   const [rejectTarget, setRejectTarget]   = useState<ApiLeaveRequest | null>(null)
   const [rejectNote, setRejectNote]       = useState('')
   const [approveTarget, setApproveTarget] = useState<ApiLeaveRequest | null>(null)
+  // เลือกว่าจะหักโควต้าไหนตอนอนุมัติคำขอที่ has_conflict=true (feedback 2026-09-15 ข้อ 1)
+  const [deductType, setDeductType]       = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget]   = useState<ApiLeaveRequest | null>(null)
   const [editTarget, setEditTarget]       = useState<ApiLeaveRequest | null>(null)
   const [editForm, setEditForm]           = useState({ leave_type: 'SICK' as LeaveType, start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL' as LeavePeriod, start_time: '', end_time: '' })
@@ -242,8 +244,9 @@ export default function LeaveRequestsTab() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/api/v1/admin/leave-requests/${id}/approve`).then(r => r.data),
-    onSuccess: () => { invalidate(); showToast('success', `อนุมัติวันลา ${approveTarget?.employee.first_name} สำเร็จ`); setApproveTarget(null) },
+    mutationFn: ({ id, deductType }: { id: string; deductType?: string | null }) =>
+      api.post(`/api/v1/admin/leave-requests/${id}/approve`, { conflict_deduct_type: deductType || undefined }).then(r => r.data),
+    onSuccess: () => { invalidate(); showToast('success', `อนุมัติวันลา ${approveTarget?.employee.first_name} สำเร็จ`); setApproveTarget(null); setDeductType(null) },
     onError: () => showToast('error', 'อนุมัติไม่สำเร็จ'),
   })
 
@@ -384,14 +387,16 @@ export default function LeaveRequestsTab() {
     setEditTarget(r)
   }
 
+  function openApprove(r: ApiLeaveRequest) { setDeductType(null); setApproveTarget(r) }
+
   // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติให้เลย (ถ้ายัง PENDING)
   useEffect(() => {
     if (!autoApprove || !focusId || isReadOnly) return
     const row = requests.find(r => r.id === focusId && r.status === 'PENDING')
-    if (row) setApproveTarget(row)
+    if (row) openApprove(row)
   }, [autoApprove, focusId, requests, isReadOnly])
 
-  function handleApprove()  { if (approveTarget) approveMutation.mutate(approveTarget.id) }
+  function handleApprove()  { if (approveTarget) approveMutation.mutate({ id: approveTarget.id, deductType }) }
   function handleReject()   { if (rejectTarget)  rejectMutation.mutate({ id: rejectTarget.id, note: rejectNote }) }
   function handleDelete()   { if (deleteTarget)  deleteMutation.mutate(deleteTarget.id) }
 
@@ -662,7 +667,7 @@ export default function LeaveRequestsTab() {
                         {!isReadOnly && (
                         <div style={{ display: 'flex', gap: 8 }}>
                           {r.status === 'PENDING' && <>
-                            <Button variant="success-soft" size="sm" block icon={<Check size={13}/>} onClick={() => setApproveTarget(r)}>อนุมัติ</Button>
+                            <Button variant="success-soft" size="sm" block icon={<Check size={13}/>} onClick={() => openApprove(r)}>อนุมัติ</Button>
                             <Button variant="danger-soft" size="sm" block icon={<X size={13}/>} onClick={() => { setRejectTarget(r); setRejectNote('') }}>ปฏิเสธ</Button>
                           </>}
                           <Button variant="secondary" size="sm" icon={<Pencil size={13}/>} onClick={() => openEdit(r)} aria-label="แก้ไข" />
@@ -750,7 +755,7 @@ export default function LeaveRequestsTab() {
                             {!isReadOnly && (
                             <div style={{ display: 'flex', gap: 5 }}>
                               {r.status === 'PENDING' && <>
-                                <Button variant="success-soft" size="sm" icon={<Check size={13}/>} onClick={() => setApproveTarget(r)} aria-label="อนุมัติ" />
+                                <Button variant="success-soft" size="sm" icon={<Check size={13}/>} onClick={() => openApprove(r)} aria-label="อนุมัติ" />
                                 <Button variant="danger-soft" size="sm" icon={<X size={13}/>} onClick={() => { setRejectTarget(r); setRejectNote('') }} aria-label="ปฏิเสธ" />
                               </>}
                               <Button variant="secondary" size="sm" icon={<Pencil size={13}/>} onClick={() => openEdit(r)} aria-label="แก้ไข" />
@@ -961,6 +966,20 @@ export default function LeaveRequestsTab() {
                 </p>
               </div>
             </div>
+            {approveTarget.has_conflict && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', fontWeight: 700, color: '#b45309', marginBottom: 8 }}>
+                  <AlertTriangle size={13} /> ชนตำแหน่งเดียวกัน — เลือกว่าจะหัก 1 วันจากโควต้าไหน
+                </div>
+                <select value={deductType ?? ''} onChange={e => setDeductType(e.target.value || null)}
+                  style={{ width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid #fde68a', fontSize: '12.5px', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}>
+                  <option value="">ไม่หัก (ค่าเริ่มต้น)</option>
+                  {approveTarget.leave_type !== 'VACATION' && <option value="VACATION">พักร้อน</option>}
+                  {approveTarget.leave_type !== 'PERSONAL' && <option value="PERSONAL">ลากิจ</option>}
+                  {approveTarget.leave_type !== 'COMPENSATE' && <option value="COMPENSATE">วันหยุดชดเชย</option>}
+                </select>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setApproveTarget(null)}
                 style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 500, fontSize: '13px', cursor: 'pointer' }}>

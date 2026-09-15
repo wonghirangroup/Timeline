@@ -86,9 +86,15 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       summary: 'อนุมัติวันหยุดสัปดาห์ (DEPT_HEAD อนุมัติได้แค่คนในแผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          conflict_deduct_type: { type: ['string', 'null'], enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE', 'OTHER', null], description: 'ถ้ารายการนี้ has_conflict=true เลือกได้ว่าจะหัก 1 วันจากโควต้าไหน — ไม่ส่ง/null = ไม่หัก' },
+        },
+      },
     },
   }, async (req: any, reply) => {
-    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'APPROVED', reviewed_by: req.userId }, req.scopedEmployeeIds)
+    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'APPROVED', reviewed_by: req.userId, conflict_deduct_type: req.body?.conflict_deduct_type }, req.scopedEmployeeIds)
     if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
     return ok(result, 'อนุมัติวันหยุดสำเร็จ')
   })

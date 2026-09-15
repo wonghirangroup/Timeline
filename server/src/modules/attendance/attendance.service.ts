@@ -14,7 +14,8 @@ import { employeeBranchWhere } from '../employee/employee.service'
 // source แยกที่มาของ OFF เพราะพฤติกรรมต่อจากนี้ไม่เหมือนกัน: HOLIDAY ให้วันชดเชย
 // อัตโนมัติทันที (บริษัทประกาศเอง), WEEKLY_OFF (พนักงานจองวันหยุดของตัวเอง) ไม่
 // auto grant — ต้องรอ HR resolve ว่าจะทำยังไง (feedback 2026-08-27)
-interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string; compensateDays?: number; source?: 'HOLIDAY' | 'WEEKLY_OFF' }
+type LeaveTypeStr = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
+interface DayRuleResult { rule: 'WORK' | 'OFF' | 'OFFSITE'; holidayName?: string; compensateDays?: number; compensateLeaveType?: LeaveTypeStr; source?: 'HOLIDAY' | 'WEEKLY_OFF' }
 
 async function resolveDayRule(tenantId: string, employeeId: string, date: Date): Promise<DayRuleResult> {
   const employee = await prisma.employee.findFirst({
@@ -42,7 +43,7 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
     const holiday = await prisma.holiday.findFirst({ where: { tenant_id: tenantId, date } })
     if (holiday) {
       if (holidayAppliesTo(holiday, { ...employee, id: employeeId })) {
-        return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, source: 'HOLIDAY' }
+        return { rule: 'OFF', holidayName: holiday.name, compensateDays: holiday.compensate_days, compensateLeaveType: holiday.compensate_leave_type, source: 'HOLIDAY' }
       }
       // ระบุไว้ชัดเจนว่า "คนนี้ต้องมาทำงาน" วันหยุดนี้ (employee_excludes) —
       // ให้ชนะวันหยุดที่จองเองด้วย ไม่งั้นถ้าบังเอิญจองวันหยุดตัวเองไว้ตรงวัน
@@ -88,7 +89,7 @@ function applyDayRule(late: LateStatus, dayRule: DayRuleResult): { late: LateSta
 async function grantCompensationIfWorkedHoliday(tenantId: string, employeeId: string, dayRule: DayRuleResult, date: Date) {
   if (dayRule.rule !== 'OFF' || dayRule.source !== 'HOLIDAY') return
   try {
-    await grantHolidayCompensation(tenantId, employeeId, dayRule.compensateDays ?? 1, date.getUTCFullYear())
+    await grantHolidayCompensation(tenantId, employeeId, dayRule.compensateDays ?? 1, date.getUTCFullYear(), dayRule.compensateLeaveType ?? 'COMPENSATE')
   } catch (e) {
     console.error('grantHolidayCompensation failed:', e)
   }

@@ -3,7 +3,7 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
 import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
-import { assertMonthlyCap } from '../leave/vacation-policy.service'
+import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from '../leave/vacation-policy.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -186,12 +186,18 @@ export async function createWeeklyOff(tenantId: string, data: {
 
 // scopedEmployeeIds: DEPT_HEAD เท่านั้น (ผ่านตอน approve/reject) — ถ้าเจ้าของ request
 // ไม่อยู่ในแผนกที่ดูแล findFirst จะหาไม่เจอ เป็น 404 ธรรมชาติ
+// conflict_deduct_type: เฉพาะตอน status → APPROVED และ req.has_conflict=true — แอดมิน
+// เลือกว่าจะหัก 1 วันจากโควต้าประเภทไหน (เช่น พักร้อน) เป็น "ค่าใช้จ่าย" ของการอนุมัติ
+// ให้ 2 คนหยุดวันเดียวกันในตำแหน่งเดียวกัน (feedback 2026-09-15 ข้อ 1 — ยังคง warn
+// เฉยๆ ไม่บล็อกเหมือนเดิม แค่เพิ่มจุดนี้) idempotent ด้วย req.conflict_deduct_type
+// เดิมต้องเป็น null (กันหักซ้ำถ้ากด approve ซ้ำ/แก้ไขซ้ำ)
 export async function updateWeeklyOff(tenantId: string, id: string, data: {
   day_of_week?: number
   week_start?: string   // YYYY-MM-DD — ย้ายไปสัปดาห์อื่น (ปฏิทินรวม: ลากวางย้ายวันหยุด) normalize เป็น Monday อัตโนมัติ
   status?: 'APPROVED' | 'REJECTED'
   reviewed_by?: string
   reject_note?: string
+  conflict_deduct_type?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER' | null
 }, scopedEmployeeIds?: string[]) {
   const req = await prisma.weeklyOffRequest.findFirst({
     where: { id, tenant_id: tenantId, ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
@@ -211,6 +217,12 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
     }
   }
 
+  const shouldDeduct = data.status === 'APPROVED' && req.has_conflict && !!data.conflict_deduct_type && !req.conflict_deduct_type
+  if (shouldDeduct) {
+    const year = Number(resolveActualDateStr(monday ?? req.week_start, data.day_of_week ?? req.day_of_week).slice(0, 4))
+    await applyConflictDeduction(tenantId, req.employee_id, data.conflict_deduct_type!, year, data.reviewed_by)
+  }
+
   return prisma.weeklyOffRequest.update({
     where: { id },
     data: {
@@ -218,11 +230,19 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
       ...(monday !== undefined ? { week_start: monday } : {}),
       ...(data.status ? { status: data.status, reviewed_by: data.reviewed_by, reviewed_at: new Date() } : {}),
       ...(data.reject_note ? { reject_note: data.reject_note } : {}),
+      ...(shouldDeduct ? { conflict_deduct_type: data.conflict_deduct_type } : {}),
     },
   })
 }
 
 export async function deleteWeeklyOff(tenantId: string, id: string) {
+  // ถ้าเคยหักโควต้าไว้ตอนอนุมัติ (ข้อ 1) ต้องคืนก่อนลบ ไม่งั้นคืนวันให้ไม่ได้อีกเลย
+  const req = await prisma.weeklyOffRequest.findFirst({ where: { id, tenant_id: tenantId } })
+  if (!req) return false
+  if (req.conflict_deduct_type) {
+    const year = Number(resolveActualDateStr(req.week_start, req.day_of_week).slice(0, 4))
+    await reverseConflictDeduction(tenantId, req.employee_id, req.conflict_deduct_type, year)
+  }
   const count = await prisma.weeklyOffRequest.deleteMany({ where: { id, tenant_id: tenantId } })
   return count.count > 0
 }
@@ -487,8 +507,11 @@ export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendance
       where: { tenant_id: tenantId, employee_id: record.employee_id, week_start: monday, day_of_week: record.date.getUTCDay() },
     })
   } else {
-    // ตั้งใจมาทำ — ให้วันชดเชยเพิ่ม เหมือนกลไกวันหยุดนักขัตฤกษ์
-    await grantHolidayCompensation(tenantId, record.employee_id, data.compensateDays ?? 1, record.date.getUTCFullYear())
+    // ตั้งใจมาทำ — ให้วันชดเชยเพิ่ม เหมือนกลไกวันหยุดนักขัตฤกษ์ — จงใจไม่ส่ง leaveType
+    // (คงเป็น COMPENSATE เสมอ) เพราะกรณีนี้คือ "มาทำงานทั้งที่จองวันหยุดตัวเองไว้"
+    // คนละเรื่องกับ "วันหยุดที่บริษัทประกาศ" (feedback 2026-09-15 ข้อ 3 ยืนยันแล้วว่า
+    // ให้เปลี่ยนเป็นพักร้อนได้เฉพาะกรณีวันหยุดบริษัทเท่านั้น)
+    await grantHolidayCompensation(tenantId, record.employee_id, data.compensateDays ?? 1, record.date.getUTCFullYear(), 'COMPENSATE')
   }
 
   return prisma.attendanceRecord.update({

@@ -69,9 +69,15 @@ export async function leaveRoutes(app: FastifyInstance) {
       summary: 'อนุมัติวันลา (DEPT_HEAD อนุมัติได้แค่คำขอของคนในแผนกที่ดูแล)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          conflict_deduct_type: { type: ['string', 'null'], enum: ['SICK', 'PERSONAL', 'VACATION', 'MATERNITY', 'COMPENSATE', 'OTHER', null], description: 'ถ้าคำขอนี้ has_conflict=true เลือกได้ว่าจะหัก 1 วันจากโควต้าไหน — ไม่ส่ง/null = ไม่หัก' },
+        },
+      },
     },
   }, async (req: any, reply) => {
-    const result = await approveLeaveRequest(req.tenantId, req.params.id, req.userId!, req.scopedEmployeeIds)
+    const result = await approveLeaveRequest(req.tenantId, req.params.id, req.userId!, req.scopedEmployeeIds, req.body?.conflict_deduct_type)
     if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือไม่อยู่ในสถานะ PENDING'))
     notifyLeaveResult(req.tenantId, result, true)
     return ok(result, 'อนุมัติวันลาสำเร็จ')

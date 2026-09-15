@@ -3,7 +3,7 @@ import { prisma } from '../../common/utils/prisma'
 import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
-import { assertMonthlyCap } from './vacation-policy.service'
+import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from './vacation-policy.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
 const DEFAULT_WORKDAY_HOURS = 8 // fallback เมื่อพนักงานไม่มีกะผูกไว้
@@ -283,11 +283,18 @@ export async function getMonthColleagueLeaves(tenantId: string, employeeId: stri
 
 // scopedEmployeeIds: DEPT_HEAD เท่านั้น — ถ้าเจ้าของคำขอไม่อยู่ในแผนกที่ดูแล findFirst
 // จะหาไม่เจอ (คืน null) เป็น 404 ธรรมชาติ ไม่ต้อง check พิเศษเพิ่ม
-export async function approveLeaveRequest(tenantId: string, id: string, reviewerId: string, scopedEmployeeIds?: string[]) {
+// conflictDeductType: เฉพาะตอน req.has_conflict=true — แอดมินเลือกว่าจะหัก 1 วันเพิ่ม
+// จากโควต้าประเภทไหน (feedback 2026-09-15 ข้อ 1) — ห้ามเลือกซ้ำเป็นประเภทเดียวกับ
+// req.leave_type เอง เพราะการอนุมัติก็หักโควต้าเดิมอยู่แล้วด้านล่าง (กันหักซ้อน 2 รอบ)
+export async function approveLeaveRequest(
+  tenantId: string, id: string, reviewerId: string, scopedEmployeeIds?: string[],
+  conflictDeductType?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER' | null,
+) {
   const req = await prisma.leaveRequest.findFirst({
     where: { id, tenant_id: tenantId, status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
   })
   if (!req) return null
+  const year = new Date(req.start_date).getFullYear()
 
   // หักวันลา
   await prisma.leaveBalance.updateMany({
@@ -296,14 +303,19 @@ export async function approveLeaveRequest(tenantId: string, id: string, reviewer
       employee_id: req.employee_id,
       leave_type: req.leave_type,
       custom_type_id: req.custom_type_id,
-      year: new Date(req.start_date).getFullYear(),
+      year,
     },
     data: { used_days: { increment: req.days } },
   })
 
+  const shouldDeduct = req.has_conflict && !!conflictDeductType && conflictDeductType !== req.leave_type && !req.conflict_deduct_type
+  if (shouldDeduct) {
+    await applyConflictDeduction(tenantId, req.employee_id, conflictDeductType!, year, reviewerId)
+  }
+
   return prisma.leaveRequest.update({
     where: { id },
-    data: { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date() },
+    data: { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date(), ...(shouldDeduct ? { conflict_deduct_type: conflictDeductType } : {}) },
   })
 }
 
@@ -374,13 +386,18 @@ export async function updateLeaveRequest(
 export async function deleteLeaveRequest(tenantId: string, id: string) {
   const req = await prisma.leaveRequest.findFirst({ where: { id, tenant_id: tenantId } })
   if (!req) return null
+  const year = new Date(req.start_date).getFullYear()
 
   // ถ้าเคย APPROVED → คืนวันลากลับ
   if (req.status === 'APPROVED') {
     await prisma.leaveBalance.updateMany({
-      where: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, custom_type_id: req.custom_type_id, year: new Date(req.start_date).getFullYear() },
+      where: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, custom_type_id: req.custom_type_id, year },
       data:  { used_days: { decrement: req.days } },
     })
+  }
+  // ถ้าเคยหักโควต้าไว้ตอนอนุมัติกรณีชนตำแหน่ง (ข้อ 1) ต้องคืนด้วย
+  if (req.conflict_deduct_type) {
+    await reverseConflictDeduction(tenantId, req.employee_id, req.conflict_deduct_type, year)
   }
 
   await prisma.leaveRequest.delete({ where: { id } })

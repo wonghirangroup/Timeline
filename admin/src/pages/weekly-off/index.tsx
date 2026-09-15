@@ -543,6 +543,10 @@ export default function WeeklyOffPage() {
   // bulkRejectFor ด้านบน (นั้นคือ "ปฏิเสธทั้งหมดของการ์ด" ระดับพนักงาน คนละปุ่มกัน)
   const [rangeRejectFor, setRangeRejectFor] = useState<string[] | null>(null)
   const [rangeRejectNote, setRangeRejectNote] = useState('')
+  // แถว/บล็อกที่กำลังจะอนุมัติแบบมี conflict — เปิดตัวเลือก "หักจากไหน" ก่อนยืนยัน
+  // (feedback 2026-09-15 ข้อ 1) เก็บเป็น id เดียว — บล็อกที่รวมหลายวันให้อนุมัติทีละวัน
+  const [conflictApproveId, setConflictApproveId] = useState<string | null>(null)
+  const [conflictDeductType, setConflictDeductType] = useState<string | null>(null)
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
 
@@ -621,8 +625,9 @@ export default function WeeklyOffPage() {
   )
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/api/v1/admin/weekly-off/${id}/approve`),
-    onSuccess: () => { invalidate(); showToast('success', 'อนุมัติสำเร็จ') },
+    mutationFn: ({ id, deductType }: { id: string; deductType?: string | null }) =>
+      api.post(`/api/v1/admin/weekly-off/${id}/approve`, { conflict_deduct_type: deductType || undefined }),
+    onSuccess: () => { invalidate(); showToast('success', 'อนุมัติสำเร็จ'); setConflictApproveId(null); setConflictDeductType(null) },
     onError:   () => showToast('error', 'อนุมัติไม่สำเร็จ'),
   })
   const rejectMutation = useMutation({
@@ -740,7 +745,7 @@ export default function WeeklyOffPage() {
         <>
           <BulkModePanel />
           <PeriodManager month={month} requests={requests}
-            onApprove={id => approveMutation.mutate(id)}
+            onApprove={id => approveMutation.mutate({ id })}
             onReject={id => rejectMutation.mutate({ id, note: '' })}
           />
         </>
@@ -940,7 +945,13 @@ export default function WeeklyOffPage() {
                       {!isReadOnly && (
                         <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                           {block.status === 'PENDING' && <>
-                            <button onClick={() => isRange ? approveManyMutation.mutate(block.ids) : approveMutation.mutate(r.id)}
+                            <button onClick={() => {
+                              if (isRange) { approveManyMutation.mutate(block.ids); return }
+                              // มี conflict → เปิดตัวเลือกหักโควต้าก่อน ไม่อนุมัติทันที (feedback
+                              // 2026-09-15 ข้อ 1) — ไม่มี conflict อนุมัติตรงๆ เหมือนเดิม
+                              if (block.hasConflict) { setConflictApproveId(r.id); setConflictDeductType(null); return }
+                              approveMutation.mutate({ id: r.id })
+                            }}
                               disabled={isRange ? approveManyMutation.isPending : approveMutation.isPending}
                               style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
                               <Check size={12} /> {isRange ? `อนุมัติทั้งหมด (${block.items.length})` : 'อนุมัติ'}
@@ -955,6 +966,28 @@ export default function WeeklyOffPage() {
                             style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>
                             <Trash2 size={12} />
                           </button>
+                        </div>
+                      )}
+                      {!isRange && conflictApproveId === r.id && (
+                        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6, flexBasis: '100%', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 7, padding: '8px 10px' }}>
+                          <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#b45309' }}>ชนตำแหน่งเดียวกัน — เลือกว่าจะหัก 1 วันจากโควต้าไหน</div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <select value={conflictDeductType ?? ''} onChange={e => setConflictDeductType(e.target.value || null)}
+                              style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #fde68a', fontSize: '12px', fontFamily: 'inherit', background: '#fff' }}>
+                              <option value="">ไม่หัก (ค่าเริ่มต้น)</option>
+                              <option value="VACATION">พักร้อน</option>
+                              <option value="PERSONAL">ลากิจ</option>
+                              <option value="COMPENSATE">วันหยุดชดเชย</option>
+                            </select>
+                            <button onClick={() => approveMutation.mutate({ id: r.id, deductType: conflictDeductType })} disabled={approveMutation.isPending}
+                              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                              ยืนยันอนุมัติ
+                            </button>
+                            <button onClick={() => setConflictApproveId(null)}
+                              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
+                              ยกเลิก
+                            </button>
+                          </div>
                         </div>
                       )}
                       {!isRange && rejectId === r.id && (
