@@ -673,6 +673,9 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   const [picks, setPicks] = useState<Record<string, string>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null) // WeeklyOffRequest.id ที่กำลังจะขอสลับ
+  // วันที่แตะล่าสุด — โชว์รายชื่อเพื่อนที่จองวันนั้นไปก่อนแล้วเฉพาะวันนี้วันเดียว
+  // (ไม่โชว์ยาวทั้งเดือน เพราะถ้าพนักงานเยอะ list จะไหลยาวเกินไป — feedback 2026-09-15)
+  const [viewDate, setViewDate] = useState<string | null>(null)
 
   // โควต้าจอง/เดือน — resolve จาก cascade 6 ชั้น ฝั่ง server (default 5) · ทุกคนเป็นโหมดโควต้า
   const quota    = employee?.booking_quota ?? employee?.employee_status_type?.monthly_off_quota ?? 5
@@ -763,10 +766,11 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
       const d = new Date(y, mo - 1 + delta, 1)
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
     })
-    setPicks({}); setErrorMsg(null)
+    setPicks({}); setErrorMsg(null); setViewDate(null)
   }
 
   function toggleDay(dateStr: string) {
+    setViewDate(dateStr)
     const key = hasQuota ? dateStr : getMondayOfDate(dateStr)
     setPicks(p => {
       if (p[key] === dateStr) { const next = { ...p }; delete next[key]; return next }
@@ -912,30 +916,26 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
             })}
           </div>
 
-          {Object.keys(conflictsByDate).length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Users size={11} /> เพื่อนที่จองวันเหล่านี้ไปก่อนแล้ว — ยังจองได้ตามปกติ (สีแดง = ตำแหน่งเดียวกัน ต้องรอแอดมินพิจารณา)
+          {viewDate && conflictsByDate[viewDate] && (() => {
+            const list = conflictsByDate[viewDate]
+            const hasSamePosition = list.some(c => c.same_position)
+            return (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Users size={11} /> เพื่อนที่จอง{fmtDateShort(viewDate)}ไปก่อนแล้ว — ยังจองได้ตามปกติ
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', gap: 6, fontSize: '0.74rem',
+                  background: hasSamePosition ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${hasSamePosition ? '#FECACA' : '#FDE68A'}`, borderRadius: 8, padding: '7px 10px',
+                }}>
+                  <span style={{ color: hasSamePosition ? '#7C2D12' : '#78350F' }}>
+                    {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
+                    {hasSamePosition ? ' (ตำแหน่งเดียวกัน — ต้องรอแอดมินพิจารณา)' : ' หยุดวันนี้ด้วย'}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {Object.entries(conflictsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([d, list]) => {
-                  const hasSamePosition = list.some(c => c.same_position)
-                  return (
-                    <div key={d} style={{
-                      display: 'flex', alignItems: 'baseline', gap: 6, fontSize: '0.74rem',
-                      background: hasSamePosition ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${hasSamePosition ? '#FECACA' : '#FDE68A'}`, borderRadius: 8, padding: '5px 10px',
-                    }}>
-                      <span style={{ fontWeight: 700, color: hasSamePosition ? '#DC2626' : '#B45309', flexShrink: 0 }}>{fmtDateShort(d)}</span>
-                      <span style={{ color: hasSamePosition ? '#7C2D12' : '#78350F' }}>
-                        {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
-                        {hasSamePosition ? ' (ตำแหน่งเดียวกัน)' : ' หยุดวันนี้ด้วย'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           <button onClick={() => submitMutation.mutate()} disabled={!complete || submitMutation.isPending}
             style={{
