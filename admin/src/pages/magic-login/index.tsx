@@ -21,11 +21,26 @@ export default function MagicLoginPage() {
     const token = sp.get('token')
     if (!token) { setError('ลิงก์ไม่ถูกต้อง'); return }
 
+    // token ใช้ได้ครั้งเดียวจริงฝั่ง server — แต่ถ้าแท็บ/webview เดิมนี้เอง
+    // โหลดซ้ำ (กดรีเฟรช, LINE in-app browser บางเครื่อง auto-reload, กด back
+    // แล้วกดปุ่มเดิมอีกที) จะยิง API ซ้ำด้วย token เดิมที่เพิ่งใช้ไปสำเร็จแล้ว
+    // เมื่อกี้ แล้วเจอ "ลิงก์หมดอายุหรือถูกใช้ไปแล้ว" ทั้งที่รอบแรกเข้าได้จริง
+    // (feedback 2026-09-16) — เก็บผลลัพธ์ที่สำเร็จไว้ใน sessionStorage ผูกกับ
+    // token นี้ (อยู่รอดแค่ในแท็บเดียวกัน ไม่รอดข้าม token ใหม่/webview ใหม่)
+    // ให้โหลดซ้ำแล้วเด้งต่อได้เลยโดยไม่ต้องยิง API ซ้ำ
+    const cacheKey = `magic-login:${token}`
+    const cachedNextPath = sessionStorage.getItem(cacheKey)
+    if (cachedNextPath !== null) {
+      navigate(cachedNextPath || '/dashboard', { replace: true })
+      return
+    }
+
     axios.post(`${API_URL}/api/v1/auth/magic-login`, { token })
       .then(res => {
         const { accessToken, user, next_path } = res.data.data
         const displayName = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
         setAuth(accessToken, user.role as Role, user.tenant_id ?? '', displayName, user.enabled_features ?? null)
+        try { sessionStorage.setItem(cacheKey, next_path || '') } catch { /* private mode — ยอมให้พลาดจุดกันซ้ำนี้ไป ไม่กระทบการล็อกอินหลัก */ }
         navigate(next_path || '/dashboard', { replace: true })
       })
       .catch(err => {
