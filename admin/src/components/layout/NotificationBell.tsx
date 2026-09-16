@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,6 +9,7 @@ import {
 import { useNotifications, type NotifItem, type NotifSeverity } from '../../hooks/useNotifications'
 import { api } from '../../lib/axios'
 import { useToast } from '../ui/Toast'
+import { Z } from '../ui/z'
 
 // รายการแจ้งเตือนที่อนุมัติ/ปฏิเสธได้ตรงจากกระดิ่งเลย (ไม่ต้องเปิดหน้าเต็ม)
 const APPROVABLE = new Set(['pending_leave', 'pending_ot', 'pending_resignation', 'pending_weekly_off'])
@@ -141,7 +143,7 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
   }
 
   const panel = (
-    <div style={{ display: 'flex', flexDirection: 'column', maxHeight: isMobile ? '80vh' : 460 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', maxHeight: isMobile ? undefined : 460, flex: isMobile ? 1 : undefined, minHeight: isMobile ? 0 : undefined }}>
       <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)' }}>การแจ้งเตือน</span>
         {badge > 0
@@ -248,17 +250,26 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
         </div>
       )}
 
-      {isMobile && open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', zIndex: 300, display: 'flex', alignItems: 'flex-end' }}
+      {/* Portal ออกไปที่ document.body — เดิม render ซ้อนอยู่ใน <header> ที่มี
+          backdropFilter:blur() ซึ่งสร้าง containing block ใหม่ให้ลูกที่เป็น
+          position:fixed (พฤติกรรมมาตรฐานของ CSS filter/backdrop-filter) ผลคือ
+          inset:0 ไปยึดกับกรอบ header (สูงแค่ ~56px) แทนที่จะเต็มจอจริง เห็นเป็น
+          ชิ้นส่วนซ้อนทับ header แทนเต็มจอ (feedback 2026-09-16) — เปลี่ยนเป็น
+          ลิ้นชักสไลด์จากขวาตามที่เสนอด้วย (เดิม bottom sheet) */}
+      {isMobile && open && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', zIndex: Z.modal, display: 'flex', justifyContent: 'flex-end' }}
           onClick={() => setOpen(false)}>
-          <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', paddingBottom: 'max(12px, env(safe-area-inset-bottom))', overflow: 'hidden', boxShadow: 'var(--shadow-float)' }}
+          <div style={{
+            width: 'min(360px, 88vw)', height: '100%', background: 'var(--bg-card)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '16px 0 0 16px',
+            paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)',
+            boxShadow: 'var(--shadow-float)', animation: 'slide-in-right 0.22s cubic-bezier(0.16,1,0.3,1)',
+          }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-              <div style={{ width: 40, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.1)' }} />
-            </div>
             {panel}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

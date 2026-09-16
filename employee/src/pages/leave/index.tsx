@@ -632,12 +632,12 @@ function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
   )
 }
 
-function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
+function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeId: string; branchId: string; initialMonth?: string | null }) {
   const qc = useQueryClient()
   const employee = useAuthStore(s => s.employee)
   const todayStr  = getTodayStr()
   const thisMonth = todayStr.slice(0, 7)
-  const [month, setMonth] = useState(thisMonth)
+  const [month, setMonth] = useState(initialMonth || thisMonth)
   // โหมดโควต้า (มี employee_status_type): key = dateStr เอง, เลือกวันไหนก็ได้ไม่เกินโควต้า
   // โหมดเดิม (ไม่มีสถานะพนักงานผูก): key = mondayISO, บังคับ 1 วัน/สัปดาห์ให้ครบทุกสัปดาห์
   const [picks, setPicks] = useState<Record<string, string>>({})
@@ -935,12 +935,15 @@ function MonthlyBatchBooking({ employeeId, branchId }: { employeeId: string; bra
   )
 }
 
-function WeeklyBooking({ employeeId, branchId }: { employeeId: string; branchId: string }) {
+function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: string; branchId: string; initialMonth?: string | null }) {
   const qc          = useQueryClient()
   const employee    = useAuthStore(s => s.employee)
   const quota       = employee?.booking_quota ?? 5
   const thisMonday  = getThisWeekMonday()
-  const [weekStart, setWeekStart] = useState(thisMonday)
+  // ถ้ามี initialMonth มา (กดจากลิงก์ "เปิดจองวันหยุดแล้ว") เริ่มที่สัปดาห์แรกของ
+  // เดือนนั้นแทนสัปดาห์นี้ — โหมดจองรายสัปดาห์ไม่มีแนวคิด "กระโดดไปเดือน" ตรงๆ
+  // เลยใช้จันทร์แรกของเดือนเป้าหมายแทน
+  const [weekStart, setWeekStart] = useState(() => initialMonth ? getMondayOfDate(`${initialMonth}-01`) : thisMonday)
   const [selDows,   setSelDows]   = useState<Set<number>>(new Set()) // เลือกได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14)
   const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -1551,6 +1554,9 @@ export default function LeavePage() {
     const t = new URLSearchParams(window.location.search).get('tab')
     return (t === 'booking' || t === 'request' || t === 'calendar') ? t : 'calendar'
   })
+  // ?month= มาคู่กับ ?tab=booking เสมอตอนกดจากลิงก์แจ้งเตือน "เปิดจองวันหยุดแล้ว" —
+  // ไม่งั้นแท็บจองจะเริ่มที่เดือนปัจจุบันแทนเดือนที่เพิ่งเปิดจองจริง (feedback 2026-09-16)
+  const [initialMonth] = useState<string | null>(() => new URLSearchParams(window.location.search).get('month'))
   const [form,       setForm]      = useState({ leaveType: 'SICK', customTypeId: '', startDate: '', endDate: '', reason: '', period: 'FULL' as 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM', startTime: '', endTime: '' })
 
   // ประเภทการลาที่ tenant กำหนดเอง — 403 (feature ปิด) = []
@@ -1892,9 +1898,9 @@ export default function LeavePage() {
                   </p>
                 </div>
               ) : employee?.weekly_off_mode === 'MONTHLY_BATCH' ? (
-                <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+                <MonthlyBatchBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} initialMonth={initialMonth} />
               ) : (
-                <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} />
+                <WeeklyBooking employeeId={employee?.id ?? ''} branchId={employee?.branch?.id ?? ''} initialMonth={initialMonth} />
               )
             ) : employee?.leave_enabled === false ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '32px 20px', textAlign: 'center' }}>

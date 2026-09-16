@@ -96,7 +96,10 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
   // liff.state = path จริงในแอปที่จะเปิดหลัง LIFF init เสร็จ (มาตรฐาน LIFF deep-link)
   // ใส่ lid ต่อท้ายด้วยเพราะแอปฝั่ง employee อ่าน LIFF ID จาก query ?lid= เป็นหลัก
   // (sessionStorage มักหายไปตอนเปิด LIFF รอบใหม่จากลิงก์ข้อความ ไม่ใช่จากในแอปเดิม)
-  const targetPath = `/leave?tab=booking&lid=${lineConfig.line_liff_id}`
+  // month ต้องแนบไปด้วยเสมอ ไม่งั้นพนักงานกดจากไลน์แล้วหน้าจองจะโชว์เดือนปัจจุบัน
+  // (ตอนนี้) ไม่ใช่เดือนที่เพิ่งเปิดให้จอง (feedback 2026-09-16: "เปิดจองเดือน
+  // พฤศจิ แต่กดไปเป็นเดือนกันยา ต้องเลื่อนหาเดือนที่เปิดอีกรอบ")
+  const targetPath = `/leave?tab=booking&month=${month}&lid=${lineConfig.line_liff_id}`
   const url = `https://liff.line.me/${lineConfig.line_liff_id}?liff.state=${encodeURIComponent(targetPath)}`
   const monthLabel = fmtMonthTH(month)
 

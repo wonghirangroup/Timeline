@@ -226,6 +226,12 @@ button {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ลิ้นชักแจ้งเตือนบนมือถือ (NotificationBell) — สไลด์จากขวา (feedback 2026-09-16) */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse { animation: pulse-scale 1.6s ease-in-out infinite; }
 .animate-slide-up { animation: slide-up 0.25s ease-out both; }
