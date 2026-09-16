@@ -4,6 +4,7 @@ import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.se
 import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
+import { isAllowedBranch, pickShiftForCheckIn, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
 import { bangkokToday } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
 
@@ -380,7 +381,6 @@ async function autoDetectShift(tenantId: string, branchId: string, employeeId: s
   isOutsideShift: boolean
 } | null> {
   const nowMins = getNowBangkokMins()
-
   const today = getTodayBangkok()
 
   const shifts = await prisma.shift.findMany({
@@ -389,48 +389,20 @@ async function autoDetectShift(tenantId: string, branchId: string, employeeId: s
   })
   if (shifts.length === 0) return null
 
-  // หากะที่อยู่ใน window (earlyMins → closeMins)
-  for (let i = 0; i < shifts.length; i++) {
-    const shift = shifts[i]
-    const startMins = toMins(shift.start_time)
-    const earlyMins = startMins - 60
-    // เช็คอินได้ยาวถึง 4 ชม. หลังเกณฑ์ที่หนักสุดที่ตั้งไว้ (absent > late2 > start)
-    // เพื่อให้พนักงานยังเช็คอินได้ในช่วง "ขาด" ตามที่ตกลงไว้ — นับขาดแต่ไม่ปิดรับ
-    const latestBoundMins = shift.absent_threshold
-      ? toMins(shift.absent_threshold)
-      : shift.late_threshold_2
-        ? toMins(shift.late_threshold_2)
-        : startMins
-    // ห้ามยืดเข้าไปในช่วง "เช็คอินก่อนเวลาได้ 1 ชม." ของกะถัดไป (เรียงตาม start_time
-    // แล้ว) ไม่งั้นสาขาที่มีหลายกะติดกัน (เช่น 08:00/09:00/13:00) จะจับกะผิดกัน —
-    // คนมาเข้ากะสายจะถูกจับเข้ากะเช้าที่ยัง "เปิด" ค้างอยู่แทน
-    const nextShiftEarlyMins = i + 1 < shifts.length ? toMins(shifts[i + 1].start_time) - 60 : Infinity
-    const closeMins = Math.min(latestBoundMins + 4 * 60, nextShiftEarlyMins - 1)
+  // เช็คว่ากะไหนของวันนี้เช็คอินไปแล้วบ้าง (ดึงครั้งเดียว แทนที่จะ query ทีละกะ
+  // ในลูปแบบเดิม) แล้วส่งต่อให้ pickShiftForCheckIn() (pure function — unit test
+  // ได้ครบทุกเคสเวลาโดยไม่ต้อง mock prisma — ดู checkin-rules.test.ts)
+  const existingRecords = await prisma.attendanceRecord.findMany({
+    where: { employee_id: employeeId, date: today, shift_id: { in: shifts.map(s => s.id) } },
+    select: { shift_id: true },
+  })
+  const checkedInShiftIds = new Set(existingRecords.map(r => r.shift_id))
 
-    if (nowMins < earlyMins || nowMins > closeMins) continue
+  const picked = pickShiftForCheckIn(shifts, nowMins, id => checkedInShiftIds.has(id))
+  if (!picked) return null
 
-    const existing = await prisma.attendanceRecord.findUnique({
-      where: { employee_id_shift_id_date: { employee_id: employeeId, shift_id: shift.id, date: today } },
-    })
-    if (existing) continue
-
-    return { shift, isOutsideShift: false }
-  }
-
-  // ไม่มีกะที่ match — หากะใกล้ที่สุด (closest start_time) ที่ยังไม่ได้เช็คอิน
-  let closestShift = null
-  let closestDiff  = Infinity
-  for (const shift of shifts) {
-    const existing = await prisma.attendanceRecord.findUnique({
-      where: { employee_id_shift_id_date: { employee_id: employeeId, shift_id: shift.id, date: today } },
-    })
-    if (existing) continue
-    const diff = Math.abs(toMins(shift.start_time) - nowMins)
-    if (diff < closestDiff) { closestDiff = diff; closestShift = shift }
-  }
-
-  if (!closestShift) return null
-  return { shift: closestShift, isOutsideShift: true }
+  const shift = shifts.find(s => s.id === picked.shiftId)!
+  return { shift, isOutsideShift: picked.isOutsideShift }
 }
 
 export async function checkInAuto(tenantId: string, data: {
@@ -451,8 +423,7 @@ export async function checkInAuto(tenantId: string, data: {
     select: { branch_id: true, extra_branches: { select: { branch_id: true } } },
   })
   if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
-  const allowedBranchIds = [employee.branch_id, ...employee.extra_branches.map(b => b.branch_id)]
-  if (!allowedBranchIds.includes(data.branch_id)) throw new Error('NOT_IN_BRANCH')
+  if (!isAllowedBranch(employee, data.branch_id)) throw new Error('NOT_IN_BRANCH')
 
   // ตรวจ GPS
   let is_outside_area = false
@@ -471,10 +442,9 @@ export async function checkInAuto(tenantId: string, data: {
       data.gps_lat, data.gps_lng,
       Number(branch.lat), Number(branch.lng),
     ))
-    if (dist > radius) {
-      if (branch.geo_mode === 'BLOCK') throw new Error('OUTSIDE_GEOFENCE')
-      is_outside_area = true
-    }
+    const geo = resolveGeoCheckIn(dist, radius, branch.geo_mode)
+    if (geo.blocked) throw new Error('OUTSIDE_GEOFENCE')
+    is_outside_area = geo.isOutsideArea
   }
 
   const now = new Date()
@@ -538,14 +508,6 @@ function buildDateTime(dateStr: string, timeStr?: string): Date | null {
   return new Date(Date.UTC(y, mo - 1, d, h - 7, m, 0, 0))
 }
 
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000
-  const toRad = (d: number) => d * Math.PI / 180
-  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
 export async function checkIn(tenantId: string, data: {
   employee_id: string
   shift_id: string
@@ -587,10 +549,9 @@ export async function checkIn(tenantId: string, data: {
         data.gps_lat, data.gps_lng,
         Number(branch.lat), Number(branch.lng),
       ))
-      if (dist > radius) {
-        if (branch.geo_mode === 'BLOCK') throw new Error('OUTSIDE_GEOFENCE')
-        is_outside_area = true
-      }
+      const geo = resolveGeoCheckIn(dist, radius, branch.geo_mode)
+      if (geo.blocked) throw new Error('OUTSIDE_GEOFENCE')
+      is_outside_area = geo.isOutsideArea
     }
   }
 
@@ -719,10 +680,9 @@ export async function checkInScan(tenantId: string, data: {
   if (branch.lat && branch.lng && data.gps_lat != null && data.gps_lng != null) {
     const radius = branch.gps_radius ?? 200
     const dist = haversineMeters(data.gps_lat, data.gps_lng, Number(branch.lat), Number(branch.lng))
-    if (dist > radius) {
-      if (branch.geo_mode === 'BLOCK') throw new Error('OUTSIDE_GEOFENCE')
-      is_outside_area = true
-    }
+    const geo = resolveGeoCheckIn(dist, radius, branch.geo_mode)
+    if (geo.blocked) throw new Error('OUTSIDE_GEOFENCE')
+    is_outside_area = geo.isOutsideArea
   }
 
   const today = getTodayBangkok()
