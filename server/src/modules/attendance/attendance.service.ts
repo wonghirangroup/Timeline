@@ -4,7 +4,7 @@ import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.se
 import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
-import { isAllowedBranch, pickShiftForCheckIn, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
+import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
 import { bangkokToday } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
 
@@ -374,11 +374,15 @@ export async function deleteAttendanceRecord(tenantId: string, id: string): Prom
 // วันที่ Bangkok ณ ตอนนี้ เก็บเป็น UTC midnight ของวันนั้น — ดู common/utils/time.ts
 const getTodayBangkok = bangkokToday
 
-// ค้นหากะที่ match กับเวลาปัจจุบัน (ภายใน window ของกะ)
-// คืนค่า { shift, isOutsideShift }
+// ค้นหากะที่ match กับเวลาปัจจุบัน (ภายใน window ของกะ) — คืนค่า { shift,
+// isOutsideShift, attendanceDate } — attendanceDate อาจเป็น "เมื่อวาน" ถ้าจับ
+// เป็นกะข้ามคืนที่เริ่มเมื่อวานแล้วยังไม่ปิดรับ (feedback 2026-09-16: "กะข้าม
+// เที่ยงคืนแบบเต็ม" — เช่น กะ 22:00-06:00 มีคนมาเช็คอิน 00:30 ต้องนับเป็นกะของ
+// เมื่อวาน ไม่ใช่กะใหม่ของวันนี้ที่ยังไม่มีใครตั้ง)
 async function autoDetectShift(tenantId: string, branchId: string, employeeId: string): Promise<{
   shift: Awaited<ReturnType<typeof prisma.shift.findFirst>> & {}
   isOutsideShift: boolean
+  attendanceDate: Date
 } | null> {
   const nowMins = getNowBangkokMins()
   const today = getTodayBangkok()
@@ -389,20 +393,39 @@ async function autoDetectShift(tenantId: string, branchId: string, employeeId: s
   })
   if (shifts.length === 0) return null
 
-  // เช็คว่ากะไหนของวันนี้เช็คอินไปแล้วบ้าง (ดึงครั้งเดียว แทนที่จะ query ทีละกะ
-  // ในลูปแบบเดิม) แล้วส่งต่อให้ pickShiftForCheckIn() (pure function — unit test
-  // ได้ครบทุกเคสเวลาโดยไม่ต้อง mock prisma — ดู checkin-rules.test.ts)
-  const existingRecords = await prisma.attendanceRecord.findMany({
-    where: { employee_id: employeeId, date: today, shift_id: { in: shifts.map(s => s.id) } },
-    select: { shift_id: true },
-  })
-  const checkedInShiftIds = new Set(existingRecords.map(r => r.shift_id))
+  // กะเป็น template ต่อสาขา ไม่ได้ผูกวันที่ — "เมื่อวาน" คือ config กะข้ามคืน
+  // (end_time <= start_time) ชุดเดียวกันนี้เอง แค่เช็คว่า "รอบที่เริ่มเมื่อวาน"
+  // ยังเปิดรับเช็คอินถึงตอนนี้ไหม
+  const overnightShifts = shifts.filter(isOvernightShift)
+  const yesterday = new Date(today)
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1)
 
-  const picked = pickShiftForCheckIn(shifts, nowMins, id => checkedInShiftIds.has(id))
+  // เช็คว่ากะไหนเช็คอินไปแล้วบ้าง ทั้งของวันนี้และของเมื่อวาน (เผื่อกะข้ามคืน)
+  // ดึงครั้งเดียว แทนที่จะ query ทีละกะในลูปแบบเดิม แล้วส่งต่อให้
+  // pickShiftForCheckIn() (pure function — unit test ได้ครบทุกเคสเวลาโดยไม่ต้อง
+  // mock prisma — ดู checkin-rules.test.ts)
+  const [existingToday, existingYesterday] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: { employee_id: employeeId, date: today, shift_id: { in: shifts.map(s => s.id) } },
+      select: { shift_id: true },
+    }),
+    overnightShifts.length === 0 ? Promise.resolve([]) : prisma.attendanceRecord.findMany({
+      where: { employee_id: employeeId, date: yesterday, shift_id: { in: overnightShifts.map(s => s.id) } },
+      select: { shift_id: true },
+    }),
+  ])
+  const checkedInToday     = new Set(existingToday.map(r => r.shift_id))
+  const checkedInYesterday = new Set(existingYesterday.map(r => r.shift_id))
+
+  const picked = pickShiftForCheckIn(
+    shifts, nowMins,
+    (id, fromPreviousDay) => fromPreviousDay ? checkedInYesterday.has(id) : checkedInToday.has(id),
+    overnightShifts,
+  )
   if (!picked) return null
 
   const shift = shifts.find(s => s.id === picked.shiftId)!
-  return { shift, isOutsideShift: picked.isOutsideShift }
+  return { shift, isOutsideShift: picked.isOutsideShift, attendanceDate: picked.fromPreviousDay ? yesterday : today }
 }
 
 export async function checkInAuto(tenantId: string, data: {
@@ -430,7 +453,11 @@ export async function checkInAuto(tenantId: string, data: {
   const detected = await autoDetectShift(tenantId, data.branch_id, data.employee_id)
   if (!detected) throw new Error('NO_SHIFT_AVAILABLE')
 
-  const { shift, isOutsideShift } = detected
+  // attendanceDate อาจเป็น "เมื่อวาน" ถ้าจับเป็นกะข้ามคืนที่เริ่มเมื่อวานแล้วยัง
+  // ไม่ปิดรับ (feedback 2026-09-16) — บันทึก record ผูกกับวันที่กะเริ่มจริง ไม่ใช่
+  // วันที่ปฏิทินตอนกดเช็คอิน ถึงจะนับวันทำงาน/รายงานถูกวัน
+  const { shift, isOutsideShift, attendanceDate } = detected
+  const overnightShift = isOvernightShift(shift)
 
   if (branch.lat && branch.lng && data.gps_lat != null && data.gps_lng != null) {
     // 0 ก็ต้องตกไปใช้ค่าสาขาเหมือน null — ในฟอร์มแอดมิน "ปล่อยว่าง/0" สื่อว่า
@@ -449,8 +476,13 @@ export async function checkInAuto(tenantId: string, data: {
 
   const now = new Date()
   const today = getTodayBangkok()
-  const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
-  const { late, dayRuleNote } = applyDayRule(computeLateStatus(shift, dateToBangkokMins(now)), dayRule)
+  const fromPreviousDay = attendanceDate.getTime() !== today.getTime()
+  // เช็คอินหลังเที่ยงคืนของกะที่เริ่มเมื่อวาน — ต้องบวกนาทีปัจจุบันด้วย 1440 ก่อน
+  // ส่งเข้า computeLateStatus() ไม่งั้นจะเทียบกับ start_time (เช่น 22:00) ผิดสเกล
+  // (นาที "หลังเที่ยงคืน" เล็กกว่า start_time เสมอ จะเข้าใจผิดว่ามาไม่สายเลย)
+  const lateCheckMins = dateToBangkokMins(now) + (fromPreviousDay ? 1440 : 0)
+  const dayRule = await resolveDayRule(tenantId, data.employee_id, attendanceDate)
+  const { late, dayRuleNote } = applyDayRule(computeLateStatus(shift, lateCheckMins, overnightShift), dayRule)
   const levelFine = computeFine(shift, late)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
@@ -460,7 +492,7 @@ export async function checkInAuto(tenantId: string, data: {
         tenant_id:        tenantId,
         employee_id:      data.employee_id,
         shift_id:         shift.id,
-        date:             today,
+        date:             attendanceDate,
         check_in_at:      now,
         check_in_method:  'QR',
         is_late:          late.is_late,
@@ -480,7 +512,7 @@ export async function checkInAuto(tenantId: string, data: {
     if (late.is_absent && shift.absent_fine) await schedulePendingFine(tx, data.employee_id, Number(shift.absent_fine))
     return { record, carried }
   })
-  await grantCompensationIfWorkedHoliday(tenantId, data.employee_id, dayRule, today)
+  await grantCompensationIfWorkedHoliday(tenantId, data.employee_id, dayRule, attendanceDate)
 
   return {
     record,

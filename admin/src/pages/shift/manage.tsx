@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star, Moon } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -105,12 +105,28 @@ const STATUS_CFG: Record<ShiftStatus, { label: string; color: string; bg: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function timeDiff(base: string, target: string, mode: 'after' | 'before'): string {
+function toMin(s: string) { const [h, m] = s.split(':').map(Number); return h * 60 + m }
+
+// กะข้ามเที่ยงคืน = เวลาเลิกงาน <= เวลาเริ่มงาน (เช่น 22:00-06:00) — ต้องตรงกับ
+// isOvernightShift() ฝั่ง server ทุกประการ (checkin-rules.ts) ไม่งั้น preview ในนี้
+// กับพฤติกรรมเช็คอินจริงจะไม่ตรงกัน (feedback 2026-09-16 "กะข้ามเที่ยงคืนแบบเต็ม")
+function isOvernightShift(startTime: string, endTime: string): boolean {
+  if (!startTime || !endTime) return false
+  return toMin(endTime) <= toMin(startTime)
+}
+
+// overnight=true: ถ้า target น้อยกว่า base (เวลาเริ่มกะ) ให้ตีความเป็นของรุ่งขึ้น
+// เสมอ (บวก 24 ชม.ก่อนคำนวณผลต่าง) — ตรงกับที่ server ตีความ threshold ของกะ
+// ข้ามคืนตอนคำนวณสาย/ขาดจริง (ดู late.ts computeLateStatus crossesMidnight)
+function timeDiff(base: string, target: string, mode: 'after' | 'before', overnight = false): string {
   if (!base || !target) return ''
-  const toMin = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m }
-  const d = mode === 'after' ? toMin(target) - toMin(base) : toMin(base) - toMin(target)
+  let d = mode === 'after' ? toMin(target) - toMin(base) : toMin(base) - toMin(target)
+  let nextDay = false
+  if (overnight && mode === 'after' && d <= 0) { d += 24 * 60; nextDay = true }
   if (d <= 0) return ''
-  return mode === 'after' ? `+${d} นาที หลังเวลาเริ่มงาน` : `${d} นาที ก่อนเวลาเลิก`
+  return mode === 'after'
+    ? `+${d} นาที หลังเวลาเริ่มงาน${nextDay ? ' (ของรุ่งขึ้น)' : ''}`
+    : `${d} นาที ก่อนเวลาเลิก`
 }
 
 // ── Tour ──────────────────────────────────────────────────────────────────────
@@ -698,6 +714,7 @@ export default function ShiftPage() {
                 <div>
                   <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isSpecial && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', background: '#ede9fe', color: '#7c3aed', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}><Star size={9} fill="#7c3aed" stroke="none" /> พิเศษ</span>}
+                    {isOvernightShift(s.start_time, s.end_time) && <span title="กะข้ามเที่ยงคืน" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '11px', background: '#eef2ff', color: '#4338ca', borderRadius: 6, padding: '2px 7px', fontWeight: 700, lineHeight: 1.4 }}><Moon size={9} /> ข้ามคืน</span>}
                     {s.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{s.branch.name}</div>
@@ -831,6 +848,15 @@ export default function ShiftPage() {
                       <TimeInput label="เช็คเอาท์ได้ตั้งแต่" value={form.min_checkout} onChange={v => setForm(f => ({ ...f, min_checkout: v }))}
                         sublabel={timeDiff(form.end_time, form.min_checkout, 'before') || 'กำหนดเวลาเร็วสุดที่เช็คเอาท์ได้'} />
                     </div>
+                    {/* กะข้ามเที่ยงคืน (feedback 2026-09-16) — เตือนแอดมินว่าเกณฑ์สาย/ขาด
+                        ด้านล่างที่ตั้งเป็นเวลาน้อยกว่าเวลาเริ่มงาน จะถูกตีความเป็นของ
+                        "รุ่งขึ้น" เสมอ ไม่ใช่ก่อนกะเริ่มด้วยซ้ำ — ระบบเช็คอินจริงก็ตีความ
+                        แบบนี้เหมือนกัน (ดู checkin-rules.ts ฝั่ง server) */}
+                    {isOvernightShift(form.start_time, form.end_time) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '7px 10px', borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe', fontSize: '0.75rem', color: '#4338ca' }}>
+                        <Moon size={13} /> กะนี้ข้ามเที่ยงคืน — เวลาสาย/ขาดด้านล่างที่ตั้งน้อยกว่าเวลาเริ่มงาน จะถือเป็นเวลาของวันถัดไปเสมอ
+                      </div>
+                    )}
                   </div>
 
                   {/* ประเภทกะ */}
@@ -907,10 +933,10 @@ export default function ShiftPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <TimeInput label="สายระดับ 1" value={form.late_threshold_1}
                         onChange={v => setForm(f => ({ ...f, late_threshold_1: v }))}
-                        sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after') || 'เช่น 08:05'} />
+                        sublabel={timeDiff(form.start_time, form.late_threshold_1, 'after', isOvernightShift(form.start_time, form.end_time)) || 'เช่น 08:05'} />
                       <TimeInput label="สายระดับ 2" value={form.late_threshold_2}
                         onChange={v => setForm(f => ({ ...f, late_threshold_2: v }))}
-                        sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after') || 'เช่น 08:30'} />
+                        sublabel={timeDiff(form.start_time, form.late_threshold_2, 'after', isOvernightShift(form.start_time, form.end_time)) || 'เช่น 08:30'} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
                       <div>
@@ -953,7 +979,7 @@ export default function ShiftPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
                       <TimeInput label={<><Ban size={12} /> ขาด (หลังจากนี้นับเป็นวันขาด)</>} value={form.absent_threshold}
                         onChange={v => setForm(f => ({ ...f, absent_threshold: v }))}
-                        sublabel={timeDiff(form.start_time, form.absent_threshold, 'after') || 'เช่น 08:31'} />
+                        sublabel={timeDiff(form.start_time, form.absent_threshold, 'after', isOvernightShift(form.start_time, form.end_time)) || 'เช่น 08:31'} />
                       <div>
                         <label style={labelStyle}>ค่าปรับขาด — หักวันถัดไป (บาท)</label>
                         <input type="number" min="0" step="50" value={form.absent_fine}

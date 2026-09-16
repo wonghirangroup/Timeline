@@ -30,12 +30,21 @@ const NOT_LATE: LateStatus = { is_late: false, late_level: 0, late_minutes: 0, i
 // ลำดับ: ขาด (absent_threshold) มาก่อนเสมอทุกโหมด
 //   TIER      → สายระดับ 2 (late_threshold_2) > สายระดับ 1 (late_threshold_1)
 //   PER_MINUTE → สายเมื่อเกิน grace หลังเวลาเริ่มงาน (ไม่มีระดับ 2)
-export function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): LateStatus {
+//
+// crossesMidnight (feedback 2026-09-16 "กะข้ามเที่ยงคืนแบบเต็ม"): ใส่ true เมื่อ
+// เป็นกะข้ามคืน (เช่น 22:00-06:00) — ผู้เรียกต้องบวก checkInMins ด้วย 1440 เอง
+// ถ้าเช็คอินหลังเที่ยงคืนของ "รอบที่เริ่มเมื่อวาน" (ดู attendance.service.ts) —
+// แล้วฟังก์ชันนี้จะตีความเกณฑ์สาย/ขาดที่ตั้งเป็นเวลา "น้อยกว่าเวลาเริ่มกะ" เป็น
+// ของรุ่งขึ้นให้อัตโนมัติ (กะเริ่ม 22:00 ตั้ง absent ไว้ 01:00 = ตี 1 วันถัดไป)
+export function computeLateStatus(shift: ShiftLateConfig, checkInMins: number, crossesMidnight = false): LateStatus {
   const startMins = toMins(shift.start_time)
   if (checkInMins <= startMins) return NOT_LATE
 
   const late_minutes = checkInMins - startMins
-  const absentMins = shift.absent_threshold ? toMins(shift.absent_threshold) : null
+  const normalize = (m: number | null): number | null =>
+    crossesMidnight && m != null && m < startMins ? m + 1440 : m
+
+  const absentMins = normalize(shift.absent_threshold ? toMins(shift.absent_threshold) : null)
 
   if (absentMins != null && checkInMins >= absentMins) {
     return { is_late: true, late_level: 2, late_minutes, is_absent: true }
@@ -48,8 +57,8 @@ export function computeLateStatus(shift: ShiftLateConfig, checkInMins: number): 
       : NOT_LATE
   }
 
-  const late1Mins = shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null
-  const late2Mins = shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null
+  const late1Mins = normalize(shift.late_threshold_1 ? toMins(shift.late_threshold_1) : null)
+  const late2Mins = normalize(shift.late_threshold_2 ? toMins(shift.late_threshold_2) : null)
   if (late2Mins != null && checkInMins >= late2Mins) {
     return { is_late: true, late_level: 2, late_minutes, is_absent: false }
   }

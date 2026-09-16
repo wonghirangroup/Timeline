@@ -55,6 +55,35 @@ describe('computeLateStatus — TIER', () => {
   })
 })
 
+describe('computeLateStatus — กะข้ามเที่ยงคืน (crossesMidnight)', () => {
+  // กะ 22:00-06:00 ตั้ง absent ไว้ "01:00" หมายถึงตี 1 ของวันถัดไป (เวลาน้อยกว่า
+  // start_time ของกะข้ามคืน = ตีความเป็นรุ่งขึ้นเสมอ) — feedback 2026-09-16 "แบบเต็ม"
+  const night: ShiftLateConfig = {
+    start_time: '22:00', late_threshold: 15, late_threshold_1: '22:15', late_threshold_2: '23:00',
+    absent_threshold: '01:00', fine_mode: 'TIER', late_grace_minutes: null,
+  }
+  it('เช็คอิน 00:30 (checkInMins ต้องบวก 1440 แล้วโดยผู้เรียก) = สาย แต่ยังไม่ขาด', () => {
+    const r = computeLateStatus(night, toMins('00:30') + 1440, true)
+    // 00:30 เลย late_threshold_2 (23:00) ไปแล้ว แต่ยังไม่ถึง absent ที่ตีความเป็น
+    // ตี 1 ของรุ่งขึ้น (01:00+1440=1500 นาที) เลยได้แค่ระดับ 2 ไม่ใช่ขาด
+    expect(r).toMatchObject({ is_late: true, is_absent: false, late_level: 2 })
+  })
+  it('เช็คอิน 01:30 (เลย absent ที่ตีความเป็นตี 1 รุ่งขึ้นแล้ว) = ขาด', () => {
+    const r = computeLateStatus(night, toMins('01:30') + 1440, true)
+    expect(r).toMatchObject({ is_late: true, is_absent: true })
+  })
+  it('เช็คอินตรงเวลาเริ่มกะเป๊ะ (22:00) = ไม่สาย แม้เป็นกะข้ามคืน', () => {
+    expect(computeLateStatus(night, toMins('22:00'), true).is_late).toBe(false)
+  })
+  it('crossesMidnight=false (ค่า default) — พฤติกรรมเดิมไม่เปลี่ยน ไม่ตีความ threshold เป็นวันถัดไป', () => {
+    // ไม่ส่ง crossesMidnight เลย เทียบ threshold แบบเดิมตรงๆ (ไม่บวก 1440)
+    // "01:00"=60 < startMins(1320) ตีความตรงตัว → absentMins=60 ซึ่งน้อยกว่า checkInMins
+    // เสมอ (เพราะ checkIn ต้อง > startMins(1320) อยู่แล้วถึงจะเข้าเงื่อนไขนี้) จึงขาดทันที
+    const r = computeLateStatus(night, toMins('22:30'))
+    expect(r.is_absent).toBe(true)
+  })
+})
+
 describe('computeLateStatus — PER_MINUTE', () => {
   it('ภายใน grace = ไม่สาย', () => {
     expect(computeLateStatus(perMin, toMins('09:05')).is_late).toBe(false)

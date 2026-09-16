@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, Info, X, Wallet, Search, CalendarClock } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -131,6 +131,17 @@ const METHOD_CFG: Record<string, { label: string; color: string; bg: string }> =
   WEB_FALLBACK: { label: 'Web',     color: '#64748b', bg: '#f1f5f9' },
   SELFIE:       { label: 'Selfie',  color: '#be185d', bg: '#fce7f3' },
   OFFSITE:      { label: 'Offsite', color: '#b45309', bg: '#fef3c7' },
+}
+
+// ไม่มี GPS มาให้เช็คเลย (ไม่ใช่แค่ "อยู่นอกพื้นที่" ซึ่งหมายความว่ามี GPS แล้ว
+// แค่เกินรัศมี) — เดิมข้อมูลนี้มีอยู่แล้วใน gps_lat/gps_lng ที่เป็น null แต่ไม่มี
+// ที่ไหนโชว์ให้เห็นเลย แยกไม่ออกจาก "เช็คแล้วอยู่ในพื้นที่จริง" (feedback
+// 2026-09-16 "แบบ B — ข้อมูลมีอยู่แล้ว แค่ยังไม่ได้เอาไปโชว์") — ไม่รวมเคส ADMIN
+// ลงมือเองหรือ OFFSITE (คนละ flow ไม่คาดหวัง GPS แบบเดียวกัน)
+function isGpsMissing(r: { check_in_at: string | null; gps_lat: number | null; gps_lng: number | null; is_outside_area: boolean; check_in_method: string | null } | null | undefined): boolean {
+  if (!r || !r.check_in_at) return false
+  if (r.check_in_method === 'ADMIN' || r.check_in_method === 'OFFSITE') return false
+  return !r.gps_lat && !r.gps_lng && !r.is_outside_area
 }
 
 function toMins(hhmm: string): number {
@@ -736,6 +747,9 @@ export default function AttendancePage() {
                       {row.record?.is_outside_shift && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Clock size={10}/>นอกเวลากะ</span>
                       )}
+                      {isGpsMissing(row.record) && (
+                        <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#f1f5f9', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPinOff size={10}/>ไม่มี GPS</span>
+                      )}
                       {row.record?.gps_lat && row.record?.gps_lng && (
                         <a href={`https://maps.google.com/?q=${row.record.gps_lat},${row.record.gps_lng}`} target="_blank" rel="noreferrer"
                           style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
@@ -797,6 +811,9 @@ export default function AttendancePage() {
                             )}
                             {row.record?.is_outside_shift && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', width: 'fit-content' }}><Clock size={9} /> นอกเวลากะ</span>
+                            )}
+                            {isGpsMissing(row.record) && (
+                              <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#64748b', width: 'fit-content' }}><MapPinOff size={9} /> ไม่มี GPS</span>
                             )}
                           </div>
                         </td>
