@@ -11,6 +11,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { avatarUrl } from '../../lib/upload'
 import ManageShiftTab from '../shift/manage'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 
@@ -59,6 +60,7 @@ interface ApiEmployee {
   first_name: string
   last_name: string
   nickname: string | null
+  photo_url: string | null
   department: string | null
   branch_id: string
   branch: { id: string; name: string }
@@ -1645,12 +1647,14 @@ export default function BranchPage() {
                               background:'#f9fafb',border:'1px solid #f1f5f9',
                             }}>
                               <div style={{
-                                width:36,height:36,borderRadius:'50%',
-                                background:avatarColor(idx),color:'#fff',
+                                width:36,height:36,borderRadius:'50%',overflow:'hidden',
+                                background: e.photo_url ? '#e2e8f0' : avatarColor(idx),color:'#fff',
                                 display:'flex',alignItems:'center',justifyContent:'center',
                                 fontWeight:800,fontSize:'0.8rem',flexShrink:0,
                               }}>
-                                {(e.nickname ?? e.first_name ?? '').slice(0,2)}
+                                {e.photo_url
+                                  ? <img src={avatarUrl(e.photo_url, 72) ?? e.photo_url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+                                  : (e.nickname ?? e.first_name ?? '').slice(0,2)}
                               </div>
                               <div style={{ flex:1,minWidth:0 }}>
                                 <div style={{ fontWeight:700,fontSize:'0.875rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
@@ -1711,12 +1715,14 @@ export default function BranchPage() {
                                         <input type="checkbox" checked={checked} onChange={() => toggleOne(e.id)} onClick={ev => ev.stopPropagation()}
                                           style={{ width:15, height:15, cursor:'pointer', flexShrink:0 }} />
                                         <div style={{
-                                          width:32,height:32,borderRadius:'50%',
-                                          background:avatarColor(idx),color:'#fff',
+                                          width:32,height:32,borderRadius:'50%',overflow:'hidden',
+                                          background: e.photo_url ? '#e2e8f0' : avatarColor(idx),color:'#fff',
                                           display:'flex',alignItems:'center',justifyContent:'center',
                                           fontWeight:800,fontSize:'0.75rem',flexShrink:0,
                                         }}>
-                                          {(e.nickname ?? e.first_name ?? '').slice(0,2)}
+                                          {e.photo_url
+                                            ? <img src={avatarUrl(e.photo_url, 64) ?? e.photo_url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+                                            : (e.nickname ?? e.first_name ?? '').slice(0,2)}
                                         </div>
                                         <div style={{ flex:1,minWidth:0 }}>
                                           <div style={{ fontWeight:700,fontSize:'0.85rem',color:'#0f172a',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>

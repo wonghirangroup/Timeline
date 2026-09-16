@@ -99,7 +99,7 @@ export async function listWeeklyOff(tenantId: string, filters: {
     include: {
       employee: {
         select: {
-          id: true, first_name: true, last_name: true, nickname: true, employee_code: true,
+          id: true, first_name: true, last_name: true, nickname: true, employee_code: true, photo_url: true,
           branch: { select: { id: true, name: true } },
         },
       },

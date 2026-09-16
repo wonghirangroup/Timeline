@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Users, Smartphone, ExternalLink, ShieldAlert } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { avatarUrl } from '../../lib/upload'
 import { useAuthStore } from '../../stores/authStore'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
@@ -22,6 +23,7 @@ interface PolicyFields { booking_enabled?: boolean | null; leave_enabled?: boole
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
+  photo_url: string | null
   department: string | null; phone: string | null; hired_at: string | null
   line_user_id: string | null; status: EmployeeStatusValue
   branch: { id: string; name: string; group_id?: string | null } & PolicyFields & { group?: PolicyFields | null }
@@ -301,8 +303,10 @@ export default function MasterDataPage() {
                     >
                       <td style={{ ...td, position: 'sticky', left: 0, background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
-                            {(e.first_name.charAt(0) + e.last_name.charAt(0)).toUpperCase()}
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: e.photo_url ? '#e2e8f0' : '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                            {e.photo_url
+                              ? <img src={avatarUrl(e.photo_url, 56) ?? e.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : (e.first_name.charAt(0) + e.last_name.charAt(0)).toUpperCase()}
                           </div>
                           <div>
                             <div style={{ fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 4 }}>

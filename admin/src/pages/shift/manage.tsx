@@ -10,6 +10,7 @@ import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
+import { avatarUrl } from '../../lib/upload'
 
 interface ApiBranch { id: string; name: string; group_id?: string | null }
 interface ApiGroup { id: string; name: string }
@@ -434,7 +435,7 @@ export default function ShiftPage() {
     queryKey: ['groups'],
     queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
   })
-  const { data: allEmployees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; department: string | null; branch_id: string; branch: { id: string; name: string } }[]>({
+  const { data: allEmployees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; department: string | null; branch_id: string; branch: { id: string; name: string } }[]>({
     // queryKey แยกจากหน้าพนักงาน ('employees','all') — ดูคอมเมนต์เดียวกันใน branch/index.tsx
     // (feedback 2026-09-14: เพิ่มพนักงานเข้ากะต้องเห็นแค่คนที่ยัง Active เท่านั้น)
     queryKey: ['employees', 'active'],
@@ -1125,8 +1126,10 @@ export default function ShiftPage() {
                     </div>
                   ) : inShiftFiltered.map((e, idx) => (
                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f8fafc' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
-                        {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', background: e.photo_url ? '#e2e8f0' : avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
+                        {e.photo_url
+                          ? <img src={avatarUrl(e.photo_url, 76) ?? e.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : (e.nickname ?? e.first_name ?? '').slice(0, 2)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
@@ -1166,8 +1169,10 @@ export default function ShiftPage() {
                     const curShift = otherShiftNames ? { name: otherShiftNames } : null
                     return (
                       <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid #f8fafc' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
-                          {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: e.photo_url ? '#e2e8f0' : avatarColor(idx), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
+                          {e.photo_url
+                            ? <img src={avatarUrl(e.photo_url, 72) ?? e.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : (e.nickname ?? e.first_name ?? '').slice(0, 2)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.first_name} {e.last_name}</div>
@@ -1362,12 +1367,14 @@ export default function ShiftPage() {
                             border: `1px solid ${isAssigned ? '#bbf7d0' : '#f1f5f9'}`,
                           }}>
                             <div style={{
-                              width: 36, height: 36, borderRadius: '50%',
-                              background: avatarColor(idx), color: '#fff',
+                              width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
+                              background: e.photo_url ? '#e2e8f0' : avatarColor(idx), color: '#fff',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontWeight: 800, fontSize: '0.8rem', flexShrink: 0,
                             }}>
-                              {(e.nickname ?? e.first_name ?? '').slice(0, 2)}
+                              {e.photo_url
+                                ? <img src={avatarUrl(e.photo_url, 72) ?? e.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : (e.nickname ?? e.first_name ?? '').slice(0, 2)}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

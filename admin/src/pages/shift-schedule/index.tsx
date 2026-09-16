@@ -11,11 +11,12 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import { avatarUrl } from '../../lib/upload'
 
 // ── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee {
   id: string; employee_code: string; first_name: string; last_name: string
-  nickname: string | null; branch_id: string; branch: { id: string; name: string; group_id?: string | null }
+  nickname: string | null; photo_url: string | null; branch_id: string; branch: { id: string; name: string; group_id?: string | null }
   default_shift_id: string | null; department: string | null; position_id?: string | null
 }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
@@ -590,8 +591,10 @@ export default function ShiftSchedulePage() {
               >
                 <td style={{ padding:'8px 14px', borderRight:'2px solid #e5e7eb', position:'sticky', left:0, background: isHighlighted ? '#faf5ff' : (idx%2===0?'#fff':'#fafafa'), zIndex:1, transition:'background 0.5s' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <div style={{ width:28, height:28, borderRadius:'50%', background: isHighlighted?'#ede9fe':'#e0e7ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color: isHighlighted?'#7c3aed':'#6366f1', flexShrink:0, boxShadow: isHighlighted?'0 0 0 2px #a78bfa':undefined }}>
-                      {(emp.nickname || emp.first_name || '').slice(0,1)}
+                    <div style={{ width:28, height:28, borderRadius:'50%', overflow:'hidden', background: emp.photo_url ? '#e2e8f0' : (isHighlighted?'#ede9fe':'#e0e7ff'), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color: isHighlighted?'#7c3aed':'#6366f1', flexShrink:0, boxShadow: isHighlighted?'0 0 0 2px #a78bfa':undefined }}>
+                      {emp.photo_url
+                        ? <img src={avatarUrl(emp.photo_url, 56) ?? emp.photo_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : (emp.nickname || emp.first_name || '').slice(0,1)}
                     </div>
                     <div>
                       <div style={{ fontSize:13, fontWeight:600, color: isHighlighted?'#6d28d9':'#111827', whiteSpace:'nowrap' }}>

@@ -8,9 +8,10 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import { avatarUrl } from '../../lib/upload'
 
 // ─── API types ────────────────────────────────────────────────────────────────
-interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
+interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
 interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
@@ -20,7 +21,7 @@ interface ApiHoliday { id: string; date: string; name: string; target_branches: 
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
-interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; photo_url: string | null; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
 interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; period_label: string }
 interface Holiday { date: string; name: string; target_branches: string[] | null }
 
@@ -92,6 +93,7 @@ function toDisplayDayOff(w: ApiWeeklyOff): DayOff {
     employee_id: w.employee_id,
     name:        `${w.employee.first_name} ${w.employee.last_name}`,
     nickname:    w.employee.nickname,
+    photo_url:   w.employee.photo_url,
     branch_id:   w.employee.branch.id,
     branch_name: w.employee.branch.name,
     status:      w.status,
@@ -150,18 +152,20 @@ function getEventsForDate(date: string, branchFilter: string, dayOffs: DayOff[],
 }
 
 // ─── Avatar chip ──────────────────────────────────────────────────────────────
-function AvatarChip({ name, isPending }: { name: string; isPending: boolean }) {
+function AvatarChip({ name, photoUrl, isPending }: { name: string; photoUrl?: string | null; isPending: boolean }) {
   return (
     <div title={name} style={{
-      width: 24, height: 24, borderRadius: '50%', display: 'flex',
+      width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', display: 'flex',
       alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem',
       fontWeight: 700, color: '#fff', flexShrink: 0,
-      background: isPending
+      background: photoUrl ? '#e2e8f0' : isPending
         ? 'linear-gradient(135deg,#fbbf24,#f59e0b)'
         : 'linear-gradient(135deg,#fb923c,#ea580c)',
       border: isPending ? '2px dashed #f59e0b' : '2px solid #ea580c',
     }}>
-      {initials(name)}
+      {photoUrl
+        ? <img src={avatarUrl(photoUrl, 48) ?? photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials(name)}
     </div>
   )
 }
@@ -517,7 +521,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
                 borderBottom: movingId === d.id ? 'none' : '1px solid #f9fafb',
               }}>
-                <AvatarChip name={d.name} isPending={false} />
+                <AvatarChip name={d.name} photoUrl={d.photo_url} isPending={false} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
@@ -545,7 +549,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
                 borderBottom: movingId === d.id ? 'none' : '1px solid #f9fafb',
               }}>
-                <AvatarChip name={d.name} isPending={true} />
+                <AvatarChip name={d.name} photoUrl={d.photo_url} isPending={true} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>

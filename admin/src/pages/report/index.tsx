@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { avatarUrl } from '../../lib/upload'
 
 interface AttendanceRecord {
   id: string
@@ -28,7 +29,7 @@ interface AttendanceRecord {
 }
 
 interface Branch { id: string; name: string }
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string }; hired_at?: string | null }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string }; hired_at?: string | null }
 
 interface LeaveRequest {
   id: string
@@ -608,8 +609,10 @@ export default function ReportPage() {
               <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                 <div onClick={() => setExpandedRangeEmp(isExpanded ? null : info.id)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}>
-                  <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#f97316,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
-                    {initials(info.first_name, info.last_name)}
+                  <div style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
+                    {info.photo_url
+                      ? <img src={avatarUrl(info.photo_url, 84) ?? info.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials(info.first_name, info.last_name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -708,12 +711,14 @@ export default function ReportPage() {
                 >
                   {/* Avatar */}
                   <div style={{
-                    width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                    background: 'linear-gradient(135deg,#f97316,#ea580c)',
+                    width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                    background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#fff', fontWeight: 700, fontSize: '0.85rem',
                   }}>
-                    {initials(info.first_name, info.last_name)}
+                    {info.photo_url
+                      ? <img src={avatarUrl(info.photo_url, 84) ?? info.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials(info.first_name, info.last_name)}
                   </div>
 
                   {/* Name + summary */}
