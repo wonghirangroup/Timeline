@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Camera, Loader2, X } from 'lucide-react'
 import { uploadImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
 import { useToast } from './Toast'
+import { Z } from './z'
 
 interface Props {
   value?: string | null
@@ -16,6 +18,7 @@ export default function AvatarUpload({ value, fallback, size = 88, disabled, onC
   const { showToast } = useToast()
   const [busy, setBusy] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -37,12 +40,16 @@ export default function AvatarUpload({ value, fallback, size = 88, disabled, onC
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <div style={{ position: 'relative', width: size, height: size }}>
-        <div style={{
-          width: size, height: size, borderRadius: '50%', overflow: 'hidden',
-          background: value ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: size * 0.34, fontWeight: 800, border: '3px solid #fff', boxShadow: 'var(--shadow-md)',
-        }}>
+        <div
+          onClick={value ? () => setViewerOpen(true) : undefined}
+          title={value ? 'ดูรูปเต็ม' : undefined}
+          style={{
+            width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+            background: value ? '#e2e8f0' : 'linear-gradient(135deg,#f97316,#ea580c)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: size * 0.34, fontWeight: 800, border: '3px solid #fff', boxShadow: 'var(--shadow-md)',
+            cursor: value ? 'pointer' : 'default',
+          }}>
           {value
             ? <img src={avatarUrl(value, Math.round(size * 2)) ?? value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : (fallback ?? '?')}
@@ -82,6 +89,20 @@ export default function AvatarUpload({ value, fallback, size = 88, disabled, onC
           <button type="button" onClick={() => { if (/^https:\/\/\S+/.test(urlDraft)) { onChange(urlDraft.trim()); setUrlDraft('') } else showToast('error', 'URL ไม่ถูกต้อง') }}
             style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: 'var(--action-primary)', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>ใช้</button>
         </div>
+      )}
+
+      {viewerOpen && value && createPortal(
+        <div onClick={() => setViewerOpen(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.8)', zIndex: Z.modal,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out',
+        }}>
+          <img src={avatarUrl(value, 800) ?? value} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
+          <button type="button" onClick={() => setViewerOpen(false)} title="ปิด"
+            style={{ position: 'absolute', top: 18, right: 18, width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={18} />
+          </button>
+        </div>,
+        document.body,
       )}
     </div>
   )
