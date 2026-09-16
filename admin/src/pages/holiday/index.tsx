@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, X, Check, Repeat2, Plus, Landmark, Building2, Target, Flag, Download, Users, AlertTriangle, Search, Gift } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
-import { deptName } from '../../lib/format'
+import { deptName, fmtThaiDate } from '../../lib/format'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -281,6 +281,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>วันที่ <span style={{ color: '#dc2626' }}>*</span></label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 4 }}>{fmtThaiDate(date)}</span>
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>ชื่อวันหยุด <span style={{ color: '#dc2626' }}>*</span></label>

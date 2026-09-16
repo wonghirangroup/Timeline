@@ -774,6 +774,7 @@ export default function OtPage() {
                 onChange={e => setAddForm(f => ({ ...f, date: e.target.value }))}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box' }}
               />
+              {addForm.date && <span style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginTop: 3 }}>{thDate(addForm.date)}</span>}
             </div>
 
             {/* Time range */}

@@ -558,6 +558,7 @@ export default function LeaveRequestsTab() {
                     const end = addForm.leave_period === 'FULL' ? (addForm.end_date && addForm.end_date >= s ? addForm.end_date : s) : s
                     setAddForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end, f.leave_period, f.start_time, f.end_time) }))
                   }} style={inp} />
+                {addForm.start_date && <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(addForm.start_date)}</span>}
               </div>
               {addForm.leave_period === 'FULL' && (
                 <div>
@@ -568,6 +569,7 @@ export default function LeaveRequestsTab() {
                       const end = e.target.value
                       setAddForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) }))
                     }} style={inp} />
+                  {addForm.end_date && <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(addForm.end_date)}</span>}
                 </div>
               )}
               <div style={{ textAlign: 'center', padding: '9px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: '13px', fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap' }}>
@@ -890,6 +892,7 @@ export default function LeaveRequestsTab() {
                       const end = editForm.leave_period === 'FULL' ? (editForm.end_date >= s ? editForm.end_date : s) : s
                       setEditForm(f => ({ ...f, start_date: s, end_date: end, days: calcDays(s, end, f.leave_period, f.start_time, f.end_time) }))
                     }} style={inp} />
+                  {editForm.start_date && <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(editForm.start_date)}</span>}
                 </div>
                 {editForm.leave_period === 'FULL' && (
                   <div>
@@ -897,6 +900,7 @@ export default function LeaveRequestsTab() {
                     <input type="date" value={editForm.end_date} min={editForm.start_date || undefined}
                       onChange={e => { const end = e.target.value; setEditForm(f => ({ ...f, end_date: end, days: calcDays(f.start_date, end) })) }}
                       style={inp} />
+                    {editForm.end_date && <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(editForm.end_date)}</span>}
                   </div>
                 )}
                 <div style={{ textAlign: 'center', padding: '9px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: '13px', fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap' }}>

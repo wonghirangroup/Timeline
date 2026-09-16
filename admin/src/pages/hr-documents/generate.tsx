@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileText, Loader2 } from 'lucide-react'
 import { api } from '../../lib/axios'
+import { fmtThaiDate } from '../../lib/format'
 import { useToast } from '../../components/ui/Toast'
 import Modal from '../../components/ui/Modal'
 
@@ -115,7 +116,7 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
             {type === 'PAYSLIP' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={row2}>
-                  <div><label style={label}>วันที่จ่ายเงิน</label><input type="date" style={inputStyle} value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
+                  <div><label style={label}>วันที่จ่ายเงิน</label><input type="date" style={inputStyle} value={payDate} onChange={e => setPayDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(payDate)}</span></div>
                   <div><label style={label}>เงินเดือนประจำเดือน</label><input style={inputStyle} value={payPeriod} onChange={e => setPayPeriod(e.target.value)} placeholder="เช่น พ.ค. 69" /></div>
                 </div>
                 <p style={{ fontSize: '11.5px', fontWeight: 700, color: '#6b7280', margin: '4px 0 0' }}>รายการเงินได้ (บาท) — ไม่มีในระบบ กรอกเอง</p>
@@ -139,8 +140,8 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div><label style={label}>เลขที่เอกสาร</label><input style={inputStyle} value={docNumber} onChange={e => setDocNumber(e.target.value)} /></div>
                 <div style={row2}>
-                  <div><label style={label}>เริ่มงานวันที่</label><input type="date" style={inputStyle} value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-                  <div><label style={label}>ออกให้ ณ วันที่</label><input type="date" style={inputStyle} value={issueDate} onChange={e => setIssueDate(e.target.value)} /></div>
+                  <div><label style={label}>เริ่มงานวันที่</label><input type="date" style={inputStyle} value={startDate} onChange={e => setStartDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(startDate)}</span></div>
+                  <div><label style={label}>ออกให้ ณ วันที่</label><input type="date" style={inputStyle} value={issueDate} onChange={e => setIssueDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(issueDate)}</span></div>
                 </div>
                 <div><label style={label}>อัตราค่าจ้างเดือนละ (บาท) — ไม่มีในระบบ กรอกเอง</label><input type="number" style={inputStyle} value={monthlyWage} onChange={e => setMonthlyWage(e.target.value)} placeholder="0.00" /></div>
               </div>
@@ -151,10 +152,10 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
                 <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: 0 }}>เว้นว่างได้ถ้าจะให้พนักงานเขียนเองด้วยลายมือหลังพิมพ์</p>
                 <div style={row2}>
                   <div><label style={label}>เขียนที่</label><input style={inputStyle} value={place} onChange={e => setPlace(e.target.value)} placeholder="เช่น ชื่อบริษัท/สาขา" /></div>
-                  <div><label style={label}>วันที่เขียน</label><input type="date" style={inputStyle} value={writeDate} onChange={e => setWriteDate(e.target.value)} /></div>
+                  <div><label style={label}>วันที่เขียน</label><input type="date" style={inputStyle} value={writeDate} onChange={e => setWriteDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(writeDate)}</span></div>
                 </div>
                 <div><label style={label}>เหตุผล</label><textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={reason} onChange={e => setReason(e.target.value)} /></div>
-                <div><label style={label}>วันที่มีผล (วันสุดท้ายที่ทำงาน)</label><input type="date" style={inputStyle} value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /></div>
+                <div><label style={label}>วันที่มีผล (วันสุดท้ายที่ทำงาน)</label><input type="date" style={inputStyle} value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(effectiveDate)}</span></div>
               </div>
             )}
 

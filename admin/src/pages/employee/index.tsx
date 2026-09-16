@@ -11,7 +11,7 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
-import { deptName } from '../../lib/format'
+import { deptName, fmtThaiDate } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 import OrgStructurePage from '../org-structure'
 import PolicyOverview from './PolicyOverview'
@@ -885,6 +885,7 @@ export default function EmployeePage() {
                       <div>
                         <label style={lbl}>วันเกิด</label>
                         <input type="date" value={af.birthdate} onChange={e => setAf({ birthdate: e.target.value })} style={inp} />
+                        <span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(af.birthdate)}</span>
                       </div>
                       <div>
                         <label style={lbl}>หมู่เลือด</label>
@@ -1024,6 +1025,7 @@ export default function EmployeePage() {
                     <div>
                       <label style={lbl}>วันที่เข้าทำงาน</label>
                       <input type="date" value={af.hired_at} onChange={e => setAf({ hired_at: e.target.value })} style={inp} />
+                      <span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(af.hired_at)}</span>
                     </div>
                     <div>
                       <label style={lbl}>เงินเดือน (บาท)</label>
@@ -1231,7 +1233,7 @@ export default function EmployeePage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div><label style={label}>สาขา</label><select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, extra_branch_ids: f.extra_branch_ids.filter(id => id !== e.target.value) }))} style={input}><option value="">เลือกสาขา</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
-                <div><label style={label}>วันที่เข้าทำงาน</label><input type="date" value={form.hired_at} onChange={e => setForm(f => ({ ...f, hired_at: e.target.value }))} style={input} /></div>
+                <div><label style={label}>วันที่เข้าทำงาน</label><input type="date" value={form.hired_at} onChange={e => setForm(f => ({ ...f, hired_at: e.target.value }))} style={input} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.hired_at)}</span></div>
               </div>
               {branches.length > 1 && (
                 <div>

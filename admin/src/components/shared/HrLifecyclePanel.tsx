@@ -10,6 +10,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
 import { uploadFile } from '../../lib/upload'
+import { fmtThaiDate } from '../../lib/format'
 
 const DOC_TYPE_LABEL: Record<string, string> = {
   CONTRACT: 'สัญญาจ้าง', ID_CARD: 'บัตรประชาชน', HOUSE_REG: 'ทะเบียนบ้าน', WORK_PERMIT: 'ใบอนุญาตทำงาน',
@@ -82,7 +83,7 @@ function ProbationSection({ employeeId, emp, readOnly }: { employeeId: string; e
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div><label style={lbl}>วันครบทดลองงาน</label><input type="date" style={inp} value={form.probation_end_date} onChange={e => setForm(f => ({ ...f, probation_end_date: e.target.value }))} /></div>
+            <div><label style={lbl}>วันครบทดลองงาน</label><input type="date" style={inp} value={form.probation_end_date} onChange={e => setForm(f => ({ ...f, probation_end_date: e.target.value }))} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.probation_end_date)}</span></div>
             <div><label style={lbl}>ผลประเมิน</label>
               <select style={inp} value={form.probation_result} onChange={e => setForm(f => ({ ...f, probation_result: e.target.value }))}>
                 <option value="">ยังไม่ประเมิน</option><option value="PASS">ผ่าน</option><option value="FAIL">ไม่ผ่าน</option>
@@ -182,8 +183,8 @@ function DocumentsSection({ employeeId, readOnly }: { employeeId: string; readOn
                 <input style={{ ...inp, marginTop: 6, fontSize: '12px' }} value={form.file_url} onChange={e => setForm(f => ({ ...f, file_url: e.target.value }))} placeholder="หรือวางลิงก์ URL (Google Drive ฯลฯ)" />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div><label style={lbl}>วันออก</label><input type="date" style={inp} value={form.issued_date} onChange={e => setForm(f => ({ ...f, issued_date: e.target.value }))} /></div>
-                <div><label style={lbl}>วันหมดอายุ</label><input type="date" style={inp} value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} /></div>
+                <div><label style={lbl}>วันออก</label><input type="date" style={inp} value={form.issued_date} onChange={e => setForm(f => ({ ...f, issued_date: e.target.value }))} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.issued_date)}</span></div>
+                <div><label style={lbl}>วันหมดอายุ</label><input type="date" style={inp} value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.expiry_date)}</span></div>
               </div>
               <div><label style={lbl}>หมายเหตุ</label><input style={inp} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
               <Button variant="primary" block loading={addMut.isPending} disabled={!form.name.trim() || !form.file_url.trim()} onClick={() => addMut.mutate()} style={{ marginTop: 4 }}>บันทึก</Button>
@@ -252,7 +253,7 @@ function DisciplinarySection({ employeeId, readOnly }: { employeeId: string; rea
                 <div><label style={lbl}>ระดับ</label><select style={inp} value={form.level} onChange={e => setForm(f => ({ ...f, level: Number(e.target.value) }))}>{[1, 2, 3].map(l => <option key={l} value={l}>{l} · {DISC_LEVEL_LABEL[l]}</option>)}</select></div>
                 <div><label style={lbl}>หมวด</label><select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{Object.entries(DISC_CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
               </div>
-              <div><label style={lbl}>วันที่เกิดเหตุ *</label><input type="date" style={inp} value={form.incident_date} onChange={e => setForm(f => ({ ...f, incident_date: e.target.value }))} /></div>
+              <div><label style={lbl}>วันที่เกิดเหตุ *</label><input type="date" style={inp} value={form.incident_date} onChange={e => setForm(f => ({ ...f, incident_date: e.target.value }))} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.incident_date)}</span></div>
               <div><label style={lbl}>รายละเอียด *</label><textarea rows={3} style={{ ...inp, resize: 'none' }} value={form.detail} onChange={e => setForm(f => ({ ...f, detail: e.target.value }))} placeholder="อธิบายเหตุการณ์และข้อตักเตือน" /></div>
               <Button variant="danger" block disabled={!form.detail.trim()} loading={addMut.isPending} onClick={() => addMut.mutate()} style={{ marginTop: 4 }}>ออกหนังสือเตือน</Button>
             </div>

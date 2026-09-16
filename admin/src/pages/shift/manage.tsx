@@ -9,7 +9,7 @@ import Button from '../../components/ui/Button'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
-import { deptName } from '../../lib/format'
+import { deptName, fmtThaiDate } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 
 interface ApiBranch { id: string; name: string; group_id?: string | null }
@@ -361,6 +361,7 @@ function ShiftQRModal({ shift, onClose }: { shift: ApiShift; onClose: () => void
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>วันที่ใช้ QR</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          <span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 4 }}>{fmtThaiDate(date)}</span>
         </div>
 
         {/* QR Code */}

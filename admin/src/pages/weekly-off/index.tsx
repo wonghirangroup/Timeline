@@ -374,6 +374,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                   <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Deadline (ไม่บังคับ)</label>
                   <input type="date" value={editDeadline} onChange={e => setEditDeadline(e.target.value)}
                     style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.82rem', marginTop: 3, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  {editDeadline && <span style={{ display: 'block', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(editDeadline)}</span>}
                 </div>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>หมายเหตุถึงพนักงาน</label>
