@@ -7,7 +7,7 @@ import {
   Thermometer, ClipboardList, Sun, RefreshCw, ChevronLeft,
   BarChart2, CalendarDays, Umbrella, Info,
   CheckCircle2, Clock, XCircle, Scale, Folder, Phone,
-  Building2, Smartphone, AlertTriangle, Users, Wallet, FileText,
+  Building2, Smartphone, AlertTriangle, Users, Wallet, FileText, Pencil,
 } from 'lucide-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import Pagination from '../../components/ui/Pagination'
@@ -671,6 +671,12 @@ function AdminAccessCard({ emp }: { emp: any }) {
   const [email, setEmail] = useState('')
   const [tempPw, setTempPw] = useState<string | null>(null)
   const [confirmRevoke, setConfirmRevoke] = useState(false)
+  // แก้ username/email ของบัญชีที่มีอยู่แล้ว — feedback 2026-09-16: "ถอดสิทธิ์แล้ว
+  // มันไม่เปลี่ยน User ให้ อยากเปลี่ยน user เป็น username เอง" (เดิม backend ไม่มี
+  // ทางแก้ email ของบัญชีที่สร้างไปแล้วเลย ต่อให้ถอนสิทธิ์/ให้สิทธิ์ใหม่ก็ยังใช้
+  // email เดิมตลอดไป ต้องแก้ backend คู่กันด้วย — ดู setEmployeeAdminAccess())
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
 
   const mut = useMutation({
     mutationFn: (body: any) => axios.patch(`/api/v1/admin/employees/${emp.id}/admin-access`, body).then(r => r.data.data),
@@ -678,10 +684,17 @@ function AdminAccessCard({ emp }: { emp: any }) {
       qc.invalidateQueries({ queryKey: ['employee', emp.id] })
       if (data?.temp_password) setTempPw(data.temp_password)
       setEmail('')
+      setEditingEmail(false)
       showToast('success', data?.temp_password ? 'สร้างบัญชีแอดมินให้พนักงานแล้ว' : 'อัปเดตสิทธิ์เรียบร้อย')
     },
     onError: (e: any) => showToast('error', e.response?.data?.error?.message || 'ดำเนินการไม่สำเร็จ'),
   })
+
+  function saveUsername() {
+    const trimmed = newEmail.trim()
+    if (!trimmed || !current) return
+    mut.mutate({ role: current.role, email: trimmed })
+  }
 
   const needEmail = !current && !!role
   // login identifier ไม่บังคับรูปแบบอีเมลแล้ว — ใช้เป็น username ล้วนก็ได้ (feedback 2026-09-14)
@@ -697,11 +710,33 @@ function AdminAccessCard({ emp }: { emp: any }) {
         </div>
       </div>
 
-      {active && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px' }}>
-          <CheckCircle2 size={14} color="#16a34a" />
-          <span style={{ fontWeight: 700, color: '#15803d' }}>เปิดใช้งาน</span>
-          <span style={{ color: '#475569' }}>· {current!.email} · {ADMIN_ROLE_LABEL[current!.role] ?? current!.role}</span>
+      {current && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem', background: active ? '#f0fdf4' : '#f8fafc', border: `1px solid ${active ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: 8, padding: '8px 12px' }}>
+          {active ? <CheckCircle2 size={14} color="#16a34a" /> : <XCircle size={14} color="#94a3b8" />}
+          <span style={{ fontWeight: 700, color: active ? '#15803d' : '#64748b' }}>{active ? 'เปิดใช้งาน' : 'ปิดใช้งาน (ถอนสิทธิ์แล้ว)'}</span>
+          {editingEmail ? (
+            <>
+              <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="อีเมลหรือ username ใหม่" autoFocus
+                style={{ flex: '1 1 160px', padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.78rem', fontFamily: 'inherit' }}
+                onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') setEditingEmail(false) }} />
+              <button onClick={saveUsername} disabled={!newEmail.trim() || mut.isPending}
+                style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: 'var(--action-primary)', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', opacity: (!newEmail.trim() || mut.isPending) ? 0.6 : 1 }}>
+                บันทึก
+              </button>
+              <button onClick={() => setEditingEmail(false)}
+                style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.72rem', cursor: 'pointer' }}>
+                ยกเลิก
+              </button>
+            </>
+          ) : (
+            <>
+              <span style={{ color: '#475569' }}>· {current.email} · {ADMIN_ROLE_LABEL[current.role] ?? current.role}</span>
+              <button onClick={() => { setNewEmail(current.email); setEditingEmail(true) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.7rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                <Pencil size={10} /> แก้ไข username
+              </button>
+            </>
+          )}
         </div>
       )}
 

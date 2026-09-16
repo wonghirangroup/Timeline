@@ -146,9 +146,20 @@ export async function setEmployeeAdminAccess(tenantId: string, employeeId: strin
     return { ok: true, admin_access: null }
   }
 
-  // มีบัญชีผูกอยู่แล้ว — อัปเดต role + เปิดใช้งาน
+  // มีบัญชีผูกอยู่แล้ว — อัปเดต role + เปิดใช้งาน + (ถ้าส่ง email มาต่างจากเดิม)
+  // เปลี่ยน username/login ด้วย — เดิมไม่มีทางแก้เลย ถอนสิทธิ์แล้วให้สิทธิ์ใหม่ก็ยัง
+  // ใช้ email เดิมตลอดไป (feedback 2026-09-16: "ถอดสิทธิ์แล้วมันไม่เปลี่ยน User ให้
+  // อยากเปลี่ยน user เป็น username เอง")
   if (emp.user_id && emp.admin_user) {
-    await prisma.user.update({ where: { id: emp.user_id }, data: { role: data.role, is_active: true } })
+    const updateData: { role: AdminRole; is_active: boolean; email?: string } = { role: data.role, is_active: true }
+    const trimmedEmail = data.email?.trim().toLowerCase()
+    if (trimmedEmail && trimmedEmail !== emp.admin_user.email) updateData.email = trimmedEmail
+    try {
+      await prisma.user.update({ where: { id: emp.user_id }, data: updateData })
+    } catch (e: any) {
+      if (e.code === 'P2002') return { duplicateEmail: true }
+      throw e
+    }
     if (data.role === 'DEPT_HEAD') await setUserDepartments(tenantId, emp.user_id, data.department_ids ?? [])
     else await prisma.userDepartment.deleteMany({ where: { user_id: emp.user_id } })
     const u = await prisma.user.findUnique({ where: { id: emp.user_id }, ...ADMIN_USER_INCLUDE })
