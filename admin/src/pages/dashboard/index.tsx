@@ -153,12 +153,15 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
       )}
 
       {isLoading || !summary ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
           <SkeletonCard /><SkeletonCard /><SkeletonCard />
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(1, 1fr)' : 'repeat(3, 1fr)', gap: 16 }}>
+          {/* minmax(0,1fr) ไม่ใช่ 1fr เฉยๆ — กันช่อง grid ถูกดันกว้างเกิน track
+              ตัวเองตาม min-content เวลาตัวเลข/ป้ายยาวๆ ไม่มีที่ยุบ ทำให้ทั้งหน้า
+              เลื่อนแนวนอนได้บนจอแคบ (feedback 2026-09-16: "ยังไม่ Responsive mobile") */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
             <RangeKpiCard label="มาสาย" unit="คน" count={summary.late.count} color="#d97706" bg="var(--warning-bg)"
               icon={<AlertTriangle size={18} />} people={summary.late.employees} emptyLabel="ไม่มีใครมาสายในช่วงนี้"
               extraLine={p => p.late_count ? `${p.late_count} ครั้ง` : null} />
@@ -169,7 +172,7 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
           </div>
 
           {isYearView && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 16, marginTop: 16 }}>
               <div className="premium-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}><TrendingDown size={18} /></div>
                 <div>
@@ -389,7 +392,7 @@ export default function DashboardPage() {
   const pendingLeaveCount = pendingLeaves.length
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 380px', gap: 24, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 380px', gap: 24, alignItems: 'start' }}>
 
       {/* ── Left Column ───────────────────────────────────────────── */}
       {/* บนมือถือ: ให้ "รายชื่อวันนี้" (คอลัมน์ขวา) ขึ้นก่อน เมตร/KPI ลงล่าง */}
@@ -494,7 +497,7 @@ export default function DashboardPage() {
             เรียลไทม์วันนี้ · สถานะพนักงาน
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 12 }}>แตะการ์ดเพื่อดูรายชื่อในหมวดนั้น</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
             {([
               // "ทั้งหมด" เปลี่ยนจากฟ้า(info) เป็นส้ม(แบรนด์) — ไม่ใช่สถานะเชิงความหมาย
               // (success/warning) เหมือนอีก 3 การ์ด เลยเหมาะเป็นจุดที่ใช้สีแบรนด์แทน

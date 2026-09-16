@@ -91,6 +91,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           marginRight: 'auto',
           width: '100%',
           overflowY: 'auto',
+          overflowX: 'hidden', // กันหน้าเลื่อนแนวนอนทั้งแอป — เนื้อหาข้างในต้องยุบ/wrap เอง
           display: 'flex',
           flexDirection: 'column'
         }} className="animate-fade-in-up">
