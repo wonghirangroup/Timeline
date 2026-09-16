@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import axios from 'axios'
+import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 
@@ -43,7 +44,24 @@ export default function MagicLoginPage() {
         try { sessionStorage.setItem(cacheKey, next_path || '') } catch { /* private mode — ยอมให้พลาดจุดกันซ้ำนี้ไป ไม่กระทบการล็อกอินหลัก */ }
         navigate(next_path || '/dashboard', { replace: true })
       })
-      .catch(err => {
+      .catch(async err => {
+        // token เดิมพัง (หมดอายุ/ถูกใช้ไปแล้ว) เช่น กดข้อความไลน์เก่าซ้ำในเบราว์เซอร์/
+        // แท็บคนละอันจาก sessionStorage เดิม (v168 กันได้แค่แท็บเดิม) — แต่ถ้าเครื่องนี้
+        // ยังมี session แอดมินที่ล็อกอินอยู่แล้วจริง (localStorage access_token) ก็ไม่มี
+        // เหตุผลต้องบล็อก ไปถาม backend (ต้องมี session valid ถึงจะถามได้) ว่า token
+        // ตัวนี้ตั้งใจจะพาไปไหน แล้วพาไปเลย ยังคงได้ deep-link เดิมแม้ token จะถูกใช้/
+        // หมดอายุไปแล้วก็ตาม — ถ้า session นั้นหมดอายุจริงๆ axios interceptor (401)
+        // จะเด้งไป /login ให้เองอยู่แล้วที่ปลายทาง ไม่แย่ไปกว่าเดิม (feedback 2026-09-16)
+        const hasExistingSession = !!localStorage.getItem('access_token')
+        if (hasExistingSession) {
+          try {
+            const peek = await api.get('/api/v1/auth/magic-login-peek', { params: { token } })
+            navigate(peek.data.data.next_path || '/dashboard', { replace: true })
+          } catch {
+            navigate('/dashboard', { replace: true })
+          }
+          return
+        }
         setError(err.response?.data?.error?.message ?? 'ลิงก์หมดอายุหรือถูกใช้ไปแล้ว')
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps

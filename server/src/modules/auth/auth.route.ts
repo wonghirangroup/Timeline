@@ -11,6 +11,7 @@ import {
   findUserById,
   changeOwnPassword,
   consumeMagicLoginToken,
+  peekMagicLoginNextPath,
 } from './auth.service'
 import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
@@ -190,6 +191,27 @@ export async function authRoutes(app: FastifyInstance) {
         },
         accessToken, refreshToken, next_path,
       },
+    }
+  })
+
+  // ── ดูปลายทางของ magic-login token เฉยๆ (ไม่บริโภค token) — สำหรับกรณีกดลิงก์
+  // แจ้งเตือนไลน์เก่าซ้ำที่ token ตัวนั้นถูกใช้/หมดอายุไปแล้ว แต่เครื่องนี้ยังมี
+  // session แอดมินที่ล็อกอินอยู่จริง (ต้องมี Bearer token ที่ valid ก่อนถึงเรียกได้)
+  app.get('/magic-login-peek', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ดูปลายทาง (next_path) ของ magic-login token โดยไม่ต้องบริโภค token — ต้องล็อกอินอยู่แล้ว',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['token'], properties: { token: { type: 'string', minLength: 1 } } },
+    },
+  }, async (request: any, reply) => {
+    try {
+      await request.jwtVerify()
+      const next_path = await peekMagicLoginNextPath(request.query.token)
+      return { success: true, data: { next_path } }
+    } catch (err) {
+      reply.code(401)
+      return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
     }
   })
 

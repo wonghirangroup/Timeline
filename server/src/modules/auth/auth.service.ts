@@ -105,3 +105,13 @@ export async function consumeMagicLoginToken(token: string) {
   if (!user) return null
   return { user, next_path: row.next_path }
 }
+
+// อ่าน next_path เฉยๆ โดยไม่ต้อง token ยังไม่ถูกใช้/ยังไม่หมดอายุ — ใช้เมื่อผู้ใช้
+// กดลิงก์แจ้งเตือนไลน์เก่าซ้ำ (token ตัวนั้นถูกใช้ไปแล้วจริง/หมดอายุแล้ว) แต่เครื่อง
+// นี้มี session แอดมินที่ยัง valid อยู่แล้ว — ให้พาไปหน้าเดิมที่ตั้งใจได้เลยแทนที่
+// จะโดนบล็อกด้วยข้อความ "ลิงก์หมดอายุ" ทั้งที่ล็อกอินอยู่แล้วจริงๆ (route ต้อง
+// ยืนยัน JWT ก่อนเรียกฟังก์ชันนี้เสมอ — ไม่ใช่ endpoint แบบ public)
+export async function peekMagicLoginNextPath(token: string): Promise<string | null> {
+  const row = await prisma.magicLoginToken.findUnique({ where: { token }, select: { next_path: true } })
+  return row?.next_path ?? null
+}
