@@ -9,7 +9,10 @@ export async function listBranches(tenantId: string) {
       ...(tenantId ? { tenant_id: tenantId } : {}),
     },
     include: {
-      _count: { select: { employees: true, shifts: true } },
+      // นับเฉพาะพนักงานที่ยังใช้งานอยู่จริง (is_active=true ผูกกับ status=ACTIVE
+      // เท่านั้น) — เดิมนับรวมพนักงานลาออก/ปิดใช้งาน/soft-delete ด้วย ทำให้ตัวเลข
+      // "พนักงานรวม" สูงเกินจริง (feedback 2026-09-16)
+      _count: { select: { employees: { where: { deleted_at: null, is_active: true } }, shifts: true } },
     },
     orderBy: { created_at: 'asc' },
   })
