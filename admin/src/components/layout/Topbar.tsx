@@ -386,21 +386,25 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         zIndex: 98,
         transition: 'all 0.2s',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* minWidth:0 บังคับให้กลุ่มนี้ยุบตัวได้จริง — เดิมไม่มี พอชื่อหน้ายาว
+            (เช่น "เช็คอินนอกสถานที่") บนจอแคบ ข้อความไม่ยอมหด ดันกระดิ่ง/รูป
+            โปรไฟล์ฝั่งขวาล้นจอไปเลย (feedback 2026-09-16: "icon Bell ยังไม่
+            Responsive") — ตัดด้วย ellipsis แทน */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
           {isMobile && (
             <button
               onClick={onMenuClick}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             >
               <Menu size={20} />
             </button>
           )}
-          <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
+          <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
             {title}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
           {!isMobile && (
             <>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatDateTime(now)}</span>
