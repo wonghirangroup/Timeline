@@ -71,6 +71,7 @@ export async function listEmployeesWithBalances(tenantId: string, year: number) 
       employee_code: emp.employee_code,
       full_name:     `${emp.first_name} ${emp.last_name}`,
       nickname:      emp.nickname ?? emp.first_name,
+      photo_url:     emp.photo_url,
       branch_id:     emp.branch_id,
       branch_name:   emp.branch.name,
       hired_at:      emp.hired_at,

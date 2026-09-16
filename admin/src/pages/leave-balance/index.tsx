@@ -9,6 +9,7 @@ import Pagination from '../../components/ui/Pagination'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { avatarUrl } from '../../lib/upload'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
@@ -21,6 +22,7 @@ interface ApiPosition {
 interface LeaveBalance {
   employee_id: string; employee_code: string
   full_name: string; nickname: string
+  photo_url: string | null
   branch_id: string; branch_name: string
   hired_at: string | null
   sick:       { total: number; used: number }
@@ -529,16 +531,23 @@ export default function LeaveBalancePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(b.employee_id)}
                     style={{ accentColor: '#4f46e5', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
-                  <div style={{
-                    width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-                    background: hasOverQuota ? '#fee2e2' : '#eef2ff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.72rem', fontWeight: 800, color: hasOverQuota ? '#dc2626' : '#4f46e5',
-                  }}>{b.nickname.slice(0, 2)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.full_name}</div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{b.nickname} · {b.branch_name}</div>
-                  </div>
+                  <button onClick={() => navigate(`/employee/${b.employee_id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                      background: b.photo_url ? '#e2e8f0' : hasOverQuota ? '#fee2e2' : '#eef2ff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.72rem', fontWeight: 800, color: hasOverQuota ? '#dc2626' : '#4f46e5',
+                    }}>
+                      {b.photo_url
+                        ? <img src={avatarUrl(b.photo_url, 60) ?? b.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : b.nickname.slice(0, 2)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.full_name}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{b.nickname} · {b.branch_name}</div>
+                    </div>
+                  </button>
                   <button onClick={() => setEditTarget(b)}
                     style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#4f46e5', flexShrink: 0 }}>
                     <Pencil size={13}/>
@@ -641,15 +650,18 @@ export default function LeaveBalancePage() {
 
               {/* Name */}
               <div style={{ padding: '12px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => navigate(`/employee/${b.employee_id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minWidth: 0 }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                    background: hasOverQuota ? '#fee2e2' : '#eef2ff',
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                    background: b.photo_url ? '#e2e8f0' : hasOverQuota ? '#fee2e2' : '#eef2ff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.7rem', fontWeight: 800,
                     color: hasOverQuota ? '#dc2626' : '#4f46e5',
                   }}>
-                    {b.nickname.slice(0, 2)}
+                    {b.photo_url
+                      ? <img src={avatarUrl(b.photo_url, 56) ?? b.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : b.nickname.slice(0, 2)}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -657,7 +669,7 @@ export default function LeaveBalancePage() {
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{b.nickname}</div>
                   </div>
-                </div>
+                </button>
                 {hasOverQuota && (
                   <div style={{ marginTop: 4, fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '1px 6px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3, width: 'fit-content' }}>
                     <AlertOctagon size={10} /> เกินโควต้า
