@@ -150,8 +150,13 @@ export async function setEmployeeAdminAccess(tenantId: string, employeeId: strin
   // เปลี่ยน username/login ด้วย — เดิมไม่มีทางแก้เลย ถอนสิทธิ์แล้วให้สิทธิ์ใหม่ก็ยัง
   // ใช้ email เดิมตลอดไป (feedback 2026-09-16: "ถอดสิทธิ์แล้วมันไม่เปลี่ยน User ให้
   // อยากเปลี่ยน user เป็น username เอง")
+  // ต้องเคลียร์ deleted_at ด้วยเสมอ — เจอบั๊กจริง: ถ้าเคยลบบัญชีนี้ผ่านหน้า "ผู้ใช้
+  // งานเว็บ" (Settings → deleteUser ตั้ง deleted_at ไว้แต่ไม่ได้เคลียร์
+  // Employee.user_id) แล้วมาให้สิทธิ์ใหม่ทางนี้ทีหลัง เดิมจะได้บัญชีที่ is_active:
+  // true แต่ deleted_at ยังติดอยู่ — ล็อกอินได้จริงแต่หายไปจากลิสต์ผู้ใช้งาน (feedback
+  // 2026-09-16: "เพิ่มตำแหน่งแล้วสร้าง user แล้วทำไมไม่ขึ้นตรงนี้")
   if (emp.user_id && emp.admin_user) {
-    const updateData: { role: AdminRole; is_active: boolean; email?: string } = { role: data.role, is_active: true }
+    const updateData: { role: AdminRole; is_active: boolean; deleted_at: null; email?: string } = { role: data.role, is_active: true, deleted_at: null }
     const trimmedEmail = data.email?.trim().toLowerCase()
     if (trimmedEmail && trimmedEmail !== emp.admin_user.email) updateData.email = trimmedEmail
     try {
