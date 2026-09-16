@@ -12,6 +12,7 @@ import SetupChecklist from '../../components/shared/SetupChecklist'
 import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 import { avatarUrl } from '../../lib/upload'
+import { fmtThaiMonth } from '../../lib/format'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -146,9 +147,10 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
       </div>
 
       {preset === 'custom' && (
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
           <input type="month" value={customMonth} onChange={e => setCustomMonth(e.target.value)}
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', fontFamily: 'inherit', background: '#fff' }} />
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', paddingLeft: 2 }}>{fmtThaiMonth(customMonth)}</span>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+import { fmtThaiDate } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -682,8 +683,11 @@ export default function AttendancePage() {
         </div>
         {/* Compact controls */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ ...inp, width: 'auto', borderRadius: 10 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              style={{ ...inp, width: 'auto', borderRadius: 10 }} />
+            <span style={{ fontSize: '0.68rem', color: '#94a3b8', paddingLeft: 2 }}>{fmtThaiDate(date)}</span>
+          </div>
           <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
             <input value={search} onChange={e => setSearch(e.target.value)}

@@ -256,7 +256,7 @@ export default function ShiftSchedulePage() {
 
   // nav
   const weekEnd   = addDays(weekStart, 6)
-  const weekLabel = `${fmt(weekStart, { day:'numeric', month:'short' })} – ${fmt(weekEnd, { day:'numeric', month:'short', year:'numeric' })}`
+  const weekLabel = `${fmt(weekStart, { day:'numeric', month:'long' })} – ${fmt(weekEnd, { day:'numeric', month:'long', year:'numeric' })}`
   const periodLabel = viewMode === 'week' ? weekLabel : `${MONTH_FULL[selMonth.m]} ${selMonth.y + 543}`
 
   function prevPeriod() { viewMode==='week' ? setWeekStart(addDays(weekStart,-7)) : setSelMonth(({y,m})=>m===1?{y:y-1,m:12}:{y,m:m-1}) }
@@ -324,7 +324,7 @@ export default function ShiftSchedulePage() {
         {/* Header */}
         <div style={{ padding:'4px 14px 8px', borderBottom:'1px solid #f3f4f6' }}>
           <div style={{ fontWeight:600, color:'#374151' }}>
-            {emp?.nickname || emp?.first_name} · {fmt(date, { day:'numeric', month:'short', weekday:'short' })}
+            {emp?.nickname || emp?.first_name} · {fmt(date, { day:'numeric', month:'long', weekday:'short' })}
           </div>
           {/* แสดงสถานะปัจจุบัน */}
           {effective?.type === 'WORK' && effective.isDefault && (
@@ -499,7 +499,7 @@ export default function ShiftSchedulePage() {
         borderLeft: dow===1 ? '2px solid #e5e7eb' : undefined,
       }}>
         <button onClick={ev => openEdit(ev, emp.id, date)}
-          title={`${emp.nickname || emp.first_name} · ${fmt(date, { day:'numeric', month:'short', weekday:'short' })}`}
+          title={`${emp.nickname || emp.first_name} · ${fmt(date, { day:'numeric', month:'long', weekday:'short' })}`}
           style={{ border:'none', background:'transparent', cursor:'pointer', borderRadius:4, padding:'3px 1px', width:'100%', minHeight:28, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {inner}
         </button>

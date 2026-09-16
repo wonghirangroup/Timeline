@@ -203,7 +203,7 @@ export default function VacationPolicyTab() {
                 {[...holidays].sort((a, b) => a.date.localeCompare(b.date)).map(h => (
                   <tr key={h.id}>
                     <td style={{ ...td, fontWeight: 600, color: '#111827' }}>{h.name}</td>
-                    <td style={{ ...td, color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(h.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} · {h.compensate_days ?? 1} วัน</td>
+                    <td style={{ ...td, color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(h.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })} · {h.compensate_days ?? 1} วัน</td>
                     <td style={td}>
                       <select value={h.compensate_leave_type ?? 'COMPENSATE'} onChange={e => saveHolidayTypeMutation.mutate({ id: h.id, type: e.target.value })}
                         style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.78rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>

@@ -178,8 +178,8 @@ function fmtDate(iso: string) {
   const d = new Date(iso)
   const year = d.getFullYear()
   // ถ้าปี > 2500 แสดงว่า browser ส่ง พ.ศ. มาเป็น CE → ใช้ตรงๆ ไม่บวก 543 อีก
-  const beYY = String(year > 2500 ? year : year + 543).slice(-2)
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${beYY}`
+  const beYYYY = year > 2500 ? year : year + 543
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${beYYYY}`
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

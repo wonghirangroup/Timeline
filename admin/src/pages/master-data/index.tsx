@@ -87,7 +87,7 @@ const STATUS_OPTIONS: { value: EmployeeStatusValue | 'ALL'; label: string }[] = 
   { value: 'TERMINATED', label: 'เลิกจ้าง' },
 ]
 
-const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 function thDateShort(d: string | null): string {
   if (!d) return '—'
   const [y, m, day] = d.slice(0, 10).split('-').map(Number)

@@ -50,7 +50,7 @@ function relThai(iso: string): string {
   const d = Math.round(h / 24)
   if (d === 1) return 'เมื่อวาน'
   if (d < 30) return `${d} วันที่แล้ว`
-  return new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 const GROUP_LABEL: { key: NotifSeverity; label: string }[] = [

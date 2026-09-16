@@ -19,7 +19,7 @@ const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   APPROVED: { label: 'อนุมัติ',   c: '#16a34a', bg: '#dcfce7' },
   REJECTED: { label: 'ไม่อนุมัติ', c: '#dc2626', bg: '#fee2e2' },
 }
-function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) }
+function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
 
 export default function ResignationsPage() {
   const qc = useQueryClient()

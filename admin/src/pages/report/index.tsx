@@ -6,6 +6,7 @@ import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, Aler
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { avatarUrl } from '../../lib/upload'
+import { fmtThaiDate } from '../../lib/format'
 
 interface AttendanceRecord {
   id: string
@@ -504,12 +505,17 @@ export default function ReportPage() {
 
         {viewMode === 'range' ? (
           /* Custom date range */
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
-            <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} max={rangeEnd}
-              style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>–</span>
-            <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} min={rangeStart} max={now.toISOString().slice(0, 10)}
-              style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
+              <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} max={rangeEnd}
+                style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>–</span>
+              <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} min={rangeStart} max={now.toISOString().slice(0, 10)}
+                style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
+            </div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', paddingLeft: 2 }}>
+              {fmtThaiDate(rangeStart)} – {fmtThaiDate(rangeEnd)}
+            </span>
           </div>
         ) : (
         /* Month nav */

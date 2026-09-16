@@ -46,7 +46,6 @@ interface WeeklyOffPeriod {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const DAYS_TH     = ['อา','จ','อ','พ','พฤ','ศ','ส']
 const MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
-const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 
 function addMonths(ym: string, n: number) {
   const [y, m] = ym.split('-').map(Number)
@@ -59,7 +58,7 @@ function fmtYM(ym: string) {
 }
 function fmtDate(iso: string) {
   const d = new Date(iso.slice(0, 10) + 'T00:00:00')
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear() + 543}`
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 // ช่วงวันที่ของเดือนนั้น (1 ถึงวันสุดท้าย) — "เปิดจอง" ตอนนี้เปิดทั้งเดือนเสมอ ไม่มีเปิดเฉพาะบางสัปดาห์
 function monthRangeLabel(ym: string) {
@@ -108,7 +107,7 @@ function fmtDateRange(start: string, end: string): string {
   if (start === end) return fmtDate(start)
   const d1 = new Date(start + 'T00:00:00'), d2 = new Date(end + 'T00:00:00')
   if (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth()) {
-    return `${d1.getDate()} – ${d2.getDate()} ${MONTHS_SHORT[d1.getMonth()]} ${d1.getFullYear() + 543}`
+    return `${d1.getDate()} – ${d2.getDate()} ${MONTHS_FULL[d1.getMonth()]} ${d1.getFullYear() + 543}`
   }
   return `${fmtDate(start)} – ${fmtDate(end)}`
 }

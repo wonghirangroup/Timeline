@@ -19,3 +19,21 @@ export function deptName(dept?: string | null): string {
   // รหัสไม่รู้จัก (แผนกใหม่ในอนาคต) — อย่างน้อยตัดเลขนำหน้าออกถ้ามีชื่อแนบมาด้วย
   return dept.replace(/^\d+\s*/, '') || dept
 }
+
+// วันที่แบบไทยเต็ม "26 กันยายน 2569" — ใช้เป็นมาตรฐานเดียวกันทุกจุดที่โชว์วันที่
+// เจาะจง (ต่างจาก label ช่วงเดือนที่ไม่มีวันที่ ซึ่งใช้ fmtThaiMonth แทน)
+// (feedback 2026-09-16 "แก้ Format วันที่ให้เป็น 26 กันยายน 2569 ทุกที่")
+export function fmtThaiDate(date?: string | Date | null): string {
+  if (!date) return '—'
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+// ป้ายกำกับ "กันยายน 2569" — สำหรับ context ที่เลือกทั้งเดือน (ไม่มีวันที่เจาะจง)
+export function fmtThaiMonth(date?: string | Date | null): string {
+  if (!date) return '—'
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })
+}

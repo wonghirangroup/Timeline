@@ -12,7 +12,7 @@ const TYPE_CFG: Record<DocType, { label: string; icon: React.ReactNode; color: s
   SALARY_CERT:         { label: 'หนังสือรับรองเงินเดือน', icon: <FileText size={16}/>, color: '#16a34a' },
   RESIGNATION_LETTER:  { label: 'ใบลาออก',              icon: <LogOut size={16}/>,  color: '#dc2626' },
 }
-function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) }
+function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
 
 interface HistoryRow { id: string; type: DocType; doc_number: string | null; period: string | null; created_at: string }
 

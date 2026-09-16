@@ -56,7 +56,7 @@ const STATUS_CFG: Record<OtStatus, { label: string; color: string; bg: string }>
   PAID:     { label: 'จ่ายแล้ว',    color: '#6d28d9', bg: '#ede9fe' },
 }
 
-const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 function thDate(s: string) { const d = new Date(s); return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}` }
 
 /** วันจันทร์ของสัปดาห์ที่ date อยู่ */

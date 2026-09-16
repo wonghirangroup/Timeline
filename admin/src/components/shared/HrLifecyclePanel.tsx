@@ -77,7 +77,7 @@ function ProbationSection({ employeeId, emp, readOnly }: { employeeId: string; e
         {!edit ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '13px' }}>
             {resultBadge && <span style={{ alignSelf: 'flex-start', background: resultBadge.bg, color: resultBadge.c, borderRadius: 99, padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>{resultBadge.t}</span>}
-            <div style={{ color: '#374151' }}>ครบทดลองงาน: <b>{emp.probation_end_date ? new Date(emp.probation_end_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '— ไม่ได้ระบุ'}</b></div>
+            <div style={{ color: '#374151' }}>ครบทดลองงาน: <b>{emp.probation_end_date ? new Date(emp.probation_end_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : '— ไม่ได้ระบุ'}</b></div>
             {emp.probation_note && <div style={{ color: '#64748b', fontSize: '12.5px' }}>บันทึก: {emp.probation_note}</div>}
           </div>
         ) : (
@@ -233,7 +233,7 @@ function DisciplinarySection({ employeeId, readOnly }: { employeeId: string; rea
             </div>
             <div style={{ fontSize: '12.5px', color: '#374151', marginTop: 2 }}>{r.detail}</div>
             <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: 3, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <span>เหตุเกิด {new Date(r.incident_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span>เหตุเกิด {new Date(r.incident_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
               {r.acknowledged_at
                 ? <span style={{ color: '#15803d', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={11} /> พนักงานรับทราบแล้ว</span>
                 : <span style={{ color: '#d97706', fontWeight: 700 }}>รอพนักงานรับทราบ</span>}

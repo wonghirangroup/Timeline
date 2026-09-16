@@ -24,7 +24,7 @@ const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   COMPLETED: { label: 'เสร็จแล้ว',   c: '#16a34a', bg: '#dcfce7' },
   REJECTED:  { label: 'ปฏิเสธ',      c: '#dc2626', bg: '#fee2e2' },
 }
-function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) }
+function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
 
 export default function DocumentRequestsPage() {
   const qc = useQueryClient()

@@ -20,7 +20,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings':     'การตั้งค่า',
 }
 
-const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 
 function useClock() {
   const [now, setNow] = useState(new Date())
@@ -31,7 +31,7 @@ function useClock() {
 function formatDateTime(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   const bkk = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
-  return `${bkk.getDate()} ${MONTHS_SHORT[bkk.getMonth()]} ${bkk.getFullYear() + 543} · ${pad(bkk.getHours())}:${pad(bkk.getMinutes())}`
+  return `${bkk.getDate()} ${MONTHS_FULL[bkk.getMonth()]} ${bkk.getFullYear() + 543} · ${pad(bkk.getHours())}:${pad(bkk.getMinutes())}`
 }
 
 interface TopbarProps {
