@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Building2, Search, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star } from 'lucide-react'
+import { Plus, Building2, Search, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star, Table2, LayoutGrid } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -298,6 +298,7 @@ export default function BranchPage() {
     queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data),
   })
   const [groupFilter, setGroupFilter] = useState('')
+  const [branchView, setBranchView] = useState<'card' | 'table'>('card')
   const branchesFiltered = groupFilter ? branches.filter(b => b.group_id === groupFilter) : branches
   const { data: allShifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['shifts'],
@@ -688,6 +689,17 @@ export default function BranchPage() {
           </select>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+        {!isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setBranchView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: branchView === v ? 700 : 500, background: branchView === v ? '#fff' : 'transparent', color: branchView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: branchView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           onClick={() => setTourActive(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -719,7 +731,7 @@ export default function BranchPage() {
       {loading && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>{[0,1,2,3,4,5].map(i => <SkeletonCard key={i} h={140} />)}</div>}
 
       {/* Branch cards */}
-      {!loading && (
+      {!loading && (isMobile || branchView === 'card') && (
         <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {branchesFiltered.length === 0 && (
             <div style={{ gridColumn: '1/-1' }}>
@@ -841,6 +853,100 @@ export default function BranchPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Branch table (desktop only — มือถือใช้การ์ดเสมอ ตารางแคบเกินไปจอเล็ก) */}
+      {!loading && !isMobile && branchView === 'table' && (
+        branchesFiltered.length === 0 ? (
+          branches.length === 0
+            ? <EmptyState icon={<Building2 size={22} />} title="ยังไม่มีสาขา"
+                hint="สาขาคือจุดที่พนักงานเช็คอิน — กำหนดที่ตั้งและรัศมีได้"
+                action={{ label: 'เพิ่มสาขาแรก', onClick: openAdd }} />
+            : <EmptyState icon={<Search size={22} />} title="ไม่พบสาขาในกลุ่มที่เลือก" compact />
+        ) : (
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                  {['สาขา', 'ที่ตั้ง / GPS', 'สิทธิ์', 'พนักงาน', 'กะ', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map((b, idx) => {
+                  const branchShifts = allShifts.filter(s => s.branch_id === b.id)
+                  return (
+                    <tr key={b.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #FB923C, #EA580C)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Building2 size={14} color="#fff" />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#111827' }}>{b.name}</div>
+                            <span style={{ fontSize: '10.5px', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: b.is_active ? '#fff7ed' : '#f9fafb', color: b.is_active ? '#c2410c' : 'var(--text-muted)' }}>
+                              {b.is_active ? 'เปิด' : 'ปิด'}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#64748b' }}>
+                        {b.location && <div style={{ marginBottom: 2 }}>{b.location}</div>}
+                        {b.lat && b.lng && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px' }}>
+                            <span style={{ fontFamily: 'monospace' }}>{parseFloat(b.lat).toFixed(4)}, {parseFloat(b.lng).toFixed(4)} · {b.gps_radius}m</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 99, fontWeight: 600, background: b.geo_mode === 'BLOCK' ? '#fee2e2' : '#fef3c7', color: b.geo_mode === 'BLOCK' ? '#dc2626' : '#d97706' }}>
+                              {b.geo_mode === 'BLOCK' ? <Ban size={9} /> : <AlertTriangle size={9} />} {b.geo_mode}
+                            </span>
+                          </div>
+                        )}
+                        {!b.location && !(b.lat && b.lng) && <span style={{ color: '#cbd5e1' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        {b.booking_enabled === false || b.leave_enabled === false ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {b.booking_enabled === false && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, fontWeight: 700, fontSize: '10.5px', background: '#fef2f2', color: '#dc2626', width: 'fit-content' }}><Lock size={9} /> ปิดจองวันหยุด</span>}
+                            {b.leave_enabled === false && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, fontWeight: 700, fontSize: '10.5px', background: '#fef2f2', color: '#dc2626', width: 'fit-content' }}><Lock size={9} /> ปิดการลา</span>}
+                          </div>
+                        ) : <span style={{ color: '#94a3b8', fontSize: '11px' }}>ปกติ</span>}
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top', fontWeight: 700, color: '#374151' }}>{b._count.employees}</td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        {branchShifts.length === 0
+                          ? <span style={{ color: '#d1d5db', fontStyle: 'italic', fontSize: '11.5px' }}>ยังไม่มีกะ</span>
+                          : (
+                            <button onClick={() => { setDetailShift(branchShifts[0]); setShowAddEmpToShift(false); setShiftEmpSearch(''); setSelectedAddIds(new Set()) }}
+                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ea580c', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
+                              {branchShifts.length} กะ
+                            </button>
+                          )}
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button onClick={() => openQr(b)} title="QR"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <QrCode size={13} />
+                          </button>
+                          <button onClick={() => openEdit(b)} title="แก้ไข"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#ea580c', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setDeleteTarget(b)} title="ลบ"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        )
       )}
 
       {/* Pagination Controls */}

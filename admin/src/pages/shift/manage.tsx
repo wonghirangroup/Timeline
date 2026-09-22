@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star, Moon } from 'lucide-react'
+import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star, Moon, Table2, LayoutGrid } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -464,6 +464,7 @@ export default function ShiftPage() {
   })
   const [branchFilter, setBranchFilter] = useState('')
   const [groupFilter, setGroupFilter] = useState('')
+  const [shiftView, setShiftView] = useState<'card' | 'table'>('card')
   const branchIdToGroupId = useMemo(() => Object.fromEntries(branches.map(b => [b.id, b.group_id ?? null])), [branches])
   const branchOptions = groupFilter ? branches.filter(b => b.group_id === groupFilter) : branches
 
@@ -616,7 +617,19 @@ export default function ShiftPage() {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8, flexWrap: 'wrap' }}>
+        {!isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setShiftView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: shiftView === v ? 700 : 500, background: shiftView === v ? '#fff' : 'transparent', color: shiftView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: shiftView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
         <button
           onClick={() => setTourActive(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -624,6 +637,7 @@ export default function ShiftPage() {
           <HelpCircle size={14} /> วิธีใช้
         </button>
         <Button data-tour="shift-add-btn" variant="primary" size="lg" icon={<Plus size={14} />} onClick={openAdd}>เพิ่มกะ</Button>
+        </div>
       </div>
 
       {/* KPI row */}
@@ -684,7 +698,7 @@ export default function ShiftPage() {
       >
         {loading && <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>{[0,1,2,3,4,5].map(i => <SkeletonCard key={i} h={140} />)}</div>}
 
-        {!loading && (
+        {!loading && (isMobile || shiftView === 'card') && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'stretch' }}>
           {filtered.length === 0 && (
             <div style={{ gridColumn: '1/-1' }}>
@@ -768,6 +782,93 @@ export default function ShiftPage() {
             )
           })}
           </div>
+        )}
+
+        {/* Shift table (desktop only — มือถือใช้การ์ดเสมอ ตารางแคบเกินไปจอเล็ก) */}
+        {!loading && !isMobile && shiftView === 'table' && (
+          filtered.length === 0 ? (
+            shifts.length === 0
+              ? <EmptyState icon={<Clock size={22} />} title="ยังไม่มีกะการทำงาน"
+                  hint="กำหนดเวลาเข้า-ออกงาน เกณฑ์สาย/ขาด และ QR สำหรับให้พนักงานสแกน"
+                  action={{ label: 'เพิ่มกะแรก', onClick: openAdd }} />
+              : <EmptyState icon={<Search size={22} />} title="ไม่พบกะในสาขาที่เลือก" compact />
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                    {['กะ', 'สถานะ', 'เวลา', 'เกณฑ์สาย/ขาด', 'พนักงาน', ''].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((s, idx) => {
+                    const st        = getShiftStatus(s)
+                    const cfg       = STATUS_CFG[st]
+                    const empCnt    = (shiftEmpMap[s.id] ?? []).length
+                    const isSpecial = s.shift_type === 'SPECIAL'
+                    return (
+                      <tr key={s.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                          <button onClick={() => setDetailShift(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700, color: '#1e293b' }}>
+                              {s.name}
+                              {isSpecial && <span title="กะพิเศษ" style={{ display: 'inline-flex' }}><Star size={11} fill="#7c3aed" stroke="none" /></span>}
+                              {isOvernightShift(s.start_time, s.end_time) && <span title="กะข้ามเที่ยงคืน" style={{ display: 'inline-flex', color: '#4338ca' }}><Moon size={11} /></span>}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{s.branch.name}</div>
+                          </button>
+                        </td>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                          <span style={{ background: cfg.bg, color: cfg.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <span>{cfg.dot}</span>{cfg.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#374151' }}>
+                          <div>{s.start_time}–{s.end_time}</div>
+                          {s.min_checkout && <div style={{ fontSize: '11px', color: '#7c3aed' }}>เช็คเอาท์ได้ตั้งแต่ {s.min_checkout}</div>}
+                        </td>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#64748b', fontSize: '11.5px' }}>
+                          {isSpecial ? (
+                            <span style={{ color: '#7c3aed' }}>ทับซ้อนกะปกติได้ · ไม่นับสาย</span>
+                          ) : s.fine_mode === 'PER_MINUTE' ? (
+                            <div>สายเกิน {s.late_grace_minutes ?? 0} นาที → ฿{s.late_fine_per_minute ?? 0}/นาที{s.late_fine_max ? ` (สูงสุด ฿${s.late_fine_max})` : ''}</div>
+                          ) : (
+                            <>
+                              {s.late_threshold_1 && <div>สาย1: {s.late_threshold_1}{s.late_fine_1 ? ` (฿${s.late_fine_1})` : ''}</div>}
+                              {s.late_threshold_2 && <div>สาย2: {s.late_threshold_2}{s.late_fine_2 ? ` (฿${s.late_fine_2})` : ''}</div>}
+                              {s.absent_threshold && <div>ขาด: {s.absent_threshold}{s.absent_fine ? ` (+฿${s.absent_fine})` : ''}</div>}
+                              {!s.late_threshold_1 && !s.late_threshold_2 && <div>สายได้ {s.late_threshold} นาที</div>}
+                            </>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                          <button onClick={() => setEmpViewShift(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ea580c', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
+                            {empCnt} คน
+                          </button>
+                        </td>
+                        <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button onClick={() => openEdit(s)} title="แก้ไข"
+                              style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#ea580c', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => setDeleteTarget(s)} title="ลบ"
+                              style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              </div>
+            </div>
+          )
         )}
       </div>{/* end scrollable cards */}
 

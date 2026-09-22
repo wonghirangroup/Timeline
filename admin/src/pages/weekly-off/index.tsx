@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet } from 'lucide-react'
+import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -275,6 +275,8 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
   const { showToast } = useToast()
   const isReadOnly = useIsReadOnly()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
+  const [periodView, setPeriodView] = useState<'card' | 'table'>('card')
   const [editId, setEditId] = useState<string | null>(null)
   const [editDeadline, setEditDeadline] = useState('')
   const [editNote, setEditNote] = useState('')
@@ -319,7 +321,23 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
   if (periods.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีสาขา</div>
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+    <div>
+      {!isMobile && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setPeriodView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: periodView === v ? 700 : 500, background: periodView === v ? '#fff' : 'transparent', color: periodView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: periodView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(isMobile || periodView === 'card') && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
       {periods.map(p => {
         const isEditing = editId === p.branch_id
         const deadlinePast = p.deadline ? new Date() > new Date(p.deadline) : false
@@ -434,6 +452,116 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
           </div>
         )
       })}
+      </div>
+      )}
+
+      {/* Table view (desktop only) */}
+      {!isMobile && periodView === 'table' && (
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                {['สาขา', 'สถานะ', 'Deadline', 'หมายเหตุ', 'การจอง', ''].map(h => (
+                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {periods.map((p, idx) => {
+                const deadlinePast = p.deadline ? new Date() > new Date(p.deadline) : false
+                const effectiveOpen = p.is_open && !deadlinePast
+                const bookings = requests
+                  .filter(r => r.employee.branch.id === p.branch_id && resolveDate(r.week_start, r.day_of_week).slice(0, 7) === p.month)
+                const pendingBookings = bookings.filter(b => b.status === 'PENDING').length
+                return (
+                  <tr key={p.branch_id} style={{ borderBottom: idx < periods.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top', fontWeight: 700, color: '#111827' }}>{p.branch.name}</td>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ToggleSwitch on={effectiveOpen}
+                          disabled={openMutation.isPending || closeMutation.isPending}
+                          onChange={() => effectiveOpen
+                            ? closeMutation.mutate({ branch_id: p.branch_id, month })
+                            : openMutation.mutate({ branch_id: p.branch_id, month })} />
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: effectiveOpen ? '#16a34a' : 'var(--text-muted)' }}>
+                          {effectiveOpen ? 'เปิดรับจอง' : 'ปิดรับจอง'}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top', color: deadlinePast ? '#dc2626' : '#64748b' }}>
+                      {p.deadline ? (deadlinePast ? 'หมดเวลาแล้ว' : fmtDate(p.deadline.slice(0, 10))) : <span style={{ color: '#cbd5e1' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#64748b' }}>{p.note || <span style={{ color: '#cbd5e1' }}>—</span>}</td>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                      {bookings.length === 0 ? <span style={{ color: '#cbd5e1' }}>—</span> : (
+                        <button onClick={() => setViewBookingsBranch(p.branch_id)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ea580c', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                          {bookings.length} รายการ
+                          {pendingBookings > 0 && <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', borderRadius: 99, padding: '1px 7px' }}>{pendingBookings} รอ</span>}
+                        </button>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                      <button onClick={() => {
+                        setEditId(p.branch_id)
+                        setEditDeadline(p.deadline ? p.deadline.slice(0, 10) : '')
+                        setEditNote(p.note ?? '')
+                      }} title="ตั้งค่า"
+                        style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <Settings2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      )}
+
+      {/* แก้ deadline/note จาก table view — ใช้ modal เดียวกับปุ่มตั้งค่าในการ์ด */}
+      {!isMobile && periodView === 'table' && editId && (() => {
+        const p = periods.find(pp => pp.branch_id === editId)
+        if (!p) return null
+        return (
+          <div onClick={() => setEditId(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: 14, width: 340, maxWidth: '100%', padding: 18, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{p.branch.name}</div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Deadline (ไม่บังคับ)</label>
+                <input type="date" value={editDeadline} onChange={e => setEditDeadline(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.82rem', marginTop: 3, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                {editDeadline && <span style={{ display: 'block', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: 3 }}>{fmtDate(editDeadline)}</span>}
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>หมายเหตุถึงพนักงาน</label>
+                <input value={editNote} onChange={e => setEditNote(e.target.value)}
+                  placeholder="เช่น กรุณาจองภายใน 20 มิ.ย."
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.82rem', marginTop: 3, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => {
+                  if (p.id) {
+                    updateMutation.mutate({ id: p.id, data: { deadline: editDeadline || null, note: editNote || null } })
+                  } else {
+                    openMutation.mutate({ branch_id: p.branch_id, month, deadline: editDeadline || null, note: editNote || null })
+                    setEditId(null)
+                  }
+                }} style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                  บันทึก
+                </button>
+                <button onClick={() => setEditId(null)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}>
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Bookings modal */}
       {viewBookingsBranch && (() => {
