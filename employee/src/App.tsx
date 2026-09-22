@@ -309,7 +309,12 @@ export default function App() {
           {bootState === 'need-verify' ? (
             // ยังไม่ผูก LINE → บังคับไป verify
             <>
-              <Route path="/verify" element={<VerifyPage onLinked={() => setBootState('authed')} />} />
+              {/* ผูกบัญชีเสร็จแล้ว — เรียก boot() ใหม่ทั้งชุด (ไม่ใช่แค่ setBootState('authed'))
+                  เพราะต้องได้ profile พนักงานที่ enrich ครบ (branch/quota/feature flags ฯลฯ)
+                  ผ่าน liffLogin() เหมือนโฟลว์ปกติ — เดิม setBootState ตรงๆ ทำให้ authStore.employee
+                  ยังเป็น null อยู่ หน้าแรก (/checkin) เลยค้างที่ PageLoader ตลอดไป ต้องปิดเปิด LIFF
+                  ใหม่ถึงจะเข้าได้ (feedback 2026-09-22) */}
+              <Route path="/verify" element={<VerifyPage onLinked={() => boot()} />} />
               <Route path="*" element={<Navigate to="/verify" replace />} />
             </>
           ) : (

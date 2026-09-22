@@ -5,7 +5,7 @@ import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
-import { bangkokToday } from '../../common/utils/time'
+import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
@@ -158,6 +158,25 @@ function dateToBangkokMins(d: Date): number {
 
 function getNowBangkokMins(): number {
   return dateToBangkokMins(new Date())
+}
+
+// เช็คว่ายังไม่ถึงเวลา min_checkout ของกะนี้ไหม — เทียบ "นาที" ตรงๆ แบบเดิม
+// (nowMins < minMins) ใช้ไม่ได้กับกะข้ามคืนที่ min_checkout เป็นเวลาหลังเที่ยงคืน
+// (เช่น กะ 18:00→02:00 ตั้ง min_checkout 00:30 — เวลาจริงผ่านเที่ยงคืนไปแล้ว แต่
+// nowMins (~30) ยังน้อยกว่า minMins เดิมที่ไม่ normalize เลยเข้าใจผิดว่า "ยังไม่ถึง
+// เวลา" — แก้โดยคำนวณเป็น instant จริงเทียบกับ record.date (วันที่กะเริ่ม) แทน
+// การเทียบแค่ "นาทีในวัน" ตรงๆ ซึ่งไม่รู้ว่าข้ามเที่ยงคืนมาหรือยัง (feedback 2026-09-22)
+export function isBeforeMinCheckout(shift: { start_time: string; end_time: string; min_checkout: string | null }, recordDate: Date, now: Date = new Date()): boolean {
+  if (!shift.min_checkout) return false
+  const minMins   = toMins(shift.min_checkout)
+  const startMins = toMins(shift.start_time)
+  const overnight = isOvernightShift(shift)
+  // min_checkout ตั้งเป็นเวลาน้อยกว่าเวลาเริ่มกะของกะข้ามคืน = หมายถึงรุ่งขึ้น (+1 วัน)
+  const dayOffset  = overnight && minMins < startMins ? 1 : 0
+  const targetDate = dayOffset ? bangkokAddDays(recordDate, dayOffset) : recordDate
+  // recordDate เป็น UTC-midnight ที่ "แทน" เที่ยงคืนไทย (ค่าจริงต้อง -7 ชม. ถึงจะเป็น instant จริง)
+  const targetInstant = targetDate.getTime() - 7 * 60 * 60 * 1000 + minMins * 60 * 1000
+  return now.getTime() < targetInstant
 }
 
 // อ่านค่าปรับขาดที่ยกมาจากการขาดงานครั้งก่อน (ถ้ามี) แล้วเคลียร์ทิ้งทันที
@@ -854,10 +873,8 @@ export async function checkOutScan(tenantId: string, employeeId: string, branchI
   // เลือก record ที่ตรงกับ branch จาก QR ก่อน — ถ้าไม่มีให้ใช้ record ล่าสุด
   const record = openRecords.find(r => r.shift.branch_id === branchId) ?? openRecords[openRecords.length - 1]
 
-  if (record.shift.min_checkout) {
-    const nowMins  = getNowBangkokMins()
-    const minMins  = toMins(record.shift.min_checkout)
-    if (nowMins < minMins) throw new Error(`TOO_EARLY:${record.shift.min_checkout}`)
+  if (isBeforeMinCheckout(record.shift, record.date)) {
+    throw new Error(`TOO_EARLY:${record.shift.min_checkout}`)
   }
 
   const updated = await prisma.attendanceRecord.update({
@@ -897,10 +914,8 @@ export async function checkOutAuto(tenantId: string, employeeId: string) {
 
   const record = records[records.length - 1]
 
-  if (record.shift.min_checkout) {
-    const nowMins  = getNowBangkokMins()
-    const minMins  = toMins(record.shift.min_checkout)
-    if (nowMins < minMins) throw new Error(`TOO_EARLY:${record.shift.min_checkout}`)
+  if (isBeforeMinCheckout(record.shift, record.date)) {
+    throw new Error(`TOO_EARLY:${record.shift.min_checkout}`)
   }
 
   const updated = await prisma.attendanceRecord.update({
