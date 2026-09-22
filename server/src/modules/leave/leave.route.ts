@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
@@ -37,7 +38,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: ดู Leave requests ─────────────────────────────
   app.get('/admin/leave-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope, requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('leave', 'view'), resolveDeptScope, requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการคำขอวันลาทั้งหมด (กรอง status / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -63,7 +64,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: Approve ──────────────────────────────
   app.post('/admin/leave-requests/:id/approve', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('leave', 'approve'), resolveDeptScope, requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'อนุมัติวันลา (DEPT_HEAD อนุมัติได้แค่คำขอของคนในแผนกที่ดูแล)',
@@ -85,7 +86,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: Reject ───────────────────────────────
   app.post('/admin/leave-requests/:id/reject', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('leave', 'approve'), resolveDeptScope, requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ปฏิเสธวันลา (DEPT_HEAD ปฏิเสธได้แค่คำขอของคนในแผนกที่ดูแล)',
@@ -116,7 +117,7 @@ export async function leaveRoutes(app: FastifyInstance) {
   }
   for (const action of ['approve', 'reject'] as const) {
     app.post(`/admin/leave-requests/bulk-${action}`, {
-      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('leave_management')],
+      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('leave', 'approve'), resolveDeptScope, requireFeature('leave_management')],
       schema: {
         tags: ['Admin'],
         summary: `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}คำขอวันลาหลายรายการในครั้งเดียว`,
@@ -139,7 +140,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin: สร้างวันลาแทนพนักงาน (อนุมัติอัตโนมัติทันที) ────────────
   app.post('/admin/leave-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'add'), requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'Admin สร้างคำขอวันลาแทนพนักงาน (อนุมัติอัตโนมัติ — คนลงคือคนอนุมัติอยู่แล้วในตัว)',
@@ -179,7 +180,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin: แก้ไขคำขอวันลา ────────────────────────────────────────
   app.patch('/admin/leave-requests/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'edit'), requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'แก้ไขคำขอวันลา',
@@ -215,7 +216,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin: ลบคำขอวันลา ───────────────────────────────────────────
   app.delete('/admin/leave-requests/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'delete'), requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ลบคำขอวันลา (ถ้า APPROVED จะคืนวันลากลับ)',
@@ -319,7 +320,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/leave-balances/employees — พนักงานทุกคนพร้อม balance รวม
   app.get('/admin/leave-balances/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('leave_balance')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('leave', 'view'), requireFeature('leave_balance')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูพนักงานทุกคนพร้อม leave balance ทุกประเภท (สำหรับหน้า leave-balance)',
@@ -334,7 +335,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/leave-balances/batch — batch upsert
   app.post('/admin/leave-balances/batch', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('leave_balance')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('leave_balance')],
     schema: {
       tags: ['Admin'],
       summary: 'Batch upsert leave balances (apply default / seniority)',
@@ -370,7 +371,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/leave-balances
   app.get('/admin/leave-balances', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('leave_balance')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('leave', 'view'), requireFeature('leave_balance')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูโควต้าวันลาของพนักงาน',
@@ -393,7 +394,7 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // PUT /api/v1/admin/leave-balances
   app.put('/admin/leave-balances', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('leave_balance')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('leave_balance')],
     schema: {
       tags: ['Admin'],
       summary: 'ตั้งค่าโควต้าวันลา (upsert)',
