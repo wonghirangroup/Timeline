@@ -10,6 +10,7 @@ import { prisma } from '../../common/utils/prisma'
 import { lineMulticast, linePush } from '../announcement/announcement.service'
 import { isNotificationEnabled, type NotificationType } from '../../common/utils/notificationPrefs'
 import { createMagicLoginToken } from '../auth/auth.service'
+import { logLineSend } from './line-log.service'
 
 const ADMIN_APP_URL    = process.env.ADMIN_APP_URL    || 'https://timeline-admin.vercel.app'
 const EMPLOYEE_APP_URL = process.env.EMPLOYEE_APP_URL || 'https://timeline-employee.vercel.app'
@@ -73,13 +74,16 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
     if (!lineConfig?.line_channel_access_token || !emp) return
 
     // ADMIN/MANAGER เห็นทั้ง tenant — ได้แจ้งเตือนทุกคำขอ
+    const adminSelect = { id: true, email: true, linked_employee: { select: { line_user_id: true, first_name: true, last_name: true, nickname: true } } } as const
+    const adminName = (a: { email: string; linked_employee: { first_name: string; last_name: string; nickname: string | null } | null }) =>
+      a.linked_employee ? (a.linked_employee.nickname || `${a.linked_employee.first_name} ${a.linked_employee.last_name}`) : a.email
     const admins = await prisma.user.findMany({
       where: { tenant_id: tenantId, is_active: true, role: { in: ['ADMIN', 'MANAGER'] } },
-      select: { id: true, linked_employee: { select: { line_user_id: true } } },
+      select: adminSelect,
     })
     const pairs = admins
       .filter(a => a.linked_employee?.line_user_id)
-      .map(a => ({ userId: a.id, lineUserId: a.linked_employee!.line_user_id! }))
+      .map(a => ({ userId: a.id, lineUserId: a.linked_employee!.line_user_id!, name: adminName(a) }))
 
     // DEPT_HEAD เห็นเฉพาะแผนกตัวเอง — แจ้งเฉพาะเมื่อพนักงานเจ้าของคำขออยู่ในแผนกที่ดูแล
     if (emp.position_id) {
@@ -87,9 +91,9 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
       if (pos) {
         const heads = await prisma.user.findMany({
           where: { tenant_id: tenantId, is_active: true, role: 'DEPT_HEAD', managed_departments: { some: { department_id: pos.department_id } } },
-          select: { id: true, linked_employee: { select: { line_user_id: true } } },
+          select: adminSelect,
         })
-        for (const h of heads) if (h.linked_employee?.line_user_id) pairs.push({ userId: h.id, lineUserId: h.linked_employee.line_user_id })
+        for (const h of heads) if (h.linked_employee?.line_user_id) pairs.push({ userId: h.id, lineUserId: h.linked_employee.line_user_id, name: adminName(h) })
       }
     }
 
@@ -101,7 +105,15 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
 
     if (!notice.path) {
       // ไม่มีปุ่ม/ลิงก์ — ไม่ต้อง personalize ส่ง multicast เดียวจบแบบเดิม (ประหยัด API call)
-      await lineMulticast(lineConfig.line_channel_access_token, uniquePairs.map(p => p.lineUserId), buildFlexMessage(empName, notice))
+      try {
+        await lineMulticast(lineConfig.line_channel_access_token, uniquePairs.map(p => p.lineUserId), buildFlexMessage(empName, notice))
+        await logLineSend({ tenantId, category: notice.type, title: notice.title, success: true,
+          recipients: uniquePairs.map(p => ({ type: 'ADMIN', id: p.userId, label: p.name })) })
+      } catch (e: any) {
+        await logLineSend({ tenantId, category: notice.type, title: notice.title, success: false, errorMessage: e?.message,
+          recipients: uniquePairs.map(p => ({ type: 'ADMIN', id: p.userId, label: p.name })) })
+        throw e
+      }
       return
     }
 
@@ -112,8 +124,12 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
         const token = await createMagicLoginToken(p.userId, notice.path)
         const url = `${ADMIN_APP_URL}/magic-login?token=${token}`
         await linePush(lineConfig.line_channel_access_token!, p.lineUserId, buildFlexMessage(empName, notice, ADMIN_APP_URL, url))
-      } catch (e) {
+        await logLineSend({ tenantId, category: notice.type, title: notice.title, success: true,
+          recipients: [{ type: 'ADMIN', id: p.userId, label: p.name }] })
+      } catch (e: any) {
         console.error('[line-push] ส่ง magic-login ให้ผู้รับรายคนไม่สำเร็จ:', e)
+        await logLineSend({ tenantId, category: notice.type, title: notice.title, success: false, errorMessage: e?.message,
+          recipients: [{ type: 'ADMIN', id: p.userId, label: p.name }] })
       }
     }))
   } catch (e) {
@@ -137,11 +153,20 @@ export async function notifyEmployeeLine(tenantId: string, employeeId: string, f
   try {
     const [lineConfig, emp] = await Promise.all([
       prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true } }),
-      prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { line_user_id: true } }),
+      prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { line_user_id: true, first_name: true, last_name: true, nickname: true } }),
     ])
     if (!lineConfig?.line_channel_access_token || !emp?.line_user_id) return
 
-    await lineMulticast(lineConfig.line_channel_access_token, [emp.line_user_id], buildFlexMessage(fromName, notice, EMPLOYEE_APP_URL))
+    const label = emp.nickname || `${emp.first_name} ${emp.last_name}`
+    try {
+      await lineMulticast(lineConfig.line_channel_access_token, [emp.line_user_id], buildFlexMessage(fromName, notice, EMPLOYEE_APP_URL))
+      await logLineSend({ tenantId, category: 'EMPLOYEE_NOTICE', title: notice.title, success: true,
+        recipients: [{ type: 'EMPLOYEE', id: employeeId, label }] })
+    } catch (e: any) {
+      await logLineSend({ tenantId, category: 'EMPLOYEE_NOTICE', title: notice.title, success: false, errorMessage: e?.message,
+        recipients: [{ type: 'EMPLOYEE', id: employeeId, label }] })
+      throw e
+    }
   } catch (e) {
     console.error('[line-push] ส่งแจ้งเตือนพนักงานทาง LINE ไม่สำเร็จ:', e)
   }

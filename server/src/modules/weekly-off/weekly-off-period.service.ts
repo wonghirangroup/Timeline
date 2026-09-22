@@ -1,6 +1,7 @@
 // server/src/modules/weekly-off/weekly-off-period.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast } from '../announcement/announcement.service'
+import { logLineSend } from '../notifications/line-log.service'
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                     'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
@@ -87,9 +88,10 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
 
   const employees = await prisma.employee.findMany({
     where: { tenant_id: tenantId, branch_id: branchId, line_user_id: { not: null }, deleted_at: null, is_active: true },
-    select: { line_user_id: true },
+    select: { id: true, line_user_id: true, first_name: true, last_name: true, nickname: true },
   })
   const lineUserIds = employees.map(e => e.line_user_id!)
+  const logRecipients = employees.map(e => ({ type: 'EMPLOYEE' as const, id: e.id, label: e.nickname || `${e.first_name} ${e.last_name}` }))
   console.log(`[notifyPeriodOpened] branch=${branch?.name} recipients=${lineUserIds.length}`)
   if (lineUserIds.length === 0) return { sent: 0 }
 
@@ -140,12 +142,15 @@ export async function notifyPeriodOpened(tenantId: string, branchId: string, mon
     },
   }
 
+  const title = `เปิดจองวันหยุดแล้ว — ${monthLabel} (${branch?.name ?? ''})`
   try {
     const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, flexMessage)
     console.log(`[notifyPeriodOpened] sent ok:`, JSON.stringify(result))
+    await logLineSend({ tenantId, category: 'WEEKLY_OFF_PERIOD_OPENED', title, success: true, recipients: logRecipients })
     return result
   } catch (err: any) {
     console.error(`[notifyPeriodOpened] LINE send FAILED:`, err.message)
+    await logLineSend({ tenantId, category: 'WEEKLY_OFF_PERIOD_OPENED', title, success: false, errorMessage: err.message, recipients: logRecipients })
     return { error: err.message }
   }
 }

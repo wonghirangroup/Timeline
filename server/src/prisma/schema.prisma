@@ -55,6 +55,7 @@ model Tenant {
   departments           Department[]
   positions             Position[]
   employee_status_types EmployeeStatusType[]
+  line_message_logs     LineMessageLog[]
 
   @@map("tenants")
 }
@@ -1275,6 +1276,32 @@ model ActivityLog {
   @@index([tenant_id])
   @@index([created_at])
   @@map("activity_logs")
+}
+
+// log ทุกครั้งที่ระบบยิงข้อความ LINE ออกไปจริง (แจ้งเตือนแอดมิน/พนักงาน,
+// ประกาศ, แจ้งปัญหา, เปิดจองวันหยุด ฯลฯ) — เดิมไม่มีการเก็บเลยสักครั้ง ทำให้
+// ตอบไม่ได้ว่า "ส่งไปหาใครบ้าง สำเร็จไหม" ย้อนหลัง (feedback 2026-09-22
+// "รายงานการส่งข้อความไลน์" — หมวดสุดท้ายของ 7 หมวดรายงานที่จัดกลุ่มไว้)
+// best-effort เขียนเสมอ ไม่ทำให้การส่งจริงพังตาม (ดู logLineSend())
+model LineMessageLog {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  category         String // ประเภทข้อความ: pending_leave, pending_ot, pending_resignation,
+  // pending_weekly_off, worked_on_own_day_off, weekly_off_swap, ANNOUNCEMENT,
+  // ISSUE_REPORT, WEEKLY_OFF_PERIOD_OPENED, EMPLOYEE_NOTICE ฯลฯ
+  recipient_type   String // EMPLOYEE | ADMIN
+  recipient_id     String? // employee_id หรือ user_id ตอนส่ง — nullable เผื่ออนาคตมี broadcast ที่ไม่ผูกคนเดียว
+  recipient_label  String // ชื่อผู้รับ snapshot ตอนส่ง (กันปัญหาลบ employee/user ทีหลังแล้วชื่อหาย)
+  title            String // สรุปหัวข้อข้อความ เช่น "ใบลารออนุมัติ" / หัวข้อประกาศ
+  success          Boolean
+  error_message    String?  @db.Text
+  created_at       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id, created_at])
+  @@index([tenant_id, category])
+  @@map("line_message_logs")
 }
 
 // ประวัติการรันซิงค์ Firebase (cron + manual) — ให้ Super Admin เห็นว่ารอบล่าสุด

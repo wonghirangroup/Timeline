@@ -1,10 +1,8 @@
 // admin/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { MessageCircle } from 'lucide-react'
 import './index.css'
 import { useAuthStore } from './stores/authStore'
 import Layout               from './components/layout/Layout'
-import ComingSoonReport     from './components/shared/ComingSoonReport'
 import LoginPage            from './pages/login'
 import DashboardPage        from './pages/dashboard'
 import EmployeePage         from './pages/employee'
@@ -16,6 +14,7 @@ import EmployeeReportPage   from './pages/report/employee'
 import HolidayReportPage    from './pages/report/holiday'
 import LeaveReportPage      from './pages/report/leave'
 import ExecutiveReportPage  from './pages/report/executive'
+import LineMessagesReportPage from './pages/report/line-messages'
 import AttendancePage       from './pages/attendance'
 import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
@@ -56,14 +55,13 @@ function AdminRoutes() {
         <Route path="/ot"            element={<OtPage />} />
         <Route path="/offsite"       element={<OffsitePage />} />
         <Route path="/report"        element={<ReportPage />} />
-        {/* หมวดรายงานใหม่ (feedback 2026-09-22) — เหลือแค่ line-messages เป็น
-            placeholder (ต้องสร้างระบบ log การส่งไลน์ใหม่ก่อน ตั้งใจทำทีหลังสุด) */}
+        {/* หมวดรายงานใหม่ (feedback 2026-09-22) — ครบทั้ง 7 หมวดแล้ว */}
         <Route path="/report/executive"     element={<ExecutiveReportPage />} />
         <Route path="/report/employee"      element={<EmployeeReportPage />} />
         <Route path="/report/branch"        element={<BranchReportPage />} />
         <Route path="/report/holiday"       element={<HolidayReportPage />} />
         <Route path="/report/leave"         element={<LeaveReportPage />} />
-        <Route path="/report/line-messages" element={<ComingSoonReport title="รายงานการส่งข้อความไลน์" icon={<MessageCircle size={24} />} />} />
+        <Route path="/report/line-messages" element={<LineMessagesReportPage />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
         <Route path="/master-data"   element={<MasterDataPage />} />

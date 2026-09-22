@@ -6,6 +6,7 @@
 // จริงๆ เลยแนบชื่อ LINE ไปด้วยถ้ามี ไม่ใช่กล่องความเห็นแบบไม่ระบุตัวตน
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast } from '../announcement/announcement.service'
+import { logLineSend } from '../notifications/line-log.service'
 
 export async function reportIssue(tenantId: string, data: {
   displayName?: string
@@ -24,9 +25,15 @@ export async function reportIssue(tenantId: string, data: {
 
     const admins = await prisma.user.findMany({
       where: { tenant_id: tenantId, is_active: true, role: { in: ['ADMIN', 'MANAGER'] } },
-      select: { linked_employee: { select: { line_user_id: true } } },
+      select: { id: true, email: true, linked_employee: { select: { line_user_id: true, first_name: true, last_name: true, nickname: true } } },
     })
-    const ids = [...new Set(admins.map(a => a.linked_employee?.line_user_id).filter((v): v is string => !!v))]
+    const recipientMap = new Map(admins
+      .filter(a => a.linked_employee?.line_user_id)
+      .map(a => [a.linked_employee!.line_user_id!, {
+        type: 'ADMIN' as const, id: a.id,
+        label: a.linked_employee!.nickname || `${a.linked_employee!.first_name} ${a.linked_employee!.last_name}`,
+      }]))
+    const ids = [...recipientMap.keys()]
     if (ids.length === 0) return { sent: 0 }
 
     const who = data.displayName || (data.lineUserId ? `LINE UID: ${data.lineUserId}` : 'ไม่ทราบตัวตน (ไม่มีข้อมูล LINE ส่งมาด้วย)')
@@ -37,8 +44,15 @@ export async function reportIssue(tenantId: string, data: {
       + `รายละเอียดที่แจ้ง:\n${data.message}`
       + (data.context ? `\n\n(ข้อความ error ดิบ: ${data.context})` : '')
 
-    const result = await lineMulticast(lineConfig.line_channel_access_token, ids, text)
-    return result
+    const title = `แจ้งปัญหาจาก ${who}`
+    try {
+      const result = await lineMulticast(lineConfig.line_channel_access_token, ids, text)
+      await logLineSend({ tenantId, category: 'ISSUE_REPORT', title, success: true, recipients: [...recipientMap.values()] })
+      return result
+    } catch (err: any) {
+      await logLineSend({ tenantId, category: 'ISSUE_REPORT', title, success: false, errorMessage: err.message, recipients: [...recipientMap.values()] })
+      throw err
+    }
   } catch (e) {
     console.error('[issue-report] ส่งแจ้งเตือนแอดมินทาง LINE ไม่สำเร็จ:', e)
     return { sent: 0 }

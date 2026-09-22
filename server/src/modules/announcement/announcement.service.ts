@@ -1,6 +1,7 @@
 // server/src/modules/announcement/announcement.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { employeeBranchWhere } from '../employee/employee.service'
+import { logLineSend } from '../notifications/line-log.service'
 
 // messages รับได้ทั้งข้อความล้วน (string — เดิม) หรือ LINE message object เต็มๆ
 // (เช่น Flex Message) — ทำให้ผู้เรียกเลือกได้ว่าจะส่งแบบไหน โดยไม่ต้องมีฟังก์ชันแยก
@@ -88,17 +89,20 @@ export async function createAnnouncement(
           ? { id: { in: data.employee_ids } }
           : data.branch_id ? employeeBranchWhere(data.branch_id) : {}),
       },
-      select: { line_user_id: true },
+      select: { id: true, line_user_id: true, first_name: true, last_name: true, nickname: true },
     })
 
     const lineUserIds = employees.map(e => e.line_user_id!)
+    const logRecipients = employees.map(e => ({ type: 'EMPLOYEE' as const, id: e.id, label: e.nickname || `${e.first_name} ${e.last_name}` }))
 
     const message = `📢 ${data.title}\n\n${data.content}`
 
     try {
       const result = await lineMulticast(lineConfig.line_channel_access_token, lineUserIds, message)
+      await logLineSend({ tenantId, category: 'ANNOUNCEMENT', title: data.title, success: true, recipients: logRecipients })
       return { ...announcement, line_result: result }
     } catch (err: any) {
+      await logLineSend({ tenantId, category: 'ANNOUNCEMENT', title: data.title, success: false, errorMessage: err.message, recipients: logRecipients })
       return { ...announcement, line_result: { error: err.message } }
     }
   }
