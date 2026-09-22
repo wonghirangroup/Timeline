@@ -341,9 +341,12 @@ export async function getEmployeeStatusHistory(tenantId: string, employeeId: str
 }
 
 export async function deleteEmployee(tenantId: string, id: string) {
+  // เคลียร์ line_user_id ด้วย — unique constraint (tenant_id, line_user_id) ไม่แยกแถวที่ลบแล้ว
+  // ถ้าไม่เคลียร์ พนักงานคนนี้จะผูก LINE บัญชีเดิมกับ record ใหม่ (เช่นกรณีลาออกแล้วกลับมาสมัครใหม่) ไม่ได้อีกเลย
+  // (feedback 2026-09-22 — เจอเคสจริง admin ลบ record เก่าทิ้งแล้วพนักงานผูก LINE รอบใหม่ไม่ได้)
   const count = await prisma.employee.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
-    data: { deleted_at: new Date() },
+    data: { deleted_at: new Date(), line_user_id: null },
   })
   return count.count > 0
 }
