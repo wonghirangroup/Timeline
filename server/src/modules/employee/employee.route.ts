@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
@@ -11,7 +12,7 @@ const TAG = 'Admin'
 export async function employeeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employees?branchId=
   app.get('/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('employee', 'view'), resolveDeptScope],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการพนักงานทั้งหมด (กรองตาม branchId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -28,7 +29,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/employees/:id
   app.get('/employees/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('employee', 'view'), resolveDeptScope],
     schema: {
       tags: [TAG],
       summary: 'ดูข้อมูลพนักงานตาม ID (DEPT_HEAD เข้าได้แค่แผนกที่ดูแล)',
@@ -46,7 +47,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/employees
   app.post('/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'add')],
     schema: {
       tags: [TAG],
       summary: 'เพิ่มพนักงานใหม่ (รหัสพนักงานถูกสร้างอัตโนมัติ)',
@@ -80,7 +81,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employees/:id
   app.patch('/employees/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'แก้ไขข้อมูลพนักงาน',
@@ -119,7 +120,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employees/bulk-weekly-off-mode — ตั้งค่าโหมดจองวันหยุดทั้งแผนกในคราวเดียว
   app.patch('/employees/bulk-weekly-off-mode', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'ตั้งค่า weekly_off_mode ให้พนักงานทั้งแผนกในคราวเดียว',
@@ -140,7 +141,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employees/:id/status — เปลี่ยนสถานะบัญชีพนักงาน (บังคับระบุหมายเหตุ)
   app.patch('/employees/:id/status', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'เปลี่ยนสถานะบัญชีพนักงาน (ต้องระบุหมายเหตุทุกครั้ง) — บันทึกประวัติด้วย',
@@ -165,7 +166,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employees/:id/admin-access — ให้/ถอนสิทธิ์เข้าเว็บแอดมิน
   app.patch('/employees/:id/admin-access', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('employee', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'ให้/ถอนสิทธิ์เข้าเว็บแอดมินของพนักงาน — role=null ถอนสิทธิ์, มี role ครั้งแรกต้องส่ง email เพื่อสร้างบัญชี (ได้รหัสชั่วคราวกลับมา)',
@@ -195,7 +196,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/employees/:id/status-history — ประวัติการเปลี่ยนสถานะ
   app.get('/employees/:id/status-history', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('employee', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูประวัติการเปลี่ยนสถานะบัญชีพนักงาน',
@@ -231,7 +232,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/employees/:id/line — reset LINE binding
   app.delete('/employees/:id/line', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'ยกเลิกการผูก Line account ของพนักงาน (reset)',
@@ -250,7 +251,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/employees/:id
   app.delete('/employees/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('employee', 'delete')],
     schema: {
       tags: [TAG],
       summary: 'ลบพนักงาน (soft delete)',
