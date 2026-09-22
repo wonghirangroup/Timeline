@@ -3,9 +3,10 @@
 // ต่อสาขา (feedback 2026-09-22 "เอาทุกหมวดก่อนแล้วค่อยทำไลน์อันสุดท้าย")
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Users, Clock, Check, Table2, LayoutGrid } from 'lucide-react'
+import { CalendarOff, Palmtree, Users, Clock, Check, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportBarChart from '../../components/shared/ReportBarChart'
 
 interface ApiHoliday { id: string; date: string; name: string; compensate_days: number | null; target_branches: string[] | null }
 interface ApiBranch { id: string; name: string }
@@ -26,7 +27,7 @@ export default function HolidayReportPage() {
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [view, setView]   = useState<'card' | 'table'>('table')
+  const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -82,7 +83,7 @@ export default function HolidayReportPage() {
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
-            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
@@ -148,6 +149,19 @@ export default function HolidayReportPage() {
               </div>
             ))}
           </div>
+        </div>
+      ) : view === 'chart' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา</div>
+          <ReportBarChart
+            data={branchRows.map(r => ({ name: r.branch.name, approved: r.approved, pending: r.pending, rejected: r.rejected }))}
+            xKey="name"
+            series={[
+              { key: 'approved', label: 'อนุมัติ', color: '#16a34a' },
+              { key: 'pending', label: 'รอพิจารณา', color: '#d97706' },
+              { key: 'rejected', label: 'ปฏิเสธ', color: '#94a3b8' },
+            ]}
+          />
         </div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>

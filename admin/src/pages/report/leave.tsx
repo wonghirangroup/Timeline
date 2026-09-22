@@ -4,9 +4,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check, Clock, Table2, LayoutGrid } from 'lucide-react'
+import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportPieChart from '../../components/shared/ReportPieChart'
 
 interface ApiLeave {
   id: string; leave_type: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -35,7 +36,7 @@ export default function LeaveReportPage() {
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [view, setView]   = useState<'card' | 'table'>('table')
+  const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -85,7 +86,7 @@ export default function LeaveReportPage() {
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
-            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
@@ -126,6 +127,14 @@ export default function LeaveReportPage() {
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>กำลังโหลด...</div>
       ) : monthLeaves.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>ไม่มีคำขอลาในเดือนนี้</div>
+      ) : view === 'chart' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>สัดส่วนวันลาที่อนุมัติแล้ว แยกตามประเภท</p>
+          <ReportPieChart
+            data={byType.filter(t => t.days > 0).map(t => ({ key: t.type, label: t.cfg.label, value: t.days, color: t.cfg.color }))}
+            valueSuffix=" วัน"
+          />
+        </div>
       ) : (isMobile || view === 'card') ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {monthLeaves.map(l => {

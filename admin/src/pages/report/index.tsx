@@ -2,9 +2,10 @@
 import { useState, useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2 } from 'lucide-react'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportBarChart from '../../components/shared/ReportBarChart'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiDate } from '../../lib/format'
 
@@ -118,8 +119,8 @@ export default function ReportPage() {
 
   // ── มุมมอง: ปฏิทิน (1 เดือนเต็ม) หรือ ช่วงเวลาที่กำหนดเอง (ข้ามเดือนได้) ──
   const [viewMode, setViewMode] = useState<'month' | 'range'>('month')
-  // มุมมองการ์ด vs ตาราง — เฉพาะโหมด 'month' บนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว)
-  const [cardView, setCardView] = useState(false)
+  // มุมมองการ์ด/ตาราง/กราฟ — เฉพาะโหมด 'month' บนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว)
+  const [view, setView] = useState<'table' | 'card' | 'chart'>('table')
   const [rangeStart, setRangeStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10) })
   const [rangeEnd,   setRangeEnd]   = useState(() => new Date().toISOString().slice(0, 10))
   const [expandedRangeEmp, setExpandedRangeEmp] = useState<string | null>(null)
@@ -453,6 +454,21 @@ export default function ReportPage() {
   const totalAbsent  = records.filter(r => r.is_absent).length
   const totalFine    = records.reduce((s, r) => s + Number(r.fine) + Number(r.carried_fine), 0)
 
+  // แนวโน้มรายวันในเดือนที่เลือก — ใช้กับมุมมองกราฟ (เฉพาะโหมดปฏิทิน)
+  const dailyTrend = useMemo(() => {
+    if (viewMode !== 'month') return []
+    return days.map(d => {
+      const dateKey = toYMD(year, month, d)
+      const dayRecords = records.filter(r => r.date.slice(0, 10) === dateKey)
+      return {
+        day: String(d),
+        checkin: dayRecords.length,
+        late: dayRecords.filter(r => r.is_late).length,
+        absent: dayRecords.filter(r => r.is_absent).length,
+      }
+    })
+  }, [records, days, year, month, viewMode])
+
   // ── Status dot color for mobile mini-bar ────────────────────────────────────
   function dotColor(status: string) {
     if (status === 'ok')       return '#22c55e'
@@ -494,9 +510,9 @@ export default function ReportPage() {
         {/* Card/Table toggle — เฉพาะโหมดปฏิทินบนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว, ช่วงเวลาเป็นการ์ดเสมออยู่แล้ว) */}
         {viewMode === 'month' && !isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
-            {([[false, 'ตาราง', Table2], [true, 'การ์ด', LayoutGrid]] as const).map(([v, label, Icon]) => (
-              <button key={label} onClick={() => setCardView(v)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: cardView === v ? 700 : 500, background: cardView === v ? '#fff' : 'transparent', color: cardView === v ? '#f97316' : 'var(--text-muted)', boxShadow: cardView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+            {([['table', 'ตาราง', Table2], ['card', 'การ์ด', LayoutGrid], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setView(v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#f97316' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -697,7 +713,7 @@ export default function ReportPage() {
       )}
 
       {/* ── CARD VIEW: Employee cards (มือถือเสมอ, จอใหญ่ตอนเลือกมุมมองการ์ด) ── */}
-      {!isLoading && filteredEmployees.length > 0 && (isMobile || cardView) && viewMode === 'month' && (
+      {!isLoading && filteredEmployees.length > 0 && (isMobile || view === 'card') && viewMode === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredEmployees.map(({ info, byDate }) => {
             const presentDays = [...byDate.entries()].filter(([dk]) => {
@@ -869,8 +885,24 @@ export default function ReportPage() {
         </div>
       )}
 
+      {/* ── CHART VIEW: แนวโน้มรายวัน (จอใหญ่ตอนเลือกมุมมองกราฟ) ───────────────── */}
+      {!isLoading && filteredEmployees.length > 0 && !isMobile && view === 'chart' && viewMode === 'month' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>แนวโน้มเช็คอิน/มาสาย/ขาด รายวันตลอดเดือน {MONTHS_TH[month - 1]} {year + 543}</p>
+          <ReportBarChart
+            data={dailyTrend}
+            xKey="day"
+            series={[
+              { key: 'checkin', label: 'เช็คอิน', color: '#16a34a' },
+              { key: 'late', label: 'มาสาย', color: '#d97706' },
+              { key: 'absent', label: 'ขาด', color: '#dc2626' },
+            ]}
+          />
+        </div>
+      )}
+
       {/* ── TABLE VIEW: Matrix table (จอใหญ่ตอนเลือกมุมมองตาราง) ───────────────── */}
-      {!isLoading && filteredEmployees.length > 0 && !isMobile && !cardView && viewMode === 'month' && (
+      {!isLoading && filteredEmployees.length > 0 && !isMobile && view === 'table' && viewMode === 'month' && (
         <>
           {/* Legend */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)', overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>

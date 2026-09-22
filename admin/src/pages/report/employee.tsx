@@ -5,9 +5,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid } from 'lucide-react'
+import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportBarChart from '../../components/shared/ReportBarChart'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 interface ApiAttendance { id: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string; employee: { id: string } }
@@ -25,7 +26,7 @@ export default function EmployeeReportPage() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<'card' | 'table'>('table')
+  const [view, setView] = useState<'card' | 'table' | 'chart'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -70,6 +71,11 @@ export default function EmployeeReportPage() {
     totalFine: acc.totalFine + r.totalFine,
   }), { checkinCount: 0, lateCount: 0, totalFine: 0 }), [rows])
 
+  // กราฟแสดงได้จำกัด — เอาแค่ Top 10 คนที่มาสาย/ขาดรวมกันมากสุด กันกราฟแน่นเกินไปเวลามีพนักงานเยอะ
+  const chartRows = useMemo(() =>
+    [...rows].sort((a, b) => (b.lateCount + b.absentCount) - (a.lateCount + a.absentCount)).slice(0, 10),
+    [rows])
+
   const kpis = [
     { label: 'พนักงานรวม', value: rows.length, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -92,7 +98,7 @@ export default function EmployeeReportPage() {
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, marginLeft: 'auto' }}>
-            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
@@ -137,6 +143,18 @@ export default function EmployeeReportPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : view === 'chart' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>แสดง Top 10 พนักงานที่มาสาย/ขาดรวมกันมากสุดในเดือนนี้</p>
+          <ReportBarChart
+            data={chartRows.map(r => ({ name: `${r.employee.first_name} ${r.employee.last_name}`, late: r.lateCount, absent: r.absentCount }))}
+            xKey="name"
+            series={[
+              { key: 'late', label: 'มาสาย', color: '#d97706' },
+              { key: 'absent', label: 'ขาด', color: '#dc2626' },
+            ]}
+          />
         </div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>

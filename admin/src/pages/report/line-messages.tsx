@@ -5,9 +5,10 @@
 // ย้อนหลังก่อนหน้านี้ไม่มีให้ดู
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid } from 'lucide-react'
+import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportBarChart from '../../components/shared/ReportBarChart'
 
 interface ApiLineLog {
   id: string; category: string; recipient_type: 'EMPLOYEE' | 'ADMIN'
@@ -36,7 +37,7 @@ export default function LineMessagesReportPage() {
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [view, setView]   = useState<'card' | 'table'>('table')
+  const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -63,6 +64,18 @@ export default function LineMessagesReportPage() {
     return [...map.entries()].sort((a, b) => b[1] - a[1])
   }, [logs])
 
+  const categoryChartData = useMemo(() => {
+    const map = new Map<string, { success: number; failed: number }>()
+    for (const l of logs) {
+      const cur = map.get(l.category) ?? { success: 0, failed: 0 }
+      if (l.success) cur.success++; else cur.failed++
+      map.set(l.category, cur)
+    }
+    return [...map.entries()]
+      .map(([cat, v]) => ({ name: CATEGORY_LABEL[cat] ?? cat, ...v }))
+      .sort((a, b) => (b.success + b.failed) - (a.success + a.failed))
+  }, [logs])
+
   const kpis = [
     { label: 'ส่งทั้งหมด', value: totals.total, icon: <MessageCircle size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'สำเร็จ', value: totals.success, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -80,7 +93,7 @@ export default function LineMessagesReportPage() {
         </div>
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
-            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
@@ -120,6 +133,15 @@ export default function LineMessagesReportPage() {
           <MessageCircle size={22} style={{ marginBottom: 8 }} /><div>ไม่มีการส่งข้อความไลน์ในเดือนนี้</div>
           <div style={{ fontSize: '11.5px', marginTop: 4 }}>(ระบบเริ่มบันทึกประวัติการส่งตั้งแต่ 22 กันยายน 2569 เป็นต้นไป ย้อนหลังก่อนหน้านี้ไม่มีข้อมูล)</div>
         </div>
+      ) : view === 'chart' ? (
+        <ReportBarChart
+          data={categoryChartData}
+          xKey="name"
+          series={[
+            { key: 'success', label: 'สำเร็จ', color: '#16a34a' },
+            { key: 'failed', label: 'ล้มเหลว', color: '#dc2626' },
+          ]}
+        />
       ) : (isMobile || view === 'card') ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {logs.map(l => (
