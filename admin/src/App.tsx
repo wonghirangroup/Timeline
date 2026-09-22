@@ -1,6 +1,6 @@
 // admin/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { TrendingUp, Users, Building2, CalendarOff, CalendarDays, MessageCircle } from 'lucide-react'
+import { TrendingUp, Users, CalendarOff, CalendarDays, MessageCircle } from 'lucide-react'
 import './index.css'
 import { useAuthStore } from './stores/authStore'
 import Layout               from './components/layout/Layout'
@@ -11,6 +11,7 @@ import EmployeePage         from './pages/employee'
 import BranchPage           from './pages/branch'
 import LeavePage            from './pages/leave'
 import ReportPage           from './pages/report'
+import BranchReportPage     from './pages/report/branch'
 import AttendancePage       from './pages/attendance'
 import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
@@ -55,7 +56,7 @@ function AdminRoutes() {
             เนื้อหาจริงยังไม่มี ทยอยเปลี่ยนเป็นหน้าจริงทีละหมวดทีหลัง */}
         <Route path="/report/executive"     element={<ComingSoonReport title="รายงานผู้บริหาร" icon={<TrendingUp size={24} />} />} />
         <Route path="/report/employee"      element={<ComingSoonReport title="รายงานพนักงาน" icon={<Users size={24} />} />} />
-        <Route path="/report/branch"        element={<ComingSoonReport title="รายงานสาขา" icon={<Building2 size={24} />} />} />
+        <Route path="/report/branch"        element={<BranchReportPage />} />
         <Route path="/report/holiday"       element={<ComingSoonReport title="รายงานวันหยุด" icon={<CalendarOff size={24} />} />} />
         <Route path="/report/leave"         element={<ComingSoonReport title="รายงานวันลา" icon={<CalendarDays size={24} />} />} />
         <Route path="/report/line-messages" element={<ComingSoonReport title="รายงานการส่งข้อความไลน์" icon={<MessageCircle size={24} />} />} />
