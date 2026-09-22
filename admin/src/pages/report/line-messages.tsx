@@ -5,7 +5,7 @@
 // ย้อนหลังก่อนหน้านี้ไม่มีให้ดู
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle, Check, X, Users, Shield } from 'lucide-react'
+import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -36,6 +36,7 @@ export default function LineMessagesReportPage() {
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [view, setView]   = useState<'card' | 'table'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -71,10 +72,23 @@ export default function LineMessagesReportPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-        <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
+          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
+          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+        </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
@@ -105,6 +119,26 @@ export default function LineMessagesReportPage() {
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
           <MessageCircle size={22} style={{ marginBottom: 8 }} /><div>ไม่มีการส่งข้อความไลน์ในเดือนนี้</div>
           <div style={{ fontSize: '11.5px', marginTop: 4 }}>(ระบบเริ่มบันทึกประวัติการส่งตั้งแต่ 22 กันยายน 2569 เป็นต้นไป ย้อนหลังก่อนหน้านี้ไม่มีข้อมูล)</div>
+        </div>
+      ) : (isMobile || view === 'card') ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {logs.map(l => (
+            <div key={l.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.85rem' }}>{l.title}</div>
+                {l.success ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', fontWeight: 700, color: '#16a34a', background: '#f0fdf4', borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}><Check size={10}/> สำเร็จ</span>
+                ) : (
+                  <span title={l.error_message ?? ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', fontWeight: 700, color: '#dc2626', background: '#fef2f2', borderRadius: 99, padding: '2px 8px', flexShrink: 0, cursor: l.error_message ? 'help' : 'default' }}><X size={10}/> ล้มเหลว</span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                {l.recipient_type === 'EMPLOYEE' ? <Users size={11} color="#94a3b8" /> : <Shield size={11} color="#94a3b8" />}
+                {l.recipient_label}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{CATEGORY_LABEL[l.category] ?? l.category} · {fmtDateTime(l.created_at)}</div>
+            </div>
+          ))}
         </div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search } from 'lucide-react'
+import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search, Table2, LayoutGrid } from 'lucide-react'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -151,6 +151,7 @@ export default function OtPage() {
 
   const [statusFilter, setStatusFilter] = useState<OtStatus | ''>('')
   const [search, setSearch] = useState('')
+  const [listView, setListView] = useState<'card' | 'table'>('table')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [rejectTarget, setRejectTarget] = useState<OtRequest | null>(null)
   const [rejectNote, setRejectNote]     = useState('')
@@ -443,12 +444,23 @@ export default function OtPage() {
           </select>
           {/* Org Filter */}
           <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
+          {!isMobile && (
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0, marginLeft: 'auto' }}>
+              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                <button key={v} onClick={() => setListView(v)}
+                  title={label}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Table / Cards ── */}
       <div style={{ ...card, overflow: 'hidden' }}>
-        {isMobile ? (
+        {(isMobile || listView === 'card') ? (
           <div>
             {paginated.map((r, i) => {
               const s  = STATUS_CFG[r.status]

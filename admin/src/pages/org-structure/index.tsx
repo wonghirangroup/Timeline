@@ -4,11 +4,12 @@
 // ที่อยู่ของ policy cascade (booking_enabled) ด้วย ไม่ใช่แค่ label เฉยๆ แบบเวอร์ชันก่อน
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye } from 'lucide-react'
+import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -127,6 +128,8 @@ const quotaInputStyle: React.CSSProperties = { ...inputStyle, width: 90 }
 function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
+  const isMobile = useIsMobile()
+  const [view, setView] = useState<'card' | 'table'>('card')
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
   const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5' })
   const [deleteTarget, setDeleteTarget] = useState<GroupT | null>(null)
@@ -175,11 +178,25 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
         <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)', maxWidth: 480 }}>
           กลุ่ม (บริษัท) คั่นระหว่างสาขากับผังองค์กร — กำหนดสิทธิ์จองวันหยุด/การลา เริ่มต้นของทุกสาขา/ฝ่าย/แผนก/ตำแหน่ง/พนักงานในกลุ่มนั้น (ชั้นล่างกว่า override ได้)
         </p>
-        <button style={btnPrimary} onClick={openAdd}><Plus size={14}/> เพิ่มกลุ่ม</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {!isMobile && (
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                <button key={v} onClick={() => setView(v)}
+                  title={label}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <button style={btnPrimary} onClick={openAdd}><Plus size={14}/> เพิ่มกลุ่ม</button>
+        </div>
       </div>
 
       <PlanMeter kind="groups" />
 
+      {(isMobile || view === 'card') && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {groups.length === 0 && <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีกลุ่ม</div>}
         {groups.map(g => {
@@ -236,6 +253,84 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
           )
         })}
       </div>
+      )}
+
+      {!isMobile && view === 'table' && (
+        groups.length === 0 ? (
+          <div style={{ ...card, textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีกลุ่ม</div>
+        ) : (
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                  {['กลุ่ม', 'สาขาในกลุ่ม', 'สิทธิ์', 'กฎวันหยุด', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((g, idx) => {
+                  const groupBranches = branches.filter(b => b.group_id === g.id)
+                  return (
+                    <tr key={g.id} style={{ borderBottom: idx < groups.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
+                            <Landmark size={14} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#111827' }}>{g.name}</div>
+                            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{g._count.branches} สาขา · {g._count.divisions} ฝ่าย</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        {groupBranches.length === 0
+                          ? <span style={{ color: '#d1d5db', fontStyle: 'italic', fontSize: '11.5px' }}>ยังไม่มีสาขา</span>
+                          : (
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 220 }}>
+                              {groupBranches.map(b => (
+                                <span key={b.id} style={{ fontSize: '11px', color: '#374151', background: '#f9fafb', padding: '2px 8px', borderRadius: 99, border: '1px solid #e5e7eb' }}>{b.name}</span>
+                              ))}
+                            </div>
+                          )}
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: g.booking_enabled ? '#16a34a' : '#dc2626', width: 'fit-content' }}>{g.booking_enabled ? '✓ จองวันหยุดได้' : '✕ จองวันหยุดไม่ได้'}</span>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: g.leave_enabled ? '#16a34a' : '#dc2626', width: 'fit-content' }}>{g.leave_enabled ? '✓ ลาได้' : '✕ ลาไม่ได้'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#475569', fontSize: '11.5px' }}>
+                        ส {g.saturday_rule === 'WORK' ? 'ทำงาน' : g.saturday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · อา {g.sunday_rule === 'WORK' ? 'ทำงาน' : g.sunday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'}
+                        <div>จอง {g.booking_quota ?? 5} วัน/ด.</div>
+                      </td>
+                      <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button onClick={onViewTree} title="ดูผังองค์กร"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px dashed #f97316', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Eye size={13} />
+                          </button>
+                          <button onClick={() => openEdit(g)} title="แก้ไข"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setDeleteTarget(g)} title="ลบ"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        )
+      )}
 
       {modal && (
         <div style={modalOverlay} onClick={() => setModal(null)}>

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2 } from 'lucide-react'
+import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -86,6 +86,7 @@ export default function AnnouncementPage() {
   const isMobile = useIsMobile()
   const qc = useQueryClient()
   const [tab, setTab] = useState<'broadcast' | 'direct' | 'feedback'>('broadcast')
+  const [feedbackView, setFeedbackView] = useState<'card' | 'table'>('table')
 
   const { data: feedbacks = [] } = useQuery<ApiFeedback[]>({
     queryKey: ['admin', 'feedback'],
@@ -388,9 +389,22 @@ export default function AnnouncementPage() {
             })}
           </div>
 
-          {/* Feedback list — cards on mobile, table on desktop */}
+          {/* Feedback list — cards on mobile, การ์ด/ตาราง เลือกเองได้บน desktop */}
+          {!isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+              <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+                {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                  <button key={v} onClick={() => setFeedbackView(v)}
+                    title={label}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: feedbackView === v ? 700 : 500, background: feedbackView === v ? '#fff' : 'transparent', color: feedbackView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: feedbackView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                    <Icon size={13} /> {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-            {isMobile ? (
+            {(isMobile || feedbackView === 'card') ? (
               <div>
                 {feedbacks.map((f, i) => {
                   const cfg = FEEDBACK_CATEGORY_CFG[f.category] ?? FEEDBACK_CATEGORY_CFG.OTHER

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MapPin, Clock, ExternalLink, Navigation } from 'lucide-react'
+import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -54,6 +54,7 @@ function duration(startIso: string, endIso: string | null): string {
 export default function OffsitePage() {
   const isMobile = useIsMobile()
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  const [listView, setListView]   = useState<'card' | 'table'>('table')
 
   const { data: rows = [] } = useQuery<ApiOffsiteCheckin[]>({
     queryKey: ['admin', 'offsite-checkins'],
@@ -100,11 +101,22 @@ export default function OffsitePage() {
       {/* ── Filter ── */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
+        {!isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0, marginLeft: 'auto' }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setListView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── List ── */}
       <div style={{ ...card, overflow: 'hidden' }}>
-        {isMobile ? (
+        {(isMobile || listView === 'card') ? (
           <div>
             {filtered.map((r, i) => (
               <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: !r.check_out_at ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>

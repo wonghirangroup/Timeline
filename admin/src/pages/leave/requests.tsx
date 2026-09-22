@@ -1,7 +1,7 @@
 // admin/src/pages/leave/requests.tsx
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Check, X, CalendarDays, Search, AlertTriangle } from 'lucide-react'
+import { Pencil, Trash2, Check, X, CalendarDays, Search, AlertTriangle, Table2, LayoutGrid } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
@@ -194,6 +194,7 @@ export default function LeaveRequestsTab() {
   const [statusFilter, setStatus] = useState<'' | LeaveStatus>('')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [search, setSearch]       = useState('')
+  const [listView, setListView]   = useState<'card' | 'table'>('table')
   const [monthFilter, setMonth]   = useState(() => new Date().toISOString().slice(0, 7))
 
   const [rejectTarget, setRejectTarget]   = useState<ApiLeaveRequest | null>(null)
@@ -609,6 +610,17 @@ export default function LeaveRequestsTab() {
               <option value="APPROVED">อนุมัติ</option>
               <option value="REJECTED">ไม่อนุมัติ</option>
             </select>
+            {!isMobile && (
+              <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
+                {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                  <button key={v} onClick={() => setListView(v)}
+                    title={label}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                    <Icon size={13} /> {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {!isReadOnly && pendingVisible.length > 0 && (
@@ -625,7 +637,7 @@ export default function LeaveRequestsTab() {
 
           {!loading && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', marginBottom: selectedIds.size > 0 ? 76 : 0 }}>
-              {isMobile ? (
+              {(isMobile || listView === 'card') ? (
                 <div>
                   {filtered.length === 0 && (
                     requests.length === 0

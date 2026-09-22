@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -227,6 +227,7 @@ export default function AttendancePage() {
   // + เปิดโมดัลลงบันทึกให้คนนั้นทันที
   const [searchParams, setSearchParams] = useSearchParams()
   const [date, setDate]           = useState(() => searchParams.get('date') || todayStr())
+  const [listView, setListView]   = useState<'card' | 'table'>('table')
   const autoOpenedRef = useRef(false)
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   // สาขายังเป็นตัวขับ query ฝั่ง server เหมือนเดิม (endpoint employees/attendance/shifts
@@ -695,6 +696,17 @@ export default function AttendancePage() {
               style={{ ...inp, width: '100%', paddingLeft: 30, borderRadius: 10, boxSizing: 'border-box' }} />
           </div>
           <button onClick={() => refetch()} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
+          {!isMobile && (
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
+              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                <button key={v} onClick={() => setListView(v)}
+                  title={label}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -703,7 +715,7 @@ export default function AttendancePage() {
       {/* Table */}
       {!loading && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
-          {isMobile ? (
+          {(isMobile || listView === 'card') ? (
             <div {...swipeHandlers}>
               {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</p>}
               {paginated.map(row => {

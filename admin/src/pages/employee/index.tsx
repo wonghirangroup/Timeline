@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard, Table2, LayoutGrid } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -191,6 +191,7 @@ export default function EmployeePage() {
   const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
+  const [listView, setListView]       = useState<'card' | 'table'>('table')
   const [orgFilter, setOrgFilter]     = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
   const [lineFilter, setLineFilter]   = useState<'' | 'linked' | 'unlinked'>('')
@@ -506,6 +507,15 @@ export default function EmployeePage() {
               <option value="linked">✓ ผูกแล้ว</option>
               <option value="unlinked">ยังไม่ผูก</option>
             </select>
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
+              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+                <button key={v} onClick={() => setListView(v)}
+                  title={label}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#ea580c' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
           </>)}
 
           {/* Mobile filter button */}
@@ -575,7 +585,7 @@ export default function EmployeePage() {
       {loading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>กำลังโหลด...</p>}
 
       {/* Desktop table */}
-      {!loading && !isMobile && (
+      {!loading && !isMobile && listView === 'table' && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
@@ -678,8 +688,8 @@ export default function EmployeePage() {
         </div>
       )}
 
-      {/* Mobile cards */}
-      {!loading && isMobile && (
+      {/* Cards (มือถือบังคับเสมอ / desktop เลือกเองได้) */}
+      {!loading && (isMobile || listView === 'card') && (
         <div {...swipeHandlers} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.length === 0 && (
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0', fontSize: '13px' }}>ไม่พบพนักงาน</p>

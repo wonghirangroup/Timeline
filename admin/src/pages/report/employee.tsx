@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, ClipboardCheck, AlertTriangle, Wallet } from 'lucide-react'
+import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -25,6 +25,7 @@ export default function EmployeeReportPage() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')
+  const [view, setView] = useState<'card' | 'table'>('table')
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -89,6 +90,17 @@ export default function EmployeeReportPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"
             style={{ width: '100%', padding: '7px 12px 7px 30px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', boxSizing: 'border-box', fontFamily: 'inherit' }} />
         </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, marginLeft: 'auto' }}>
+            {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              <button key={v} onClick={() => setView(v)}
+                title={label}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
@@ -107,6 +119,25 @@ export default function EmployeeReportPage() {
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>กำลังโหลด...</div>
       ) : rows.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>ไม่พบพนักงาน</div>
+      ) : (isMobile || view === 'card') ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {rows.map(r => (
+            <div key={r.employee.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
+              <button onClick={() => navigate(`/employee/${r.employee.id}`)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'block', marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2, fontSize: '0.9rem' }}>{r.employee.first_name} {r.employee.last_name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.employee.nickname} · {r.employee.employee_code} · {r.employee.branch.name}</div>
+              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: '0.78rem' }}>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>เช็คอิน</div><div style={{ fontWeight: 700, color: '#16a34a' }}>{r.checkinCount}</div></div>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>มาสาย</div><div style={{ fontWeight: 700, color: r.lateCount > 0 ? '#d97706' : '#94a3b8' }}>{r.lateCount}</div></div>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ขาด</div><div style={{ fontWeight: 700, color: r.absentCount > 0 ? '#dc2626' : '#94a3b8' }}>{r.absentCount}</div></div>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ค่าปรับ (฿)</div><div style={{ fontWeight: 700, color: r.totalFine > 0 ? '#dc2626' : '#94a3b8' }}>{r.totalFine.toLocaleString()}</div></div>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ลา (วัน)</div><div style={{ fontWeight: 700, color: r.leaveDays > 0 ? '#374151' : '#94a3b8' }}>{r.leaveDays}</div></div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
