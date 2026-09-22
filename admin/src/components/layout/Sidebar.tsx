@@ -4,6 +4,7 @@ import {
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2, DoorOpen, FileText,
+  TrendingUp, CalendarOff, MessageCircle,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
@@ -27,6 +28,12 @@ interface NavSection {
 }
 
 // ── Flat nav — ไม่มี dropdown ทั้งหมด ──────────────────────────────────────
+// จัดกลุ่มใหม่ (feedback 2026-09-22): ภาพรวม / ข้อมูล / การกระทำ / รายงาน (แยก
+// หมวดย่อย) / ตั้งค่า — "กะและเวลา" เปลี่ยนชื่อเป็น "เช็คอิน" เพราะเนื้อหาจริง
+// ของหน้า /shift คือ "เช็คอินวันนี้" + "ตารางกะ" (ไม่ใช่หน้าจัดการนิยามกะ ซึ่ง
+// อยู่ในแท็บ "จัดการกะ" ของหน้าสาขาต่างหาก) — OT/คำขอลาออก/ขอเอกสาร HR/ประกาศ
+// ที่ user ไม่ได้ระบุตำแหน่งชัดเจน จัดไว้ใน "การกระทำ" ต่อจาก 3 อันที่ระบุมา
+// (ทั้งหมดเป็น workflow อนุมัติ/ดำเนินการเหมือนกัน)
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
@@ -34,34 +41,35 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'บุคลากร',
+    label: 'ข้อมูล',
     items: [
-      { path: '/employee',     label: 'พนักงาน',      icon: <Users     size={16}/> },
       { path: '/branch',       label: 'สาขา',         icon: <Building2 size={16}/> },
+      { path: '/employee',     label: 'พนักงาน',      icon: <Users     size={16}/> },
       { path: '/master-data',  label: 'Master Data',  icon: <Table2    size={16}/>, roles: ['SUPER_ADMIN', 'ADMIN', 'EXECUTIVE'] },
     ],
   },
   {
-    label: 'กะ & เวลา',
+    label: 'การกระทำ',
     items: [
-      { path: '/shift', label: 'กะ & เวลา', icon: <Clock size={16}/> },
+      { path: '/shift',    label: 'เช็คอิน',            icon: <Clock       size={16}/> },
+      { path: '/leave',    label: 'การลา และ วันหยุด',  feature: 'leave_management', icon: <CalendarDays size={16}/> },
+      { path: '/offsite',  label: 'เช็คอินนอกสถานที่',  feature: 'gps_checkin', icon: <MapPin size={16}/> },
+      { path: '/ot',                  label: 'OT',          feature: 'ot_management',  icon: <FileClock size={16}/> },
+      { path: '/resignations',        label: 'คำขอลาออก',   feature: 'resignation',    icon: <DoorOpen  size={16}/> },
+      { path: '/document-requests',   label: 'ขอเอกสาร HR', feature: 'document_request', icon: <FileText size={16}/> },
+      { path: '/announcement',        label: 'ประกาศ',      feature: 'announcement',   icon: <Megaphone size={16}/> },
     ],
   },
   {
-    label: 'การลา',
+    label: 'รายงาน',
     items: [
-      { path: '/leave', label: 'การลา & วันหยุด', feature: 'leave_management', icon: <CalendarDays size={16}/> },
-      { path: '/resignations', label: 'คำขอลาออก', feature: 'resignation', icon: <DoorOpen size={16}/> },
-      { path: '/document-requests', label: 'ขอเอกสาร HR', feature: 'document_request', icon: <FileText size={16}/> },
-    ],
-  },
-  {
-    label: 'รายงาน & อื่นๆ',
-    items: [
-      { path: '/ot',           label: 'OT',      feature: 'ot_management', icon: <FileClock size={16}/> },
-      { path: '/offsite',      label: 'เช็คอินนอกสถานที่', feature: 'gps_checkin', icon: <MapPin size={16}/> },
-      { path: '/report',       label: 'รายงาน',                             icon: <BarChart2 size={16}/> },
-      { path: '/announcement', label: 'ประกาศ',  feature: 'announcement',  icon: <Megaphone size={16}/> },
+      { path: '/report/executive',     label: 'รายงานผู้บริหาร',        icon: <TrendingUp   size={16}/> },
+      { path: '/report/employee',      label: 'รายงานพนักงาน',          icon: <Users        size={16}/> },
+      { path: '/report',               label: 'รายงานการเช็คอิน',       icon: <BarChart2    size={16}/> },
+      { path: '/report/branch',        label: 'รายงานสาขา',             icon: <Building2    size={16}/> },
+      { path: '/report/holiday',       label: 'รายงานวันหยุด',          icon: <CalendarOff  size={16}/> },
+      { path: '/report/leave',         label: 'รายงานวันลา',            icon: <CalendarDays size={16}/> },
+      { path: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', icon: <MessageCircle size={16}/> },
     ],
   },
 ]
@@ -165,7 +173,12 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
   // ── helper: icon-centered nav link ───────────────────────────────────────
   function NavItem({ item, accent }: { item: { path: string; label: string; icon: JSX.Element; badge?: number }; accent: SecAccent }) {
     // highlight ค้างไว้ถ้ายังอยู่ในหน้าลูกของเมนูนี้ เช่น /employee/:id ก็ยัง highlight "พนักงาน"
-    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+    // ยกเว้น /report — เดิม prefix-match ทำให้ "รายงานการเช็คอิน" (path /report)
+    // ค้าง highlight ตอนเข้าหน้ารายงานหมวดอื่นด้วย (/report/branch ฯลฯ) เพราะ
+    // ตอนนี้เป็น sibling routes แยกกัน ไม่ใช่หน้าลูกของ /report จริง (feedback
+    // 2026-09-22 "จัดกลุ่มรายงานใหม่แยก 7 หมวด")
+    const isActive = location.pathname === item.path ||
+      (item.path !== '/report' && location.pathname.startsWith(item.path + '/'))
     return (
       <NavLink
         to={item.path}

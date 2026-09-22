@@ -1,8 +1,10 @@
 // admin/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { TrendingUp, Users, Building2, CalendarOff, CalendarDays, MessageCircle } from 'lucide-react'
 import './index.css'
 import { useAuthStore } from './stores/authStore'
 import Layout               from './components/layout/Layout'
+import ComingSoonReport     from './components/shared/ComingSoonReport'
 import LoginPage            from './pages/login'
 import DashboardPage        from './pages/dashboard'
 import EmployeePage         from './pages/employee'
@@ -49,6 +51,14 @@ function AdminRoutes() {
         <Route path="/ot"            element={<OtPage />} />
         <Route path="/offsite"       element={<OffsitePage />} />
         <Route path="/report"        element={<ReportPage />} />
+        {/* หมวดรายงานใหม่ (feedback 2026-09-22) — โครง sidebar/route พร้อมก่อน
+            เนื้อหาจริงยังไม่มี ทยอยเปลี่ยนเป็นหน้าจริงทีละหมวดทีหลัง */}
+        <Route path="/report/executive"     element={<ComingSoonReport title="รายงานผู้บริหาร" icon={<TrendingUp size={24} />} />} />
+        <Route path="/report/employee"      element={<ComingSoonReport title="รายงานพนักงาน" icon={<Users size={24} />} />} />
+        <Route path="/report/branch"        element={<ComingSoonReport title="รายงานสาขา" icon={<Building2 size={24} />} />} />
+        <Route path="/report/holiday"       element={<ComingSoonReport title="รายงานวันหยุด" icon={<CalendarOff size={24} />} />} />
+        <Route path="/report/leave"         element={<ComingSoonReport title="รายงานวันลา" icon={<CalendarDays size={24} />} />} />
+        <Route path="/report/line-messages" element={<ComingSoonReport title="รายงานการส่งข้อความไลน์" icon={<MessageCircle size={24} />} />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
         <Route path="/master-data"   element={<MasterDataPage />} />
