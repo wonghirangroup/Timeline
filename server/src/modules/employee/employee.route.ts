@@ -165,7 +165,7 @@ export async function employeeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employees/:id/admin-access — ให้/ถอนสิทธิ์เข้าเว็บแอดมิน
   app.patch('/employees/:id/admin-access', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
       summary: 'ให้/ถอนสิทธิ์เข้าเว็บแอดมินของพนักงาน — role=null ถอนสิทธิ์, มี role ครั้งแรกต้องส่ง email เพื่อสร้างบัญชี (ได้รหัสชั่วคราวกลับมา)',

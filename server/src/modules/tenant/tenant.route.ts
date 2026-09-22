@@ -232,7 +232,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // GET /api/v1/super-admin/users
   app.get('/users', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการ User (Admin/Manager) ทั้งหมด',
@@ -245,7 +245,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // POST /api/v1/super-admin/users
   app.post('/users', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
       summary: 'สร้าง User (Admin/Manager/ผู้บริหาร/หัวหน้าแผนก)',
@@ -276,7 +276,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // GET /api/v1/super-admin/users/:id/departments — แผนกที่หัวหน้าแผนกคนนี้ดูแล
   app.get('/users/:id/departments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG], summary: 'ดูแผนกที่ user (DEPT_HEAD) คนนี้ดูแล', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -285,7 +285,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // PUT /api/v1/super-admin/users/:id/departments — ตั้งใหม่ทั้งชุด
   app.put('/users/:id/departments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG], summary: 'ตั้งแผนกที่ user (DEPT_HEAD) ดูแล (แทนที่ทั้งชุด)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -303,7 +303,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/super-admin/users/:id
   app.patch('/users/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
       summary: 'แก้ไข User',
@@ -327,7 +327,7 @@ export async function tenantRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/super-admin/users/:id
   app.delete('/users/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
     schema: {
       tags: [TAG],
       summary: 'ลบ User (soft delete)',
