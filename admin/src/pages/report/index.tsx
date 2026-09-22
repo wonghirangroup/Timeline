@@ -622,7 +622,10 @@ export default function ReportPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {info.first_name} {info.last_name}
+                      <button onClick={e => { e.stopPropagation(); navigate(`/employee/${info.id}`) }}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
+                        {info.first_name} {info.last_name}
+                      </button>
                       {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{info.employee_code} · {info.branch.name}</div>
@@ -730,7 +733,10 @@ export default function ReportPage() {
                   {/* Name + summary */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {info.first_name} {info.last_name}
+                      <button onClick={e => { e.stopPropagation(); navigate(`/employee/${info.id}`) }}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
+                        {info.first_name} {info.last_name}
+                      </button>
                       {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{info.employee_code} · {info.branch.name}</div>
@@ -918,10 +924,11 @@ export default function ReportPage() {
                       <td style={{ padding: '8px 14px', position: 'sticky', left: 0, background: '#fff', zIndex: 1, borderRight: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
                           <div>
-                            <div style={{ fontWeight: 600, color: 'var(--text-dark)', whiteSpace: 'nowrap' }}>
-                              {info.first_name} {info.last_name}
+                            <button onClick={() => navigate(`/employee/${info.id}`)}
+                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontWeight: 600, color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2 }}>{info.first_name} {info.last_name}</span>
                               {info.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>({info.nickname})</span>}
-                            </div>
+                            </button>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
                             {noDataByEmp.has(info.id) && (
                               <div style={{ fontSize: '0.66rem', color: '#7c3aed', fontWeight: 600, marginTop: 2 }} title={fmtMissingDates(noDataByEmp.get(info.id)!)}>

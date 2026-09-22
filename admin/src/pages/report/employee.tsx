@@ -124,7 +124,7 @@ export default function EmployeeReportPage() {
                   <td style={{ padding: '10px 12px' }}>
                     <button onClick={() => navigate(`/employee/${r.employee.id}`)}
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                      <div style={{ fontWeight: 700, color: '#ea580c' }}>{r.employee.first_name} {r.employee.last_name}</div>
+                      <div style={{ fontWeight: 700, color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.employee.nickname} · {r.employee.employee_code}</div>
                     </button>
                   </td>

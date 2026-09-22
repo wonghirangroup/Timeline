@@ -3,6 +3,7 @@
 // (feedback 2026-09-22 "เอาทุกหมวดก่อนแล้วค่อยทำไลน์อันสุดท้าย")
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check, Clock } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -10,7 +11,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 interface ApiLeave {
   id: string; leave_type: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   start_date: string; end_date: string; days: number
-  employee: { first_name: string; last_name: string; nickname: string | null; branch: { name: string } }
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; branch: { name: string } }
 }
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
@@ -30,6 +31,7 @@ function toYMD(year: number, month: number, day: number) { return `${year}-${Str
 
 export default function LeaveReportPage() {
   const isMobile = useIsMobile()
+  const navigate = useNavigate()
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -128,9 +130,12 @@ export default function LeaveReportPage() {
                 const statusBg    = l.status === 'APPROVED' ? '#f0fdf4' : l.status === 'PENDING' ? '#fffbeb' : '#f9fafb'
                 return (
                   <tr key={l.id} style={{ borderBottom: idx < monthLeaves.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#111827' }}>
-                      {l.employee.first_name} {l.employee.last_name}
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{l.employee.nickname}</div>
+                    <td style={{ padding: '10px 12px' }}>
+                      <button onClick={() => navigate(`/employee/${l.employee.id}`)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                        <div style={{ fontWeight: 700, color: '#ea580c', textDecoration: 'underline', textUnderlineOffset: 2 }}>{l.employee.first_name} {l.employee.last_name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{l.employee.nickname}</div>
+                      </button>
                     </td>
                     <td style={{ padding: '10px 12px', color: '#64748b' }}>{l.employee.branch.name}</td>
                     <td style={{ padding: '10px 12px' }}>
