@@ -2,6 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import bcrypt from 'bcryptjs'
 import { randomInt } from 'crypto'
+import { seedPermissionsFromTemplate } from '../permissions/permission.service'
 
 // สุ่มรหัสผ่านชั่วคราว เช่น "Tmp#Ab3xK9pQ" — ตัวพิมพ์ใหญ่/เล็ก+ตัวเลข+สัญลักษณ์
 // ให้ผ่านเงื่อนไข "8+ ตัว, ตัวพิมพ์ใหญ่, ตัวเลข" ตามที่ระบุใน onboarding flow แน่นอน
@@ -60,6 +61,10 @@ export async function createUser(
       skipDuplicates: true,
     })
   }
+
+  // สิทธิ์แบบละเอียด — เริ่มต้นจากเทมเพลตของ role นี้ แก้ไขรายบัญชีทีหลังได้
+  // (feedback 2026-09-22) ยังไม่มีผลต่อการเข้าถึงจริง (Phase 1 — ดู brain log v187)
+  if (tenantId) await seedPermissionsFromTemplate(tenantId, user.id, data.role)
 
   return user
 }

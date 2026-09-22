@@ -16,6 +16,7 @@ import {
 import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
 import { updateUser } from '../tenant/user.service'
+import { getUserPermissions } from '../permissions/permission.service'
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -245,6 +246,11 @@ export async function authRoutes(app: FastifyInstance) {
         where: { id: request.user.id },
         select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true },
       })
+      // สิทธิ์แบบละเอียดของบัญชีตัวเอง — เตรียมไว้ให้ frontend เก็บล่วงหน้า
+      // (Phase 1 ยังไม่มีหน้าไหนใช้ซ่อน/แสดงปุ่มจากค่านี้จริง ดู brain log v187)
+      const permissions = request.user.tenant_id
+        ? await getUserPermissions(request.user.tenant_id, request.user.id)
+        : null
       return {
         success: true,
         data: {
@@ -254,6 +260,7 @@ export async function authRoutes(app: FastifyInstance) {
           last_name: fresh?.last_name ?? null,
           enabled_features,
           must_change_password: fresh?.must_change_password ?? false,
+          permissions,
         },
       }
     } catch (err) {

@@ -56,6 +56,7 @@ model Tenant {
   positions             Position[]
   employee_status_types EmployeeStatusType[]
   line_message_logs     LineMessageLog[]
+  feature_permissions   FeaturePermission[]
 
   @@map("tenants")
 }
@@ -113,9 +114,37 @@ model User {
   managed_departments UserDepartment[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (many-to-many, ดูแลได้หลายแผนก)
   linked_employee     Employee?        @relation("EmployeeAdminUser") // พนักงานที่ผูกบัญชีนี้ไว้ (ถ้าสร้างผ่านหน้าพนักงาน)
   magic_login_tokens  MagicLoginToken[]
+  feature_permissions FeaturePermission[]
 
   @@index([tenant_id])
   @@map("users")
+}
+
+// สิทธิ์แบบละเอียดต่อบัญชี — โมดูล(feature) × การกระทำ 5 อย่าง เสริมจาก role
+// หลัก (UserRole) ไม่ได้แทนที่ — role ยังกำหนด "เข้าแอปได้ในฐานะอะไร" เหมือน
+// เดิม ส่วนตารางนี้กำหนด "ทำอะไรได้บ้างในแต่ละเมนู" ละเอียดกว่า role เฉยๆ
+// (feedback 2026-09-22 "อยากได้แบบนี้สามารถจัดการฟีเจอร์ได้อย่างละเอียด")
+// Phase 1: มีตาราง+หน้าจัดการแล้ว แต่ endpoint จริงยังเช็คแค่ requireRole
+// เดิมอยู่ (ยังไม่ enforce) — ดู brain log v187 เหตุผลที่แยกเฟส
+model FeaturePermission {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  user_id     String
+  feature     String // key ตรงกับเมนู sidebar เช่น "employee", "branch", "leave" (ดู server/src/common/permissions/features.ts)
+  can_view    Boolean  @default(false)
+  can_add     Boolean  @default(false)
+  can_edit    Boolean  @default(false)
+  can_delete  Boolean  @default(false)
+  can_approve Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([user_id, feature])
+  @@index([tenant_id])
+  @@map("feature_permissions")
 }
 
 // ── auto-login ทางเดียว (magic link) — feedback 2026-09-15: "กดเข้าจากแจ้งเตือนไลน์/

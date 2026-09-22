@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../../common/utils/prisma'
 import { assertPlanCapacity } from '../tenant/tenant.service'
 import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
+import { seedPermissionsFromTemplate } from '../permissions/permission.service'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POLICY_FIELDS = { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } as const
@@ -167,6 +168,9 @@ export async function setEmployeeAdminAccess(tenantId: string, employeeId: strin
     }
     if (data.role === 'DEPT_HEAD') await setUserDepartments(tenantId, emp.user_id, data.department_ids ?? [])
     else await prisma.userDepartment.deleteMany({ where: { user_id: emp.user_id } })
+    // เติมสิทธิ์แบบละเอียดจาก template ของ role ใหม่ เฉพาะ feature ที่ยังไม่มี
+    // แถว (ไม่ทับของที่เคยปรับเองไว้แล้วตอน role เดิม)
+    await seedPermissionsFromTemplate(tenantId, emp.user_id, data.role)
     const u = await prisma.user.findUnique({ where: { id: emp.user_id }, ...ADMIN_USER_INCLUDE })
     return { ok: true, admin_access: u }
   }
@@ -193,6 +197,7 @@ export async function setEmployeeAdminAccess(tenantId: string, employeeId: strin
       ...ADMIN_USER_INCLUDE,
     })
     await prisma.employee.update({ where: { id: employeeId }, data: { user_id: user.id } })
+    await seedPermissionsFromTemplate(tenantId, user.id, data.role)
     return { ok: true, admin_access: user, temp_password: tempPassword }
   } catch (e: any) {
     if (e.code === 'P2002') return { duplicateEmail: true }

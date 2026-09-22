@@ -13,13 +13,14 @@
 // employee/src/components/ui/index.tsx PageLoader)
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock, Bell } from 'lucide-react'
+import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock, Bell, ShieldCheck } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
+import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
@@ -55,6 +56,7 @@ function UserManagementSettings() {
   const [modal, setModal] = useState<{ edit?: WebUser } | null>(null)
   const [form, setForm] = useState(EMPTY_USER_FORM)
   const [deleteTarget, setDeleteTarget] = useState<WebUser | null>(null)
+  const [permTarget, setPermTarget] = useState<WebUser | null>(null)
 
   const { data: users = [], isLoading } = useQuery<WebUser[]>({
     queryKey: ['settings', 'users'], queryFn: () => api.get('/api/v1/super-admin/users').then((r: any) => r.data.data),
@@ -142,6 +144,7 @@ function UserManagementSettings() {
                   <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{u.email}</p>
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '3px 9px', borderRadius: 99 }}>{ROLE_LABEL[u.role] ?? u.role}</span>
+                <Button variant="secondary" size="sm" icon={<ShieldCheck size={13}/>} onClick={() => setPermTarget(u)} aria-label="สิทธิ์" />
                 <Button variant="secondary" size="sm" icon={<Pencil size={13}/>} onClick={() => openEdit(u)} aria-label="แก้ไข" />
                 <Button variant="danger-soft" size="sm" icon={<Trash2 size={13}/>} onClick={() => setDeleteTarget(u)} aria-label="ลบ" />
               </div>
@@ -220,6 +223,14 @@ function UserManagementSettings() {
           message={<>ยืนยันลบ "<strong>{deleteTarget.first_name} {deleteTarget.last_name}</strong>" — จะล็อกอินเข้าเว็บนี้ไม่ได้อีก</>}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {permTarget && (
+        <PermissionMatrixEditor
+          userId={permTarget.id}
+          userLabel={`${permTarget.first_name} ${permTarget.last_name} · ${ROLE_LABEL[permTarget.role] ?? permTarget.role}`}
+          onClose={() => setPermTarget(null)}
         />
       )}
     </div>
