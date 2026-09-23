@@ -1,6 +1,7 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import Footer from './Footer'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
@@ -103,6 +104,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           flexDirection: 'column'
         }} className="animate-fade-in-up">
           {children}
+          <Footer />
         </main>
       </div>
 
