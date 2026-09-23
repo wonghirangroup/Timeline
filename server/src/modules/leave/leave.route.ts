@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
@@ -38,7 +38,12 @@ export async function leaveRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager: ดู Leave requests ─────────────────────────────
   app.get('/admin/leave-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('leave', 'view'), resolveDeptScope, requireFeature('leave_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'leave', action: 'view' },
+      { feature: 'report_branch', action: 'view' }, { feature: 'report_employee', action: 'view' },
+      { feature: 'report_executive', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+      { feature: 'report_leave', action: 'view' },
+    ]), resolveDeptScope, requireFeature('leave_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการคำขอวันลาทั้งหมด (กรอง status / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',

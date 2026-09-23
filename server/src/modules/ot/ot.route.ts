@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listOtRequests, createOtRequest, approveOtRequest, rejectOtRequest } from './ot.service'
@@ -13,7 +13,9 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: ดู OT ─────────────────────────────────
   app.get('/admin/ot-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('ot', 'view'), resolveDeptScope, requireFeature('ot_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'ot', action: 'view' }, { feature: 'report_executive', action: 'view' },
+    ]), resolveDeptScope, requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการขอ OT (กรอง status / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',

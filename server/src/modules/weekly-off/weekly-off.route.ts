@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
@@ -20,7 +20,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
 
   // ── Admin: ดูรายการ weekly off ──────────────────────────────────────
   app.get('/admin/weekly-off', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('leave', 'view'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'leave', action: 'view' }, { feature: 'report_holiday', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ]), resolveDeptScope],
     schema: {
       tags: ['Admin'],
       summary: 'ดูวันหยุดสัปดาห์ของพนักงาน (กรอง weekStart / branchId / status — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',

@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
@@ -48,7 +48,11 @@ const PERSONAL_INFO_PROPS = {
 export async function employeeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employees?branchId=
   app.get('/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('employee', 'view'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'employee', action: 'view' },
+      { feature: 'report_branch', action: 'view' }, { feature: 'report_employee', action: 'view' },
+      { feature: 'report_executive', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ]), resolveDeptScope],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการพนักงานทั้งหมด (กรองตาม branchId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',

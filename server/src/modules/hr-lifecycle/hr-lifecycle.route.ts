@@ -3,7 +3,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
@@ -158,7 +158,9 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
 
   // ═══ ลาออก (feature: resignation) ═══════════════════════════════════════
   app.get('/admin/resignations', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('resignation', 'view'), resolveDeptScope, requireFeature('resignation')],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermissionAny([
+      { feature: 'resignation', action: 'view' }, { feature: 'report_executive', action: 'view' },
+    ]), resolveDeptScope, requireFeature('resignation')],
     schema: { tags: ['Admin'], summary: 'คำขอลาออก', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } } } },
   }, async (req: any) => ok(await svc.listResignations(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
 
@@ -212,7 +214,9 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'เอกสารอื่นๆ',
   }
   app.get('/admin/document-requests', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('document_request', 'view'), resolveDeptScope, requireFeature('document_request')],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermissionAny([
+      { feature: 'document_request', action: 'view' }, { feature: 'report_executive', action: 'view' },
+    ]), resolveDeptScope, requireFeature('document_request')],
     schema: { tags: ['Admin'], summary: 'คำขอเอกสาร HR', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'REJECTED'] } } } },
   }, async (req: any) => ok(await svc.listDocumentRequests(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
 

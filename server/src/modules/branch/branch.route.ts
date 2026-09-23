@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { listBranches, getBranch, createBranch, updateBranch, deleteBranch } from './branch.service'
 import { generateBranchQR } from '../shift/shift.service'
@@ -12,7 +12,11 @@ const TAG = 'Admin'
 export async function branchRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/branches
   app.get('/branches', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('branch', 'view')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermissionAny([
+      { feature: 'branch', action: 'view' },
+      { feature: 'report_branch', action: 'view' }, { feature: 'report_executive', action: 'view' },
+      { feature: 'report_holiday', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ])],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการสาขาทั้งหมดของ tenant',

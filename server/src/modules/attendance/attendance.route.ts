@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
@@ -18,7 +18,11 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: รายงานเช็คชื่อ ─────────────────────────────────────────
   app.get('/admin/attendance', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('shift', 'view'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'shift', action: 'view' },
+      { feature: 'report_branch', action: 'view' }, { feature: 'report_employee', action: 'view' },
+      { feature: 'report_executive', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ]), resolveDeptScope],
     schema: {
       tags: ['Admin'],
       summary: 'รายงานการเช็คชื่อ (กรอง date / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -48,7 +52,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: วันเช็คอินแรกสุดของแต่ละคน — ใช้ตรวจสอบข้อมูลย้อนหลังในหน้ารายงาน ──
   app.get('/admin/attendance/first-checkin', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('shift', 'view'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'shift', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ]), resolveDeptScope],
     schema: {
       tags: ['Admin'],
       summary: 'วันเช็คอินแรกสุดของพนักงานแต่ละคน (employee_id → YYYY-MM-DD)',
