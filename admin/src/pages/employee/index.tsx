@@ -52,7 +52,23 @@ interface ApiEmployee {
   leave_enabled_override?: boolean | null
   offsite_checkin_enabled?: boolean
   photo_url?: string | null
+  // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
+  prefix?: string | null
+  email?: string | null
+  id_card?: string | null
+  birthdate?: string | null
+  blood_type?: string | null
+  phone_alt?: string | null
+  emergency_contacts?: { name: string; relation: string; phone: string }[] | null
+  address_id?: AddressValue | null
+  address_current?: AddressValue | null
+  educations?: { level: string; institution: string; field: string; year: string }[] | null
+  skills?: { name: string; level: string }[] | null
+  emp_type?: string | null
+  salary?: string | number | null
+  notes?: string | null
 }
+export interface AddressValue { house?: string; road?: string; soi?: string; moo?: string; sub?: string; district?: string; province?: string; zip?: string }
 
 function MiniAvatar({ url, name }: { url?: string | null; name: string }) {
   return (
@@ -333,6 +349,9 @@ export default function EmployeePage() {
   async function handleAddSave() {
     setSaving(true)
     const branchId = af.branch_accesses[0]?.branch_id ?? branches[0]?.id ?? ''
+    // สาขาที่เหลือจากที่เลือกไว้ในสเต็ป 5 (ตัวแรกใช้เป็นสาขาหลักแล้ว) = สาขาเสริม
+    const extraBranchIds = af.branch_accesses.slice(1).map(a => a.branch_id)
+    const hasAddr = (a: typeof af.addr_id) => Object.values(a).some(v => v.trim())
     const body = {
       branch_id: branchId,
       first_name: af.first_name || 'พนักงาน',
@@ -343,6 +362,22 @@ export default function EmployeePage() {
       hired_at: af.hired_at || undefined,
       position_id: af.position_id || undefined,
       employee_status_type_id: af.employee_status_type_id || undefined,
+      extra_branch_ids: extraBranchIds.length ? extraBranchIds : undefined,
+      // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
+      prefix: af.prefix || undefined,
+      email: af.email || undefined,
+      id_card: af.id_card || undefined,
+      birthdate: af.birthdate || undefined,
+      blood_type: af.blood_type || undefined,
+      phone_alt: af.phone_alt || undefined,
+      emergency_contacts: af.emergency_contacts.filter(c => c.name.trim()).length ? af.emergency_contacts.filter(c => c.name.trim()) : undefined,
+      address_id: hasAddr(af.addr_id) ? af.addr_id : undefined,
+      address_current: !af.addr_cur_same && hasAddr(af.addr_cur) ? af.addr_cur : undefined,
+      educations: af.educations.filter(e => e.institution.trim() || e.level.trim()).length ? af.educations.filter(e => e.institution.trim() || e.level.trim()) : undefined,
+      skills: af.skills.filter(s => s.name.trim()).length ? af.skills.filter(s => s.name.trim()) : undefined,
+      emp_type: af.emp_type || undefined,
+      salary: af.salary ? Number(af.salary) : undefined,
+      notes: af.notes || undefined,
     }
     addMutation.mutate(body)
   }

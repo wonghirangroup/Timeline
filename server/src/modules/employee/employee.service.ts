@@ -1,5 +1,6 @@
 // server/src/modules/employee/employee.service.ts
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../common/utils/prisma'
 import { assertPlanCapacity } from '../tenant/tenant.service'
 import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
@@ -205,6 +206,18 @@ export async function setEmployeeAdminAccess(tenantId: string, employeeId: strin
   }
 }
 
+interface EmergencyContact { name: string; relation: string; phone: string }
+interface AddressInput { house?: string; road?: string; soi?: string; moo?: string; sub?: string; district?: string; province?: string; zip?: string }
+interface EducationInput { level: string; institution: string; field: string; year: string }
+interface SkillInput { name: string; level: string }
+// Prisma Json field ไม่รับ interface ธรรมดาตรงๆ (ต้องมี index signature) — cast ผ่าน helper
+// นี้ทีเดียว กัน `as any` กระจายเกลื่อน, undefined = ไม่แตะ, null = ล้างค่า (Prisma.JsonNull)
+function toJsonInput(v: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined {
+  if (v === undefined) return undefined
+  if (v === null) return Prisma.JsonNull
+  return v as Prisma.InputJsonValue
+}
+
 export async function createEmployee(
   tenantId: string,
   data: {
@@ -218,6 +231,21 @@ export async function createEmployee(
     position_id?: string
     employee_status_type_id?: string
     extra_branch_ids?: string[]   // สาขาเสริม นอกเหนือจาก branch_id (สาขาหลัก)
+    // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──────────────────────
+    prefix?: string
+    email?: string
+    id_card?: string
+    birthdate?: string
+    blood_type?: string
+    phone_alt?: string
+    emergency_contacts?: EmergencyContact[]
+    address_id?: AddressInput
+    address_current?: AddressInput | null
+    educations?: EducationInput[]
+    skills?: SkillInput[]
+    emp_type?: string
+    salary?: number
+    notes?: string
   },
 ) {
   await assertPlanCapacity(tenantId, 'employees')
@@ -235,6 +263,20 @@ export async function createEmployee(
       hired_at: data.hired_at ? new Date(data.hired_at) : undefined,
       position_id: data.position_id,
       employee_status_type_id: data.employee_status_type_id,
+      prefix: data.prefix,
+      email: data.email,
+      id_card: data.id_card,
+      birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
+      blood_type: data.blood_type,
+      phone_alt: data.phone_alt,
+      emergency_contacts: toJsonInput(data.emergency_contacts?.length ? data.emergency_contacts : undefined),
+      address_id: toJsonInput(data.address_id),
+      address_current: toJsonInput(data.address_current ?? undefined),
+      educations: toJsonInput(data.educations?.length ? data.educations : undefined),
+      skills: toJsonInput(data.skills?.length ? data.skills : undefined),
+      emp_type: data.emp_type,
+      salary: data.salary,
+      notes: data.notes,
     },
   })
   if (data.extra_branch_ids?.length) await syncExtraBranches(tenantId, employee.id, data.extra_branch_ids)
@@ -264,14 +306,35 @@ export async function updateEmployee(
     offsite_checkin_enabled?: boolean
     photo_url?: string | null
     extra_branch_ids?: string[]   // undefined = ไม่แตะ, [] = ล้างสาขาเสริมทั้งหมด
+    // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──────────────────────
+    prefix?: string | null
+    email?: string | null
+    id_card?: string | null
+    birthdate?: string | null
+    blood_type?: string | null
+    phone_alt?: string | null
+    emergency_contacts?: EmergencyContact[] | null
+    address_id?: AddressInput | null
+    address_current?: AddressInput | null
+    educations?: EducationInput[] | null
+    skills?: SkillInput[] | null
+    emp_type?: string | null
+    salary?: number | null
+    notes?: string | null
   },
 ) {
-  const { hired_at, extra_branch_ids, ...rest } = data
+  const { hired_at, birthdate, extra_branch_ids, emergency_contacts, address_id, address_current, educations, skills, ...rest } = data
   const count = await prisma.employee.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
     data: {
       ...rest,
       ...(hired_at !== undefined ? { hired_at: hired_at ? new Date(hired_at) : null } : {}),
+      ...(birthdate !== undefined ? { birthdate: birthdate ? new Date(birthdate) : null } : {}),
+      ...(emergency_contacts !== undefined ? { emergency_contacts: toJsonInput(emergency_contacts) } : {}),
+      ...(address_id !== undefined ? { address_id: toJsonInput(address_id) } : {}),
+      ...(address_current !== undefined ? { address_current: toJsonInput(address_current) } : {}),
+      ...(educations !== undefined ? { educations: toJsonInput(educations) } : {}),
+      ...(skills !== undefined ? { skills: toJsonInput(skills) } : {}),
     },
   })
   if (count.count === 0) return null

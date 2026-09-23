@@ -794,18 +794,51 @@ function AdminAccessCard({ emp }: { emp: any }) {
   )
 }
 
+const ADDRESS_LABELS: [string, string][] = [
+  ['house', 'บ้านเลขที่'], ['road', 'ถนน'], ['soi', 'ซอย'], ['moo', 'หมู่บ้าน'],
+  ['sub', 'ตำบล/แขวง'], ['district', 'อำเภอ/เขต'], ['province', 'จังหวัด'], ['zip', 'รหัสไปรษณีย์'],
+]
+function fmtAddress(a: Record<string, string> | null | undefined): string {
+  if (!a) return '—'
+  const parts = ADDRESS_LABELS.map(([k]) => a[k]?.trim()).filter(Boolean)
+  return parts.length ? parts.join(' ') : '—'
+}
+
+// กล่องหัวข้อย่อย — ใช้ซ้ำสำหรับที่อยู่/ผู้ติดต่อฉุกเฉิน/การศึกษา/ทักษะ ในแท็บข้อมูลส่วนตัว
+function InfoSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>{title}</div>
+      <div style={{ padding: '13px 16px' }}>{children}</div>
+    </div>
+  )
+}
+
 function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
   const rows = [
     { label: 'รหัสพนักงาน',   value: emp.employee_code,  mono: true },
+    { label: 'คำนำหน้า',      value: emp.prefix || '—' },
     { label: 'ชื่อ-สกุล',     value: `${emp.first_name} ${emp.last_name}` },
     { label: 'ชื่อเล่น',      value: emp.nickname ?? '—' },
+    { label: 'เลขบัตรประชาชน', value: emp.id_card || '—', mono: true },
+    { label: 'วันเกิด',       value: emp.birthdate ? `${thDate(emp.birthdate)} (อายุ ${yearsFrom(emp.birthdate)} ปี)` : '—' },
+    { label: 'หมู่เลือด',      value: emp.blood_type || '—' },
+    { label: 'อีเมล',         value: emp.email || '—' },
+    { label: 'เบอร์โทร',      value: emp.phone ?? '—', mono: true },
+    { label: 'เบอร์สำรอง',    value: emp.phone_alt || '—', mono: true },
     { label: 'แผนก',          value: deptName(emp.department) },
     { label: 'สาขา',          value: emp.branch?.name ?? '—' },
-    { label: 'เบอร์โทร',      value: emp.phone ?? '—', mono: true },
+    { label: 'ประเภทพนักงาน',  value: emp.emp_type || '—' },
+    { label: 'เงินเดือน',      value: emp.salary ? `${Number(emp.salary).toLocaleString()} บาท` : '—' },
     { label: 'วันที่เริ่มงาน', value: thDate(emp.hired_at) },
     { label: 'อายุงาน',       value: tenureFrom(emp.hired_at) },
     { label: 'สถานะ',         value: emp.is_active ? 'ปฏิบัติงานอยู่' : 'ไม่ได้ปฏิบัติงาน' },
   ]
+
+  const addrCurrent = emp.address_current ?? emp.address_id // ไม่ตั้งที่อยู่ปัจจุบันแยก = ใช้ตามบัตรประชาชน
+  const emergencyContacts: { name: string; relation: string; phone: string }[] = emp.emergency_contacts ?? []
+  const educations: { level: string; institution: string; field: string; year: string }[] = emp.educations ?? []
+  const skills: { name: string; level: string }[] = emp.skills ?? []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -817,6 +850,63 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
           </div>
         ))}
       </div>
+
+      {(emp.address_id || emp.address_current) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          <InfoSection title="ที่อยู่ตามบัตรประชาชน">
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#0f172a', lineHeight: 1.6 }}>{fmtAddress(emp.address_id)}</p>
+          </InfoSection>
+          <InfoSection title="ที่อยู่ปัจจุบัน">
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#0f172a', lineHeight: 1.6 }}>{fmtAddress(addrCurrent)}</p>
+          </InfoSection>
+        </div>
+      )}
+
+      {emergencyContacts.length > 0 && (
+        <InfoSection title="ผู้ติดต่อฉุกเฉิน">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {emergencyContacts.map((c, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.85rem', color: '#0f172a', paddingBottom: i < emergencyContacts.length - 1 ? 10 : 0, borderBottom: i < emergencyContacts.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                <strong>{c.name || '—'}</strong>
+                {c.relation && <span style={{ color: '#64748b' }}>({c.relation})</span>}
+                {c.phone && <span style={{ fontFamily: 'monospace', marginLeft: 'auto' }}>{c.phone}</span>}
+              </div>
+            ))}
+          </div>
+        </InfoSection>
+      )}
+
+      {educations.length > 0 && (
+        <InfoSection title="ประวัติการศึกษา">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {educations.map((ed, i) => (
+              <div key={i} style={{ fontSize: '0.85rem', color: '#0f172a', paddingBottom: i < educations.length - 1 ? 10 : 0, borderBottom: i < educations.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                <strong>{ed.level || '—'}</strong>{ed.year && ` (${ed.year})`}
+                {ed.institution && <span style={{ color: '#64748b' }}> · {ed.institution}</span>}
+                {ed.field && <span style={{ color: '#64748b' }}> · {ed.field}</span>}
+              </div>
+            ))}
+          </div>
+        </InfoSection>
+      )}
+
+      {skills.length > 0 && (
+        <InfoSection title="ทักษะ">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {skills.map((s, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', fontWeight: 600, color: '#374151', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 99, padding: '4px 12px' }}>
+                {s.name} <span style={{ color: '#94a3b8', fontWeight: 400 }}>· {s.level}</span>
+              </span>
+            ))}
+          </div>
+        </InfoSection>
+      )}
+
+      {emp.notes && (
+        <InfoSection title="หมายเหตุ">
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#0f172a', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{emp.notes}</p>
+        </InfoSection>
+      )}
 
       <div style={{ background: '#fff', border: `1px solid ${emp.line_user_id ? '#e2e8f0' : '#fde68a'}`, borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex' }}>

@@ -9,6 +9,42 @@ import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmplo
 
 const TAG = 'Admin'
 
+// สคีมาที่อยู่ใช้ร่วมกันทั้งที่อยู่ตามบัตร ปชช. และที่อยู่ปัจจุบัน
+const ADDRESS_SCHEMA = {
+  type: 'object',
+  properties: {
+    house: { type: 'string' }, road: { type: 'string' }, soi: { type: 'string' }, moo: { type: 'string' },
+    sub: { type: 'string' }, district: { type: 'string' }, province: { type: 'string' }, zip: { type: 'string' },
+  },
+} as const
+
+// ฟิลด์ "ข้อมูลส่วนตัว" เพิ่มเติม (feedback 2026-09-23) — ใช้ร่วมกันทั้ง POST/PATCH
+const PERSONAL_INFO_PROPS = {
+  prefix:      { type: 'string', description: 'คำนำหน้า (นาย/นาง/นางสาว)' },
+  email:       { type: 'string' },
+  id_card:     { type: 'string', description: 'เลขบัตรประชาชน' },
+  birthdate:   { type: 'string', description: 'YYYY-MM-DD' },
+  blood_type:  { type: 'string' },
+  phone_alt:   { type: 'string', description: 'เบอร์ติดต่อสำรอง' },
+  emergency_contacts: {
+    type: 'array', description: 'ผู้ติดต่อฉุกเฉิน',
+    items: { type: 'object', properties: { name: { type: 'string' }, relation: { type: 'string' }, phone: { type: 'string' } } },
+  },
+  address_id:      { ...ADDRESS_SCHEMA, description: 'ที่อยู่ตามบัตรประชาชน' },
+  address_current: { ...ADDRESS_SCHEMA, description: 'ที่อยู่ปัจจุบัน — ไม่ส่ง/null = เหมือนที่อยู่ตามบัตรประชาชน' },
+  educations: {
+    type: 'array', description: 'ประวัติการศึกษา',
+    items: { type: 'object', properties: { level: { type: 'string' }, institution: { type: 'string' }, field: { type: 'string' }, year: { type: 'string' } } },
+  },
+  skills: {
+    type: 'array', description: 'ทักษะ',
+    items: { type: 'object', properties: { name: { type: 'string' }, level: { type: 'string' } } },
+  },
+  emp_type: { type: 'string', description: 'ประเภทพนักงาน (ประจำ/พาร์ทไทม์/สัญญาจ้าง/ฝึกงาน) — คนละเรื่องกับ employee_status_type_id' },
+  salary:   { type: 'number' },
+  notes:    { type: 'string' },
+} as const
+
 export async function employeeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employees?branchId=
   app.get('/employees', {
@@ -66,6 +102,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           position_id: { type: 'string', description: 'ตำแหน่งในผังองค์กร (ใหม่, ใช้คู่กับ department เดิม)' },
           employee_status_type_id: { type: 'string', description: 'สถานะพนักงาน (ประจำ/ชั่วคราว/...) — กำหนดโควต้าวันหยุดต่อเดือน' },
           extra_branch_ids: { type: 'array', items: { type: 'string' }, description: 'สาขาเสริม นอกเหนือจาก branch_id (สาขาหลัก) — เช็คอิน/ปรากฏในรายงานของสาขาเหล่านี้ได้ด้วย' },
+          ...PERSONAL_INFO_PROPS,
         },
       },
     },
@@ -109,6 +146,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           offsite_checkin_enabled:  { type: 'boolean', description: 'สิทธิ์เช็คอินนอกสถานที่รายคน — default false ต้องแอดมินเปิดให้เอง (ไม่มี cascade)' },
           photo_url:    { type: ['string', 'null'], description: 'URL รูปโปรไฟล์ (อัปโหลดผ่าน Cloudinary ฝั่ง client)' },
           extra_branch_ids: { type: 'array', items: { type: 'string' }, description: 'สาขาเสริม นอกเหนือจาก branch_id (สาขาหลัก) — ไม่ส่ง = ไม่แตะ, ส่ง [] = ล้างทั้งหมด' },
+          ...PERSONAL_INFO_PROPS,
         },
       },
     },
