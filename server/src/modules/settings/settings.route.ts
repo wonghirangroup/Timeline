@@ -1,13 +1,14 @@
 // server/src/modules/settings/settings.route.ts
-// การตั้งค่าระดับบริษัทที่ Admin ของ tenant แก้เองได้ (โปรไฟล์/แบรนด์ + นโยบาย)
-// max_employees/branches/groups, plan, ฟีเจอร์ = ของ Super Admin (ไม่อยู่ที่นี่)
+// การตั้งค่าระดับบริษัทที่ Admin ของ tenant แก้เองได้ (โปรไฟล์/แบรนด์ + นโยบาย + ฟีเจอร์)
+// max_employees/branches/groups, plan = ของ Super Admin เท่านั้น (ไม่อยู่ที่นี่)
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
-import { getTenantSettings, updateTenantSettings, updateTenantNotificationPrefs } from '../tenant/tenant.service'
+import { getTenantSettings, updateTenantSettings, updateTenantNotificationPrefs, updateTenantFeatures } from '../tenant/tenant.service'
 import { NOTIFICATION_TYPES } from '../../common/utils/notificationPrefs'
+import { FEATURE_KEYS } from '../../common/utils/features'
 
 export async function settingsRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/tenant-settings
@@ -62,5 +63,24 @@ export async function settingsRoutes(app: FastifyInstance) {
     const s = await updateTenantNotificationPrefs(req.tenantId, req.body)
     if (!s) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบริษัท'))
     return ok(s, 'บันทึกการตั้งค่าแจ้งเตือนแล้ว')
+  })
+
+  // PATCH /api/v1/admin/tenant-settings/features — เปิด/ปิดฟีเจอร์ของ tenant ตัวเอง
+  // (feedback 2026-09-23 "account ที่ superadmin สร้างให้ = ผู้ดูแลระบบ กำหนด
+  // ทิศทางการเข้าถึงฟีเจอร์ได้" — เดิมมีแค่ Super Admin เท่านั้นที่สลับได้ที่
+  // /super-admin/tenants/:id/features) merge เฉพาะ key ที่ส่งมา ไม่เขียนทับ key อื่น
+  app.patch('/tenant-settings/features', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('settings', 'edit')],
+    schema: {
+      tags: ['Admin'], summary: 'เปิด/ปิดฟีเจอร์ของบริษัทตัวเอง (บางฟีเจอร์บล็อกจริงที่ backend เลย)', security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        properties: Object.fromEntries(FEATURE_KEYS.map(k => [k, { type: 'boolean' }])),
+      },
+    },
+  }, async (req: any, reply) => {
+    const tenant = await updateTenantFeatures(req.tenantId, req.body ?? {})
+    if (!tenant) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบริษัท'))
+    return ok({ enabled_features: tenant.enabled_features }, 'บันทึกฟีเจอร์แล้ว')
   })
 }

@@ -131,7 +131,7 @@ const TENANT_SETTINGS_SELECT = {
   name: true, address: true, tax_id: true, logo_url: true, primary_color: true,
   signer_name: true, signer_title: true,
   leave_backdate_days: true, self_resignation_enabled: true, plan: true,
-  notification_prefs: true,
+  notification_prefs: true, enabled_features: true,
 } as const
 
 export async function getTenantSettings(tenantId: string) {

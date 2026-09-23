@@ -272,7 +272,7 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null; enabled_features: Record<string, boolean> | null }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()
@@ -461,6 +461,98 @@ function NotificationPrefsTab() {
   )
 }
 
+// ── เปิด/ปิดฟีเจอร์ของบริษัท ──────────────────────────────────────────────────
+// (feedback 2026-09-23 "account ที่ superadmin สร้างให้ = ผู้ดูแลระบบ กำหนด
+// ทิศทางการเข้าถึงฟีเจอร์ได้" — เดิมสลับได้แค่ฝั่ง Super Admin เท่านั้น) รายชื่อ
+// + คำอธิบายตรงกับ superadmin/src/pages/tenants/detail.tsx (FEATURE_META) —
+// คนละแอปคนละ build เลยคัดลอกมาไว้ที่นี่แทนแชร์ข้าม workspace
+const FEATURE_META: { key: string; label: string; desc: string; icon: string }[] = [
+  { key: 'leave_management', label: 'จัดการวันลา',           desc: 'ลา / อนุมัติ / ปฏิเสธใบลา',               icon: '📅' },
+  { key: 'leave_balance',    label: 'โควต้าวันลา',           desc: 'กำหนดและติดตามโควต้าวันลาต่อพนักงาน',      icon: '🗓' },
+  { key: 'ot_management',    label: 'จัดการ OT',             desc: 'คำขอ / อนุมัติ / คำนวณค่า OT',             icon: '💰' },
+  { key: 'announcement',     label: 'ประกาศ',                desc: 'ส่งข้อความหา Branch / แผนก / ทั้งหมด',     icon: '📢' },
+  { key: 'gps_checkin',      label: 'เช็คอินนอกสถานที่',      desc: 'ปักหมุด GPS เช็คอิน-เช็คเอาต์นอกสถานที่ (ประชุม/Event)', icon: '📍' },
+  { key: 'multi_shift',      label: 'หลายกะต่อวัน',          desc: 'พนักงาน 1 คนทำได้หลายกะต่อวัน',           icon: '⏰' },
+  { key: 'fine_system',      label: 'ระบบค่าปรับ',           desc: 'ค่าปรับตามกะ / เปอร์เซ็นต์ / tier',       icon: '⚖️' },
+  { key: 'report_export',    label: 'Export รายงาน',         desc: 'ดาวน์โหลด Excel / PDF รายงานเช็คชื่อ',     icon: '📊' },
+  { key: 'feedback',         label: 'ระบบ Feedback',         desc: 'พนักงานส่ง feedback แบบไม่ระบุชื่อ',       icon: '💬' },
+  { key: 'line_oa',          label: 'Line OA Integration',   desc: 'แจ้งเตือนผ่าน Line Messaging API',          icon: '💚' },
+  { key: 'employee_documents', label: 'เอกสารพนักงาน',       desc: 'เก็บสัญญา/บัตร/work permit + เตือนวันหมดอายุ', icon: '📄' },
+  { key: 'probation',        label: 'ทดลองงาน',              desc: 'ติดตามช่วงทดลองงาน + เตือนก่อนครบ + บันทึกผล', icon: '🎯' },
+  { key: 'disciplinary',     label: 'หนังสือเตือน',          desc: 'ออกหนังสือเตือน 1/2/3 + พนักงานรับทราบผ่าน LIFF', icon: '⚠️' },
+  { key: 'resignation',      label: 'ลาออก (พนักงานยื่นเอง)', desc: 'พนักงานยื่นลาออกผ่าน LIFF → แอดมินอนุมัติ',   icon: '🚪' },
+  { key: 'custom_leave_types', label: 'ประเภทการลากำหนดเอง', desc: 'ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน — tenant ตั้งเอง', icon: '🗂' },
+  { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
+  { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
+  { key: 'vacation_policy',  label: 'นโยบายพักร้อนตามอายุงาน', desc: 'โบนัสรายเดือน + reset ประจำปีตามสูตรอายุงาน', icon: '🏖️' },
+]
+const ENFORCED_FEATURE_KEYS = new Set(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin', 'employee_documents', 'probation', 'disciplinary', 'resignation', 'custom_leave_types', 'leave_accrual', 'document_request'])
+
+function FeatureToggleRow({ f, checked, onToggle, disabled, dimmed }: { f: { key: string; label: string; desc: string; icon: string }; checked: boolean; onToggle: () => void; disabled: boolean; dimmed?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid #f8fafc', opacity: dimmed ? 0.8 : 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: '1.1rem' }}>{f.icon}</span>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{f.label}</div>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{f.desc}</div>
+        </div>
+      </div>
+      <button onClick={onToggle} disabled={disabled}
+        style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
+          background: checked ? '#f97316' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
+        <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+      </button>
+    </div>
+  )
+}
+
+function FeatureTogglesTab() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const { data } = useQuery<TenantSettings>({
+    queryKey: ['tenant-settings'],
+    queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data),
+  })
+  const enabled = data?.enabled_features ?? {}
+  const isOn = (key: string) => enabled[key] !== false
+
+  const mut = useMutation({
+    mutationFn: (patch: Record<string, boolean>) => api.patch('/api/v1/admin/tenant-settings/features', patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-settings'] }),
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  const enforced   = FEATURE_META.filter(f => ENFORCED_FEATURE_KEYS.has(f.key))
+  const notEnforced = FEATURE_META.filter(f => !ENFORCED_FEATURE_KEYS.has(f.key))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ ...card, padding: 20 }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>บังคับใช้จริงแล้ว</p>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px' }}>ปิดแล้วเมนู/ปุ่มที่เกี่ยวข้องจะถูกบล็อกทันที ไม่ใช่แค่ซ่อน</p>
+        <div>
+          {enforced.map(f => (
+            <FeatureToggleRow key={f.key} f={f} checked={isOn(f.key)} disabled={readOnly || mut.isPending}
+              onToggle={() => mut.mutate({ [f.key]: !isOn(f.key) })} />
+          ))}
+        </div>
+      </div>
+      <div style={{ ...card, padding: 20 }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>บันทึกไว้ ยังไม่บังคับใช้จริง</p>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px' }}>สลับได้และบันทึกค่าไว้ แต่ยังไม่บล็อกการใช้งานจริง</p>
+        <div>
+          {notEnforced.map(f => (
+            <FeatureToggleRow key={f.key} f={f} checked={isOn(f.key)} disabled={readOnly || mut.isPending} dimmed
+              onToggle={() => mut.mutate({ [f.key]: !isOn(f.key) })} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── ทางลัดไปตั้งค่าที่อยู่ที่อื่น ──────────────────────────────────────────────
 function ShortcutCard() {
   return (
@@ -483,12 +575,13 @@ function ShortcutCard() {
   )
 }
 
-type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'plan'
+type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'features' | 'plan'
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'general',       label: 'ทั่วไป' },
   { key: 'users',         label: 'ผู้ใช้งาน' },
   { key: 'leave',         label: 'นโยบายการลา' },
   { key: 'notifications', label: 'การแจ้งเตือน' },
+  { key: 'features',      label: 'ฟีเจอร์' },
   { key: 'plan',          label: 'แพ็กเกจ' },
 ]
 
@@ -516,6 +609,7 @@ export default function SettingsPage() {
       {tab === 'users' && <><SelfPasswordCard /><UserManagementSettings /></>}
       {tab === 'leave' && <><LeavePolicyTab /><LeaveTypesManager /></>}
       {tab === 'notifications' && <NotificationPrefsTab />}
+      {tab === 'features' && <FeatureTogglesTab />}
       {tab === 'plan' && (
         <div style={{ ...card, padding: 20 }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>
