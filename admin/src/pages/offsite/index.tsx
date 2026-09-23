@@ -122,7 +122,10 @@ export default function OffsitePage() {
               <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: !r.check_out_at ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{r.employee.first_name} {r.employee.last_name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>
+                      {r.employee.first_name} {r.employee.last_name}
+                      {r.employee.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> ({r.employee.nickname})</span>}
+                    </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{r.employee.branch.name}</div>
                   </div>
                   {!r.check_out_at && (

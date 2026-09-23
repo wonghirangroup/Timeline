@@ -64,6 +64,7 @@ export async function createTenant(data: {
         last_name:  data.admin_last_name,
         role:       'ADMIN',
         is_active:  true,
+        is_root_admin: true, // บัญชีแรกที่ SUPER_ADMIN สร้างให้ตอนตั้ง tenant — คนเดียวที่เข้าหน้า "ผู้ใช้งานเว็บ" ได้ (feedback 2026-09-23)
       },
     })
 

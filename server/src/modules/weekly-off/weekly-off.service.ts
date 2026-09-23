@@ -149,6 +149,10 @@ export async function createWeeklyOff(tenantId: string, data: {
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
   const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, monday, data.day_of_week)
 
+  // แอดมินลงวันหยุดให้พนักงานเอง (มี actorUserId มาจาก route /admin/weekly-off) =
+  // อนุมัติอัตโนมัติทันที ไม่ต้องมาอนุมัติซ้ำอีกรอบ (แบบเดียวกับ createLeaveRequest
+  // autoApprove) — ต่างจากพนักงานยื่นขอเอง (/employee/weekly-off ไม่ส่ง actorUserId
+  // มา) ที่ยังต้องเป็น PENDING รอแอดมินอนุมัติตามปกติ (feedback 2026-09-23)
   let created
   try {
     created = await prisma.weeklyOffRequest.create({
@@ -159,6 +163,7 @@ export async function createWeeklyOff(tenantId: string, data: {
         day_of_week: data.day_of_week,
         has_conflict: conflict,
         policy_override_by: overrideBy,
+        ...(opts.actorUserId ? { status: 'APPROVED', reviewed_by: opts.actorUserId, reviewed_at: new Date() } : {}),
       },
       include: {
         employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } },

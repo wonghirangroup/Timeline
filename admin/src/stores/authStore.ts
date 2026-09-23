@@ -16,10 +16,12 @@ interface AuthState {
   name:             string | null
   enabledFeatures:  EnabledFeatures
   permissions:      PermissionsMap
+  isRootAdmin:      boolean
   setAuth:  (token: string, role: Role, tenantId: string, name: string, enabledFeatures?: EnabledFeatures) => void
   setName:  (name: string) => void
   setEnabledFeatures: (enabledFeatures: EnabledFeatures) => void
   setPermissions: (permissions: PermissionRow[] | null) => void
+  setIsRootAdmin: (v: boolean) => void
   clear:    () => void
 }
 
@@ -47,6 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   name:             localStorage.getItem('name'),
   enabledFeatures:  readEnabledFeatures(),
   permissions:      readPermissions(),
+  isRootAdmin:      localStorage.getItem('is_root_admin') === '1',
   setAuth: (token, role, tenantId, name, enabledFeatures) => {
     localStorage.setItem('access_token', token)
     localStorage.setItem('role', role)
@@ -55,7 +58,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (enabledFeatures) localStorage.setItem('enabled_features', JSON.stringify(enabledFeatures))
     else localStorage.removeItem('enabled_features')
     localStorage.removeItem('permissions') // ล้างของบัญชีเก่า — รอบโหลดถัดไปจะ sync สดจาก /auth/me
-    set({ token, role, tenantId, name, enabledFeatures: enabledFeatures ?? null, permissions: null })
+    localStorage.removeItem('is_root_admin') // เช่นกัน — sync สดจาก /auth/me
+    set({ token, role, tenantId, name, enabledFeatures: enabledFeatures ?? null, permissions: null, isRootAdmin: false })
   },
   setName: (name) => {
     localStorage.setItem('name', name)
@@ -72,9 +76,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     else localStorage.removeItem('permissions')
     set({ permissions: map })
   },
+  setIsRootAdmin: (v) => {
+    localStorage.setItem('is_root_admin', v ? '1' : '0')
+    set({ isRootAdmin: v })
+  },
   clear: () => {
     localStorage.clear()
-    set({ token: null, role: null, tenantId: null, name: null, enabledFeatures: null, permissions: null })
+    set({ token: null, role: null, tenantId: null, name: null, enabledFeatures: null, permissions: null, isRootAdmin: false })
   },
 }))
 

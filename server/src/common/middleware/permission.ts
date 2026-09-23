@@ -27,6 +27,21 @@ export function requirePermission(feature: string, action: PermissionAction) {
   }
 }
 
+// เฉพาะบัญชีแรกที่ SUPER_ADMIN สร้างให้ตอนตั้ง tenant (User.is_root_admin) หรือ
+// SUPER_ADMIN เอง — ใช้กับหน้า "ผู้ใช้งานเว็บ" (จัดการ/สร้าง/ลบบัญชีอื่นในบริษัท)
+// เข้มกว่า requirePermission เพราะเป็นเรื่องยกระดับสิทธิ์คนอื่น ไม่ใช่แค่ดู/แก้ข้อมูล
+// (feedback 2026-09-23 "tab ผู้ใช้งานมีแค่แอดมินที่ superadmin เป็นผู้สร้างเข้าได้")
+export function requireRootAdmin() {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    if (req.userRole === 'SUPER_ADMIN') return
+    if (!req.userId) return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์เข้าถึง' } })
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { is_root_admin: true } })
+    if (!user?.is_root_admin) {
+      return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะบัญชีแรกที่ผู้ดูแลระบบสร้างให้เท่านั้นที่จัดการผู้ใช้งานได้' } })
+    }
+  }
+}
+
 // endpoint ข้อมูลดิบที่หน้ารายงานหลายหมวดดึงมาใช้ร่วมกัน (เช่น /admin/employees
 // ถูกทั้งหน้า "พนักงาน" ปกติ และหน้า "รายงานพนักงาน"/"รายงานสาขา"/"รายงานผู้บริหาร"
 // เรียกใช้) — ผ่านถ้ามีสิทธิ์ "ดู" ของ feature ใดก็ได้ในลิสต์ที่ให้มา (เจ้าของข้อมูล

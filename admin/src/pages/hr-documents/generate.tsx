@@ -22,6 +22,7 @@ interface DocData {
 const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
 const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', fontSize: '13px', borderRadius: 8, border: '1px solid #e5e7eb', boxSizing: 'border-box', fontFamily: 'inherit' }
 const row2: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }
+const row3: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
 
@@ -96,7 +97,7 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
   })
 
   return (
-    <Modal onClose={onClose} width={480}>
+    <Modal onClose={onClose} width={type === 'PAYSLIP' ? 640 : 480}>
       <div style={{ padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <FileText size={17} color="#ea580c" />
@@ -120,7 +121,7 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
                   <div><label style={label}>เงินเดือนประจำเดือน</label><input style={inputStyle} value={payPeriod} onChange={e => setPayPeriod(e.target.value)} placeholder="เช่น พ.ค. 69" /></div>
                 </div>
                 <p style={{ fontSize: '11.5px', fontWeight: 700, color: '#6b7280', margin: '4px 0 0' }}>รายการเงินได้ (บาท) — ไม่มีในระบบ กรอกเอง</p>
-                <div style={row2}>
+                <div style={row3}>
                   {(Object.keys(income) as (keyof typeof income)[]).map(k => (
                     <div key={k}>
                       <label style={label}>{{ salary: 'เงินเดือน', commission: 'ค่าคอมมิชชั่น', attendance_bonus: 'ค่าเบี้ยขยัน', transport: 'ค่าเดินทาง+สื่อสาร', position_allowance: 'เงินประจำตำแหน่ง', experience_allowance: 'ค่าประสบการณ์', day_off_buyback: 'ซื้อคืนวันหยุด', kpi: 'KPI', birthday_bonus: 'เงินวันเกิด' }[k]}</label>

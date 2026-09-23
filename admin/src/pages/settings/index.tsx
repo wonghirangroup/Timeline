@@ -21,7 +21,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
-import { useIsReadOnly } from '../../stores/authStore'
+import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
 const card: React.CSSProperties = {
@@ -444,16 +444,20 @@ function NotificationPrefsTab() {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {NOTIF_TYPES.map(n => {
           const checked = prefs[n.key] !== false
+          const disabled = readOnly || mut.isPending
           return (
-            <label key={n.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 4px', borderBottom: '1px solid #f8fafc', cursor: readOnly ? 'default' : 'pointer' }}>
-              <input type="checkbox" checked={checked} disabled={readOnly || mut.isPending}
-                onChange={e => mut.mutate({ [n.key]: e.target.checked })}
-                style={{ marginTop: 3 }} />
+            <div key={n.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 4px', borderBottom: '1px solid #f8fafc' }}>
               <span>
                 <span style={{ fontWeight: 600, fontSize: '13px', color: '#374151' }}>{n.label}</span>
                 <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>{n.desc}</span>
               </span>
-            </label>
+              <button onClick={() => mut.mutate({ [n.key]: !checked })} disabled={disabled}
+                aria-label={n.label} aria-pressed={checked}
+                style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
+                  background: checked ? '#f97316' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
+                <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </button>
+            </div>
           )
         })}
       </div>
@@ -587,6 +591,12 @@ const TABS: { key: SettingsTab; label: string }[] = [
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('general')
+  // จัดการผู้ใช้งานคนอื่น (เพิ่ม/แก้/ลบ/สิทธิ์) — เฉพาะบัญชีแรกที่ Super Admin สร้าง
+  // ให้ตอนตั้งบริษัท (is_root_admin) เท่านั้น (feedback 2026-09-23) — ทุกคนยัง
+  // เปลี่ยนรหัสผ่านตัวเองได้ปกติ (SelfPasswordCard ไม่ถูกซ่อน)
+  const isRootAdmin = useAuthStore(s => s.isRootAdmin)
+  const role = useAuthStore(s => s.role)
+  const canManageUsers = isRootAdmin || role === 'SUPER_ADMIN'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
@@ -606,7 +616,18 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'general' && <><CompanyProfileTab /><ShortcutCard /></>}
-      {tab === 'users' && <><SelfPasswordCard /><UserManagementSettings /></>}
+      {tab === 'users' && (
+        <>
+          <SelfPasswordCard />
+          {canManageUsers ? <UserManagementSettings /> : (
+            <div style={{ ...card, padding: 20, textAlign: 'center' }}>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', margin: 0 }}>
+                การเพิ่ม/แก้ไข/ลบผู้ใช้งานคนอื่น ทำได้เฉพาะบัญชีแรกที่ผู้ดูแลระบบสร้างให้บริษัทนี้เท่านั้น
+              </p>
+            </div>
+          )}
+        </>
+      )}
       {tab === 'leave' && <><LeavePolicyTab /><LeaveTypesManager /></>}
       {tab === 'notifications' && <NotificationPrefsTab />}
       {tab === 'features' && <FeatureTogglesTab />}

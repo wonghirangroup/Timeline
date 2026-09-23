@@ -244,7 +244,7 @@ export async function authRoutes(app: FastifyInstance) {
       // อ่านสดจาก DB — ต้องอัปเดตทันทีหลังผู้ใช้เปลี่ยนรหัส/ชื่อ (JWT ไม่ได้ refresh)
       const fresh = await prisma.user.findUnique({
         where: { id: request.user.id },
-        select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true },
+        select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true, is_root_admin: true },
       })
       // สิทธิ์แบบละเอียดของบัญชีตัวเอง — เตรียมไว้ให้ frontend เก็บล่วงหน้า
       // (Phase 1 ยังไม่มีหน้าไหนใช้ซ่อน/แสดงปุ่มจากค่านี้จริง ดู brain log v187)
@@ -260,6 +260,7 @@ export async function authRoutes(app: FastifyInstance) {
           last_name: fresh?.last_name ?? null,
           enabled_features,
           must_change_password: fresh?.must_change_password ?? false,
+          is_root_admin: fresh?.is_root_admin ?? false,
           permissions,
         },
       }

@@ -17,6 +17,7 @@ function useSyncEnabledFeatures() {
   const token = useAuthStore(s => s.token)
   const setEnabledFeatures = useAuthStore(s => s.setEnabledFeatures)
   const setPermissions = useAuthStore(s => s.setPermissions)
+  const setIsRootAdmin = useAuthStore(s => s.setIsRootAdmin)
 
   const { data } = useQuery({
     queryKey: ['auth', 'me'],
@@ -31,8 +32,9 @@ function useSyncEnabledFeatures() {
     if (data) {
       setEnabledFeatures(data.enabled_features ?? null)
       setPermissions(data.permissions ?? null)
+      setIsRootAdmin(data.is_root_admin === true)
     }
-  }, [data, setEnabledFeatures, setPermissions])
+  }, [data, setEnabledFeatures, setPermissions, setIsRootAdmin])
 
   return { mustChangePassword: data?.must_change_password === true }
 }
