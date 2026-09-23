@@ -121,6 +121,7 @@ type OverrideVal = '' | 'on' | 'off'
 const toOverrideVal = (v?: boolean | null): OverrideVal => v === true ? 'on' : v === false ? 'off' : ''
 const fromOverrideVal = (v: OverrideVal): boolean | null => v === 'on' ? true : v === 'off' ? false : null
 
+const EMPTY_ADDR = { house: '', road: '', soi: '', moo: '', sub: '', district: '', province: '', zip: '' }
 const EMPTY_FORM = {
   branch_id: '', full_name: '', nickname: '', department: '',
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
@@ -128,6 +129,16 @@ const EMPTY_FORM = {
   booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
   offsite_checkin_enabled: false, // สิทธิ์เช็คอินนอกสถานที่รายคน — default ปิด ต้องเปิดเอง
   extra_branch_ids: [] as string[], // สาขาเสริม นอกเหนือจากสาขาหลัก — เช็คอิน/ขึ้นในรายงานของสาขานี้ได้ด้วย
+  // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) — เดิมแก้ไขแล้วข้อมูลพวกนี้
+  // หายไปหมดเพราะฟอร์มแก้ไขไม่เคยมีช่องพวกนี้เลยตั้งแต่แรก (ต่างจากตอนเพิ่ม) ──
+  prefix: '', email: '', id_card: '', birthdate: '', blood_type: '', phone_alt: '',
+  emergency_contacts: [] as { name: string; relation: string; phone: string }[],
+  addr_id: { ...EMPTY_ADDR },
+  addr_cur_same: false,
+  addr_cur: { ...EMPTY_ADDR },
+  educations: [] as { level: string; institution: string; field: string; year: string }[],
+  skills: [] as { name: string; level: string }[],
+  emp_type: '', salary: '', notes: '',
 }
 
 const input: React.CSSProperties = {
@@ -223,6 +234,7 @@ export default function EmployeePage() {
   const [form, setForm]               = useState(EMPTY_FORM)
   const [saving, setSaving]           = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiEmployee | null>(null)
+  const [showEditOptional, setShowEditOptional] = useState(false) // toggle ข้อมูลส่วนตัวเพิ่มเติมในมอดัลแก้ไข (feedback 2026-09-23)
 
   // ── Add stepper state ────────────────────────────────────────────────────────
   const [addStep, setAddStep] = useState(1)
@@ -287,6 +299,7 @@ export default function EmployeePage() {
 
   function openEdit(e: ApiEmployee) {
     const full_name = `${e.first_name} ${e.last_name}`.trim()
+    const hasAddrData = (a?: AddressValue | null) => !!a && Object.values(a).some(v => (v ?? '').toString().trim())
     setForm({
       branch_id: e.branch_id,
       full_name,
@@ -301,8 +314,25 @@ export default function EmployeePage() {
       leave_override: toOverrideVal(e.leave_enabled_override),
       offsite_checkin_enabled: e.offsite_checkin_enabled ?? false,
       extra_branch_ids: (e.extra_branches ?? []).map(b => b.branch.id),
+      // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
+      prefix: e.prefix ?? '',
+      email: e.email ?? '',
+      id_card: e.id_card ?? '',
+      birthdate: e.birthdate ? e.birthdate.slice(0, 10) : '',
+      blood_type: e.blood_type ?? '',
+      phone_alt: e.phone_alt ?? '',
+      emergency_contacts: e.emergency_contacts ?? [],
+      addr_id: { ...EMPTY_ADDR, ...(e.address_id ?? {}) },
+      addr_cur_same: !hasAddrData(e.address_current),
+      addr_cur: { ...EMPTY_ADDR, ...(e.address_current ?? {}) },
+      educations: e.educations ?? [],
+      skills: e.skills ?? [],
+      emp_type: e.emp_type ?? '',
+      salary: e.salary != null ? String(e.salary) : '',
+      notes: e.notes ?? '',
     })
     setEditTarget(e)
+    setShowEditOptional(false)
     setModal('edit')
   }
 
@@ -390,6 +420,7 @@ export default function EmployeePage() {
     const { first_name, last_name } = parseName(form.full_name)
     setSaving(true)
     if (editTarget) {
+      const hasAddr = (a: typeof form.addr_id) => Object.values(a).some(v => v.trim())
       updateMutation.mutate({ id: editTarget.id, body: {
         branch_id: form.branch_id, first_name, last_name,
         nickname: form.nickname || undefined,
@@ -403,6 +434,22 @@ export default function EmployeePage() {
         leave_enabled_override: fromOverrideVal(form.leave_override),
         offsite_checkin_enabled: form.offsite_checkin_enabled,
         extra_branch_ids: form.extra_branch_ids,
+        // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) — เดิมฟอร์มแก้ไขไม่ส่ง
+        // ฟิลด์พวกนี้เลย ทำให้แก้ไขพนักงานแล้วข้อมูลส่วนตัวหายหมด ──
+        prefix: form.prefix || undefined,
+        email: form.email || undefined,
+        id_card: form.id_card || undefined,
+        birthdate: form.birthdate || undefined,
+        blood_type: form.blood_type || undefined,
+        phone_alt: form.phone_alt || undefined,
+        emergency_contacts: form.emergency_contacts.filter(c => c.name.trim()).length ? form.emergency_contacts.filter(c => c.name.trim()) : undefined,
+        address_id: hasAddr(form.addr_id) ? form.addr_id : undefined,
+        address_current: !form.addr_cur_same && hasAddr(form.addr_cur) ? form.addr_cur : undefined,
+        educations: form.educations.filter(e => e.institution.trim() || e.level.trim()).length ? form.educations.filter(e => e.institution.trim() || e.level.trim()) : undefined,
+        skills: form.skills.filter(s => s.name.trim()).length ? form.skills.filter(s => s.name.trim()) : undefined,
+        emp_type: form.emp_type || undefined,
+        salary: form.salary ? Number(form.salary) : undefined,
+        notes: form.notes || undefined,
       }})
     }
   }
@@ -1365,6 +1412,190 @@ export default function EmployeePage() {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Smartphone size={14}/>Line: {editTarget.line_user_id ? `ผูกแล้ว (${editTarget.line_user_id.slice(0, 12)}...)` : 'ยังไม่ผูก — พนักงานต้องยืนยันตัวตนผ่าน LIFF'}</span>
                 </div>
               )}
+
+              {/* ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) — เดิมมอดัลแก้ไขไม่มีช่อง
+                  พวกนี้เลย ทำให้แก้ไขพนักงานแล้วข้อมูลส่วนตัวหายหมด (ต่างจากตอนเพิ่มที่มีครบ) ── */}
+              <button type="button" onClick={() => setShowEditOptional(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
+                {showEditOptional ? '▲ ซ่อนข้อมูลส่วนตัวเพิ่มเติม' : '▼ ข้อมูลส่วนตัวเพิ่มเติม (บัตร, ที่อยู่, การศึกษา, ทักษะ, เงินเดือน...)'}
+              </button>
+
+              {showEditOptional && (() => {
+                const inp: React.CSSProperties = { ...input, padding: '9px 12px', fontSize: '13px' }
+                const lbl: React.CSSProperties = { ...label, fontSize: '12px', marginBottom: 4 }
+                const sec: React.CSSProperties = { fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: 10 }
+                const setAddr = (which: 'addr_id' | 'addr_cur') => (k: string, v: string) =>
+                  setForm(f => ({ ...f, [which]: { ...(f[which] as Record<string,string>), [k]: v } }))
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4, borderTop: '1px dashed #e5e7eb' }}>
+                    {/* คำนำหน้า / อีเมล / เลขบัตร / วันเกิด / หมู่เลือด / เบอร์สำรอง */}
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '130px 1fr', gap: 10 }}>
+                      <div>
+                        <label style={lbl}>คำนำหน้า</label>
+                        <select value={form.prefix} onChange={e => setForm(f => ({ ...f, prefix: e.target.value }))} style={inp}>
+                          <option value="">เลือกคำนำหน้า</option>
+                          <option>นาย</option><option>นาง</option><option>นางสาว</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={lbl}>อีเมล</label>
+                        <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="example@email.com" style={inp} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={lbl}>เลขบัตรประชาชน</label>
+                        <input value={form.id_card} onChange={e => setForm(f => ({ ...f, id_card: e.target.value }))} placeholder="X-XXXX-XXXXX-XX-X" style={inp} maxLength={17} />
+                      </div>
+                      <div>
+                        <label style={lbl}>เบอร์ติดต่อสำรอง</label>
+                        <input value={form.phone_alt} onChange={e => setForm(f => ({ ...f, phone_alt: e.target.value }))} placeholder="08XXXXXXXX" style={inp} inputMode="tel" />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={lbl}>วันเกิด</label>
+                        <input type="date" value={form.birthdate} onChange={e => setForm(f => ({ ...f, birthdate: e.target.value }))} style={inp} />
+                        <span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(form.birthdate)}</span>
+                      </div>
+                      <div>
+                        <label style={lbl}>หมู่เลือด</label>
+                        <select value={form.blood_type} onChange={e => setForm(f => ({ ...f, blood_type: e.target.value }))} style={inp}>
+                          <option value="">เลือกหมู่เลือด</option>
+                          {['A','B','AB','O'].map(b => <option key={b}>{b}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* ผู้ติดต่อฉุกเฉิน */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <p style={sec}>ผู้ติดต่อฉุกเฉิน</p>
+                        <button type="button" onClick={() => setForm(f => ({ ...f, emergency_contacts: [...f.emergency_contacts, { name: '', relation: '', phone: '' }] }))}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
+                          <Plus size={12} strokeWidth={2.5}/>
+                          เพิ่มผู้ติดต่อฉุกเฉิน
+                        </button>
+                      </div>
+                      {form.emergency_contacts.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีผู้ติดต่อฉุกเฉิน</p>
+                      ) : (
+                        form.emergency_contacts.map((ec, i) => (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 100px 1fr auto', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                            <div><label style={lbl}>ชื่อ</label><input value={ec.name} onChange={e => { const c = [...form.emergency_contacts]; c[i] = { ...c[i], name: e.target.value }; setForm(f => ({ ...f, emergency_contacts: c })) }} style={inp} /></div>
+                            <div><label style={lbl}>ความสัมพันธ์</label><input value={ec.relation} onChange={e => { const c = [...form.emergency_contacts]; c[i] = { ...c[i], relation: e.target.value }; setForm(f => ({ ...f, emergency_contacts: c })) }} style={inp} /></div>
+                            <div><label style={lbl}>เบอร์โทร</label><input value={ec.phone} onChange={e => { const c = [...form.emergency_contacts]; c[i] = { ...c[i], phone: e.target.value }; setForm(f => ({ ...f, emergency_contacts: c })) }} style={inp} /></div>
+                            <button type="button" onClick={() => setForm(f => ({ ...f, emergency_contacts: f.emergency_contacts.filter((_, j) => j !== i) }))} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }} aria-label="ลบ"><X size={13}/></button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ที่อยู่ */}
+                    <div>
+                      <p style={sec}>ที่อยู่ตามบัตรประชาชน</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                        {[['บ้านเลขที่','house'],['ถนน','road'],['ซอย','soi'],['หมู่บ้าน','moo'],['ตำบล/แขวง','sub'],['อำเภอ/เขต','district'],['จังหวัด','province'],['รหัสไปรษณีย์','zip']].map(([lb, k]) => (
+                          <div key={k}>
+                            <label style={lbl}>{lb}</label>
+                            <input value={(form.addr_id as Record<string,string>)[k]} onChange={e => setAddr('addr_id')(k, e.target.value)} style={inp} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <p style={sec}>ที่อยู่ปัจจุบัน</p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={form.addr_cur_same} onChange={e => setForm(f => ({ ...f, addr_cur_same: e.target.checked }))} />
+                          ที่อยู่เดียวกันในบัตรประชาชน
+                        </label>
+                      </div>
+                      {!form.addr_cur_same && (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                          {[['บ้านเลขที่','house'],['ถนน','road'],['ซอย','soi'],['หมู่บ้าน','moo'],['ตำบล/แขวง','sub'],['อำเภอ/เขต','district'],['จังหวัด','province'],['รหัสไปรษณีย์','zip']].map(([lb, k]) => (
+                            <div key={k}>
+                              <label style={lbl}>{lb}</label>
+                              <input value={(form.addr_cur as Record<string,string>)[k]} onChange={e => setAddr('addr_cur')(k, e.target.value)} style={inp} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* การศึกษา */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <p style={sec}>ประวัติการศึกษา</p>
+                        <button type="button" onClick={() => setForm(f => ({ ...f, educations: [...f.educations, { level: '', institution: '', field: '', year: '' }] }))}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
+                          <Plus size={12} strokeWidth={2.5}/>
+                          เพิ่มข้อมูลการศึกษา
+                        </button>
+                      </div>
+                      {form.educations.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลการศึกษา คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
+                      ) : (
+                        form.educations.map((ed, i) => (
+                          <div key={i} style={{ padding: '12px', background: '#f9fafb', borderRadius: 8, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                              <div><label style={lbl}>ระดับการศึกษา</label><select value={ed.level} onChange={e => { const c = [...form.educations]; c[i] = { ...c[i], level: e.target.value }; setForm(f => ({ ...f, educations: c })) }} style={inp}><option value="">เลือก</option>{['ประถมศึกษา','มัธยมศึกษา','ปวช.','ปวส.','ปริญญาตรี','ปริญญาโท','ปริญญาเอก'].map(l => <option key={l}>{l}</option>)}</select></div>
+                              <div><label style={lbl}>ปีที่จบ</label><input value={ed.year} onChange={e => { const c = [...form.educations]; c[i] = { ...c[i], year: e.target.value }; setForm(f => ({ ...f, educations: c })) }} placeholder="2565" style={inp} /></div>
+                              <div><label style={lbl}>สถาบัน</label><input value={ed.institution} onChange={e => { const c = [...form.educations]; c[i] = { ...c[i], institution: e.target.value }; setForm(f => ({ ...f, educations: c })) }} style={inp} /></div>
+                              <div><label style={lbl}>สาขา/วิชาเอก</label><input value={ed.field} onChange={e => { const c = [...form.educations]; c[i] = { ...c[i], field: e.target.value }; setForm(f => ({ ...f, educations: c })) }} style={inp} /></div>
+                            </div>
+                            <button type="button" onClick={() => setForm(f => ({ ...f, educations: f.educations.filter((_, j) => j !== i) }))} style={{ alignSelf: 'flex-end', padding: '4px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>ลบ</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ทักษะ */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <p style={sec}>ทักษะ</p>
+                        <button type="button" onClick={() => setForm(f => ({ ...f, skills: [...f.skills, { name: '', level: 'ปานกลาง' }] }))}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
+                          <Plus size={12} strokeWidth={2.5}/>
+                          เพิ่มทักษะ
+                        </button>
+                      </div>
+                      {form.skills.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>ยังไม่มีข้อมูลทักษะ คลิกปุ่มด้านบนเพื่อเพิ่มข้อมูล</p>
+                      ) : (
+                        form.skills.map((sk, i) => (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1fr 140px auto', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                            <div><label style={lbl}>ชื่อทักษะ</label><input value={sk.name} onChange={e => { const c = [...form.skills]; c[i] = { ...c[i], name: e.target.value }; setForm(f => ({ ...f, skills: c })) }} style={inp} /></div>
+                            <div><label style={lbl}>ระดับ</label><select value={sk.level} onChange={e => { const c = [...form.skills]; c[i] = { ...c[i], level: e.target.value }; setForm(f => ({ ...f, skills: c })) }} style={inp}>{['เบื้องต้น','ปานกลาง','ชำนาญ','เชี่ยวชาญ'].map(l => <option key={l}>{l}</option>)}</select></div>
+                            <button type="button" onClick={() => setForm(f => ({ ...f, skills: f.skills.filter((_, j) => j !== i) }))} style={{ padding: '8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', marginBottom: 1 }} aria-label="ลบ"><X size={13}/></button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ประเภทการจ้าง / เงินเดือน */}
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={lbl}>ประเภทการจ้าง</label>
+                        <select value={form.emp_type} onChange={e => setForm(f => ({ ...f, emp_type: e.target.value }))} style={inp}>
+                          <option value="">— ไม่ระบุ —</option>
+                          {['ประจำ', 'ชั่วคราว', 'พาร์ทไทม์', 'สัญญาจ้าง', 'ทดลองงาน'].map(t => <option key={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={lbl}>เงินเดือน (บาท)</label>
+                        <input type="number" value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} placeholder="18000" style={inp} min="0" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={lbl}>หมายเหตุ</label>
+                      <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={4} placeholder="ระบุหมายเหตุเพิ่มเติม" style={{ ...inp, resize: 'vertical' }} />
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
               <button onClick={() => setModal(null)} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
