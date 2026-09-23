@@ -18,6 +18,7 @@ interface NavItem {
   label: string
   icon: JSX.Element
   feature?: keyof PlanFeatures
+  permKey?: string // feature key ของระบบสิทธิ์แบบละเอียด (v187) — ปิด "ดู" แล้วเมนูนี้หาย
   roles?: Role[] // ไม่ระบุ = ทุกบทบาทเห็น — ระบุ = จำกัดเฉพาะบทบาทในลิสต์
   badge?: number
 }
@@ -43,33 +44,33 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'ข้อมูล',
     items: [
-      { path: '/branch',       label: 'สาขา',         icon: <Building2 size={16}/> },
-      { path: '/employee',     label: 'พนักงาน',      icon: <Users     size={16}/> },
-      { path: '/master-data',  label: 'Master Data',  icon: <Table2    size={16}/>, roles: ['SUPER_ADMIN', 'ADMIN', 'EXECUTIVE'] },
+      { path: '/branch',       label: 'สาขา',         permKey: 'branch',      icon: <Building2 size={16}/> },
+      { path: '/employee',     label: 'พนักงาน',      permKey: 'employee',    icon: <Users     size={16}/> },
+      { path: '/master-data',  label: 'Master Data',  permKey: 'master_data', icon: <Table2    size={16}/>, roles: ['SUPER_ADMIN', 'ADMIN', 'EXECUTIVE'] },
     ],
   },
   {
     label: 'การกระทำ',
     items: [
-      { path: '/shift',    label: 'เช็คอิน',            icon: <Clock       size={16}/> },
-      { path: '/leave',    label: 'การลา และ วันหยุด',  feature: 'leave_management', icon: <CalendarDays size={16}/> },
-      { path: '/offsite',  label: 'เช็คอินนอกสถานที่',  feature: 'gps_checkin', icon: <MapPin size={16}/> },
-      { path: '/ot',                  label: 'OT',          feature: 'ot_management',  icon: <FileClock size={16}/> },
-      { path: '/resignations',        label: 'คำขอลาออก',   feature: 'resignation',    icon: <DoorOpen  size={16}/> },
-      { path: '/document-requests',   label: 'ขอเอกสาร HR', feature: 'document_request', icon: <FileText size={16}/> },
-      { path: '/announcement',        label: 'ประกาศ',      feature: 'announcement',   icon: <Megaphone size={16}/> },
+      { path: '/shift',    label: 'เช็คอิน',            permKey: 'shift', icon: <Clock       size={16}/> },
+      { path: '/leave',    label: 'การลา และ วันหยุด',  feature: 'leave_management', permKey: 'leave', icon: <CalendarDays size={16}/> },
+      { path: '/offsite',  label: 'เช็คอินนอกสถานที่',  feature: 'gps_checkin', permKey: 'offsite', icon: <MapPin size={16}/> },
+      { path: '/ot',                  label: 'OT',          feature: 'ot_management',  permKey: 'ot',                icon: <FileClock size={16}/> },
+      { path: '/resignations',        label: 'คำขอลาออก',   feature: 'resignation',    permKey: 'resignation',       icon: <DoorOpen  size={16}/> },
+      { path: '/document-requests',   label: 'ขอเอกสาร HR', feature: 'document_request', permKey: 'document_request', icon: <FileText size={16}/> },
+      { path: '/announcement',        label: 'ประกาศ',      feature: 'announcement',   permKey: 'announcement',      icon: <Megaphone size={16}/> },
     ],
   },
   {
     label: 'รายงาน',
     items: [
-      { path: '/report/executive',     label: 'รายงานผู้บริหาร',        icon: <TrendingUp   size={16}/> },
-      { path: '/report/employee',      label: 'รายงานพนักงาน',          icon: <Users        size={16}/> },
-      { path: '/report',               label: 'รายงานการเช็คอิน',       icon: <BarChart2    size={16}/> },
-      { path: '/report/branch',        label: 'รายงานสาขา',             icon: <Building2    size={16}/> },
-      { path: '/report/holiday',       label: 'รายงานวันหยุด',          icon: <CalendarOff  size={16}/> },
-      { path: '/report/leave',         label: 'รายงานวันลา',            icon: <CalendarDays size={16}/> },
-      { path: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', icon: <MessageCircle size={16}/> },
+      { path: '/report/executive',     label: 'รายงานผู้บริหาร',        permKey: 'report_executive',      icon: <TrendingUp   size={16}/> },
+      { path: '/report/employee',      label: 'รายงานพนักงาน',          permKey: 'report_employee',       icon: <Users        size={16}/> },
+      { path: '/report',               label: 'รายงานการเช็คอิน',       permKey: 'report_checkin',        icon: <BarChart2    size={16}/> },
+      { path: '/report/branch',        label: 'รายงานสาขา',             permKey: 'report_branch',         icon: <Building2    size={16}/> },
+      { path: '/report/holiday',       label: 'รายงานวันหยุด',          permKey: 'report_holiday',        icon: <CalendarOff  size={16}/> },
+      { path: '/report/leave',         label: 'รายงานวันลา',            permKey: 'report_leave',          icon: <CalendarDays size={16}/> },
+      { path: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', permKey: 'report_line_messages', icon: <MessageCircle size={16}/> },
     ],
   },
 ]
@@ -160,14 +161,23 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
 }) {
   const location        = useLocation()
   const enabledFeatures = useAuthStore(s => s.enabledFeatures)
+  const permissions     = useAuthStore(s => s.permissions)
   const role            = useAuthStore(s => s.role)
   const roleChip        = role ? ROLE_CHIP[role] : undefined
 
   // ปิดจริงที่ backend ด้วย (requireFeature middleware) — ตรงนี้แค่ซ่อนเมนูให้ตรงกับสิทธิ์
   // ไม่มี key ใน enabledFeatures เลย (tenant ไม่เคยถูกตั้งค่า) = เปิดใช้งานทุกฟีเจอร์ (ค่า default)
-  function visible(feature?: keyof PlanFeatures, roles?: Role[]) {
+  //
+  // permKey เพิ่มจากระบบสิทธิ์แบบละเอียด (v187/v198 "อยากให้เห็นว่า account ไหน
+  // จะเห็นเมนูไหนใน Sidebar") — permissions เป็น null ระหว่างที่ยังโหลดครั้งแรก
+  // ไม่ทัน (ก่อน /auth/me รอบแรกตอบกลับ) หรือ SUPER_ADMIN (ไม่มี tenant/ไม่มีแถว)
+  // ถือว่าเห็นทุกเมนูไปก่อน (fallback ปลอดภัยแบบเดียวกับฝั่ง backend) — permKey
+  // ที่ยังไม่มีแถวใน map ก็ถือว่าเห็น (getUserPermissions default เป็น true อยู่แล้ว)
+  function visible(feature?: keyof PlanFeatures, roles?: Role[], permKey?: string) {
     if (roles && (!role || !roles.includes(role))) return false
-    return !feature || !enabledFeatures || enabledFeatures[feature] !== false
+    if (feature && enabledFeatures && enabledFeatures[feature] === false) return false
+    if (permKey && permissions && permissions[permKey]?.view === false) return false
+    return true
   }
 
   // ── helper: icon-centered nav link ───────────────────────────────────────
@@ -256,7 +266,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
       {/* Nav */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '16px 12px', overflowX: 'hidden' }}>
         {NAV_SECTIONS.map((section, si) => {
-          const visItems = section.items.filter(it => visible(it.feature, it.roles))
+          const visItems = section.items.filter(it => visible(it.feature, it.roles, it.permKey))
           if (visItems.length === 0) return null
           const accent = ACTIVE_ACCENT
           return (
@@ -281,9 +291,11 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         })}
 
         {/* Settings */}
-        <div style={{ marginTop: 8, paddingTop: collapsed ? 0 : 8 }}>
-          <NavItem item={{ path: '/settings', label: 'การตั้งค่า', icon: <Settings size={16}/> }} accent={SETTINGS_ACCENT} />
-        </div>
+        {visible(undefined, undefined, 'settings') && (
+          <div style={{ marginTop: 8, paddingTop: collapsed ? 0 : 8 }}>
+            <NavItem item={{ path: '/settings', label: 'การตั้งค่า', icon: <Settings size={16}/> }} accent={SETTINGS_ACCENT} />
+          </div>
+        )}
       </nav>
 
       {/* Footer — role chip + logout (user profile อยู่ Topbar) */}

@@ -7,14 +7,16 @@ import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
 import ForcedPasswordChange from './ForcedPasswordChange'
 
-// ── Sync enabled_features แบบเกือบ real-time ────────────────────────────────
-// ปกติ enabledFeatures มาจาก login ครั้งเดียว — ถ้า Super Admin ปิดฟีเจอร์ระหว่าง
-// ที่ Admin ล็อกอินค้างอยู่ backend บล็อกจริงทันทีอยู่แล้ว (requireFeature) แต่เมนู
-// ฝั่งนี้ (Sidebar) จะไม่อัปเดตจนกว่าจะ login ใหม่ — เลย poll /auth/me เบาๆ
-// ทุก 30 วิ + ตอนกลับมาโฟกัสแท็บ ให้เมนูตามทันโดยไม่ต้อง logout/login
+// ── Sync enabled_features + permissions แบบเกือบ real-time ──────────────────
+// ปกติ enabledFeatures/permissions มาจาก login ครั้งเดียว — ถ้า Super Admin ปิด
+// ฟีเจอร์ หรือแอดมินแก้สิทธิ์ละเอียด (v187) ระหว่างที่ล็อกอินค้างอยู่ backend
+// บล็อกจริงทันทีอยู่แล้ว (requireFeature/requirePermission) แต่เมนูฝั่งนี้
+// (Sidebar) จะไม่อัปเดตจนกว่าจะ login ใหม่ — เลย poll /auth/me เบาๆ ทุก 30 วิ
+// + ตอนกลับมาโฟกัสแท็บ ให้เมนูตามทันโดยไม่ต้อง logout/login
 function useSyncEnabledFeatures() {
   const token = useAuthStore(s => s.token)
   const setEnabledFeatures = useAuthStore(s => s.setEnabledFeatures)
+  const setPermissions = useAuthStore(s => s.setPermissions)
 
   const { data } = useQuery({
     queryKey: ['auth', 'me'],
@@ -26,8 +28,11 @@ function useSyncEnabledFeatures() {
   })
 
   useEffect(() => {
-    if (data) setEnabledFeatures(data.enabled_features ?? null)
-  }, [data, setEnabledFeatures])
+    if (data) {
+      setEnabledFeatures(data.enabled_features ?? null)
+      setPermissions(data.permissions ?? null)
+    }
+  }, [data, setEnabledFeatures, setPermissions])
 
   return { mustChangePassword: data?.must_change_password === true }
 }

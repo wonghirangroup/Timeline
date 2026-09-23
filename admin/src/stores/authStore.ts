@@ -4,15 +4,22 @@ import { create } from 'zustand'
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
 export type EnabledFeatures = Record<string, boolean> | null
 
+// สิทธิ์แบบละเอียดต่อบัญชี (ดู server/src/modules/permissions) — array ที่ได้จาก
+// /auth/me แปลงเป็น map ตาม feature key ไว้ lookup ง่ายฝั่ง UI (เช่น Sidebar)
+export interface PermissionRow { feature: string; view: boolean; add: boolean; edit: boolean; delete: boolean; approve: boolean }
+export type PermissionsMap = Record<string, PermissionRow> | null
+
 interface AuthState {
   token:            string | null
   role:             Role | null
   tenantId:         string | null
   name:             string | null
   enabledFeatures:  EnabledFeatures
+  permissions:      PermissionsMap
   setAuth:  (token: string, role: Role, tenantId: string, name: string, enabledFeatures?: EnabledFeatures) => void
   setName:  (name: string) => void
   setEnabledFeatures: (enabledFeatures: EnabledFeatures) => void
+  setPermissions: (permissions: PermissionRow[] | null) => void
   clear:    () => void
 }
 
@@ -22,12 +29,24 @@ function readEnabledFeatures(): EnabledFeatures {
   try { return JSON.parse(raw) } catch { return null }
 }
 
+function readPermissions(): PermissionsMap {
+  const raw = localStorage.getItem('permissions')
+  if (!raw) return null
+  try { return JSON.parse(raw) } catch { return null }
+}
+
+function toPermissionsMap(rows: PermissionRow[] | null): PermissionsMap {
+  if (!rows) return null
+  return Object.fromEntries(rows.map(r => [r.feature, r]))
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   token:            localStorage.getItem('access_token'),
   role:             localStorage.getItem('role') as Role | null,
   tenantId:         localStorage.getItem('tenant_id'),
   name:             localStorage.getItem('name'),
   enabledFeatures:  readEnabledFeatures(),
+  permissions:      readPermissions(),
   setAuth: (token, role, tenantId, name, enabledFeatures) => {
     localStorage.setItem('access_token', token)
     localStorage.setItem('role', role)
@@ -35,7 +54,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('name', name)
     if (enabledFeatures) localStorage.setItem('enabled_features', JSON.stringify(enabledFeatures))
     else localStorage.removeItem('enabled_features')
-    set({ token, role, tenantId, name, enabledFeatures: enabledFeatures ?? null })
+    localStorage.removeItem('permissions') // ล้างของบัญชีเก่า — รอบโหลดถัดไปจะ sync สดจาก /auth/me
+    set({ token, role, tenantId, name, enabledFeatures: enabledFeatures ?? null, permissions: null })
   },
   setName: (name) => {
     localStorage.setItem('name', name)
@@ -46,9 +66,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     else localStorage.removeItem('enabled_features')
     set({ enabledFeatures })
   },
+  setPermissions: (rows) => {
+    const map = toPermissionsMap(rows)
+    if (map) localStorage.setItem('permissions', JSON.stringify(map))
+    else localStorage.removeItem('permissions')
+    set({ permissions: map })
+  },
   clear: () => {
     localStorage.clear()
-    set({ token: null, role: null, tenantId: null, name: null, enabledFeatures: null })
+    set({ token: null, role: null, tenantId: null, name: null, enabledFeatures: null, permissions: null })
   },
 }))
 
