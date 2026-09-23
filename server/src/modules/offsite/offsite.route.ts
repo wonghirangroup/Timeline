@@ -6,7 +6,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
-import { listOffsiteCheckins, createOffsiteCheckin, checkOutOffsiteCheckin } from './offsite.service'
+import { listOffsiteCheckins, createOffsiteCheckin, checkOutOffsiteCheckin, createOffsiteCheckinByAdmin, updateOffsiteCheckin, deleteOffsiteCheckin } from './offsite.service'
 
 export async function offsiteRoutes(app: FastifyInstance) {
 
@@ -35,6 +35,81 @@ export async function offsiteRoutes(app: FastifyInstance) {
       scopedEmployeeIds: req.scopedEmployeeIds,
     })
     return ok(list)
+  })
+
+  // ── Admin/Manager: เพิ่มรายการเช็คอินนอกสถานที่ด้วยมือ (feedback 2026-09-23
+  // — บันทึกย้อนหลัง/แทนพนักงานที่ลืมเช็คอิน ไม่ใช่ GPS จริงของพนักงาน) ───────
+  app.post('/admin/offsite-checkins', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('offsite', 'add'), requireFeature('gps_checkin')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'เพิ่มรายการเช็คอินนอกสถานที่ด้วยมือ (แอดมินบันทึกแทน ไม่ใช่ GPS พนักงาน)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'check_in_date', 'check_in_time'],
+        properties: {
+          employee_id:       { type: 'string' },
+          check_in_date:     { type: 'string', description: 'YYYY-MM-DD' },
+          check_in_time:     { type: 'string', description: 'HH:mm' },
+          check_in_address:  { type: 'string' },
+          check_out_date:    { type: 'string', description: 'YYYY-MM-DD' },
+          check_out_time:    { type: 'string', description: 'HH:mm' },
+          check_out_address: { type: 'string' },
+          note:              { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const record = await createOffsiteCheckinByAdmin(req.tenantId, req.body)
+      return reply.code(201).send(ok(record, 'เพิ่มรายการเช็คอินนอกสถานที่สำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      throw e
+    }
+  })
+
+  // ── Admin/Manager: แก้ไขรายการเช็คอินนอกสถานที่ ────────────────────
+  app.patch('/admin/offsite-checkins/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('offsite', 'edit'), requireFeature('gps_checkin')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'แก้ไขรายการเช็คอินนอกสถานที่ (เวลา/ที่อยู่/หมายเหตุ)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          check_in_date:     { type: 'string', description: 'YYYY-MM-DD' },
+          check_in_time:     { type: 'string', description: 'HH:mm' },
+          check_in_address:  { type: 'string' },
+          check_out_date:    { type: ['string', 'null'], description: 'YYYY-MM-DD — ส่ง null พร้อม check_out_time เพื่อล้างเวลาเช็คเอาต์' },
+          check_out_time:    { type: ['string', 'null'], description: 'HH:mm' },
+          check_out_address: { type: 'string' },
+          note:              { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    const record = await updateOffsiteCheckin(req.tenantId, req.params.id, req.body)
+    if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(record, 'บันทึกการแก้ไขเรียบร้อย')
+  })
+
+  // ── Admin/Manager: ลบรายการเช็คอินนอกสถานที่ ───────────────────────
+  app.delete('/admin/offsite-checkins/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('offsite', 'delete'), requireFeature('gps_checkin')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ลบรายการเช็คอินนอกสถานที่',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const success = await deleteOffsiteCheckin(req.tenantId, req.params.id)
+    if (!success) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(null, 'ลบรายการเรียบร้อย')
   })
 
   // ── Employee (LIFF): ปักหมุดเช็คอินนอกสถานที่ ─────────────────────

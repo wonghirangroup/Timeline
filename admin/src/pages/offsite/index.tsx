@@ -1,13 +1,18 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
+import { useToast } from '../../components/ui/Toast'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Button from '../../components/ui/Button'
+import { useIsReadOnly } from '../../stores/authStore'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
+  first_name?: string; last_name?: string; nickname?: string | null; employee_code?: string
 }
 interface ApiPosition {
   id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null
@@ -15,8 +20,8 @@ interface ApiPosition {
 interface ApiOffsiteCheckin {
   id: string
   check_in_at: string
-  check_in_lat: string
-  check_in_lng: string
+  check_in_lat: string | null
+  check_in_lng: string | null
   check_in_address: string | null
   check_out_at: string | null
   check_out_lat: string | null
@@ -27,6 +32,28 @@ interface ApiOffsiteCheckin {
     id: string; first_name: string; last_name: string; nickname: string; employee_code: string
     branch: { id: string; name: string }
   }
+}
+
+const input: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', fontSize: '13px',
+  borderRadius: 8, border: '1px solid #e5e7eb',
+  boxSizing: 'border-box', color: '#1f2937', fontFamily: 'inherit', background: '#fff',
+}
+const label: React.CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4 }
+
+// แปลง ISO datetime → ค่าสำหรับ <input type="date"/time"> โดยใช้เวลา local ของ
+// เบราว์เซอร์ (สมมติแอดมินอยู่โซนเวลาไทยเหมือนที่หน้านี้ format แสดงผลอยู่แล้ว)
+function toDateInput(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function toTimeInput(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+const EMPTY_OFFSITE_FORM = {
+  employee_id: '', check_in_date: '', check_in_time: '', check_in_address: '',
+  still_active: true, check_out_date: '', check_out_time: '', check_out_address: '', note: '',
 }
 
 const card: React.CSSProperties = {
@@ -53,8 +80,16 @@ function duration(startIso: string, endIso: string | null): string {
 
 export default function OffsitePage() {
   const isMobile = useIsMobile()
+  const isReadOnly = useIsReadOnly()
+  const { showToast } = useToast()
+  const qc = useQueryClient()
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [listView, setListView]   = useState<'card' | 'table'>('table')
+  const [modal, setModal]         = useState<'add' | 'edit' | null>(null)
+  const [editTarget, setEditTarget] = useState<ApiOffsiteCheckin | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ApiOffsiteCheckin | null>(null)
+  const [form, setForm]           = useState(EMPTY_OFFSITE_FORM)
+  const [saving, setSaving]       = useState(false)
 
   const { data: rows = [] } = useQuery<ApiOffsiteCheckin[]>({
     queryKey: ['admin', 'offsite-checkins'],
@@ -79,8 +114,101 @@ export default function OffsitePage() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }).length
 
+  function invalidateOffsite() {
+    qc.invalidateQueries({ queryKey: ['admin', 'offsite-checkins'] })
+  }
+
+  const addMutation = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/offsite-checkins', body).then(r => r.data.data),
+    onSuccess: () => { invalidateOffsite(); showToast('success', 'เพิ่มรายการเช็คอินนอกสถานที่สำเร็จ'); setSaving(false); setModal(null) },
+    onError: () => { showToast('error', 'เพิ่มรายการไม่สำเร็จ'); setSaving(false) },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/offsite-checkins/${id}`, body).then(r => r.data.data),
+    onSuccess: () => { invalidateOffsite(); showToast('success', 'บันทึกการแก้ไขเรียบร้อย'); setSaving(false); setModal(null) },
+    onError: () => { showToast('error', 'บันทึกไม่สำเร็จ'); setSaving(false) },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/offsite-checkins/${id}`),
+    onSuccess: () => { invalidateOffsite(); showToast('success', 'ลบรายการเรียบร้อย'); setDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบรายการไม่สำเร็จ'),
+  })
+
+  function openAdd() {
+    const now = new Date()
+    setForm({ ...EMPTY_OFFSITE_FORM, check_in_date: toDateInput(now.toISOString()), check_in_time: toTimeInput(now.toISOString()) })
+    setEditTarget(null)
+    setModal('add')
+  }
+  function openEdit(r: ApiOffsiteCheckin) {
+    setForm({
+      employee_id: r.employee.id,
+      check_in_date: toDateInput(r.check_in_at), check_in_time: toTimeInput(r.check_in_at),
+      check_in_address: r.check_in_address ?? '',
+      still_active: !r.check_out_at,
+      check_out_date: r.check_out_at ? toDateInput(r.check_out_at) : '',
+      check_out_time: r.check_out_at ? toTimeInput(r.check_out_at) : '',
+      check_out_address: r.check_out_address ?? '',
+      note: r.note ?? '',
+    })
+    setEditTarget(r)
+    setModal('edit')
+  }
+  function handleSave() {
+    if (!form.employee_id || !form.check_in_date || !form.check_in_time) {
+      showToast('error', 'กรุณาเลือกพนักงานและระบุเวลาเช็คอิน')
+      return
+    }
+    setSaving(true)
+    const checkOut = form.still_active
+      ? { check_out_date: null, check_out_time: null }
+      : (form.check_out_date && form.check_out_time ? { check_out_date: form.check_out_date, check_out_time: form.check_out_time } : {})
+    if (editTarget) {
+      updateMutation.mutate({ id: editTarget.id, body: {
+        check_in_date: form.check_in_date, check_in_time: form.check_in_time,
+        check_in_address: form.check_in_address || undefined,
+        ...checkOut,
+        check_out_address: form.check_out_address || undefined,
+        note: form.note || undefined,
+      }})
+    } else {
+      addMutation.mutate({
+        employee_id: form.employee_id,
+        check_in_date: form.check_in_date, check_in_time: form.check_in_time,
+        check_in_address: form.check_in_address || undefined,
+        ...(!form.still_active && form.check_out_date && form.check_out_time
+          ? { check_out_date: form.check_out_date, check_out_time: form.check_out_time }
+          : {}),
+        check_out_address: form.check_out_address || undefined,
+        note: form.note || undefined,
+      })
+    }
+  }
+  function handleDelete() {
+    if (!deleteTarget) return
+    deleteMutation.mutate(deleteTarget.id)
+  }
+
+  const sheetOverlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+    display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200,
+  }
+  const sheetBox: React.CSSProperties = {
+    background: '#fff', borderRadius: isMobile ? '20px 20px 0 0' : 16,
+    width: isMobile ? '100%' : 520, maxWidth: '96vw',
+    maxHeight: isMobile ? '92vh' : 'min(88vh, 760px)',
+    display: 'flex', flexDirection: 'column',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {!isReadOnly && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>
+        </div>
+      )}
 
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: isMobile ? 8 : 10 }}>
@@ -136,9 +264,11 @@ export default function OffsitePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ color: 'var(--text-muted)', minWidth: 46 }}>เข้า</span>
                     <span>{thDateTime(r.check_in_at)}</span>
-                    <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <MapPin size={12} /><ExternalLink size={10} />
-                    </a>
+                    {r.check_in_lat && r.check_in_lng && (
+                      <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <MapPin size={12} /><ExternalLink size={10} />
+                      </a>
+                    )}
                   </div>
                   {r.check_in_address && (
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 52 }}>{r.check_in_address}</div>
@@ -147,9 +277,11 @@ export default function OffsitePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ color: 'var(--text-muted)', minWidth: 46 }}>ออก</span>
                       <span>{thDateTime(r.check_out_at)}</span>
-                      <a href={directionsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <MapPin size={12} /><ExternalLink size={10} />
-                      </a>
+                      {r.check_out_lat && r.check_out_lng && (
+                        <a href={directionsUrl(r.check_out_lat, r.check_out_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <MapPin size={12} /><ExternalLink size={10} />
+                        </a>
+                      )}
                     </div>
                   )}
                   {r.check_out_address && (
@@ -160,7 +292,13 @@ export default function OffsitePage() {
                     <span style={{ fontWeight: 600 }}>{duration(r.check_in_at, r.check_out_at)}</span>
                   </div>
                 </div>
-                {r.note && <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 8, padding: '6px 10px' }}>{r.note}</div>}
+                {r.note && <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', background: '#f9fafb', borderRadius: 8, padding: '6px 10px', marginBottom: !isReadOnly ? 8 : 0 }}>{r.note}</div>}
+                {!isReadOnly && (
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => openEdit(r)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '12px', cursor: 'pointer' }}><Pencil size={12}/> แก้ไข</button>
+                    <button onClick={() => setDeleteTarget(r)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: '12px', cursor: 'pointer' }}><Trash2 size={12}/> ลบ</button>
+                  </div>
+                )}
               </div>
             ))}
             {filtered.length === 0 && (
@@ -172,7 +310,7 @@ export default function OffsitePage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#eff6ff', borderBottom: '1px solid #f1f5f9' }}>
-                  {['พนักงาน','สาขา','เข้า','ออก','ระยะเวลา','หมายเหตุ','สถานะ'].map(h => (
+                  {['พนักงาน','สาขา','เข้า','ออก','ระยะเวลา','หมายเหตุ','สถานะ', ...(isReadOnly ? [] : ['จัดการ'])].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#2563eb', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -188,7 +326,9 @@ export default function OffsitePage() {
                     <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', maxWidth: 220 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                         {thDateTime(r.check_in_at)}
-                        <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                        {r.check_in_lat && r.check_in_lng && (
+                          <a href={directionsUrl(r.check_in_lat, r.check_in_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                        )}
                       </div>
                       {r.check_in_address && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{r.check_in_address}</div>}
                     </td>
@@ -197,7 +337,9 @@ export default function OffsitePage() {
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                             {thDateTime(r.check_out_at)}
-                            <a href={directionsUrl(r.check_out_lat!, r.check_out_lng!)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                            {r.check_out_lat && r.check_out_lng && (
+                              <a href={directionsUrl(r.check_out_lat, r.check_out_lng)} target="_blank" rel="noreferrer" title="นำทางด้วย Google Maps" aria-label="นำทางด้วย Google Maps" style={{ color: '#2563eb', display: 'flex' }}><MapPin size={13} /></a>
+                            )}
                           </div>
                           {r.check_out_address && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{r.check_out_address}</div>}
                         </>
@@ -212,16 +354,105 @@ export default function OffsitePage() {
                         <span style={{ background: '#f0fdf4', color: '#15803d', borderRadius: 99, padding: '3px 10px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>เสร็จสิ้น</span>
                       )}
                     </td>
+                    {!isReadOnly && (
+                      <td style={{ padding: '11px 14px' }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => openEdit(r)} title="แก้ไข" aria-label="แก้ไข" style={{ padding: 6, borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={13}/></button>
+                          <button onClick={() => setDeleteTarget(r)} title="ลบ" aria-label="ลบ" style={{ padding: 6, borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={13}/></button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มีรายการเช็คอินนอกสถานที่</td></tr>
+                  <tr><td colSpan={isReadOnly ? 7 : 8} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มีรายการเช็คอินนอกสถานที่</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* ── Add/Edit Modal ── */}
+      {modal && (
+        <div style={sheetOverlay} onClick={() => setModal(null)}>
+          <div style={sheetBox} onClick={ev => ev.stopPropagation()}>
+            <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <p style={{ fontWeight: 700, fontSize: '16px', color: '#111827', margin: 0 }}>
+                {modal === 'add' ? 'เพิ่มรายการเช็คอินนอกสถานที่' : `แก้ไข: ${editTarget?.employee.first_name} ${editTarget?.employee.last_name}`}
+              </p>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }} aria-label="ปิด"><X size={18}/></button>
+            </div>
+            <div style={{ padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
+              {modal === 'add' ? (
+                <div>
+                  <label style={label}>พนักงาน</label>
+                  <select value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} style={input}>
+                    <option value="">เลือกพนักงาน</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''} — {e.employee_code}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: '9px 14px', fontSize: '13px', color: '#1e293b' }}>
+                  พนักงาน: <strong>{editTarget?.employee.first_name} {editTarget?.employee.last_name}</strong> ({editTarget?.employee.employee_code})
+                </div>
+              )}
+
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#374151', margin: '4px 0 0' }}>เช็คอิน</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={label}>วันที่</label><input type="date" value={form.check_in_date} onChange={e => setForm(f => ({ ...f, check_in_date: e.target.value }))} style={input} /></div>
+                <div><label style={label}>เวลา</label><input type="time" value={form.check_in_time} onChange={e => setForm(f => ({ ...f, check_in_time: e.target.value }))} style={input} /></div>
+              </div>
+              <div>
+                <label style={label}>ที่อยู่ (พิมพ์เอง — ไม่ใช่ GPS)</label>
+                <input value={form.check_in_address} onChange={e => setForm(f => ({ ...f, check_in_address: e.target.value }))} placeholder="เช่น บริษัท ABC จำกัด, ถ.สุขุมวิท" style={input} />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: '#374151', margin: 0 }}>เช็คเอาต์</p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.still_active} onChange={e => setForm(f => ({ ...f, still_active: e.target.checked }))} />
+                  ยังไม่เช็คเอาต์ (กำลังนอกสถานที่)
+                </label>
+              </div>
+              {!form.still_active && (<>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div><label style={label}>วันที่</label><input type="date" value={form.check_out_date} onChange={e => setForm(f => ({ ...f, check_out_date: e.target.value }))} style={input} /></div>
+                  <div><label style={label}>เวลา</label><input type="time" value={form.check_out_time} onChange={e => setForm(f => ({ ...f, check_out_time: e.target.value }))} style={input} /></div>
+                </div>
+                <div>
+                  <label style={label}>ที่อยู่ (พิมพ์เอง — ไม่ใช่ GPS)</label>
+                  <input value={form.check_out_address} onChange={e => setForm(f => ({ ...f, check_out_address: e.target.value }))} placeholder="เช่น บริษัท ABC จำกัด, ถ.สุขุมวิท" style={input} />
+                </div>
+              </>)}
+
+              <div>
+                <label style={label}>หมายเหตุ</label>
+                <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={3} placeholder="ระบุหมายเหตุเพิ่มเติม" style={{ ...input, resize: 'vertical' }} />
+              </div>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+              <button onClick={() => setModal(null)} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="ลบรายการเช็คอินนอกสถานที่?"
+          message={`รายการของ "${deleteTarget.employee.first_name} ${deleteTarget.employee.last_name}" (${thDateTime(deleteTarget.check_in_at)}) จะถูกลบออกจากระบบ`}
+          confirmLabel="ลบรายการ"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   )
 }
