@@ -20,6 +20,10 @@ type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
 // ฝ่าย→สาขา→กลุ่ม) — ดู resolvePolicyFlag() ฝั่ง server / resolveEmpPolicy() ใน
 // employee/detail.tsx (พอร์ตย่อยมาเฉพาะที่ตารางนี้ต้องใช้)
 interface PolicyFields { booking_enabled?: boolean | null; leave_enabled?: boolean | null; booking_quota?: number | null }
+interface ApiAddress { house?: string; road?: string; soi?: string; moo?: string; sub?: string; district?: string; province?: string; zip?: string }
+interface ApiEmergencyContact { name: string; relation: string; phone: string }
+interface ApiEducation { level: string; institution: string; field: string; year: string }
+interface ApiSkill { name: string; level: string }
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
@@ -35,6 +39,14 @@ interface ApiEmployee {
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
   pending_fine: string
+  // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23 — "Master Data โชว์ข้อมูล
+  // ส่วนตัวครบต่อพนักงาน") ── เพิ่มเป็นคอลัมน์ในตารางนี้ตรงๆ ตามที่ user เลือก
+  prefix?: string | null; email?: string | null; id_card?: string | null
+  birthdate?: string | null; blood_type?: string | null; phone_alt?: string | null
+  emergency_contacts?: ApiEmergencyContact[] | null
+  address_id?: ApiAddress | null; address_current?: ApiAddress | null
+  educations?: ApiEducation[] | null; skills?: ApiSkill[] | null
+  emp_type?: string | null; salary?: string | null; notes?: string | null
 }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup  { id: string; name: string }
@@ -115,6 +127,18 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = {
   padding: '10px 12px', fontSize: '0.82rem', color: '#374151',
   borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap',
+}
+// เซลล์ที่มีความยาวไม่แน่นอน (ที่อยู่/หมายเหตุ/ทักษะ) — ตัดด้วย ellipsis + title
+// เต็มตอน hover กันตารางกว้างเกินจากข้อความยาวผิดปกติของบางคน
+const tdTruncate: React.CSSProperties = {
+  ...td, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180,
+}
+
+const ADDRESS_KEYS: (keyof ApiAddress)[] = ['house', 'road', 'soi', 'moo', 'sub', 'district', 'province', 'zip']
+function fmtAddress(a?: ApiAddress | null): string {
+  if (!a) return '—'
+  const parts = ADDRESS_KEYS.map(k => a[k]?.trim()).filter(Boolean)
+  return parts.length ? parts.join(' ') : '—'
 }
 
 function BalanceCell({ v }: { v?: { total: number; used: number } }) {
@@ -286,6 +310,20 @@ export default function MasterDataPage() {
                   <th style={th}>พักร้อน</th>
                   <th style={th}>ชดเชย</th>
                   <th style={th}>ค่าปรับค้าง</th>
+                  <th style={th}>คำนำหน้า</th>
+                  <th style={th}>อีเมล</th>
+                  <th style={th}>เลขบัตรประชาชน</th>
+                  <th style={th}>วันเกิด</th>
+                  <th style={th}>หมู่เลือด</th>
+                  <th style={th}>เบอร์สำรอง</th>
+                  <th style={th}>ที่อยู่ตามบัตร</th>
+                  <th style={th}>ที่อยู่ปัจจุบัน</th>
+                  <th style={th}>ผู้ติดต่อฉุกเฉิน</th>
+                  <th style={th}>การศึกษา</th>
+                  <th style={th}>ทักษะ</th>
+                  <th style={th}>ประเภทการจ้าง</th>
+                  <th style={th}>เงินเดือน</th>
+                  <th style={th}>หมายเหตุ</th>
                 </tr>
               </thead>
               <tbody>
@@ -363,6 +401,30 @@ export default function MasterDataPage() {
                       <td style={{ ...td, color: fine > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: fine > 0 ? 700 : 400 }}>
                         {fine > 0 ? `${fine.toLocaleString()} บาท` : '—'}
                       </td>
+                      <td style={td}>{e.prefix || '—'}</td>
+                      <td style={td}>{e.email || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace' }}>{e.id_card || '—'}</td>
+                      <td style={td}>{thDateShort(e.birthdate ?? null)}</td>
+                      <td style={td}>{e.blood_type || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace' }}>{e.phone_alt || '—'}</td>
+                      <td style={tdTruncate} title={fmtAddress(e.address_id)}>{fmtAddress(e.address_id)}</td>
+                      <td style={tdTruncate} title={fmtAddress(e.address_current ?? e.address_id)}>{fmtAddress(e.address_current ?? e.address_id)}</td>
+                      <td style={tdTruncate} title={(e.emergency_contacts ?? []).map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`).join(', ')}>
+                        {!e.emergency_contacts?.length ? '—' : (
+                          <>{e.emergency_contacts[0].name}{e.emergency_contacts.length > 1 ? ` +${e.emergency_contacts.length - 1}` : ''}</>
+                        )}
+                      </td>
+                      <td style={tdTruncate} title={(e.educations ?? []).map(ed => `${ed.level}${ed.institution ? ` · ${ed.institution}` : ''}`).join(', ')}>
+                        {!e.educations?.length ? '—' : (
+                          <>{e.educations[0].level || e.educations[0].institution || '—'}{e.educations.length > 1 ? ` +${e.educations.length - 1}` : ''}</>
+                        )}
+                      </td>
+                      <td style={tdTruncate} title={(e.skills ?? []).map(s => s.name).join(', ')}>
+                        {!e.skills?.length ? '—' : e.skills.map(s => s.name).join(', ')}
+                      </td>
+                      <td style={td}>{e.emp_type || '—'}</td>
+                      <td style={td}>{e.salary ? `${Number(e.salary).toLocaleString()} บาท` : '—'}</td>
+                      <td style={tdTruncate} title={e.notes || ''}>{e.notes || '—'}</td>
                     </tr>
                   )
                 })}
