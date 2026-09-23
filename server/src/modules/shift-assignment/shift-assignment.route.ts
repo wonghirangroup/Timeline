@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listShiftAssignments, upsertShiftAssignment, deleteShiftAssignment } from './shift-assignment.service'
@@ -11,7 +12,7 @@ const TAG = 'Admin'
 export async function shiftAssignmentRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/shift-assignments?month=&branchId=
   app.get('/shift-assignments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('shift', 'view'), resolveDeptScope],
     schema: {
       tags: [TAG],
       summary: 'ดู override ตารางกะ (กรอง month / branchId — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -27,7 +28,7 @@ export async function shiftAssignmentRoutes(app: FastifyInstance) {
 
   // PUT /api/v1/admin/shift-assignments — ตั้ง/แก้ override เฉพาะวัน
   app.put('/shift-assignments', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'ตั้ง/แก้ override ตารางกะเฉพาะวัน (manual correction — ไม่กระทบ leave/weekly-off จริง)',
@@ -52,7 +53,7 @@ export async function shiftAssignmentRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/shift-assignments/:employeeId/:date — ล้าง override กลับไปใช้กะประจำ
   app.delete('/shift-assignments/:employeeId/:date', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'ลบ override กลับไปใช้กะประจำ (คำนวณจาก default/leave/weekly-off จริง)',

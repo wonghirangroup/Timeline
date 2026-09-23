@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listEmployeeStatusTypes, createEmployeeStatusType,
@@ -13,13 +14,13 @@ const TAG = 'Admin'
 export async function employeeStatusTypeRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/employee-status-types
   app.get('/employee-status-types', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('org_structure', 'view')],
     schema: { tags: [TAG], summary: 'ดูรายการสถานะพนักงาน (ประจำ/ชั่วคราว/...) พร้อมโควต้าวันหยุดต่อเดือน', security: [{ oauth2: [] }] },
   }, async (req, reply) => ok(await listEmployeeStatusTypes(req.tenantId)))
 
   // POST /api/v1/admin/employee-status-types
   app.post('/employee-status-types', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('org_structure', 'add')],
     schema: {
       tags: [TAG], summary: 'สร้างสถานะพนักงานใหม่', security: [{ oauth2: [] }],
       body: {
@@ -37,7 +38,7 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/employee-status-types/:id
   app.patch('/employee-status-types/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('org_structure', 'edit')],
     schema: {
       tags: [TAG], summary: 'แก้ไขสถานะพนักงาน', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -59,7 +60,7 @@ export async function employeeStatusTypeRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/employee-status-types/:id
   app.delete('/employee-status-types/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('org_structure', 'delete')],
     schema: { tags: [TAG], summary: 'ลบสถานะพนักงาน (soft delete)', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
   }, async (req: any, reply) => {
     try {

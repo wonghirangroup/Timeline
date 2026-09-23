@@ -3,6 +3,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import * as svc from './org-structure.service'
 
@@ -38,7 +39,7 @@ function handleParentErrors(e: any, reply: any) {
 export async function orgStructureRoutes(app: FastifyInstance) {
   // ── ผังรวมของ "กลุ่ม" เดียว หรือทุกกลุ่มในเทแนนต์ (ไม่ระบุ group_id) ─────
   app.get('/org-structure/tree', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('org_structure', 'view')],
     schema: {
       tags: [TAG], summary: 'ดูผังองค์กร (Division→Department→Position) — ระบุ group_id เพื่อดูกลุ่มเดียว หรือไม่ระบุเพื่อดูทุกกลุ่มรวมกัน', security: [{ oauth2: [] }],
       querystring: { type: 'object', properties: { group_id: { type: 'string' } } },
@@ -47,12 +48,12 @@ export async function orgStructureRoutes(app: FastifyInstance) {
 
   // ── Division (ฝ่าย) ────────────────────────────────────────
   app.get('/divisions', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('org_structure', 'view')],
     schema: { tags: [TAG], summary: 'ดูรายการฝ่าย', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { group_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listDivisions(req.tenantId, req.query.group_id)))
 
   app.post('/divisions', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'add')],
     schema: {
       tags: [TAG], summary: 'สร้างฝ่ายใหม่ในกลุ่ม', security: [{ oauth2: [] }],
       body: {
@@ -70,7 +71,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.patch('/divisions/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
     schema: {
       tags: [TAG], summary: 'แก้ไขฝ่าย (booking_enabled/leave_enabled: null = inherit จากกลุ่ม)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -83,7 +84,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.delete('/divisions/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'delete')],
     schema: { tags: [TAG], summary: 'ลบฝ่าย (soft delete)', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
   }, async (req: any, reply) => {
     try {
@@ -98,12 +99,12 @@ export async function orgStructureRoutes(app: FastifyInstance) {
 
   // ── Department (แผนก) ──────────────────────────────────────
   app.get('/departments', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('org_structure', 'view')],
     schema: { tags: [TAG], summary: 'ดูรายการแผนก', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { division_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listDepartments(req.tenantId, req.query.division_id)))
 
   app.post('/departments', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'add')],
     schema: {
       tags: [TAG], summary: 'สร้างแผนกใหม่ในฝ่าย', security: [{ oauth2: [] }],
       body: {
@@ -121,7 +122,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.patch('/departments/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
     schema: {
       tags: [TAG], summary: 'แก้ไขแผนก (booking_enabled/leave_enabled: null = inherit จากฝ่าย)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -134,7 +135,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.delete('/departments/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'delete')],
     schema: { tags: [TAG], summary: 'ลบแผนก (soft delete)', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
   }, async (req: any, reply) => {
     try {
@@ -149,12 +150,12 @@ export async function orgStructureRoutes(app: FastifyInstance) {
 
   // ── Position (ตำแหน่ง) ─────────────────────────────────────
   app.get('/positions', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('org_structure', 'view')],
     schema: { tags: [TAG], summary: 'ดูรายการตำแหน่ง', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { department_id: { type: 'string' } } } },
   }, async (req: any, reply) => ok(await svc.listPositions(req.tenantId, req.query.department_id)))
 
   app.post('/positions', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'add')],
     schema: {
       tags: [TAG], summary: 'สร้างตำแหน่งใหม่ในแผนก (booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
       body: { type: 'object', required: ['department_id', 'name'], properties: { department_id: { type: 'string' }, name: { type: 'string' }, ...POLICY_PROPS, ...VACATION_PROPS } },
@@ -169,7 +170,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.patch('/positions/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
     schema: {
       tags: [TAG], summary: 'แก้ไขตำแหน่ง (ย้ายไปแผนกอื่นได้ด้วย — booking_enabled/leave_enabled: null = inherit จากแผนก)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -187,7 +188,7 @@ export async function orgStructureRoutes(app: FastifyInstance) {
   })
 
   app.delete('/positions/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'delete')],
     schema: { tags: [TAG], summary: 'ลบตำแหน่ง (soft delete)', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
   }, async (req: any, reply) => {
     try {

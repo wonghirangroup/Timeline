@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { listBranches, getBranch, createBranch, updateBranch, deleteBranch } from './branch.service'
 import { generateBranchQR } from '../shift/shift.service'
@@ -11,7 +12,7 @@ const TAG = 'Admin'
 export async function branchRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/branches
   app.get('/branches', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('branch', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการสาขาทั้งหมดของ tenant',
@@ -24,7 +25,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/branches/:id
   app.get('/branches/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('branch', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูข้อมูลสาขาตาม ID',
@@ -39,7 +40,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/branches
   app.post('/branches', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('branch', 'add')],
     schema: {
       tags: [TAG],
       summary: 'สร้างสาขาใหม่',
@@ -74,7 +75,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/branches/:id
   app.patch('/branches/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('branch', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'แก้ไขข้อมูลสาขา',
@@ -106,7 +107,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/branches/:id/qr  — QR ถาวรต่อสาขา (ไม่มีวันหมดอายุ)
   app.get('/branches/:id/qr', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('branch', 'view')],
     schema: {
       tags: [TAG],
       summary: 'สร้าง QR payload ถาวรสำหรับสาขา — พนักงานสแกนแล้วระบบ auto-detect กะจากเวลา',
@@ -125,7 +126,7 @@ export async function branchRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/branches/:id
   app.delete('/branches/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('branch', 'delete')],
     schema: {
       tags: [TAG],
       summary: 'ลบสาขา (soft delete)',

@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { listAnnouncements, createAnnouncement, deleteAnnouncement, sendDirectMessage, listTemplates, createTemplate, updateTemplate, deleteTemplate } from './announcement.service'
 
@@ -10,7 +11,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/announcements
   app.get('/announcements', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('announcement', 'view'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูประกาศทั้งหมด',
@@ -23,7 +24,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/announcements
   app.post('/announcements', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('announcement', 'add'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'สร้างประกาศใหม่',
@@ -53,12 +54,12 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // ── Template: เทมเพลตข้อความประกาศ ────────────────────────────────
   app.get('/announcement-templates', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('announcement', 'view'), requireFeature('announcement')],
     schema: { tags: ['Admin'], summary: 'ดูเทมเพลตข้อความประกาศทั้งหมด', security: [{ oauth2: [] }] },
   }, async (req: any) => ok(await listTemplates(req.tenantId)))
 
   app.post('/announcement-templates', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('announcement', 'add'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'], summary: 'สร้างเทมเพลตข้อความประกาศ', security: [{ oauth2: [] }],
       body: { type: 'object', required: ['name', 'title', 'content'], properties: {
@@ -71,7 +72,7 @@ export async function announcementRoutes(app: FastifyInstance) {
   })
 
   app.patch('/announcement-templates/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('announcement', 'edit'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'], summary: 'แก้ไขเทมเพลตข้อความประกาศ', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -86,7 +87,7 @@ export async function announcementRoutes(app: FastifyInstance) {
   })
 
   app.delete('/announcement-templates/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('announcement', 'delete'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'], summary: 'ลบเทมเพลตข้อความประกาศ', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -99,7 +100,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/announcements/direct
   app.post('/announcements/direct', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('announcement', 'add'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ส่งข้อความส่วนตัวผ่าน Line',
@@ -124,7 +125,7 @@ export async function announcementRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/announcements/:id
   app.delete('/announcements/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('announcement')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('announcement', 'delete'), requireFeature('announcement')],
     schema: {
       tags: ['Admin'],
       summary: 'ลบประกาศ',

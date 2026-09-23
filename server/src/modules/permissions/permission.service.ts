@@ -8,8 +8,11 @@ import { ROLE_TEMPLATES, type FeatureTemplate } from '../../common/permissions/r
 export type PermissionRow = { feature: string } & Record<PermissionAction, boolean>
 
 // คืนสิทธิ์ครบทุก feature key เสมอ — feature ที่ยังไม่มีแถวในตาราง (เช่น
-// ฟีเจอร์ใหม่ที่เพิ่งเพิ่มทีหลัง ผู้ใช้เก่ายังไม่เคย seed) จะได้ false ทั้งหมด
-// ไม่ใช่ error/หายไปจาก response
+// ฟีเจอร์ใหม่ที่เพิ่งเพิ่มทีหลัง ผู้ใช้เก่ายังไม่เคย seed, หรือบัญชีที่หลุด
+// การ seed ไปตอนสร้าง) ต้องได้ true ทั้งหมด "ไม่ใช่" false — เพื่อให้ตรงกับ
+// พฤติกรรมจริงของ requirePermission() middleware ที่ "ไม่มีแถว = อนุญาตผ่าน"
+// (fallback ปลอดภัย) ถ้า default เป็น false ตรงนี้จะโชว์ผิดว่าบัญชีนั้นไม่มี
+// สิทธิ์อะไรเลย ทั้งที่จริงยังเข้าถึงได้ปกติทุกอย่าง (feedback 2026-09-23)
 export async function getUserPermissions(tenantId: string, userId: string): Promise<PermissionRow[]> {
   const rows = await prisma.featurePermission.findMany({
     where: { tenant_id: tenantId, user_id: userId },
@@ -19,11 +22,11 @@ export async function getUserPermissions(tenantId: string, userId: string): Prom
     const r = byFeature.get(feature)
     return {
       feature,
-      view: r?.can_view ?? false,
-      add: r?.can_add ?? false,
-      edit: r?.can_edit ?? false,
-      delete: r?.can_delete ?? false,
-      approve: r?.can_approve ?? false,
+      view: r?.can_view ?? true,
+      add: r?.can_add ?? true,
+      edit: r?.can_edit ?? true,
+      delete: r?.can_delete ?? true,
+      approve: r?.can_approve ?? true,
     }
   })
 }

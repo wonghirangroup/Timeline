@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma }           from '../../common/utils/prisma'
@@ -17,7 +18,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: รายงานเช็คชื่อ ─────────────────────────────────────────
   app.get('/admin/attendance', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('shift', 'view'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
       summary: 'รายงานการเช็คชื่อ (กรอง date / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -47,7 +48,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: วันเช็คอินแรกสุดของแต่ละคน — ใช้ตรวจสอบข้อมูลย้อนหลังในหน้ารายงาน ──
   app.get('/admin/attendance/first-checkin', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('shift', 'view'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
       summary: 'วันเช็คอินแรกสุดของพนักงานแต่ละคน (employee_id → YYYY-MM-DD)',
@@ -64,7 +65,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: ลงเวลาแทนพนักงาน (manual) ────────────────────────────
   app.post('/admin/attendance', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('shift', 'add')],
     schema: {
       tags: ['Admin'],
       summary: 'Admin ลงเวลาแทนพนักงาน — บังคับกรอกหมายเหตุ, เลือก override สถานะ/ค่าปรับได้',
@@ -98,7 +99,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: แก้ไขเวลาเช็คอิน/เช็คเอาต์ ───────────────────────────
   app.patch('/admin/attendance/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('shift', 'edit')],
     schema: {
       tags: ['Admin'],
       summary: 'แก้ไขเวลาเช็คอิน/เช็คเอาต์ — เปลี่ยนกะ/สถานะ/ค่าปรับได้ด้วย (auto-calc เมื่อเปลี่ยนเวลา/กะ, override ด้วยมือได้)',
@@ -130,7 +131,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: Reset (ลบ) บันทึกเช็คชื่อ ────────────────────────────────
   app.delete('/admin/attendance/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('shift', 'delete')],
     schema: {
       tags: ['Admin'],
       summary: 'ลบบันทึกเช็คชื่อ (reset เป็นค่าว่าง)',

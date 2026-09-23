@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { prisma } from '../../common/utils/prisma'
 import {
@@ -14,7 +15,7 @@ const TAG = 'Admin'
 export async function shiftRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/shifts?branchId=
   app.get('/shifts', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('shift', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการกะทำงานทั้งหมด (กรองตาม branchId ได้)',
@@ -31,7 +32,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/shifts/:id
   app.get('/shifts/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('shift', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูข้อมูลกะตาม ID',
@@ -46,7 +47,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/shifts
   app.post('/shifts', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'add')],
     schema: {
       tags: [TAG],
       summary: 'สร้างกะใหม่',
@@ -82,7 +83,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/shifts/:id
   app.patch('/shifts/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'edit')],
     schema: {
       tags: [TAG],
       summary: 'แก้ไขข้อมูลกะ',
@@ -119,7 +120,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/shifts/:id
   app.delete('/shifts/:id', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'delete')],
     schema: {
       tags: [TAG],
       summary: 'ลบกะ (soft delete)',
@@ -136,7 +137,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/employee-shifts — ทุก link ของ tenant (สำหรับ build map ฝั่ง frontend)
   app.get('/employee-shifts', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('shift', 'view')],
     schema: {
       tags: [TAG],
       summary: 'ดูรายการพนักงาน↔กะทั้งหมดของ tenant (ใช้ทำแผนที่ใครอยู่กะไหนบ้าง)',
@@ -152,7 +153,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/shifts/:id/employees
   app.get('/shifts/:id/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('shift', 'view')],
     schema: {
       tags: [TAG], summary: 'ดูพนักงานที่อยู่ในกะนี้', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -161,7 +162,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // POST /api/v1/admin/shifts/:id/employees — เพิ่มพนักงานเข้ากะ (ไม่เอาออกจากกะอื่น)
   app.post('/shifts/:id/employees', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'edit')],
     schema: {
       tags: [TAG], summary: 'เพิ่มพนักงานเข้ากะ (คนเดิมอยู่หลายกะพร้อมกันได้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -180,7 +181,7 @@ export async function shiftRoutes(app: FastifyInstance) {
 
   // DELETE /api/v1/admin/shifts/:id/employees/:employeeId — เอาออกจากกะนี้ (กะอื่นไม่กระทบ)
   app.delete('/shifts/:id/employees/:employeeId', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('shift', 'edit')],
     schema: {
       tags: [TAG], summary: 'เอาพนักงานออกจากกะนี้', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' }, employeeId: { type: 'string' } } },

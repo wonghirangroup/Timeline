@@ -1,6 +1,7 @@
 // server/src/modules/tenant/tenant.service.ts
 import { prisma } from '../../common/utils/prisma'
 import bcrypt from 'bcryptjs'
+import { seedPermissionsFromTemplate } from '../permissions/permission.service'
 
 export async function listTenants() {
   return prisma.tenant.findMany({
@@ -43,7 +44,7 @@ export async function createTenant(data: {
 }) {
   const hashedPassword = await bcrypt.hash(data.admin_password, 10)
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
       data: {
         name:          data.name,
@@ -68,6 +69,15 @@ export async function createTenant(data: {
 
     return { tenant, admin: { id: admin.id, email: admin.email } }
   })
+
+  // บัญชีแอดมินคนแรกของ tenant ใหม่ — ต้อง seed สิทธิ์แบบละเอียดด้วยเหมือนบัญชีที่
+  // สร้างผ่านทางอื่น (createUser/setEmployeeAdminAccess) — เดิมจุดนี้หลุดไป ทำให้
+  // บัญชีแรกของทุก tenant ไม่มีแถวสิทธิ์เลย (feedback 2026-09-23: "account ที่
+  // superadmin สร้างให้จะถือว่าเป็นผู้ดูแลในระบบนั้นๆ" — ต้องมีสิทธิ์เต็มจริงตั้งแต่
+  // สร้างบัญชี ไม่ใช่พึ่ง fallback "ไม่มีแถว = อนุญาตผ่าน" เฉยๆ เพราะทำให้หน้า UI
+  // จัดการสิทธิ์ (v187) โชว์ผิดว่ายังไม่มีสิทธิ์อะไรเลย)
+  await seedPermissionsFromTemplate(result.tenant.id, result.admin.id, 'ADMIN')
+  return result
 }
 
 export async function updateTenant(id: string, data: {

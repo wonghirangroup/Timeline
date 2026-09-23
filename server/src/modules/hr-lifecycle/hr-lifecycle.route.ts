@@ -3,6 +3,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
@@ -157,12 +158,12 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
 
   // ═══ ลาออก (feature: resignation) ═══════════════════════════════════════
   app.get('/admin/resignations', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), resolveDeptScope, requireFeature('resignation')],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('resignation', 'view'), resolveDeptScope, requireFeature('resignation')],
     schema: { tags: ['Admin'], summary: 'คำขอลาออก', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } } } },
   }, async (req: any) => ok(await svc.listResignations(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
 
   app.post('/admin/resignations/:id/review', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('resignation')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('resignation', 'approve'), resolveDeptScope, requireFeature('resignation')],
     schema: {
       tags: ['Admin'], summary: 'อนุมัติ/ปฏิเสธคำขอลาออก (อนุมัติ = set สถานะ RESIGNED)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -211,12 +212,12 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'เอกสารอื่นๆ',
   }
   app.get('/admin/document-requests', {
-    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), resolveDeptScope, requireFeature('document_request')],
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('document_request', 'view'), resolveDeptScope, requireFeature('document_request')],
     schema: { tags: ['Admin'], summary: 'คำขอเอกสาร HR', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'REJECTED'] } } } },
   }, async (req: any) => ok(await svc.listDocumentRequests(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
 
   app.post('/admin/document-requests/:id/review', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), resolveDeptScope, requireFeature('document_request')],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('document_request', 'approve'), resolveDeptScope, requireFeature('document_request')],
     schema: {
       tags: ['Admin'], summary: 'แนบไฟล์ + mark เสร็จ หรือปฏิเสธคำขอเอกสาร', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },

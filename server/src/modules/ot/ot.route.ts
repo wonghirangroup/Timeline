@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireFeature }   from '../../common/middleware/feature'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listOtRequests, createOtRequest, approveOtRequest, rejectOtRequest } from './ot.service'
@@ -12,7 +13,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: ดู OT ─────────────────────────────────
   app.get('/admin/ot-requests', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), resolveDeptScope, requireFeature('ot_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('ot', 'view'), resolveDeptScope, requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ดูรายการขอ OT (กรอง status / branchId / employeeId ได้ — DEPT_HEAD เห็นแค่แผนกที่ดูแล)',
@@ -36,7 +37,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: Approve OT ────────────────────────────
   app.post('/admin/ot-requests/:id/approve', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('ot_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('ot', 'approve'), resolveDeptScope, requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'อนุมัติ OT (DEPT_HEAD อนุมัติได้แค่คนในแผนกที่ดูแล)',
@@ -51,7 +52,7 @@ export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: Reject OT ─────────────────────────────
   app.post('/admin/ot-requests/:id/reject', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('ot_management')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('ot', 'approve'), resolveDeptScope, requireFeature('ot_management')],
     schema: {
       tags: ['Admin'],
       summary: 'ปฏิเสธ OT (DEPT_HEAD ปฏิเสธได้แค่คนในแผนกที่ดูแล)',
@@ -71,7 +72,7 @@ export async function otRoutes(app: FastifyInstance) {
   // ── Admin/Manager/DEPT_HEAD: Bulk approve / reject OT ─────────────
   for (const action of ['approve', 'reject'] as const) {
     app.post(`/admin/ot-requests/bulk-${action}`, {
-      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), resolveDeptScope, requireFeature('ot_management')],
+      preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('ot', 'approve'), resolveDeptScope, requireFeature('ot_management')],
       schema: {
         tags: ['Admin'],
         summary: `${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'} OT หลายรายการในครั้งเดียว`,

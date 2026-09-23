@@ -2,6 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok }               from '../../common/utils/response'
 import { listAdminNotifications } from './notifications.service'
@@ -20,7 +21,7 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   // GET /api/v1/admin/line-message-logs — ประวัติการส่งข้อความ LINE ทั้งหมด (สำหรับรายงานการส่งข้อความไลน์)
   app.get('/line-message-logs', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('report_line_messages', 'view')],
     schema: {
       tags: ['Admin'],
       summary: 'ประวัติการส่งข้อความ LINE (แจ้งเตือน/ประกาศ/แจ้งปัญหา/เปิดจองวันหยุด ฯลฯ)',

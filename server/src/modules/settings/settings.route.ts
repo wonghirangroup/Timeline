@@ -4,6 +4,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { getTenantSettings, updateTenantSettings, updateTenantNotificationPrefs } from '../tenant/tenant.service'
 import { NOTIFICATION_TYPES } from '../../common/utils/notificationPrefs'
@@ -11,7 +12,7 @@ import { NOTIFICATION_TYPES } from '../../common/utils/notificationPrefs'
 export async function settingsRoutes(app: FastifyInstance) {
   // GET /api/v1/admin/tenant-settings
   app.get('/tenant-settings', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('settings', 'view')],
     schema: { tags: ['Admin'], summary: 'ดูการตั้งค่าบริษัท (โปรไฟล์/แบรนด์/นโยบายลาย้อนหลัง)', security: [{ oauth2: [] }] },
   }, async (req: any, reply) => {
     const s = await getTenantSettings(req.tenantId)
@@ -21,7 +22,7 @@ export async function settingsRoutes(app: FastifyInstance) {
 
   // PATCH /api/v1/admin/tenant-settings
   app.patch('/tenant-settings', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('settings', 'edit')],
     schema: {
       tags: ['Admin'], summary: 'แก้ไขการตั้งค่าบริษัท', security: [{ oauth2: [] }],
       body: {
@@ -49,7 +50,7 @@ export async function settingsRoutes(app: FastifyInstance) {
   // ไปแอดมินแต่ละประเภท (ต่างจาก enabled_features ที่ Super Admin เท่านั้น อันนี้ Admin
   // ของ tenant แก้เองได้เลย) merge เฉพาะ key ที่ส่งมา ไม่เขียนทับ key อื่น
   app.patch('/tenant-settings/notification-prefs', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('settings', 'edit')],
     schema: {
       tags: ['Admin'], summary: 'เปิด/ปิดการแจ้งเตือน LINE ไปแอดมินแต่ละประเภท', security: [{ oauth2: [] }],
       body: {

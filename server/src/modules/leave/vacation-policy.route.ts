@@ -4,6 +4,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requirePermission } from '../../common/middleware/permission'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok }               from '../../common/utils/response'
 import { previewVacationPolicy, grantUnderQuotaBonus, runVacationAnnualReset, listVacationRemainingReport } from './vacation-policy.service'
@@ -12,7 +13,7 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
 
   // ดูตัวอย่างสิทธิ์พักร้อนของพนักงาน 1 คน — ใช้ debug/preview บนหน้าตั้งค่าตำแหน่ง
   app.get('/admin/vacation-policy/preview', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requireFeature('vacation_policy')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('leave', 'view'), requireFeature('vacation_policy')],
     schema: {
       tags: ['Admin'], summary: 'พรีวิวสิทธิ์พักร้อนตามอายุงานของพนักงาน 1 คน', security: [{ oauth2: [] }],
       querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
@@ -21,7 +22,7 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
 
   // รันโบนัส "หยุดไม่ครบโควต้า" ของเดือนที่ระบุ (default = เดือนที่แล้ว) ด้วยมือ
   app.post('/admin/vacation-policy/run-bonus', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('vacation_policy')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('vacation_policy')],
     schema: {
       tags: ['Admin'], summary: 'รันโบนัส +1 พักร้อน (หยุดไม่ครบโควต้า) ของเดือนที่ระบุ', security: [{ oauth2: [] }],
       body: { type: 'object', properties: { ym: { type: 'string', description: 'YYYY-MM (default = เดือนที่แล้ว)' } } },
@@ -34,7 +35,7 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
 
   // รัน reset ประจำปี (default = ปีนี้) ด้วยมือ — ตั้ง total_days ใหม่ตามสูตรอายุงาน
   app.post('/admin/vacation-policy/run-reset', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requireFeature('vacation_policy')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('vacation_policy')],
     schema: {
       tags: ['Admin'], summary: 'รัน reset พักร้อนประจำปีตามสูตรอายุงาน (default = ปีนี้)', security: [{ oauth2: [] }],
       body: { type: 'object', properties: { year: { type: 'integer' } } },
@@ -47,7 +48,7 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
 
   // รายงานพักร้อนคงเหลือของปีก่อน (ขายคืนได้ไม่เกิน 10 วัน — HR คิดจ่ายนอกระบบ)
   app.get('/admin/vacation-policy/remaining-report', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requireFeature('vacation_policy')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'), requirePermission('leave', 'view'), requireFeature('vacation_policy')],
     schema: {
       tags: ['Admin'], summary: 'รายงานพักร้อนคงเหลือของปีที่ระบุ (default = ปีที่แล้ว)', security: [{ oauth2: [] }],
       querystring: { type: 'object', properties: { year: { type: 'integer' } } },
