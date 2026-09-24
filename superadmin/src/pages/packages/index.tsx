@@ -1,10 +1,30 @@
 // Super Admin — Package / Plan Management
+// เดิมกด "บันทึก" แล้วขึ้น "มีผลกับ Tenant ทันที" แต่จริงๆ เป็นแค่ Zustand
+// state ในเบราว์เซอร์ ไม่เคยยิง API เลย (ดู brain log v211) — ตอนนี้ต่อกับ
+// PackagePlan model จริงแล้ว: "บันทึก" แก้แค่เทมเพลต ไม่กระทบ tenant ที่ใช้
+// plan นี้อยู่จนกว่าจะกด "นำไปใช้กับ tenant ที่ใช้ plan นี้" แยกต่างหาก (ปุ่ม
+// ที่สอง มี confirm ก่อนเสมอ เพราะกระทบ tenant จริงที่ใช้งานอยู่)
 import { useState } from 'react'
-import { MOCK_TENANTS } from '../../lib/mock'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { PlanConfig, PlanFeatures, PlanLimits, TenantPlan } from '../../types'
 import { useToast } from '../../components/ui/Toast'
-import { usePlanConfigStore } from '../../stores/planConfigStore'
 import { api } from '../../lib/axios'
+
+interface ApiPackagePlan {
+  id: string; plan: TenantPlan; label: string; price_monthly: number | null
+  color: string; bg: string
+  max_employees: number; max_branches: number; max_groups: number
+  enabled_features: Record<string, boolean>
+}
+interface ApiTenantLite { id: string; plan: TenantPlan; _count: { employees: number; branches: number } }
+
+function toConfig(p: ApiPackagePlan): PlanConfig {
+  return {
+    id: p.id, plan: p.plan, label: p.label, price_monthly: p.price_monthly, color: p.color, bg: p.bg,
+    limits: { max_branches: p.max_branches, max_employees: p.max_employees, max_groups: p.max_groups },
+    features: p.enabled_features as unknown as PlanFeatures,
+  }
+}
 
 // Feature metadata
 const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon: string }[] = [
@@ -25,9 +45,10 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'custom_leave_types', label: 'ประเภทการลากำหนดเอง', desc: 'ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน — tenant ตั้งเอง', icon: '🗂' },
   { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
   { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
+  { key: 'vacation_policy',  label: 'นโยบายพักร้อนตามอายุงาน', desc: 'โบนัสรายเดือน + reset ประจำปีตามสูตรอายุงาน', icon: '🏖️' },
 ]
 
-const PLAN_ORDER: TenantPlan[] = ['STARTER', 'PROFESSIONAL', 'ENTERPRISE']
+const PLAN_ORDER: TenantPlan[] = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']
 
 function LimitInput({
   value, onChange, disabled,
@@ -93,66 +114,80 @@ function ToggleSwitch({
 
 export default function PackagesPage() {
   const { showToast } = useToast()
-  const storeConfigs    = usePlanConfigStore(s => s.configs)
-  const storeUpdateFeat = usePlanConfigStore(s => s.updateFeature)
-  const storeUpdateLim  = usePlanConfigStore(s => s.updateLimit)
-  const storeUpdatePrc  = usePlanConfigStore(s => s.updatePrice)
+  const qc = useQueryClient()
 
-  // Local draft — flushed to store only on successful save
-  const [configs, setConfigs] = useState<PlanConfig[]>(storeConfigs)
+  const { data: apiPackages = [], isLoading } = useQuery<ApiPackagePlan[]>({
+    queryKey: ['sa', 'packages'],
+    queryFn: () => api.get('/api/v1/super-admin/packages').then(r => r.data.data),
+  })
+  const { data: tenants = [] } = useQuery<ApiTenantLite[]>({
+    queryKey: ['sa', 'tenants', 'lite'],
+    queryFn: () => api.get('/api/v1/super-admin/tenants').then(r => r.data.data),
+  })
+
+  // Local draft — เก็บแยกจาก server data จนกว่าจะกด "บันทึก" สำเร็จ
+  const [drafts, setDrafts] = useState<Record<string, PlanConfig>>({})
+  const configs: PlanConfig[] = PLAN_ORDER
+    .map(plan => drafts[plan] ?? (apiPackages.find(p => p.plan === plan) ? toConfig(apiPackages.find(p => p.plan === plan)!) : null))
+    .filter((c): c is PlanConfig => !!c)
+
   const [saving, setSaving] = useState<TenantPlan | null>(null)
   const [compareMode, setCompareMode] = useState(false)
+  const [applyTarget, setApplyTarget] = useState<PlanConfig | null>(null)
 
-  // หมายเหตุ: ไม่มี endpoint /super-admin/packages จริงในระบบ (หน้านี้เป็นระบบ
-  // per-PLAN แบบ mock เดิม ยังไม่ได้ต่อ backend จริง — คนละแกนกับ per-tenant
-  // feature toggle ที่หน้า Tenant detail → แท็บ "ฟีเจอร์") — ใช้ค่า default
-  // จาก store อย่างเดียว ไม่ยิง fetch ที่รู้อยู่แล้วว่า 404 ทุกครั้ง
-
+  function setDraft(plan: TenantPlan, patch: Partial<PlanConfig>) {
+    setDrafts(prev => {
+      const base = prev[plan] ?? toConfig(apiPackages.find(p => p.plan === plan)!)
+      return { ...prev, [plan]: { ...base, ...patch } }
+    })
+  }
   function updateLimit(plan: TenantPlan, key: keyof PlanLimits, val: number) {
-    setConfigs(prev => prev.map(c =>
-      c.plan === plan ? { ...c, limits: { ...c.limits, [key]: val } } : c
-    ))
+    const cur = configs.find(c => c.plan === plan)!
+    setDraft(plan, { limits: { ...cur.limits, [key]: val } })
   }
-
   function updateFeature(plan: TenantPlan, key: keyof PlanFeatures, val: boolean) {
-    setConfigs(prev => prev.map(c =>
-      c.plan === plan ? { ...c, features: { ...c.features, [key]: val } } : c
-    ))
+    const cur = configs.find(c => c.plan === plan)!
+    setDraft(plan, { features: { ...cur.features, [key]: val } })
   }
-
   function updatePrice(plan: TenantPlan, val: number) {
-    setConfigs(prev => prev.map(c =>
-      c.plan === plan ? { ...c, price_monthly: val } : c
-    ))
+    setDraft(plan, { price_monthly: val })
   }
 
-  async function handleSave(plan: TenantPlan) {
+  const saveMutation = useMutation({
+    mutationFn: (cfg: PlanConfig) => api.patch(`/api/v1/super-admin/packages/${cfg.plan}`, {
+      label: cfg.label, price_monthly: cfg.price_monthly, color: cfg.color, bg: cfg.bg,
+      max_employees: cfg.limits.max_employees, max_branches: cfg.limits.max_branches, max_groups: cfg.limits.max_groups,
+      enabled_features: cfg.features,
+    }),
+    onSuccess: (_, cfg) => {
+      qc.invalidateQueries({ queryKey: ['sa', 'packages'] })
+      setDrafts(prev => { const next = { ...prev }; delete next[cfg.plan]; return next })
+      showToast('success', `บันทึกเทมเพลตแพ็กเกจ ${cfg.label} แล้ว — กด "นำไปใช้กับ tenant" ถ้าต้องการให้มีผลกับ tenant ที่ใช้ plan นี้`)
+    },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ — กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่'),
+    onSettled: () => setSaving(null),
+  })
+
+  const applyMutation = useMutation({
+    mutationFn: (plan: TenantPlan) => api.post(`/api/v1/super-admin/packages/${plan}/apply-to-tenants`).then(r => r.data.data as { count: number }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['sa', 'tenants'] })
+      showToast('success', `นำไปใช้กับ ${result.count} tenant สำเร็จ`)
+      setApplyTarget(null)
+    },
+    onError: () => showToast('error', 'นำไปใช้ไม่สำเร็จ'),
+  })
+
+  function handleSave(plan: TenantPlan) {
     const draft = configs.find(c => c.plan === plan)
     if (!draft) return
     setSaving(plan)
-    try {
-      await api.put(`/api/v1/super-admin/packages/${plan}`, {
-        price_monthly: draft.price_monthly,
-        features:      draft.features,
-        limits:        draft.limits,
-      })
-      // Flush to local Zustand store only after confirmed server save
-      Object.entries(draft.features).forEach(([k, v]) =>
-        storeUpdateFeat(plan, k as keyof PlanFeatures, v)
-      )
-      Object.entries(draft.limits).forEach(([k, v]) =>
-        storeUpdateLim(plan, k as keyof PlanLimits, v as number)
-      )
-      storeUpdatePrc(plan, draft.price_monthly)
-      showToast('success', `บันทึก Package ${draft.label} เรียบร้อยแล้ว — มีผลกับ Tenant ทันที`)
-    } catch {
-      showToast('error', `บันทึกไม่สำเร็จ — กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่`)
-    } finally {
-      setSaving(null)
-    }
+    saveMutation.mutate(draft)
   }
 
-  const tenantsByPlan = (plan: TenantPlan) => MOCK_TENANTS.filter(t => t.plan === plan).length
+  const tenantsByPlan = (plan: TenantPlan) => tenants.filter(t => t.plan === plan)
+
+  if (isLoading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-gray)' }}>กำลังโหลด...</div>
 
   return (
     <div>
@@ -160,7 +195,7 @@ export default function PackagesPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>📦 จัดการ Package & Plan</h2>
-          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-gray)' }}>กำหนด limits และ feature ของแต่ละ plan — มีผลกับ tenant ที่ใช้ plan นั้นทันที</p>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-gray)' }}>กำหนด limits และ feature เป็นเทมเพลตต่อ plan — "บันทึก" แก้แค่เทมเพลต ต้องกด "นำไปใช้กับ tenant" แยกถึงจะมีผลกับ tenant ที่ใช้ plan นั้นจริง</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
           <button
@@ -183,9 +218,11 @@ export default function PackagesPage() {
       {/* Plan cards */}
       <div className="grid-3-col" style={{ gap: 18 }}>
         {PLAN_ORDER.map(plan => {
-          const cfg = configs.find(c => c.plan === plan)!
-          const tenantCount = tenantsByPlan(plan)
+          const cfg = configs.find(c => c.plan === plan)
+          if (!cfg) return null
+          const tenantCount = tenantsByPlan(plan).length
           const isEnterprise = plan === 'ENTERPRISE'
+          const isDirty = !!drafts[plan]
 
           return (
             <div key={plan} style={{
@@ -201,8 +238,8 @@ export default function PackagesPage() {
                   <div>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.8px', textTransform: 'uppercase' }}>{cfg.label}</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: cfg.color, lineHeight: 1.2, marginTop: 2 }}>
-                      {isEnterprise ? 'ติดต่อเรา' : `฿${cfg.price_monthly.toLocaleString()}`}
-                      {!isEnterprise && <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400 }}>/เดือน</span>}
+                      {cfg.price_monthly == null ? 'ติดต่อเรา' : `฿${cfg.price_monthly.toLocaleString()}`}
+                      {cfg.price_monthly != null && <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400 }}>/เดือน</span>}
                     </div>
                   </div>
                   <span style={{ background: '#fff', color: cfg.color, border: `1px solid ${cfg.color}44`, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
@@ -216,7 +253,7 @@ export default function PackagesPage() {
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-gray)', whiteSpace: 'nowrap' }}>ราคา ฿/เดือน</span>
                     <input
                       type="number"
-                      value={cfg.price_monthly}
+                      value={cfg.price_monthly ?? 0}
                       onChange={e => updatePrice(plan, Math.max(0, parseInt(e.target.value) || 0))}
                       style={{ width: 90, padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem', textAlign: 'right', fontFamily: 'inherit' }}
                     />
@@ -232,10 +269,9 @@ export default function PackagesPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {([
-                      { key: 'max_branches' as const,          label: 'จำนวนสาขา' },
-                      { key: 'max_employees' as const,         label: 'จำนวนพนักงาน' },
-                      { key: 'max_shifts_per_branch' as const, label: 'กะต่อสาขา/วัน' },
-                      { key: 'max_managers' as const,          label: 'จำนวน Manager' },
+                      { key: 'max_branches' as const,  label: 'จำนวนสาขา' },
+                      { key: 'max_employees' as const, label: 'จำนวนพนักงาน' },
+                      { key: 'max_groups' as const,     label: 'จำนวนกลุ่ม (บริษัท)' },
                     ]).map(({ key, label }) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <span style={{ fontSize: '0.82rem', color: 'var(--text-body)', minWidth: 0 }}>{label}</span>
@@ -286,20 +322,32 @@ export default function PackagesPage() {
                 </div>
               </div>
 
-              {/* Save button */}
-              <div style={{ padding: '14px 20px', borderTop: '1px solid #f3f4f6' }}>
+              {/* Save + Apply buttons */}
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
                   onClick={() => handleSave(plan)}
-                  disabled={saving === plan}
+                  disabled={saving === plan || !isDirty}
                   style={{
                     width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-                    cursor: saving === plan ? 'not-allowed' : 'pointer',
-                    background: saving === plan ? '#e0e7ff' : cfg.color === 'var(--text-body)' ? 'var(--text-body)' : cfg.color,
-                    color: '#fff', fontWeight: 700, fontSize: '0.875rem',
+                    cursor: (saving === plan || !isDirty) ? 'not-allowed' : 'pointer',
+                    background: saving === plan ? '#e0e7ff' : !isDirty ? '#e5e7eb' : cfg.color === 'var(--text-body)' ? 'var(--text-body)' : cfg.color,
+                    color: !isDirty && saving !== plan ? '#9ca3af' : '#fff', fontWeight: 700, fontSize: '0.875rem',
                     transition: 'opacity 0.2s', opacity: saving === plan ? 0.7 : 1,
                   }}
                 >
-                  {saving === plan ? 'กำลังบันทึก…' : `💾 บันทึก ${cfg.label}`}
+                  {saving === plan ? 'กำลังบันทึก…' : isDirty ? `💾 บันทึกเทมเพลต ${cfg.label}` : 'ไม่มีการแก้ไข'}
+                </button>
+                <button
+                  onClick={() => setApplyTarget(cfg)}
+                  disabled={tenantCount === 0}
+                  title={tenantCount === 0 ? 'ไม่มี tenant ที่ใช้ plan นี้อยู่' : `นำเทมเพลตนี้ไปทับ limit/feature ของ ${tenantCount} tenant ที่ใช้ plan นี้`}
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${cfg.color}55`,
+                    cursor: tenantCount === 0 ? 'not-allowed' : 'pointer',
+                    background: '#fff', color: tenantCount === 0 ? '#d1d5db' : cfg.color, fontWeight: 600, fontSize: '0.78rem',
+                  }}
+                >
+                  ⚡ นำไปใช้กับ {tenantCount} tenant ที่ใช้ plan นี้
                 </button>
               </div>
             </div>
@@ -309,13 +357,14 @@ export default function PackagesPage() {
 
       {/* ── Active tenants per plan warning ── */}
       <div style={{ marginTop: 20, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 20px' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-body)', marginBottom: 10 }}>⚠️ ผลกระทบต่อ Tenant ที่ใช้งานอยู่</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-body)', marginBottom: 10 }}>⚠️ ผลกระทบต่อ Tenant ที่ใช้งานอยู่ (เทียบกับเทมเพลตปัจจุบันที่แก้ในหน้านี้)</div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {PLAN_ORDER.map(plan => {
-            const cfg = configs.find(c => c.plan === plan)!
-            const tenants = MOCK_TENANTS.filter(t => t.plan === plan)
-            const overBranch = tenants.filter(t => cfg.limits.max_branches !== -1 && t.branch_count > cfg.limits.max_branches)
-            const overEmp    = tenants.filter(t => cfg.limits.max_employees !== -1 && t.employee_count > cfg.limits.max_employees)
+            const cfg = configs.find(c => c.plan === plan)
+            if (!cfg) return null
+            const planTenants = tenantsByPlan(plan)
+            const overBranch = planTenants.filter(t => cfg.limits.max_branches !== -1 && t._count.branches > cfg.limits.max_branches)
+            const overEmp    = planTenants.filter(t => cfg.limits.max_employees !== -1 && t._count.employees > cfg.limits.max_employees)
             const hasWarning = overBranch.length > 0 || overEmp.length > 0
             return (
               <div key={plan} style={{
@@ -324,7 +373,9 @@ export default function PackagesPage() {
                 border: `1px solid ${hasWarning ? '#fca5a5' : '#86efac'}`,
               }}>
                 <div style={{ fontWeight: 700, color: cfg.color, fontSize: '0.85rem', marginBottom: 6 }}>{cfg.label}</div>
-                {hasWarning ? (
+                {planTenants.length === 0 ? (
+                  <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>ยังไม่มี tenant ใช้ plan นี้</div>
+                ) : hasWarning ? (
                   <>
                     {overBranch.length > 0 && <div style={{ fontSize: '0.78rem', color: 'var(--error-text)' }}>⚠ {overBranch.length} tenant มีสาขาเกินลิมิต</div>}
                     {overEmp.length > 0    && <div style={{ fontSize: '0.78rem', color: 'var(--error-text)' }}>⚠ {overEmp.length} tenant มีพนักงานเกินลิมิต</div>}
@@ -337,9 +388,37 @@ export default function PackagesPage() {
           })}
         </div>
         <p style={{ margin: '10px 0 0', fontSize: '0.75rem', color: '#9ca3af' }}>
-          * การลดลิมิตไม่ได้ลบข้อมูลที่มีอยู่ แต่จะป้องกันการเพิ่มข้อมูลใหม่เกินจำนวนที่กำหนด
+          * การลดลิมิตไม่ได้ลบข้อมูลที่มีอยู่ แต่จะป้องกันการเพิ่มข้อมูลใหม่เกินจำนวนที่กำหนด — แถบนี้เทียบกับเทมเพลตที่เห็นอยู่บนจอ (รวมส่วนที่ยังไม่บันทึกด้วย) ไม่ใช่ค่าที่ tenant ใช้งานจริงตอนนี้
         </p>
       </div>
+
+      {/* ── Confirm: นำไปใช้กับ tenant ── */}
+      {applyTarget && (
+        <div onClick={() => setApplyTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 420, maxWidth: '100%', padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.05rem', fontWeight: 700 }}>⚡ นำเทมเพลต "{applyTarget.label}" ไปใช้กับ tenant?</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--text-gray)', lineHeight: 1.6 }}>
+              การกระทำนี้จะทับ <strong>limit (สาขา/พนักงาน/กลุ่ม) และฟีเจอร์ที่เปิด</strong> ของ
+              <strong> {tenantsByPlan(applyTarget.plan).length} tenant</strong> ที่ใช้ plan "{applyTarget.label}" อยู่ตอนนี้ ด้วยค่าที่ตั้งไว้ในเทมเพลตนี้ทันที — ย้อนกลับไม่ได้อัตโนมัติ
+            </p>
+            {!drafts[applyTarget.plan] && apiPackages.length > 0 && (
+              <p style={{ margin: '0 0 16px', fontSize: '0.78rem', color: '#d97706', background: '#fffbeb', borderRadius: 8, padding: '8px 12px' }}>
+                หมายเหตุ: จะใช้เทมเพลตที่บันทึกล่าสุด — ถ้าเพิ่งแก้แล้วยังไม่กด "บันทึกเทมเพลต" การเปลี่ยนแปลงล่าสุดจะยังไม่ถูกนำไปใช้
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setApplyTarget(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.85rem' }}>ยกเลิก</button>
+              <button
+                onClick={() => applyMutation.mutate(applyTarget.plan)}
+                disabled={applyMutation.isPending}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: 'var(--error-text)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', opacity: applyMutation.isPending ? 0.7 : 1 }}
+              >
+                {applyMutation.isPending ? 'กำลังดำเนินการ…' : `ยืนยันนำไปใช้กับ ${tenantsByPlan(applyTarget.plan).length} tenant`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

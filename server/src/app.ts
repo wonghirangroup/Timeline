@@ -38,6 +38,8 @@ import { hrDocumentRoutes } from './modules/hr-document/hr-document.route'
 import { leaveTypesRoutes } from './modules/leave-types/leave-types.route'
 import { vacationPolicyRoutes } from './modules/leave/vacation-policy.route'
 import { permissionRoutes } from './modules/permissions/permission.route'
+import { packagePlanRoutes } from './modules/package-plan/package-plan.route'
+import { systemAnnouncementRoutes } from './modules/system-announcement/system-announcement.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
 import { startVacationPolicyCron } from './jobs/vacation-policy.job'
@@ -154,6 +156,8 @@ app.register(vacationPolicyRoutes, { prefix: '/api/v1' })            // ADMIN: �
 app.register(permissionRoutes,   { prefix: '/api/v1/admin' })        // ADMIN: สิทธิ์แบบละเอียดต่อบัญชี (Phase 1 — จัดการได้ ยังไม่ enforce จริง)
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 app.register(firebaseSyncRoutes, { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: ซิงค์ระบบเก่า (Firebase) — bespoke, ดู modules/firebase-sync
+app.register(packagePlanRoutes,  { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: เทมเพลตแพ็กเกจจริงต่อ plan (feedback 2026-09-24)
+app.register(systemAnnouncementRoutes, { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ประกาศถึงแอดมิน tenant ข้ามบริษัท (LINE push จริง)
 
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {

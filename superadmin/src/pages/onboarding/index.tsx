@@ -1,10 +1,22 @@
 // superadmin/src/pages/onboarding/index.tsx
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Copy, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { MOCK_TENANTS, MOCK_LINE_CONFIGS } from '../../lib/mock'
-import type { Tenant } from '../../types'
+import type { TenantPlan } from '../../types'
 import { api } from '../../lib/axios'
+
+// ตรงกับ listTenants() จริงฝั่ง backend (feedback 2026-09-24 — เดิมทั้งหน้านี้
+// ผูกกับ MOCK_TENANTS/MOCK_LINE_CONFIGS + EMPLOYEE_LINE_PCT ที่ hardcode ไว้
+// ตาม fake tenant id ทั้งหมด ไม่มีอะไรจริงเลย)
+interface ApiTenant {
+  id: string; name: string; plan: TenantPlan
+  is_active: boolean; created_at: string
+  _count: { employees: number; branches: number }
+  line_config: { line_channel_id: string; line_liff_id: string } | null
+  users: { email: string; first_name: string; last_name: string }[]
+  employees_line_linked: number
+}
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 interface StepDef {
@@ -29,7 +41,7 @@ const STEPS: StepDef[] = [
 
 // ── Per-tenant checklist computation ─────────────────────────────────────────
 interface TenantChecklist {
-  tenant: Tenant
+  tenant: ApiTenant
   steps: Record<string, boolean>
   completed: number
   total: number
@@ -37,30 +49,23 @@ interface TenantChecklist {
   employeeLinePct: number
 }
 
-const EMPLOYEE_LINE_PCT: Record<string, number> = {
-  'tn-01': 100,
-  'tn-02': 100,
-  'tn-03': 75,
-  'tn-04': 0,
-  'tn-05': 0,
-  'tn-06': 90,
-  'tn-07': 40,
-  'tn-08': 60,
-}
-
-function buildChecklist(tenant: Tenant): TenantChecklist {
-  const lineConfig = MOCK_LINE_CONFIGS.find(c => c.tenant_id === tenant.id)
-  const empLinePct = EMPLOYEE_LINE_PCT[tenant.id] ?? 0
+// "webhook" ยุบรวมกับ "line_config" (ตัวเดียวกัน) — backend ไม่มี concept
+// "verified" แยกต่างหากจริง (TenantLineConfig ไม่มี field นี้) เดิมของปลอม
+// แยก 2 ขั้นตอนไว้แต่ไม่มีอะไรจริงรองรับความต่างนั้นเลย
+function buildChecklist(tenant: ApiTenant): TenantChecklist {
+  const hasLine = tenant.line_config !== null
+  const empCount = tenant._count.employees
+  const empLinePct = empCount > 0 ? Math.round((tenant.employees_line_linked / empCount) * 100) : 0
 
   const steps: Record<string, boolean> = {
     tenant:        true,
     plan:          true,
-    line_config:   tenant.line_configured,
-    webhook:       !!lineConfig?.verified,
-    branch:        tenant.branch_count > 0,
-    shift:         tenant.branch_count > 0,
-    employee:      tenant.employee_count > 0,
-    employee_line: empLinePct === 100,
+    line_config:   hasLine,
+    webhook:       hasLine,
+    branch:        tenant._count.branches > 0,
+    shift:         tenant._count.branches > 0,
+    employee:      empCount > 0,
+    employee_line: empCount > 0 && empLinePct === 100,
   }
 
   const completed = Object.values(steps).filter(Boolean).length
@@ -77,21 +82,17 @@ function buildChecklist(tenant: Tenant): TenantChecklist {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const PLAN_COLOR: Record<string, string> = {
-  STARTER: '#059669', PROFESSIONAL: '#2563eb', ENTERPRISE: '#7c3aed',
+const PLAN_COLOR: Record<TenantPlan, string> = {
+  FREE: '#6b7280', STARTER: '#059669', PRO: '#2563eb', ENTERPRISE: '#7c3aed',
 }
-const PLAN_BG: Record<string, string> = {
-  STARTER: '#d1fae5', PROFESSIONAL: '#dbeafe', ENTERPRISE: '#ede9fe',
+const PLAN_BG: Record<TenantPlan, string> = {
+  FREE: '#f3f4f6', STARTER: '#d1fae5', PRO: '#dbeafe', ENTERPRISE: '#ede9fe',
 }
-const STATUS_COLOR: Record<string, string> = {
-  ACTIVE: '#059669', TRIAL: '#d97706', SUSPENDED: '#dc2626',
-}
-const STATUS_BG: Record<string, string> = {
-  ACTIVE: '#d1fae5', TRIAL: '#fef3c7', SUSPENDED: '#fee2e2',
-}
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'Active', TRIAL: 'Trial', SUSPENDED: 'Suspended',
-}
+// is_active เป็น Boolean ล้วนจริงฝั่ง backend — ไม่มี concept TRIAL แยก (ของเดิม
+// fake ทั้งหมด) ย่อเหลือ 2 สถานะที่มีจริง
+const STATUS_COLOR: Record<string, string> = { ACTIVE: '#059669', SUSPENDED: '#dc2626' }
+const STATUS_BG: Record<string, string> = { ACTIVE: '#d1fae5', SUSPENDED: '#fee2e2' }
+const STATUS_LABEL: Record<string, string> = { ACTIVE: 'Active', SUSPENDED: 'Suspended' }
 
 function thDate(d: string) {
   const [y, m, day] = d.split('-').map(Number)
@@ -121,7 +122,11 @@ export default function OnboardingPage() {
   const [reminded, setReminded] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState<string | null>(null)
 
-  const checklists = MOCK_TENANTS.map(buildChecklist)
+  const { data: apiTenants = [], isLoading } = useQuery<ApiTenant[]>({
+    queryKey: ['sa', 'tenants'],
+    queryFn: () => api.get('/api/v1/super-admin/tenants').then(r => r.data.data),
+  })
+  const checklists = apiTenants.map(buildChecklist)
 
   const counts = {
     all: checklists.length,
@@ -167,7 +172,9 @@ export default function OnboardingPage() {
     })
   }
 
-  const overallPct = Math.round(checklists.reduce((s, c) => s + c.pct, 0) / checklists.length)
+  const overallPct = checklists.length > 0 ? Math.round(checklists.reduce((s, c) => s + c.pct, 0) / checklists.length) : 0
+
+  if (isLoading) return <div style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}>กำลังโหลด...</div>
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '28px 32px' }}>
@@ -308,11 +315,12 @@ export default function OnboardingPage() {
                     }}>{c.tenant.plan}</span>
                     <span style={{
                       fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99,
-                      color: STATUS_COLOR[c.tenant.status], background: STATUS_BG[c.tenant.status],
-                    }}>{STATUS_LABEL[c.tenant.status]}</span>
+                      color: c.tenant.is_active ? STATUS_COLOR.ACTIVE : STATUS_COLOR.SUSPENDED,
+                      background: c.tenant.is_active ? STATUS_BG.ACTIVE : STATUS_BG.SUSPENDED,
+                    }}>{c.tenant.is_active ? STATUS_LABEL.ACTIVE : STATUS_LABEL.SUSPENDED}</span>
                   </div>
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 3 }}>
-                    {c.tenant.owner_name} · {c.tenant.owner_email} · เริ่ม {thDate(c.tenant.created_at)}
+                    {c.tenant.users[0] ? `${c.tenant.users[0].first_name} ${c.tenant.users[0].last_name} · ${c.tenant.users[0].email}` : 'ยังไม่มีบัญชีแอดมิน'} · เริ่ม {thDate(c.tenant.created_at)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                     <div style={{ flex: 1, maxWidth: 240 }}>
@@ -363,8 +371,8 @@ export default function OnboardingPage() {
                   {/* Mini stat row */}
                   <div style={{ display: 'flex', gap: 20, padding: '10px 0 14px', borderBottom: '1px solid #f8fafc', marginBottom: 12 }}>
                     {[
-                      { label: 'สาขา', value: c.tenant.branch_count },
-                      { label: 'พนักงาน', value: c.tenant.employee_count },
+                      { label: 'สาขา', value: c.tenant._count.branches },
+                      { label: 'พนักงาน', value: c.tenant._count.employees },
                       { label: 'Line พนักงาน', value: `${c.employeeLinePct}%` },
                     ].map(s => (
                       <div key={s.label} style={{ textAlign: 'center' }}>
@@ -391,7 +399,7 @@ export default function OnboardingPage() {
                       const wasReminded = reminded.has(remKey)
 
                       // special: employee_line shows percentage bar
-                      const showLinePct = step.id === 'employee_line' && !done && c.tenant.employee_count > 0
+                      const showLinePct = step.id === 'employee_line' && !done && c.tenant._count.employees > 0
 
                       return (
                         <div key={step.id} style={{ display: 'flex', gap: 12, paddingBottom: isLast ? 0 : 2 }}>
@@ -440,7 +448,7 @@ export default function OnboardingPage() {
                                 <div style={{ marginTop: 6 }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b', marginBottom: 3 }}>
                                     <span>ยืนยันแล้ว {c.employeeLinePct}%</span>
-                                    <span>{Math.round(c.tenant.employee_count * c.employeeLinePct / 100)}/{c.tenant.employee_count} คน</span>
+                                    <span>{c.tenant.employees_line_linked}/{c.tenant._count.employees} คน</span>
                                   </div>
                                   <div style={{ maxWidth: 200, marginBottom: 6 }}>
                                     <ProgressBar pct={c.employeeLinePct} color="#f59e0b" />

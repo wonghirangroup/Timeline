@@ -10,6 +10,9 @@ export type ActivityAction =
   | 'INVOICE_CREATED'
   | 'INVOICE_PAID'
   | 'SUPER_ADMIN_LOGIN'
+  | 'PACKAGE_UPDATED'
+  | 'PACKAGE_APPLIED'
+  | 'ANNOUNCEMENT_SENT'
 
 // บันทึกกิจกรรมสำหรับ feed "กิจกรรมล่าสุด" ของ Super Admin Dashboard — ตั้งใจ
 // ให้ล้มเหลวแบบเงียบๆ (catch ไว้ในตัว) เพราะ log พังไม่ควรทำให้ action จริง

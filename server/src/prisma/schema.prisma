@@ -1327,6 +1327,58 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+// ─────────────────────────────────────────────
+// PACKAGE PLAN — เทมเพลตแพ็กเกจจริงต่อ plan (feedback 2026-09-24 "custom
+// package builder") — เดิมหน้า "จัดการ Package" ฝั่ง Super Admin แก้แล้ว
+// เก็บแค่ state ในเบราว์เซอร์ ไม่เคยยิง API เลย กดบันทึกไม่มีผลอะไรจริง
+// ตารางนี้คือเทมเพลตกลางต่อ plan เท่านั้น — ไม่ได้ sync กับ tenant ที่ใช้ plan
+// นั้นอัตโนมัติทันทีที่แก้ (เสี่ยงเกินไปกับ tenant จริงที่ใช้งานอยู่) ต้องกด
+// "นำไปใช้กับ tenant ที่ใช้ plan นี้" แยกต่างหากเสมอ (ดู applyPackagePlanToTenants)
+// ─────────────────────────────────────────────
+model PackagePlan {
+  id               String     @id @default(uuid())
+  plan             TenantPlan @unique
+  label            String
+  price_monthly    Int? // null = ติดต่อฝ่ายขาย (เช่น Enterprise)
+  color            String // hex สีป้าย/ปุ่มในหน้า UI
+  bg               String // hex พื้นหลังป้าย
+  max_employees    Int // -1 = ไม่จำกัด — ตรงกับ Tenant.max_employees
+  max_branches     Int // -1 = ไม่จำกัด — ตรงกับ Tenant.max_branches
+  max_groups       Int // -1 = ไม่จำกัด — ตรงกับ Tenant.max_groups
+  enabled_features Json // Record<FeatureKey, boolean> — เทมเพลตเริ่มต้น ตรงกับ Tenant.enabled_features
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
+
+  @@map("package_plans")
+}
+
+// ─────────────────────────────────────────────
+// SYSTEM ANNOUNCEMENT — ประกาศจาก Super Admin ถึงแอดมิน tenant (ข้าม tenant)
+// (feedback 2026-09-24) — เดิมหน้า "ประกาศ" ฝั่ง Super Admin มีแต่ประวัติปลอม
+// ไม่มี backend ส่งจริงเลยสักครั้ง — ส่งจริงผ่าน LINE push เข้าบัญชี ADMIN/
+// MANAGER ที่ผูก LINE ไว้แล้วของแต่ละ tenant เป้าหมาย (ใช้ LINE channel ของ
+// แต่ละ tenant เอง เหมือน notifyAdminsLine — ไม่มี "LINE กลาง" ของ TimeLine เอง)
+// ยังไม่รองรับ "กำหนดเวลาส่งล่วงหน้า" (SCHEDULED) รอบนี้ — ส่งทันทีหรือ DRAFT
+// เก็บไว้ก่อนเท่านั้น ลดสโคป (ไม่ต้องมี cron ใหม่)
+// ─────────────────────────────────────────────
+model SystemAnnouncement {
+  id                String     @id @default(uuid())
+  type              String // MAINTENANCE/FEATURE/BILLING/GENERAL/URGENT
+  title             String
+  body              String     @db.Text
+  target_type       String // ALL/PLAN/CUSTOM
+  target_plan       TenantPlan?
+  target_tenant_ids Json? // string[] — เฉพาะตอน target_type = CUSTOM
+  status            String // SENT/DRAFT
+  sent_at           DateTime?
+  sent_count        Int        @default(0) // จำนวนคนที่ push LINE สำเร็จจริง (ไม่ใช่จำนวน tenant)
+  created_by        String // email ของ Super Admin ที่สร้าง
+  created_at        DateTime   @default(now())
+
+  @@index([created_at])
+  @@map("system_announcements")
+}
+
 // log ทุกครั้งที่ระบบยิงข้อความ LINE ออกไปจริง (แจ้งเตือนแอดมิน/พนักงาน,
 // ประกาศ, แจ้งปัญหา, เปิดจองวันหยุด ฯลฯ) — เดิมไม่มีการเก็บเลยสักครั้ง ทำให้
 // ตอบไม่ได้ว่า "ส่งไปหาใครบ้าง สำเร็จไหม" ย้อนหลัง (feedback 2026-09-22

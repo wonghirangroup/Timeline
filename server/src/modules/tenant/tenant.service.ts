@@ -4,19 +4,31 @@ import bcrypt from 'bcryptjs'
 import { seedPermissionsFromTemplate } from '../permissions/permission.service'
 
 export async function listTenants() {
-  return prisma.tenant.findMany({
-    where: { deleted_at: null },
-    include: {
-      _count: { select: { employees: true, branches: true } },
-      line_config: { select: { line_channel_id: true, line_liff_id: true } },
-      users: {
-        where: { role: 'ADMIN', deleted_at: null },
-        select: { email: true, first_name: true, last_name: true },
-        take: 1,
+  const [tenants, lineLinkedCounts] = await Promise.all([
+    prisma.tenant.findMany({
+      where: { deleted_at: null },
+      include: {
+        _count: { select: { employees: true, branches: true } },
+        line_config: { select: { line_channel_id: true, line_liff_id: true } },
+        users: {
+          where: { role: 'ADMIN', deleted_at: null },
+          select: { email: true, first_name: true, last_name: true },
+          take: 1,
+        },
       },
-    },
-    orderBy: { created_at: 'desc' },
-  })
+      orderBy: { created_at: 'desc' },
+    }),
+    // จำนวนพนักงานที่ผูก LINE แล้วต่อ tenant (feedback 2026-09-24, Onboarding
+    // Checklist "ผูก Line พนักงาน" — เดิม hardcode เป็น % ปลอมต่อ tenant id ปลอม)
+    // — Prisma ไม่รองรับ conditional _count ตรงๆ เลยใช้ groupBy แยกแล้ว merge เอง
+    prisma.employee.groupBy({
+      by: ['tenant_id'],
+      where: { deleted_at: null, line_user_id: { not: null } },
+      _count: { _all: true },
+    }),
+  ])
+  const linkedMap = new Map(lineLinkedCounts.map(r => [r.tenant_id, r._count._all]))
+  return tenants.map(t => ({ ...t, employees_line_linked: linkedMap.get(t.id) ?? 0 }))
 }
 
 export async function getTenant(id: string) {

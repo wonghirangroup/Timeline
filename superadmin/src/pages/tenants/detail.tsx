@@ -28,6 +28,7 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'custom_leave_types', label: 'ประเภทการลากำหนดเอง', desc: 'ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน — tenant ตั้งเอง', icon: '🗂' },
   { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
   { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
+  { key: 'vacation_policy',  label: 'นโยบายพักร้อนตามอายุงาน', desc: 'โบนัสรายเดือน + reset ประจำปีตามสูตรอายุงาน', icon: '🏖️' },
 ]
 const ENFORCED_FEATURES = new Set<keyof PlanFeatures>(['leave_management', 'leave_balance', 'ot_management', 'announcement', 'feedback', 'gps_checkin', 'employee_documents', 'probation', 'disciplinary', 'resignation', 'custom_leave_types', 'leave_accrual', 'document_request'])
 
@@ -37,9 +38,10 @@ const STATUS_CFG: Record<TenantStatus, { label: string; color: string; bg: strin
   TRIAL:     { label: 'ทดลองใช้', color: 'var(--warning-text)', bg: '#fef3c7' },
 }
 const PLAN_CFG: Record<TenantPlan, { label: string; color: string; bg: string; price: string }> = {
-  STARTER:      { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6', price: '990 ฿/เดือน'  },
-  PROFESSIONAL: { label: 'Professional', color: '#2563eb', bg: '#dbeafe', price: '2,490 ฿/เดือน' },
-  ENTERPRISE:   { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe', price: 'Custom'          },
+  FREE:       { label: 'Free',       color: 'var(--text-body)', bg: '#f3f4f6', price: 'ฟรี' },
+  STARTER:    { label: 'Starter',    color: 'var(--text-body)', bg: '#f3f4f6', price: '990 ฿/เดือน' },
+  PRO:        { label: 'Pro',        color: '#2563eb', bg: '#dbeafe', price: '2,490 ฿/เดือน' },
+  ENTERPRISE: { label: 'Enterprise', color: '#7c3aed', bg: '#ede9fe', price: 'Custom' },
 }
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 function thDate(s: string | null | undefined) {
@@ -523,7 +525,7 @@ export default function TenantDetailPage() {
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
             <h3 style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 700 }}>เปลี่ยน Plan</h3>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {(['STARTER', 'PROFESSIONAL', 'ENTERPRISE'] as TenantPlan[]).map(p => {
+              {(['FREE', 'STARTER', 'PRO', 'ENTERPRISE'] as TenantPlan[]).map(p => {
                 const cfg = PLAN_CFG[p]
                 const active = tenant.plan === p
                 return (

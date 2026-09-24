@@ -1,13 +1,23 @@
 // superadmin/src/pages/announcement/index.tsx
 import { useState, useRef, useEffect } from 'react'
-import { MOCK_TENANTS } from '../../lib/mock'
+import { useQuery } from '@tanstack/react-query'
 import type { TenantPlan } from '../../types'
 import { api } from '../../lib/axios'
 
+interface ApiTenantLite { id: string; name: string; plan: TenantPlan; users: { email: string }[] }
+function useTenantsLite() {
+  return useQuery<ApiTenantLite[]>({
+    queryKey: ['sa', 'tenants', 'lite'],
+    queryFn: () => api.get('/api/v1/super-admin/tenants').then(r => r.data.data),
+  })
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
+// ตัดสถานะ SCHEDULED ออก (feedback 2026-09-24) — ยังไม่รองรับ "กำหนดเวลาส่ง
+// ล่วงหน้า" จริง (ต้องมี cron ใหม่ ลดสโคปรอบนี้) ส่งทันทีหรือบันทึกร่างเท่านั้น
 type AnnType   = 'MAINTENANCE' | 'FEATURE' | 'BILLING' | 'GENERAL' | 'URGENT'
 type TargetType = 'ALL' | 'PLAN' | 'CUSTOM'
-type AnnStatus = 'SENT' | 'DRAFT' | 'SCHEDULED'
+type AnnStatus = 'SENT' | 'DRAFT'
 
 interface SystemAnn {
   id: string
@@ -19,62 +29,9 @@ interface SystemAnn {
   target_tenant_ids: string[]
   status: AnnStatus
   sent_at: string | null
-  scheduled_at: string | null
   sent_count: number
   created_by: string
 }
-
-// ── Mock History ──────────────────────────────────────────────────────────────
-const INIT_HISTORY: SystemAnn[] = [
-  {
-    id: 'sa-01', type: 'MAINTENANCE', status: 'SENT',
-    title: 'แจ้งปิดปรับปรุงระบบ — 1 มิ.ย. 2566 เวลา 02:00–04:00',
-    body: 'เรียนแจ้งผู้ใช้งานทุกท่าน\n\nระบบ TimeLine จะปิดให้บริการชั่วคราวเพื่อปรับปรุงระบบในวันที่ 1 มิถุนายน 2566 เวลา 02:00–04:00 น. (2 ชั่วโมง)\n\nขออภัยในความไม่สะดวก และขอบคุณที่ใช้บริการ',
-    target_type: 'ALL', target_plan: null, target_tenant_ids: [],
-    sent_at: '2026-05-20T09:00:00', scheduled_at: null,
-    sent_count: 8, created_by: 'Super Admin',
-  },
-  {
-    id: 'sa-02', type: 'FEATURE', status: 'SENT',
-    title: 'ฟีเจอร์ใหม่: ระบบ OT อัตโนมัติพร้อมใช้งานแล้ว',
-    body: 'สวัสดีครับ/ค่ะ\n\nTimeLine ได้เพิ่มฟีเจอร์ใหม่ "OT Management" สำหรับ Plan Professional ขึ้นไป\n\nฟีเจอร์นี้ช่วยให้ Admin สามารถอนุมัติ OT และคำนวณค่าล่วงเวลาได้อัตโนมัติ\n\nศึกษาข้อมูลเพิ่มเติมได้ที่ Settings > OT',
-    target_type: 'PLAN', target_plan: 'PROFESSIONAL', target_tenant_ids: [],
-    sent_at: '2026-05-15T10:30:00', scheduled_at: null,
-    sent_count: 4, created_by: 'Super Admin',
-  },
-  {
-    id: 'sa-03', type: 'BILLING', status: 'SENT',
-    title: 'แจ้งเตือนใบแจ้งหนี้เดือน พ.ค. 2569',
-    body: 'เรียนแจ้งผู้ดูแลระบบ\n\nใบแจ้งหนี้ประจำเดือนพฤษภาคม 2569 ได้ถูกออกแล้ว กรุณาชำระภายในวันที่ 15 พ.ค. 2569 เพื่อหลีกเลี่ยงการระงับการใช้งาน\n\nติดต่อสอบถาม: support@timeline.app',
-    target_type: 'ALL', target_plan: null, target_tenant_ids: [],
-    sent_at: '2026-05-01T08:00:00', scheduled_at: null,
-    sent_count: 8, created_by: 'Super Admin',
-  },
-  {
-    id: 'sa-04', type: 'URGENT', status: 'SENT',
-    title: 'ด่วน: พบปัญหา Line Webhook — กรุณาตรวจสอบ',
-    body: 'เรียนแจ้งผู้ดูแลระบบ\n\nพบปัญหาการส่ง notification ผ่าน Line OA ชั่วคราว ทีมงานกำลังแก้ไขอยู่และคาดว่าจะกลับมาปกติภายใน 30 นาที\n\nขออภัยในความไม่สะดวก',
-    target_type: 'PLAN', target_plan: 'ENTERPRISE', target_tenant_ids: [],
-    sent_at: '2026-04-28T14:00:00', scheduled_at: null,
-    sent_count: 2, created_by: 'Super Admin',
-  },
-  {
-    id: 'sa-05', type: 'GENERAL', status: 'DRAFT',
-    title: 'แจ้งนโยบาย Privacy Policy ฉบับใหม่',
-    body: 'เรียนแจ้งผู้ใช้งานทุกท่าน\n\nTimeLine ได้ปรับปรุง Privacy Policy เพื่อให้สอดคล้องกับพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล (PDPA)\n\nสามารถอ่านฉบับเต็มได้ที่ timeline.app/privacy',
-    target_type: 'ALL', target_plan: null, target_tenant_ids: [],
-    sent_at: null, scheduled_at: null,
-    sent_count: 0, created_by: 'Super Admin',
-  },
-  {
-    id: 'sa-06', type: 'MAINTENANCE', status: 'SCHEDULED',
-    title: 'แจ้งปรับปรุงระบบ Database — 10 มิ.ย. 2569',
-    body: 'เรียนแจ้งผู้ใช้งานทุกท่าน\n\nจะมีการปรับปรุง Database ในวันที่ 10 มิถุนายน 2569 เวลา 01:00–03:00 น. ระบบจะช้าลงในช่วงดังกล่าว',
-    target_type: 'ALL', target_plan: null, target_tenant_ids: [],
-    sent_at: null, scheduled_at: '2026-06-08T09:00:00',
-    sent_count: 0, created_by: 'Super Admin',
-  },
-]
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const ANN_TYPE_CONFIG: Record<AnnType, { label: string; icon: string; color: string; bg: string; border: string }> = {
@@ -86,20 +43,19 @@ const ANN_TYPE_CONFIG: Record<AnnType, { label: string; icon: string; color: str
 }
 
 const STATUS_CONFIG: Record<AnnStatus, { label: string; color: string; bg: string }> = {
-  SENT:      { label: 'ส่งแล้ว',      color: 'var(--success-text)', bg: '#d1fae5' },
-  DRAFT:     { label: 'Draft',        color: 'var(--text-gray)', bg: '#f3f4f6' },
-  SCHEDULED: { label: 'กำหนดส่ง',    color: '#2563eb', bg: '#dbeafe' },
+  SENT:  { label: 'ส่งแล้ว', color: 'var(--success-text)', bg: '#d1fae5' },
+  DRAFT: { label: 'Draft',   color: 'var(--text-gray)', bg: '#f3f4f6' },
 }
 
 const PLAN_LABEL: Record<TenantPlan, string> = {
-  STARTER: 'Starter', PROFESSIONAL: 'Professional', ENTERPRISE: 'Enterprise',
+  FREE: 'Free', STARTER: 'Starter', PRO: 'Pro', ENTERPRISE: 'Enterprise',
 }
 
 const PLAN_COLOR: Record<TenantPlan, string> = {
-  STARTER: 'var(--success-text)', PROFESSIONAL: '#2563eb', ENTERPRISE: '#7c3aed',
+  FREE: 'var(--text-gray)', STARTER: 'var(--success-text)', PRO: '#2563eb', ENTERPRISE: '#7c3aed',
 }
 const PLAN_BG: Record<TenantPlan, string> = {
-  STARTER: '#d1fae5', PROFESSIONAL: '#dbeafe', ENTERPRISE: '#ede9fe',
+  FREE: '#f3f4f6', STARTER: '#d1fae5', PRO: '#dbeafe', ENTERPRISE: '#ede9fe',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,26 +65,25 @@ function thDateTime(iso: string) {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear() + 543} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function targetLabel(ann: SystemAnn): string {
-  if (ann.target_type === 'ALL')    return `ทุก Tenant (${MOCK_TENANTS.length})`
-  if (ann.target_type === 'PLAN')   return `Plan ${PLAN_LABEL[ann.target_plan!]} (${MOCK_TENANTS.filter(t => t.plan === ann.target_plan).length})`
-  const names = ann.target_tenant_ids.map(id => MOCK_TENANTS.find(t => t.id === id)?.name ?? id)
+function targetLabel(ann: SystemAnn, tenants: ApiTenantLite[]): string {
+  if (ann.target_type === 'ALL')    return `ทุก Tenant (${tenants.length})`
+  if (ann.target_type === 'PLAN')   return `Plan ${PLAN_LABEL[ann.target_plan!]} (${tenants.filter(t => t.plan === ann.target_plan).length})`
+  const names = ann.target_tenant_ids.map(id => tenants.find(t => t.id === id)?.name ?? id)
   return names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} +${names.length - 2}`
 }
 
-function resolveCount(target_type: TargetType, target_plan: TenantPlan | null, target_ids: string[]): number {
-  if (target_type === 'ALL')    return MOCK_TENANTS.length
-  if (target_type === 'PLAN')   return MOCK_TENANTS.filter(t => t.plan === target_plan).length
+function resolveCount(target_type: TargetType, target_plan: TenantPlan | null, target_ids: string[], tenants: ApiTenantLite[]): number {
+  if (target_type === 'ALL')    return tenants.length
+  if (target_type === 'PLAN')   return tenants.filter(t => t.plan === target_plan).length
   return target_ids.length
 }
-
-let nextId = 100
 
 // ── Compose Modal ─────────────────────────────────────────────────────────────
 interface ComposeProps {
   onClose: () => void
   onSend: (ann: SystemAnn, replacingId?: string) => void
   initialData?: SystemAnn
+  tenants: ApiTenantLite[]
 }
 
 const TEMPLATES: Record<AnnType, { title: string; body: string }> = {
@@ -154,16 +109,14 @@ const TEMPLATES: Record<AnnType, { title: string; body: string }> = {
   },
 }
 
-function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
+function ComposeModal({ onClose, onSend, initialData, tenants }: ComposeProps) {
   const [step, setStep] = useState<'compose' | 'preview'>('compose')
   const [annType, setAnnType] = useState<AnnType>(initialData?.type ?? 'GENERAL')
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [body, setBody] = useState(initialData?.body ?? '')
   const [targetType, setTargetType] = useState<TargetType>(initialData?.target_type ?? 'ALL')
-  const [targetPlan, setTargetPlan] = useState<TenantPlan>(initialData?.target_plan ?? 'PROFESSIONAL')
+  const [targetPlan, setTargetPlan] = useState<TenantPlan>(initialData?.target_plan ?? 'STARTER')
   const [targetIds, setTargetIds] = useState<string[]>(initialData?.target_tenant_ids ?? [])
-  const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now')
-  const [scheduleAt, setScheduleAt] = useState('')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -197,27 +150,11 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
         target_type: targetType,
         target_plan: targetType === 'PLAN' ? targetPlan : null,
         target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
-        schedule_mode: scheduleMode,
-        scheduled_at: scheduleMode === 'schedule' ? scheduleAt : null,
       }
-      const method = initialData ? api.put : api.post
-      const url = initialData
-        ? `/api/v1/super-admin/announcements/${initialData.id}`
-        : '/api/v1/super-admin/announcements'
-      const res = await method(url, payload)
-      const ann: SystemAnn = res.data?.data ?? {
-        id: initialData?.id ?? `sa-${++nextId}`,
-        type: annType, title, body,
-        target_type: targetType,
-        target_plan: targetType === 'PLAN' ? targetPlan : null,
-        target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
-        status: scheduleMode === 'schedule' ? 'SCHEDULED' : 'SENT',
-        sent_at: scheduleMode === 'now' ? new Date().toISOString() : null,
-        scheduled_at: scheduleMode === 'schedule' ? scheduleAt : null,
-        sent_count: scheduleMode === 'now' ? resolveCount(targetType, targetPlan, targetIds) : 0,
-        created_by: 'Super Admin',
-      }
-      onSend(ann, initialData?.id)
+      const res = initialData
+        ? await api.put(`/api/v1/super-admin/announcements/${initialData.id}`, payload)
+        : await api.post('/api/v1/super-admin/announcements', payload)
+      onSend(res.data.data as SystemAnn, initialData?.id)
     } catch {
       setSendError('ส่งไม่สำเร็จ — กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่')
     } finally {
@@ -233,30 +170,19 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
         target_type: targetType,
         target_plan: targetType === 'PLAN' ? targetPlan : null,
         target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
-        status: 'DRAFT',
+        status: 'DRAFT' as const,
       }
-      const method = initialData ? api.put : api.post
-      const url = initialData
-        ? `/api/v1/super-admin/announcements/${initialData.id}`
-        : '/api/v1/super-admin/announcements'
-      const res = await method(url, payload)
-      const draft: SystemAnn = res.data?.data ?? {
-        id: initialData?.id ?? `sa-${++nextId}`, type: annType, title, body,
-        target_type: targetType,
-        target_plan: targetType === 'PLAN' ? targetPlan : null,
-        target_tenant_ids: targetType === 'CUSTOM' ? targetIds : [],
-        status: 'DRAFT', sent_at: null, scheduled_at: null,
-        sent_count: 0, created_by: 'Super Admin',
-      }
-      onSend(draft, initialData?.id)
+      const res = initialData
+        ? await api.put(`/api/v1/super-admin/announcements/${initialData.id}`, payload)
+        : await api.post('/api/v1/super-admin/announcements/draft', payload)
+      onSend(res.data.data as SystemAnn, initialData?.id)
     } catch {
       // draft save failure is non-critical; parent toast will not fire
     }
   }
 
-  const recipientCount = resolveCount(targetType, targetPlan, targetIds)
-  const canSend = title.trim().length > 0 && body.trim().length > 0 && recipientCount > 0 &&
-    (scheduleMode === 'now' || scheduleAt.length > 0)
+  const recipientCount = resolveCount(targetType, targetPlan, targetIds, tenants)
+  const canSend = title.trim().length > 0 && body.trim().length > 0 && recipientCount > 0
 
   const tc = ANN_TYPE_CONFIG[annType]
 
@@ -376,8 +302,8 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
                 </div>
 
                 {targetType === 'PLAN' && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {(['STARTER', 'PROFESSIONAL', 'ENTERPRISE'] as TenantPlan[]).map(p => (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {(['FREE', 'STARTER', 'PRO', 'ENTERPRISE'] as TenantPlan[]).map(p => (
                       <button
                         key={p}
                         onClick={() => setTargetPlan(p)}
@@ -388,14 +314,14 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
                           background: targetPlan === p ? PLAN_BG[p] : '#fff',
                           color: targetPlan === p ? PLAN_COLOR[p] : '#64748b',
                         }}
-                      >{PLAN_LABEL[p]} ({MOCK_TENANTS.filter(t => t.plan === p).length})</button>
+                      >{PLAN_LABEL[p]} ({tenants.filter(t => t.plan === p).length})</button>
                     ))}
                   </div>
                 )}
 
                 {targetType === 'CUSTOM' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', padding: '2px 0' }}>
-                    {MOCK_TENANTS.map(t => {
+                    {tenants.map(t => {
                       const checked = targetIds.includes(t.id)
                       return (
                         <label key={t.id} style={{
@@ -414,7 +340,7 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
                           />
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>{t.name}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{t.owner_email}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{t.users[0]?.email ?? '—'}</div>
                           </div>
                           <span style={{
                             fontSize: '0.68rem', padding: '2px 7px', borderRadius: 99, fontWeight: 700,
@@ -439,42 +365,6 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
                 </div>
               </div>
 
-              {/* Schedule */}
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-body)', display: 'block', marginBottom: 8 }}>
-                  เวลาส่ง
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {([
-                    { key: 'now',      label: '⚡ ส่งทันที' },
-                    { key: 'schedule', label: '📅 กำหนดเวลา' },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setScheduleMode(opt.key)}
-                      style={{
-                        padding: '7px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600,
-                        cursor: 'pointer',
-                        border: `2px solid ${scheduleMode === opt.key ? 'var(--sa-accent)' : '#e2e8f0'}`,
-                        background: scheduleMode === opt.key ? 'var(--sa-accent-light)' : '#fff',
-                        color: scheduleMode === opt.key ? 'var(--sa-accent)' : '#64748b',
-                      }}
-                    >{opt.label}</button>
-                  ))}
-                </div>
-                {scheduleMode === 'schedule' && (
-                  <input
-                    type="datetime-local"
-                    value={scheduleAt}
-                    onChange={e => setScheduleAt(e.target.value)}
-                    style={{
-                      marginTop: 10, padding: '9px 12px', borderRadius: 8,
-                      border: '1.5px solid #e2e8f0', fontSize: '0.875rem',
-                      fontFamily: 'inherit', outline: 'none',
-                    }}
-                  />
-                )}
-              </div>
             </div>
 
             {/* Right: Live Preview */}
@@ -544,7 +434,6 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
               {[
                 { label: 'ประเภท',      value: `${tc.icon} ${tc.label}` },
                 { label: 'ผู้รับ',       value: `${recipientCount} Tenant` },
-                { label: 'เวลาส่ง',     value: scheduleMode === 'now' ? 'ส่งทันที' : `${scheduleAt.replace('T', ' ')}` },
               ].map(r => (
                 <div key={r.label} style={{ flex: 1, background: '#f8fafc', borderRadius: 10, padding: '10px 14px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontWeight: 600 }}>{r.label}</div>
@@ -553,11 +442,9 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
               ))}
             </div>
 
-            {scheduleMode === 'now' && (
-              <div style={{ marginTop: 16, padding: '12px 16px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, fontSize: '0.82rem', color: '#d97706' }}>
-                ⚠️ เมื่อกด "ยืนยันส่ง" ข้อความจะถูกส่งไปยัง Admin ของทุก Tenant ที่เลือกทันที — ไม่สามารถยกเลิกได้
-              </div>
-            )}
+            <div style={{ marginTop: 16, padding: '12px 16px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, fontSize: '0.82rem', color: '#d97706' }}>
+              ⚠️ เมื่อกด "ยืนยันส่ง" ข้อความจะถูกส่งไปยัง Admin ของทุก Tenant ที่เลือกทันที — ไม่สามารถยกเลิกได้
+            </div>
           </div>
         )}
 
@@ -602,13 +489,13 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
                 style={{
                   padding: '9px 24px', borderRadius: 9, fontSize: '0.875rem', fontWeight: 700,
                   border: 'none', cursor: sending ? 'not-allowed' : 'pointer',
-                  background: scheduleMode === 'now' ? 'var(--error-text)' : 'var(--sa-accent)',
+                  background: 'var(--error-text)',
                   color: '#fff', display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
                 {sending
                   ? <><span style={{ animation: 'spin 1s linear infinite' }}>⟳</span> กำลังส่ง...</>
-                  : scheduleMode === 'now' ? '📤 ยืนยันส่งทันที' : '📅 กำหนดตารางส่ง'
+                  : '📤 ยืนยันส่งทันที'
                 }
               </button>
             )}
@@ -620,7 +507,7 @@ function ComposeModal({ onClose, onSend, initialData }: ComposeProps) {
 }
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
-function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () => void; onDelete: () => void }) {
+function DetailModal({ ann, onClose, onDelete, tenants }: { ann: SystemAnn; onClose: () => void; onDelete: () => void; tenants: ApiTenantLite[] }) {
   const tc = ANN_TYPE_CONFIG[ann.type]
   const overlayRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -652,7 +539,7 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
           <div style={{ flex: 1 }}>
             <div id="ann-detail-title" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>{ann.title}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: 2 }}>
-              {ann.sent_at ? `ส่งเมื่อ ${thDateTime(ann.sent_at)}` : ann.scheduled_at ? `กำหนดส่ง ${thDateTime(ann.scheduled_at)}` : 'Draft'}
+              {ann.sent_at ? `ส่งเมื่อ ${thDateTime(ann.sent_at)}` : 'Draft'}
             </div>
           </div>
           <button onClick={onClose} aria-label="ปิดหน้าต่าง" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.2rem' }}>✕</button>
@@ -663,7 +550,7 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
             {[
               { l: 'ประเภท',  v: `${tc.icon} ${tc.label}`,                             color: tc.color, bg: tc.bg },
               { l: 'สถานะ',   v: STATUS_CONFIG[ann.status].label,                      color: STATUS_CONFIG[ann.status].color, bg: STATUS_CONFIG[ann.status].bg },
-              { l: 'ผู้รับ',   v: targetLabel(ann),                                     color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
+              { l: 'ผู้รับ',   v: targetLabel(ann, tenants),                            color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
               { l: 'ส่งถึง',  v: ann.status === 'SENT' ? `${ann.sent_count} Tenant` : '—', color: 'var(--text-main)', bg: '#f8fafc' },
             ].map(r => (
               <div key={r.l} style={{ background: r.bg, borderRadius: 8, padding: '8px 12px', minWidth: 100 }}>
@@ -703,7 +590,9 @@ function DetailModal({ ann, onClose, onDelete }: { ann: SystemAnn; onClose: () =
 type HistoryFilter = 'ALL' | AnnStatus | AnnType
 
 export default function SAAnnouncementPage() {
-  const [history, setHistory] = useState<SystemAnn[]>(INIT_HISTORY)
+  const { data: tenants = [] } = useTenantsLite()
+  const [history, setHistory] = useState<SystemAnn[]>([])
+  const [loadError, setLoadError] = useState(false)
   const [showCompose, setShowCompose] = useState(false)
   const [editDraft, setEditDraft] = useState<SystemAnn | null>(null)
   const [viewAnn, setViewAnn] = useState<SystemAnn | null>(null)
@@ -714,8 +603,8 @@ export default function SAAnnouncementPage() {
 
   useEffect(() => {
     api.get('/api/v1/super-admin/announcements')
-      .then(res => { if (Array.isArray(res.data?.data)) setHistory(res.data.data) })
-      .catch(() => { /* fall back to INIT_HISTORY already in state */ })
+      .then(res => { if (Array.isArray(res.data?.data)) setHistory(res.data.data.map((a: any) => ({ ...a, target_tenant_ids: a.target_tenant_ids ?? [] }))) })
+      .catch(() => setLoadError(true))
   }, [])
 
   function showToast(msg: string, ok = true) {
@@ -730,11 +619,7 @@ export default function SAAnnouncementPage() {
     })
     setShowCompose(false)
     setEditDraft(null)
-    showToast(
-      ann.status === 'SENT' ? `ส่งประกาศถึง ${ann.sent_count} Tenant เรียบร้อย` :
-      ann.status === 'SCHEDULED' ? 'บันทึกตารางส่งเรียบร้อย' :
-      'บันทึก Draft เรียบร้อย'
-    )
+    showToast(ann.status === 'SENT' ? `ส่งประกาศถึง ${ann.sent_count} Tenant เรียบร้อย` : 'บันทึก Draft เรียบร้อย')
   }
 
   async function handleDelete(id: string) {
@@ -756,9 +641,8 @@ export default function SAAnnouncementPage() {
   })
 
   const counts = {
-    SENT:      history.filter(a => a.status === 'SENT').length,
-    DRAFT:     history.filter(a => a.status === 'DRAFT').length,
-    SCHEDULED: history.filter(a => a.status === 'SCHEDULED').length,
+    SENT:  history.filter(a => a.status === 'SENT').length,
+    DRAFT: history.filter(a => a.status === 'DRAFT').length,
   }
 
   return (
@@ -802,10 +686,9 @@ export default function SAAnnouncementPage() {
       {/* Stat cards */}
       <div className="grid-stats" style={{ marginBottom: 24 }}>
         {[
-          { label: 'ทั้งหมด',        value: history.length,    icon: '📋', color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
-          { label: 'ส่งแล้ว',        value: counts.SENT,       icon: '✅', color: 'var(--success-text)', bg: '#d1fae5' },
-          { label: 'กำหนดส่ง',      value: counts.SCHEDULED,  icon: '📅', color: '#2563eb', bg: '#dbeafe' },
-          { label: 'Draft',          value: counts.DRAFT,      icon: '📝', color: 'var(--text-gray)', bg: '#f3f4f6' },
+          { label: 'ทั้งหมด', value: history.length, icon: '📋', color: 'var(--sa-accent)', bg: 'var(--sa-accent-light)' },
+          { label: 'ส่งแล้ว', value: counts.SENT,    icon: '✅', color: 'var(--success-text)', bg: '#d1fae5' },
+          { label: 'Draft',   value: counts.DRAFT,   icon: '📝', color: 'var(--text-gray)', bg: '#f3f4f6' },
         ].map(s => (
           <div key={s.label} style={{
             background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
@@ -847,10 +730,9 @@ export default function SAAnnouncementPage() {
         {/* Status filter */}
         <div style={{ display: 'flex', gap: 6 }}>
           {([
-            { k: 'ALL',       l: 'ทั้งหมด' },
-            { k: 'SENT',      l: 'ส่งแล้ว' },
-            { k: 'SCHEDULED', l: 'กำหนดส่ง' },
-            { k: 'DRAFT',     l: 'Draft' },
+            { k: 'ALL',   l: 'ทั้งหมด' },
+            { k: 'SENT',  l: 'ส่งแล้ว' },
+            { k: 'DRAFT', l: 'Draft' },
           ] as const).map(f => (
             <button
               key={f.k}
@@ -901,20 +783,21 @@ export default function SAAnnouncementPage() {
           <div style={{ textAlign: 'right' }}>วันที่</div>
         </div>
 
-        {filtered.length === 0 && (
+        {loadError && (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--error-text)', fontSize: '0.85rem' }}>
+            โหลดประวัติประกาศไม่สำเร็จ — ตรวจสอบการเชื่อมต่อแล้วรีเฟรชหน้าใหม่
+          </div>
+        )}
+        {!loadError && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-faint)', fontSize: '0.9rem' }}>
-            ไม่พบประกาศที่ตรงกับเงื่อนไข
+            {history.length === 0 ? 'ยังไม่มีประกาศ — กด "สร้างประกาศใหม่" เพื่อเริ่ม' : 'ไม่พบประกาศที่ตรงกับเงื่อนไข'}
           </div>
         )}
 
         {filtered.map((ann, idx) => {
           const tc = ANN_TYPE_CONFIG[ann.type]
           const sc = STATUS_CONFIG[ann.status]
-          const dateStr = ann.sent_at
-            ? thDateTime(ann.sent_at)
-            : ann.scheduled_at
-            ? thDateTime(ann.scheduled_at)
-            : '—'
+          const dateStr = ann.sent_at ? thDateTime(ann.sent_at) : '—'
 
           return (
             <div
@@ -961,7 +844,7 @@ export default function SAAnnouncementPage() {
 
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {targetLabel(ann)}
+                  {targetLabel(ann, tenants)}
                 </span>
               </div>
 
@@ -987,13 +870,14 @@ export default function SAAnnouncementPage() {
       )}
 
       {/* Modals */}
-      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSend={handleSend} />}
-      {editDraft && <ComposeModal onClose={() => setEditDraft(null)} onSend={handleSend} initialData={editDraft} />}
+      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSend={handleSend} tenants={tenants} />}
+      {editDraft && <ComposeModal onClose={() => setEditDraft(null)} onSend={handleSend} initialData={editDraft} tenants={tenants} />}
       {viewAnn && (
         <DetailModal
           ann={viewAnn}
           onClose={() => setViewAnn(null)}
           onDelete={() => handleDelete(viewAnn.id)}
+          tenants={tenants}
         />
       )}
     </div>

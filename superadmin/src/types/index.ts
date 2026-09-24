@@ -1,13 +1,16 @@
 // superadmin/src/types/index.ts
 // เอาเฉพาะ type ที่ Super Admin ใช้จริง — คัดจาก admin/src/types/index.ts
 //
-// ⚠️ TenantStatus/TenantPlan ที่นี่ (ACTIVE/SUSPENDED/TRIAL, STARTER/PROFESSIONAL/ENTERPRISE)
-// ไม่ตรงกับ Prisma enum จริงฝั่ง backend (TenantPlan: FREE/STARTER/PRO/ENTERPRISE,
-// Tenant.is_active: Boolean ไม่มี concept TRIAL/SUSPENDED) — ความไม่ตรงนี้มีอยู่ก่อนแล้ว
-// ในโค้ดเดิม ยกมาเหมือนเดิมตอนแยกโฟลเดอร์ ไม่ได้แก้ไขจุดนี้
+// ⚠️ TenantStatus (ACTIVE/SUSPENDED/TRIAL) ยังไม่ตรงกับ backend จริง (Tenant.is_active
+// เป็น Boolean ล้วน ไม่มี concept TRIAL/SUSPENDED แยก) — ของเดิมที่ค้างมาก่อน ยังไม่ใช่
+// scope ของงานนี้ ปล่อยไว้เหมือนเดิม
+//
+// TenantPlan แก้แล้ว (feedback 2026-09-24) — เดิมเป็น STARTER/PROFESSIONAL/ENTERPRISE
+// (ไม่มี FREE) ไม่ตรงกับ enum จริงฝั่ง backend เลย ทำให้หน้า packages/announcement
+// เทียบ plan กับ tenant จริงไม่ตรงสักแถว ตอนนี้ตรงกับ Prisma enum TenantPlan แล้ว
 
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'TRIAL'
-export type TenantPlan = 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE'
+export type TenantPlan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 
 export interface Tenant {
   id: string
@@ -49,38 +52,43 @@ export interface Invoice {
   note: string
 }
 
-// ── Plan / Package Management ─────────────────────────────────────────────────
+// ── Plan / Package Management (feedback 2026-09-24 "custom package builder")
+// ── ตรงกับ PackagePlan model จริงฝั่ง backend แล้ว (server/src/prisma/schema.prisma)
+// — limits ตรงกับ 3 field จริงที่ Tenant มี (max_employees/max_branches/max_groups)
+// เท่านั้น ตัดฟิลด์ปลอมเดิม (max_shifts_per_branch/max_managers ที่ไม่มีจริง) ออก
 export interface PlanLimits {
   max_branches: number       // -1 = ไม่จำกัด
   max_employees: number      // -1 = ไม่จำกัด
-  max_shifts_per_branch: number  // -1 = ไม่จำกัด
-  max_managers: number       // -1 = ไม่จำกัด
+  max_groups: number         // -1 = ไม่จำกัด
 }
 
+// ตรงกับ FEATURE_KEYS จริงฝั่ง backend (server/src/common/utils/features.ts) ครบ 18 ตัว
 export interface PlanFeatures {
-  leave_management: boolean    // จัดการวันลา
-  ot_management: boolean       // จัดการ OT
-  announcement: boolean        // ประกาศ
-  report_export: boolean       // Export รายงาน
-  fine_system: boolean         // ระบบค่าปรับ
-  multi_shift: boolean         // หลายกะต่อวัน
-  leave_balance: boolean       // โควต้าวันลา
-  line_oa: boolean             // Line OA Integration
-  gps_checkin: boolean         // เช็คอินนอกสถานที่ (ปักหมุด GPS)
-  feedback: boolean            // ระบบ Feedback
-  employee_documents?: boolean // เอกสารพนักงาน + เตือนหมดอายุ
-  probation?: boolean          // ทดลองงาน
-  disciplinary?: boolean       // หนังสือเตือน
-  resignation?: boolean        // ลาออก (พนักงานยื่นเอง)
-  custom_leave_types?: boolean // ประเภทการลากำหนดเอง
-  leave_accrual?: boolean      // สะสมวันลา + ยกยอด
-  document_request?: boolean   // ขอเอกสาร HR ผ่าน LIFF (สลิปเงินเดือน/หนังสือรับรอง)
+  leave_management: boolean
+  leave_balance: boolean
+  ot_management: boolean
+  announcement: boolean
+  multi_shift: boolean
+  fine_system: boolean
+  gps_checkin: boolean
+  line_oa: boolean
+  report_export: boolean
+  feedback: boolean
+  employee_documents: boolean
+  probation: boolean
+  disciplinary: boolean
+  resignation: boolean
+  custom_leave_types: boolean
+  leave_accrual: boolean
+  document_request: boolean
+  vacation_policy: boolean
 }
 
 export interface PlanConfig {
+  id: string
   plan: TenantPlan
   label: string
-  price_monthly: number        // 0 = custom / ติดต่อเรา
+  price_monthly: number | null  // null = custom / ติดต่อเรา (เช่น Enterprise)
   limits: PlanLimits
   features: PlanFeatures
   color: string

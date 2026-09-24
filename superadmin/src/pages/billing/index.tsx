@@ -28,9 +28,10 @@ const STATUS_CFG: Record<PaymentStatus, { label: string; color: string; bg: stri
   CANCELLED: { label: 'ยกเลิก',   color: 'var(--text-gray)', bg: '#f9fafb', border: '#d1d5db' },
 }
 const PLAN_CFG: Record<TenantPlan, { label: string; color: string; bg: string }> = {
-  STARTER:      { label: 'Starter',      color: 'var(--text-body)', bg: '#f3f4f6' },
-  PROFESSIONAL: { label: 'Professional', color: '#2563eb', bg: '#dbeafe' },
-  ENTERPRISE:   { label: 'Enterprise',   color: '#7c3aed', bg: '#ede9fe' },
+  FREE:       { label: 'Free',       color: 'var(--text-body)', bg: '#f3f4f6' },
+  STARTER:    { label: 'Starter',    color: 'var(--text-body)', bg: '#f3f4f6' },
+  PRO:        { label: 'Pro',        color: '#2563eb', bg: '#dbeafe' },
+  ENTERPRISE: { label: 'Enterprise', color: '#7c3aed', bg: '#ede9fe' },
 }
 
 const EMPTY_INVOICE: Omit<Invoice, 'id'> = {
@@ -85,8 +86,7 @@ export default function BillingPage() {
       .then(res => {
         if (Array.isArray(res.data?.data)) {
           setTenants(res.data.data.map((t: { id: string; name: string; plan: string }) => ({
-            id: t.id, name: t.name,
-            plan: t.plan === 'PRO' ? 'PROFESSIONAL' : t.plan,
+            id: t.id, name: t.name, plan: t.plan,
           })))
         }
       })
@@ -310,7 +310,7 @@ export default function BillingPage() {
                       setForm({
                         tenant_id: t.id, tenant_name: t.name,
                         plan: (t.plan as any) ?? 'STARTER',
-                        amount: t.plan === 'PROFESSIONAL' ? 2490 : t.plan === 'ENTERPRISE' ? 0 : 990,
+                        amount: t.plan === 'PRO' ? 2490 : t.plan === 'ENTERPRISE' ? 0 : 990,
                         due_date: dueDate, paid_date: null, status: 'PENDING',
                         period_start: newStart, period_end: newEnd, note: 'ต่ออายุ 30 วัน',
                       })
@@ -341,8 +341,9 @@ export default function BillingPage() {
         </select>
         <select value={planFilter} onChange={e => setPlanFilter(e.target.value as any)} style={{ ...inputSt, width: 'auto' }}>
           <option value="">ทุก Plan</option>
+          <option value="FREE">Free</option>
           <option value="STARTER">Starter</option>
-          <option value="PROFESSIONAL">Professional</option>
+          <option value="PRO">Pro</option>
           <option value="ENTERPRISE">Enterprise</option>
         </select>
         <span style={{ fontSize: '0.82rem', color: 'var(--text-subtle)', marginLeft: 'auto' }}>{filtered.length} Invoice</span>
@@ -443,7 +444,7 @@ export default function BillingPage() {
                   onChange={e => {
                     const t = tenants.find(x => x.id === e.target.value)
                     const plan = (t?.plan ?? 'STARTER') as TenantPlan
-                    setForm(f => ({ ...f, tenant_id: e.target.value, tenant_name: t?.name ?? '', plan, amount: plan === 'PROFESSIONAL' ? 2490 : plan === 'ENTERPRISE' ? 0 : 990 }))
+                    setForm(f => ({ ...f, tenant_id: e.target.value, tenant_name: t?.name ?? '', plan, amount: plan === 'PRO' ? 2490 : plan === 'ENTERPRISE' ? 0 : 990 }))
                   }}
                   style={inputSt}
                 >
@@ -455,8 +456,9 @@ export default function BillingPage() {
                 <div>
                   <label style={labelSt}>Plan</label>
                   <select value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value as TenantPlan }))} style={inputSt}>
+                    <option value="FREE">Free</option>
                     <option value="STARTER">Starter</option>
-                    <option value="PROFESSIONAL">Professional</option>
+                    <option value="PRO">Pro</option>
                     <option value="ENTERPRISE">Enterprise</option>
                   </select>
                 </div>
