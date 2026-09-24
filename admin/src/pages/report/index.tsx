@@ -8,6 +8,8 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiDate } from '../../lib/format'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 interface AttendanceRecord {
   id: string
@@ -30,8 +32,8 @@ interface AttendanceRecord {
   shift: { id: string; name: string; start_time: string; end_time: string }
 }
 
-interface Branch { id: string; name: string }
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string }; hired_at?: string | null }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null }
+interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
 interface LeaveRequest {
   id: string
@@ -110,7 +112,11 @@ export default function ReportPage() {
   const goFixMissingDay = (employeeId: string, dateKey: string) => navigate(`/shift?date=${dateKey}&employee=${employeeId}`)
   const [year,   setYear]   = useState(now.getFullYear())
   const [month,  setMonth]  = useState(now.getMonth() + 1)
-  const [branch, setBranch] = useState('')
+  // orgFilter (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — branch
+  // เดิมยังคง derive ออกมาไว้ (branch = orgFilter.branchId) เพราะทุก query ใน
+  // หน้านี้ผูกกับ branchId param เดิมอยู่แล้วหลายจุด ไม่ต้องไล่แก้ signature หมด
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  const branch = orgFilter.branchId
   const [search, setSearch] = useState('')
   const [detail, setDetail] = useState<{ emp: string; date: string; records: AttendanceRecord[] } | null>(null)
   const [expandedEmp, setExpandedEmp] = useState<string | null>(null)
@@ -143,11 +149,6 @@ export default function ReportPage() {
     while (cur <= end) { out.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 1) }
     return out
   }, [viewMode, rangeStart, rangeEnd])
-
-  const { data: branches = [] } = useQuery<Branch[]>({
-    queryKey: ['admin', 'branches'],
-    queryFn:  () => api.get('/api/v1/admin/branches').then((r: any) => r.data.data),
-  })
 
   // วันเช็คอินแรกสุดของแต่ละคน (employee_id → YYYY-MM-DD) — ใช้แทน hired_at เป็นจุดเริ่ม
   // นับ "ไม่มีข้อมูล" เพราะแม่นกว่า (ยึดตามการใช้งานจริงในระบบ ไม่ใช่ข้อมูลกรอกมือ)
@@ -189,6 +190,14 @@ export default function ReportPage() {
       params: { ...(branch ? { branchId: branch } : {}) },
     }).then((r: any) => r.data.data),
   })
+  const { data: positions = [] } = useQuery<ApiPosition[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then((r: any) => r.data.data),
+  })
+  const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(allEmployees, positions), [allEmployees, positions])
+  // branch จัดการฝั่ง server แล้ว (param branchId ข้างบน) — เหลือกรองกลุ่ม/แผนก/
+  // ตำแหน่งฝั่ง client เพิ่ม (เหมือน TeamCalendarTab.tsx)
+  const orgFilterNoBranch: OrgFilterValue = { ...orgFilter, branchId: '' }
 
   const isLoading = loadingRecords || loadingEmployees
 
@@ -257,10 +266,12 @@ export default function ReportPage() {
   }, [records])
 
   const employees = useMemo(() => {
-    const list = allEmployees.map(emp => ({
-      info: emp,
-      byDate: empMap.get(emp.id)?.byDate ?? new Map<string, AttendanceRecord[]>(),
-    }))
+    const list = allEmployees
+      .filter(emp => matchesOrgFilter(employeeOrgMap[emp.id], orgFilterNoBranch))
+      .map(emp => ({
+        info: emp,
+        byDate: empMap.get(emp.id)?.byDate ?? new Map<string, AttendanceRecord[]>(),
+      }))
     if (!search.trim()) return list
     const q = search.toLowerCase()
     return list.filter(e =>
@@ -269,7 +280,7 @@ export default function ReportPage() {
       (e.info.nickname ?? '').toLowerCase().includes(q) ||
       e.info.employee_code.toLowerCase().includes(q)
     )
-  }, [allEmployees, empMap, search])
+  }, [allEmployees, empMap, search, employeeOrgMap, orgFilterNoBranch])
 
   // ── หาว่าใครมีวัน "ไม่มีข้อมูล" บ้าง (ไม่ใช่ลา/หยุด/นอกสถานที่/วันหยุดสุดสัปดาห์ — แค่ไม่มี
   // record จริงๆ) และเป็นวันไหน — เฉพาะวันที่ผ่านมาแล้ว (ไม่นับวันอนาคตที่ยังไม่ถึง)
@@ -565,11 +576,7 @@ export default function ReportPage() {
         </div>
         )}
 
-        <select value={branch} onChange={e => setBranch(e.target.value)}
-          style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', flex: isMobile ? '1 1 120px' : 'none' }}>
-          <option value="">ทุกสาขา</option>
-          {branches.map((b: Branch) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
+        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
 
         <div style={{ position: 'relative', flex: '1 1 140px', minWidth: 0 }}>
           <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
