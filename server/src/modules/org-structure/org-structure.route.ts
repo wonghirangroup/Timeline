@@ -148,6 +148,34 @@ export async function orgStructureRoutes(app: FastifyInstance) {
     }
   })
 
+  // ── ลาก-วางจัดพนักงานเข้าผัง (feedback 2026-09-23) ─────────
+  app.post('/org-structure/assign-employee', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
+    schema: {
+      tags: [TAG],
+      summary: 'ลาก-วางพนักงานเข้าฝ่าย/แผนก/ตำแหน่ง — วางบนฝ่าย/แผนกตรงๆ จะเข้าตำแหน่ง placeholder "ยังไม่ระบุตำแหน่ง" ใต้จุดนั้นอัตโนมัติ',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object', required: ['employee_id', 'level', 'target_id'],
+        properties: {
+          employee_id: { type: 'string' },
+          level:       { type: 'string', enum: ['division', 'department', 'position'] },
+          target_id:   { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const employee = await svc.assignEmployeeToOrgNode(req.tenantId, req.body.employee_id, req.body.level, req.body.target_id)
+      return ok(employee, 'ย้ายพนักงานสำเร็จ')
+    } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      if (e.message === 'POSITION_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบตำแหน่ง'))
+      if (handleParentErrors(e, reply)) return
+      throw e
+    }
+  })
+
   // ── Position (ตำแหน่ง) ─────────────────────────────────────
   app.get('/positions', {
     preHandler: [tenantMiddleware, requireRole(...READ_ROLES), requirePermission('org_structure', 'view')],

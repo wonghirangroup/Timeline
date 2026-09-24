@@ -475,16 +475,33 @@ const NODE_CFG: Record<Level, { color: string }> = {
   division: { color: '#6366f1' }, department: { color: '#0891b2' }, position: { color: '#16a34a' },
 }
 
-function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, children }: {
+function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, onDropEmployee, children }: {
   level: Level; name: string; subtitle: string; badge?: React.ReactNode
-  onView: () => void; onEdit: () => void; onDelete: () => void; children?: React.ReactNode
+  onView: () => void; onEdit: () => void; onDelete: () => void
+  onDropEmployee?: (employeeId: string) => void
+  children?: React.ReactNode
 }) {
   const [hovered, setHovered] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const cfg = NODE_CFG[level]
   return (
     <li>
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-        style={{ position: 'relative', background: '#fff', border: `1.5px solid ${cfg.color}40`, borderRadius: 12, padding: '9px 16px', minWidth: 108, boxShadow: hovered ? '0 6px 18px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)', transition: 'box-shadow 0.15s' }}>
+        onDragOver={onDropEmployee ? (e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }) : undefined}
+        onDragLeave={onDropEmployee ? (() => setDragOver(false)) : undefined}
+        onDrop={onDropEmployee ? (e => {
+          e.preventDefault()
+          setDragOver(false)
+          const employeeId = e.dataTransfer.getData('text/employee-id')
+          if (employeeId) onDropEmployee(employeeId)
+        }) : undefined}
+        style={{
+          position: 'relative', background: dragOver ? `${cfg.color}14` : '#fff',
+          border: `1.5px ${dragOver ? 'dashed' : 'solid'} ${dragOver ? cfg.color : `${cfg.color}40`}`,
+          borderRadius: 12, padding: '9px 16px', minWidth: 108,
+          boxShadow: dragOver ? `0 0 0 3px ${cfg.color}22` : (hovered ? '0 6px 18px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)'),
+          transition: 'box-shadow 0.15s, background 0.15s, border-color 0.15s',
+        }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
           <span style={{ display: 'flex', color: cfg.color }}>{LEVEL_ICON[level]}</span>
           <span style={{ fontWeight: 700, fontSize: '12.5px', color: '#111827', whiteSpace: 'nowrap' }}>{name}</span>
@@ -620,6 +637,7 @@ function NodeDetailModal({ level, row, tree, grp, employees, onClose }: {
 function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: string }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
+  const isMobile = useIsMobile()
   const [addModal, setAddModal] = useState<{ level: Level; groupId: string } | null>(null)
   const [viewTarget, setViewTarget] = useState<{ level: Level; row: any; groupId: string } | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
@@ -664,6 +682,36 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
     onError: (err: any) => showToast('error', err.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
   })
 
+  // ── ลาก-วางจัดพนักงานเข้าผัง (feedback 2026-09-23) ──────────────────────
+  const [employeePanelOpen, setEmployeePanelOpen] = useState(false)
+  const [employeeSearch, setEmployeeSearch] = useState('')
+  const [unassignedOnly, setUnassignedOnly] = useState(false)
+  const groupName = new Map(groups.map(g => [g.id, g.name]))
+
+  const assignMutation = useMutation({
+    mutationFn: ({ employeeId, level, targetId }: { employeeId: string; level: Level; targetId: string }) =>
+      api.post('/api/v1/admin/org-structure/assign-employee', { employee_id: employeeId, level, target_id: targetId }),
+    onSuccess: () => {
+      invalidateAll()
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      showToast('success', 'ย้ายพนักงานสำเร็จ')
+    },
+    onError: () => showToast('error', 'ย้ายพนักงานไม่สำเร็จ'),
+  })
+  const handleDropEmployee = (level: Level, targetId: string) => (employeeId: string) => {
+    assignMutation.mutate({ employeeId, level, targetId })
+  }
+  const employeeList = allEmployees.filter((e: any) => {
+    if (e.is_active === false) return false
+    if (unassignedOnly && e.position_id) return false
+    if (employeeSearch.trim()) {
+      const q = employeeSearch.trim().toLowerCase()
+      const hay = `${e.first_name} ${e.last_name} ${e.nickname ?? ''} ${e.employee_code}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
+
   const openEdit = (level: Level, row: any) => { setEditForm({
     name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota),
     vacation_base_days: row.vacation_base_days == null ? '' : String(row.vacation_base_days),
@@ -702,7 +750,22 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ ...card, overflowX: 'auto' }}>
+      {!isMobile && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={() => setEmployeePanelOpen(v => !v)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 8,
+              border: `1.5px solid ${employeePanelOpen ? '#f97316' : '#e5e7eb'}`, cursor: 'pointer',
+              background: employeePanelOpen ? '#fff7ed' : '#fff', color: employeePanelOpen ? '#ea580c' : '#374151',
+              fontSize: '13px', fontWeight: 700,
+            }}>
+            <UserSquare2 size={15} /> {employeePanelOpen ? 'ปิดแผงลาก-วางพนักงาน' : 'ลาก-วางจัดพนักงาน'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div style={{ ...card, overflowX: 'auto', flex: 1, minWidth: 0 }}>
         <style>{TREE_CSS}</style>
         <div className="org-chart-tree">
           <ul>
@@ -744,15 +807,18 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                           {divs.map(dv => (
                             <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
                               onView={() => setViewTarget({ level: 'division', row: dv, groupId: g.id })}
-                              onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}>
+                              onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}
+                              onDropEmployee={employeePanelOpen ? handleDropEmployee('division', dv.id) : undefined}>
                               {dv.departments.length > 0 ? dv.departments.map(dt => (
                                 <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
                                   onView={() => setViewTarget({ level: 'department', row: dt, groupId: g.id })}
-                                  onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}>
+                                  onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}
+                                  onDropEmployee={employeePanelOpen ? handleDropEmployee('department', dt.id) : undefined}>
                                   {dt.positions.map(p => (
                                     <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
                                       onView={() => setViewTarget({ level: 'position', row: p, groupId: g.id })}
-                                      onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })} />
+                                      onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })}
+                                      onDropEmployee={employeePanelOpen ? handleDropEmployee('position', p.id) : undefined} />
                                   ))}
                                 </TreeNode>
                               )) : null}
@@ -767,6 +833,43 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
             </li>
           </ul>
         </div>
+      </div>
+
+      {employeePanelOpen && !isMobile && (
+        <div style={{ ...card, width: 260, flexShrink: 0, padding: 14, position: 'sticky', top: 8, maxHeight: 640, display: 'flex', flexDirection: 'column' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 800, color: '#111827' }}>รายชื่อพนักงาน</p>
+          <p style={{ margin: '0 0 10px', fontSize: '11px', color: 'var(--text-muted)' }}>ลากชื่อพนักงานไปวางบนฝ่าย/แผนก/ตำแหน่งในผังทางซ้าย</p>
+          <input value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)} placeholder="ค้นหาชื่อ/รหัส..."
+            style={{ ...inputStyle, marginBottom: 8, fontSize: '12.5px' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11.5px', color: '#374151', cursor: 'pointer', marginBottom: 10 }}>
+            <input type="checkbox" checked={unassignedOnly} onChange={e => setUnassignedOnly(e.target.checked)} />
+            เฉพาะยังไม่มีตำแหน่ง
+          </label>
+          <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            {employeeList.length === 0 && (
+              <p style={{ fontSize: '11.5px', color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>ไม่พบพนักงาน</p>
+            )}
+            {employeeList.map((e: any) => (
+              <div key={e.id} draggable
+                onDragStart={ev => { ev.dataTransfer.setData('text/employee-id', e.id); ev.dataTransfer.effectAllowed = 'move' }}
+                style={{
+                  display: 'flex', flexDirection: 'column', gap: 2, padding: '7px 10px', borderRadius: 8,
+                  border: '1px solid #e5e7eb', background: e.position_id ? '#fff' : '#fff7ed', cursor: 'grab',
+                }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>
+                  {e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''}
+                </span>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  {e.branch?.name ?? '—'}{e.branch?.group_id && groupName.get(e.branch.group_id) ? ` · ${groupName.get(e.branch.group_id)}` : ''}
+                </span>
+                {!e.position_id && (
+                  <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#ea580c', width: 'fit-content' }}>ยังไม่มีตำแหน่ง</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
 
       {addModal && (

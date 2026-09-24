@@ -151,6 +151,74 @@ export async function deletePosition(tenantId: string, id: string) {
   return count.count > 0
 }
 
+// ── ลาก-วางจัดพนักงานเข้าผัง (feedback 2026-09-23) — พนักงานผูกได้แค่ระดับ
+// "ตำแหน่ง" เท่านั้น (Employee.position_id) ไม่มีช่องเก็บฝ่าย/แผนกแยกต่างหาก
+// ลากไปวางบนฝ่าย/แผนกตรงๆ จึงหาตำแหน่ง placeholder "ยังไม่ระบุตำแหน่ง" ใต้จุด
+// นั้นให้อัตโนมัติ (find-or-create ต่อฝ่าย/แผนก กันสร้างซ้ำ) แล้วผูกพนักงานเข้า
+// placeholder นั้นแทน — ใช้ cascade นโยบายเดิมได้ครบ ไม่ต้องแก้ schema เพิ่ม
+const UNASSIGNED_DEPT_NAME = 'ยังไม่ระบุแผนก'
+const UNASSIGNED_POS_NAME  = 'ยังไม่ระบุตำแหน่ง'
+
+async function findOrCreateUnassignedDepartment(tenantId: string, divisionId: string): Promise<string> {
+  const existing = await prisma.department.findFirst({
+    where: { tenant_id: tenantId, division_id: divisionId, name: UNASSIGNED_DEPT_NAME, deleted_at: null },
+  })
+  if (existing) return existing.id
+  const created = await prisma.department.create({
+    data: { tenant_id: tenantId, division_id: divisionId, name: UNASSIGNED_DEPT_NAME },
+  })
+  return created.id
+}
+
+async function findOrCreateUnassignedPosition(tenantId: string, departmentId: string): Promise<string> {
+  const existing = await prisma.position.findFirst({
+    where: { tenant_id: tenantId, department_id: departmentId, name: UNASSIGNED_POS_NAME, deleted_at: null },
+  })
+  if (existing) return existing.id
+  const created = await prisma.position.create({
+    data: { tenant_id: tenantId, department_id: departmentId, name: UNASSIGNED_POS_NAME },
+  })
+  return created.id
+}
+
+const ASSIGN_RESULT_INCLUDE = {
+  position: {
+    select: {
+      id: true, name: true,
+      department: { select: { id: true, name: true, division: { select: { id: true, name: true, group_id: true } } } },
+    },
+  },
+} as const
+
+export async function assignEmployeeToOrgNode(
+  tenantId: string, employeeId: string, level: 'division' | 'department' | 'position', targetId: string,
+) {
+  const employee = await prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId, deleted_at: null } })
+  if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
+
+  let positionId: string
+  if (level === 'position') {
+    const pos = await prisma.position.findFirst({ where: { id: targetId, tenant_id: tenantId, deleted_at: null } })
+    if (!pos) throw new Error('POSITION_NOT_FOUND')
+    positionId = pos.id
+  } else if (level === 'department') {
+    const dept = await prisma.department.findFirst({ where: { id: targetId, tenant_id: tenantId, deleted_at: null } })
+    if (!dept) throw new Error('DEPARTMENT_NOT_FOUND')
+    positionId = await findOrCreateUnassignedPosition(tenantId, dept.id)
+  } else {
+    const div = await prisma.division.findFirst({ where: { id: targetId, tenant_id: tenantId, deleted_at: null } })
+    if (!div) throw new Error('DIVISION_NOT_FOUND')
+    const deptId = await findOrCreateUnassignedDepartment(tenantId, div.id)
+    positionId = await findOrCreateUnassignedPosition(tenantId, deptId)
+  }
+
+  return prisma.employee.update({
+    where: { id: employeeId },
+    data: { position_id: positionId },
+    include: ASSIGN_RESULT_INCLUDE,
+  })
+}
+
 // ── Tree — โหลดผังทั้งหมดของ "กลุ่ม" เดียว หรือ "ทุกกลุ่มในเทแนนต์" (ถ้าไม่ระบุ groupId)
 // ในคำเรียกเดียว (สำหรับหน้าจัดการผังองค์กร) — ทุกชั้นตอนนี้ผูก parent ชัดเจนเสมอ (ไม่มี
 // "ลอย"/unassigned เหมือนเวอร์ชันเดิมอีกต่อไป) เพราะ Division ต้องมี group_id, Department
