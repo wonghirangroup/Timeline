@@ -40,6 +40,7 @@ import { vacationPolicyRoutes } from './modules/leave/vacation-policy.route'
 import { permissionRoutes } from './modules/permissions/permission.route'
 import { packagePlanRoutes } from './modules/package-plan/package-plan.route'
 import { systemAnnouncementRoutes } from './modules/system-announcement/system-announcement.route'
+import { platformSettingsRoutes, platformSettingsPublicRoutes } from './modules/platform-settings/platform-settings.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
 import { startVacationPolicyCron } from './jobs/vacation-policy.job'
@@ -158,6 +159,8 @@ app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line web
 app.register(firebaseSyncRoutes, { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: ซิงค์ระบบเก่า (Firebase) — bespoke, ดู modules/firebase-sync
 app.register(packagePlanRoutes,  { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: เทมเพลตแพ็กเกจจริงต่อ plan (feedback 2026-09-24)
 app.register(systemAnnouncementRoutes, { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ประกาศถึงแอดมิน tenant ข้ามบริษัท (LINE push จริง)
+app.register(platformSettingsRoutes,       { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ช่องทางชำระเงิน/ติดต่อระดับแพลตฟอร์ม (feedback 2026-09-24)
+app.register(platformSettingsPublicRoutes, { prefix: '/api/v1/admin' })       // แอดมิน tenant: อ่านช่องทางชำระเงิน/ติดต่อ (read-only)
 
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {

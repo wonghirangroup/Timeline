@@ -1,6 +1,6 @@
 // admin/src/components/layout/SuperAdminSidebar.tsx
 import { NavLink, useNavigate } from 'react-router-dom'
-import { X, LayoutDashboard, Building2, Package, CreditCard, ClipboardList, Megaphone, LogOut, ExternalLink } from 'lucide-react'
+import { X, LayoutDashboard, Building2, Package, CreditCard, ClipboardList, Megaphone, LogOut, ExternalLink, Settings } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 
 const NAV_ITEMS = [
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { path: '/billing',      label: 'Billing & Payment',    Icon: CreditCard },
   { path: '/onboarding',   label: 'Onboarding Checklist', Icon: ClipboardList },
   { path: '/announcement', label: 'System Announcement',  Icon: Megaphone },
+  { path: '/settings',     label: 'ตั้งค่าแพลตฟอร์ม',      Icon: Settings },
 ]
 
 const ACCENT = 'var(--sa-accent)'

@@ -1379,6 +1379,32 @@ model SystemAnnouncement {
   @@map("system_announcements")
 }
 
+// ─────────────────────────────────────────────
+// PLATFORM SETTINGS — ตั้งค่าระดับแพลตฟอร์ม (TimeLine เอง ไม่ใช่ต่อ tenant)
+// มีแถวเดียวเสมอ (id คงที่ "singleton") — feedback 2026-09-24: "ช่องทางชำระเงิน"
+// (tenant จ่ายบิล TimeLine — ระบบ invoice เดิมเป็นแบบ manual ไม่มี payment
+// gateway อยู่แล้ว จึงเป็นแค่ข้อมูลช่องทางโอน/พร้อมเพย์ให้ tenant เห็น ไม่ใช่
+// การ integrate gateway จริง) + "ช่องทางติดต่อ admin ต่อบริษัท" (tenant ติดต่อ
+// TimeLine ขอเปลี่ยน/อัปเกรดแพ็กเกจ) — SuperAdmin ตั้งค่าที่นี่ทีเดียว โชว์ให้
+// ทุก tenant เห็นที่ Settings → แพ็กเกจ ทุกฟิลด์ optional (ว่าง = ยังไม่ตั้งค่า
+// ไม่ใช่ข้อมูลปลอม)
+// ─────────────────────────────────────────────
+model PlatformSettings {
+  id                   String   @id @default("singleton")
+  payment_bank_name    String? // เช่น "ธนาคารกสิกรไทย"
+  payment_account_name String?
+  payment_account_no   String?
+  payment_promptpay_id String? // เลขพร้อมเพย์ (เบอร์โทร/เลขนิติบุคคล)
+  payment_qr_url       String? // รูป QR โอนเงิน (อัปโหลดแยก)
+  payment_note         String?  @db.Text // หมายเหตุเพิ่มเติม เช่น "แจ้งชำระผ่าน LINE OA"
+  support_phone        String?
+  support_line_id      String?
+  support_email        String?
+  updated_at           DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
 // log ทุกครั้งที่ระบบยิงข้อความ LINE ออกไปจริง (แจ้งเตือนแอดมิน/พนักงาน,
 // ประกาศ, แจ้งปัญหา, เปิดจองวันหยุด ฯลฯ) — เดิมไม่มีการเก็บเลยสักครั้ง ทำให้
 // ตอบไม่ได้ว่า "ส่งไปหาใครบ้าง สำเร็จไหม" ย้อนหลัง (feedback 2026-09-22

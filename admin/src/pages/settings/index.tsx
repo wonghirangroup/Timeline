@@ -579,6 +579,63 @@ function ShortcutCard() {
   )
 }
 
+// ช่องทางชำระเงิน/ติดต่อของ TimeLine (feedback 2026-09-24) — SuperAdmin ตั้งค่า
+// ไว้ที่เดียว (PlatformSettings, singleton) หน้านี้แค่อ่านมาโชว์ ไม่มีอะไรให้
+// แก้ฝั่งแอดมิน — ถ้า SuperAdmin ยังไม่เคยตั้งค่าเลยจะไม่โชว์การ์ดนี้เลย (กัน
+// การ์ดเปล่าที่ไม่มีข้อมูลอะไรให้ดู)
+interface ApiPlatformContact {
+  payment_bank_name: string | null; payment_account_name: string | null; payment_account_no: string | null
+  payment_promptpay_id: string | null; payment_qr_url: string | null; payment_note: string | null
+  support_phone: string | null; support_line_id: string | null; support_email: string | null
+}
+function PlatformContactCard() {
+  const { data } = useQuery<ApiPlatformContact>({
+    queryKey: ['platform-contact'],
+    queryFn: () => api.get('/api/v1/admin/platform-contact').then(r => r.data.data),
+  })
+  if (!data) return null
+  const hasPayment = data.payment_bank_name || data.payment_account_no || data.payment_promptpay_id || data.payment_qr_url
+  const hasSupport = data.support_phone || data.support_line_id || data.support_email
+  if (!hasPayment && !hasSupport) return null
+
+  const row = (label: string, value: string | null) => value ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #f8fafc', fontSize: '12.5px' }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontWeight: 600, color: '#111827' }}>{value}</span>
+    </div>
+  ) : null
+
+  return (
+    <div style={{ ...card, padding: 20, marginTop: 12 }}>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>ช่องทางชำระเงิน & ติดต่อ TimeLine</p>
+      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>สำหรับชำระบิลรายเดือน หรือติดต่อขอเปลี่ยน/อัปเกรดแพ็กเกจ</p>
+      <div style={{ display: 'grid', gridTemplateColumns: hasPayment && hasSupport ? '1fr 1fr' : '1fr', gap: 20 }}>
+        {hasPayment && (
+          <div>
+            <p style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', margin: '0 0 6px' }}>ชำระเงิน</p>
+            {row('ธนาคาร', data.payment_bank_name)}
+            {row('ชื่อบัญชี', data.payment_account_name)}
+            {row('เลขบัญชี', data.payment_account_no)}
+            {row('พร้อมเพย์', data.payment_promptpay_id)}
+            {data.payment_qr_url && (
+              <img src={data.payment_qr_url} alt="QR ชำระเงิน" style={{ marginTop: 10, width: 140, height: 140, objectFit: 'contain', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+            )}
+            {data.payment_note && <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 8 }}>{data.payment_note}</p>}
+          </div>
+        )}
+        {hasSupport && (
+          <div>
+            <p style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', margin: '0 0 6px' }}>ติดต่อ</p>
+            {row('โทร', data.support_phone)}
+            {row('LINE', data.support_line_id)}
+            {row('อีเมล', data.support_email)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'features' | 'plan'
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'general',       label: 'ทั่วไป' },
@@ -632,11 +689,14 @@ export default function SettingsPage() {
       {tab === 'notifications' && <NotificationPrefsTab />}
       {tab === 'features' && <FeatureTogglesTab />}
       {tab === 'plan' && (
-        <div style={{ ...card, padding: 20 }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>ต้องการขยายขีดจำกัด ติดต่อผู้ดูแลระบบ (Super Admin)</p>
-          <PlanUsageRow />
-        </div>
+        <>
+          <div style={{ ...card, padding: 20 }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>แพ็กเกจ & การใช้งาน</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>ต้องการขยายขีดจำกัด ติดต่อผู้ดูแลระบบ (Super Admin)</p>
+            <PlanUsageRow />
+          </div>
+          <PlatformContactCard />
+        </>
       )}
     </div>
   )
