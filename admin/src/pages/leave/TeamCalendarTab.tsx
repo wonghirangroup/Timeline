@@ -6,7 +6,7 @@ import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { avatarUrl } from '../../lib/upload'
 
@@ -633,6 +633,13 @@ export default function TeamCalendarTab() {
   const [showRosterSettings, setShowRosterSettings] = useState(false)
   const [rosterCols, setRosterCols] = useState({ code: true, branch: true })
   const [rosterColors, setRosterColors] = useState<Record<string, string>>(() => loadRosterColors())
+  // filter เฉพาะ Export ตารางแยกกลุ่ม (feedback 2026-09-24: "เลือกกลุ่มแล้วกรอง
+  // แผนกย่อยในกลุ่มนั้นได้อีกชั้น") — คนละตัวกับ orgFilter บนจอปฏิทินหลัก เพราะ
+  // export นี้จงใจไม่ผูกกับ filter บนจอ (ดูคอมเมนต์ buildRosterGroups ด้านล่าง)
+  const [rosterGroupId, setRosterGroupId] = useState('')
+  const [rosterDeptId, setRosterDeptId] = useState('')
+  const { departments: allDepartments } = useOrgFilterOptions()
+  const rosterDeptOptions = rosterGroupId ? allDepartments.filter(d => d.division?.group_id === rosterGroupId) : allDepartments
 
   function colorForEmployee(id: string, orderedIds: string[]): string {
     if (rosterColors[id]) return rosterColors[id]
@@ -888,21 +895,26 @@ export default function TeamCalendarTab() {
 
   // ── Export ตารางแยกกลุ่ม (Roster) — ก้อนตามกลุ่มสาขา x วันที่ 1-31 เหมือนชีท
   // Excel เดิมที่ user ใช้อยู่ (feedback 2026-08-27, ส่งภาพตัวอย่างมาให้ดู) —
-  // ไม่ผูกกับ groupFilter/branchFilter บนจอตอนนี้ เพราะ export นี้ตั้งใจโชว์
-  // "ทุกกลุ่ม" แยกก้อนเสมอไม่ว่าจอจะกรองอะไรอยู่ก็ตาม
+  // ไม่ผูกกับ groupFilter/branchFilter บนจอปฏิทินหลักตอนนี้ เพราะ export นี้
+  // ตั้งใจโชว์ "ทุกกลุ่ม" แยกก้อนเสมอไม่ว่าจอจะกรองอะไรอยู่ก็ตาม — แต่มี filter
+  // ของตัวเองแยกต่างหาก (rosterGroupId/rosterDeptId, feedback 2026-09-24:
+  // "เลือกกลุ่มแล้วกรองแผนกย่อยในกลุ่มนั้นได้อีกชั้น") ตั้งในมอดัล Export นี้เอง
   function buildRosterGroups(): { groupName: string; employees: ApiEmployeeFull[] }[] {
     const byGroup = new Map<string, ApiEmployeeFull[]>()
     const noGroup: ApiEmployeeFull[] = []
     for (const e of employeesFull) {
+      if (rosterDeptId && employeeOrgMap[e.id]?.departmentId !== rosterDeptId) continue
       const gid = employeeGroupId[e.id]
+      if (rosterGroupId && gid !== rosterGroupId) continue
       if (!gid) { noGroup.push(e); continue }
       if (!byGroup.has(gid)) byGroup.set(gid, [])
       byGroup.get(gid)!.push(e)
     }
     const result = groups
+      .filter(g => !rosterGroupId || g.id === rosterGroupId)
       .filter(g => (byGroup.get(g.id)?.length ?? 0) > 0)
       .map(g => ({ groupName: g.name, employees: byGroup.get(g.id)! }))
-    if (noGroup.length > 0) result.push({ groupName: 'ไม่มีกลุ่ม', employees: noGroup })
+    if (noGroup.length > 0 && !rosterGroupId) result.push({ groupName: 'ไม่มีกลุ่ม', employees: noGroup })
     return result
   }
 
@@ -1259,6 +1271,35 @@ export default function TeamCalendarTab() {
               </div>
 
               <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* เลือกกลุ่ม/แผนก — ค่าเริ่มต้น = ทุกกลุ่มทุกแผนก (ก้อนทุกกลุ่มเหมือนเดิม) */}
+                {(groups.length > 1 || allDepartments.length > 0) && (
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>กรองเฉพาะกลุ่ม/แผนก (ไม่เลือก = ทุกกลุ่ม)</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {groups.length > 1 && (
+                        <select value={rosterGroupId} onChange={e => { setRosterGroupId(e.target.value); setRosterDeptId('') }}
+                          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <option value="">ทุกกลุ่ม</option>
+                          {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                      )}
+                      {allDepartments.length > 0 && (
+                        <select value={rosterDeptId} onChange={e => setRosterDeptId(e.target.value)}
+                          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <option value="">ทุกแผนก</option>
+                          {rosterDeptOptions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      )}
+                      {(rosterGroupId || rosterDeptId) && (
+                        <button onClick={() => { setRosterGroupId(''); setRosterDeptId('') }}
+                          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+                          ล้างตัวกรอง
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* คอลัมน์ที่จะ export */}
                 <div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>คอลัมน์ที่จะ export (นอกจากชื่อ)</div>
