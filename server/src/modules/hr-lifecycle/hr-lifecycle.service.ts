@@ -289,6 +289,49 @@ export async function listOwnDocumentRequests(tenantId: string, employeeId: stri
   })
 }
 
+// แอดมินสร้างคำขอเอกสารแทนพนักงาน (feedback 2026-09-24 — เดิมมีแต่พนักงานยื่น
+// เองผ่าน LIFF เท่านั้น เผื่อกรณีพนักงานโทร/เดินมาขอตรงๆ ไม่ได้ยื่นผ่านแอป)
+export async function createDocumentRequestByAdmin(tenantId: string, data: {
+  employee_id: string; type: string; custom_type?: string | null; period?: string | null; note?: string | null
+}) {
+  const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null } })
+  if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
+  return createDocumentRequest(tenantId, data)
+}
+
+// แก้ไขคำขอ — เฉพาะตอนยัง PENDING เท่านั้น (COMPLETED/REJECTED ตัดสินใจไปแล้ว
+// แก้ประเภท/งวดย้อนหลังจะไม่ตรงกับไฟล์แนบ/เหตุผลปฏิเสธที่บันทึกไว้) — scoped
+// เช็คแบบเดียวกับ reviewDocumentRequest (DEPT_HEAD แก้ได้แค่คนในแผนกที่ดูแล)
+export async function updateDocumentRequest(tenantId: string, id: string, data: {
+  type?: string; custom_type?: string | null; period?: string | null; note?: string | null
+}, scoped?: string[]) {
+  const existing = await prisma.documentRequest.findFirst({ where: { id, tenant_id: tenantId } })
+  if (!existing) return null
+  if (scoped && !scoped.includes(existing.employee_id)) throw new Error('OUT_OF_SCOPE')
+  if (existing.status !== 'PENDING') throw new Error('NOT_PENDING')
+
+  return prisma.documentRequest.update({
+    where: { id },
+    data: {
+      ...(data.type !== undefined ? { type: data.type as any, custom_type: data.type === 'OTHER' ? (data.custom_type ?? null) : null } : {}),
+      ...(data.period !== undefined ? { period: data.period } : {}),
+      ...(data.note !== undefined ? { note: data.note } : {}),
+    },
+  })
+}
+
+// ลบคำขอทิ้ง (เช่น รายการซ้ำ/กรอกผิด) — ลบได้ทุกสถานะ ไม่กระทบเอกสารที่สร้างไว้
+// แล้วจริงในระบบ (HrDocument คนละ record กัน อยู่ที่ /admin/hr-documents)
+export async function deleteDocumentRequest(tenantId: string, id: string, scoped?: string[]): Promise<boolean> {
+  if (scoped) {
+    const existing = await prisma.documentRequest.findFirst({ where: { id, tenant_id: tenantId } })
+    if (!existing) return false
+    if (!scoped.includes(existing.employee_id)) throw new Error('OUT_OF_SCOPE')
+  }
+  const result = await prisma.documentRequest.deleteMany({ where: { id, tenant_id: tenantId } })
+  return result.count > 0
+}
+
 // แอดมิน mark เสร็จ (แนบไฟล์) หรือปฏิเสธพร้อมเหตุผล
 export async function reviewDocumentRequest(tenantId: string, id: string, data: {
   approve: boolean; reviewed_by: string; file_url?: string | null; reject_note?: string

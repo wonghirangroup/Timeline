@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid } from 'lucide-react'
+import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { uploadFile } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
@@ -12,6 +12,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
@@ -20,6 +21,10 @@ import HrDocumentGenerateModal from '../hr-documents/generate'
 const TYPE_LABEL: Record<string, string> = {
   PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'อื่นๆ',
 }
+const REQUEST_TYPES = ['PAYSLIP', 'SALARY_CERT', 'WORK_CERT', 'OTHER'] as const
+const EMPTY_REQ_FORM = { employee_id: '', type: 'PAYSLIP' as typeof REQUEST_TYPES[number], custom_type: '', period: '', note: '' }
+const reqLabel: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
+const reqInput: React.CSSProperties = { width: '100%', padding: '9px 12px', fontSize: '13px', borderRadius: 8, border: '1px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit' }
 const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   PENDING:   { label: 'รอดำเนินการ', c: '#d97706', bg: '#fef3c7' },
   COMPLETED: { label: 'เสร็จแล้ว',   c: '#16a34a', bg: '#dcfce7' },
@@ -43,10 +48,19 @@ export default function DocumentRequestsPage() {
   const [pickedFile, setPickedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [genTarget, setGenTarget] = useState<any>(null)
+  const [reqModal, setReqModal] = useState<'add' | 'edit' | null>(null)
+  const [reqEditTarget, setReqEditTarget] = useState<any>(null)
+  const [reqForm, setReqForm] = useState(EMPTY_REQ_FORM)
+  const [reqDeleteTarget, setReqDeleteTarget] = useState<any>(null)
 
   const { data: rows = [], isLoading } = useQuery<any[]>({
     queryKey: ['admin', 'document-requests', statusFilter],
     queryFn: () => api.get('/api/v1/admin/document-requests', { params: { status: statusFilter || undefined } }).then(r => r.data.data),
+  })
+  const { data: employees = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+    enabled: !isReadOnly,
   })
 
   const q = search.trim().toLowerCase()
@@ -85,10 +99,50 @@ export default function DocumentRequestsPage() {
     }
   }
 
+  // ── เพิ่ม/แก้ไข/ลบคำขอเอกสาร (feedback 2026-09-24) — เดิมมีแต่รีวิว
+  // (อนุมัติ/ปฏิเสธ) คำขอที่พนักงานยื่นผ่าน LIFF เท่านั้น เผื่อกรณีพนักงานโทร/
+  // เดินมาขอตรงๆ ไม่ได้ยื่นผ่านแอป ──
+  const addReqMut = useMutation({
+    mutationFn: (body: object) => api.post('/api/v1/admin/document-requests', body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'document-requests'] }); showToast('success', 'สร้างคำขอเอกสารสำเร็จ'); setReqModal(null) },
+    onError: () => showToast('error', 'สร้างคำขอไม่สำเร็จ'),
+  })
+  const editReqMut = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/document-requests/${id}`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'document-requests'] }); showToast('success', 'บันทึกการแก้ไขเรียบร้อย'); setReqModal(null) },
+    onError: (err: any) => showToast('error', err?.response?.data?.error?.code === 'NOT_PENDING' ? 'คำขอนี้ดำเนินการไปแล้ว แก้ไขไม่ได้' : 'บันทึกไม่สำเร็จ'),
+  })
+  const deleteReqMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/document-requests/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'document-requests'] }); showToast('success', 'ลบคำขอเรียบร้อย'); setReqDeleteTarget(null) },
+    onError: () => showToast('error', 'ลบคำขอไม่สำเร็จ'),
+  })
+
+  function openAddReq() { setReqForm(EMPTY_REQ_FORM); setReqEditTarget(null); setReqModal('add') }
+  function openEditReq(r: any) {
+    setReqForm({ employee_id: r.employee.id, type: r.type, custom_type: r.custom_type ?? '', period: r.period ?? '', note: r.note ?? '' })
+    setReqEditTarget(r)
+    setReqModal('edit')
+  }
+  function handleSaveReq() {
+    if (!reqForm.employee_id || !reqForm.type) { showToast('error', 'กรุณาเลือกพนักงานและประเภทเอกสาร'); return }
+    const body = {
+      type: reqForm.type,
+      custom_type: reqForm.type === 'OTHER' ? (reqForm.custom_type || undefined) : undefined,
+      period: reqForm.period || undefined,
+      note: reqForm.note || undefined,
+    }
+    if (reqEditTarget) editReqMut.mutate({ id: reqEditTarget.id, body })
+    else addReqMut.mutate({ employee_id: reqForm.employee_id, ...body })
+  }
+
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> ขอเอกสาร HR</h1>
+        {!isReadOnly && (
+          <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAddReq}>เพิ่มคำขอ</Button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
@@ -155,6 +209,13 @@ export default function DocumentRequestsPage() {
                   )}
                   <Button variant="success" size="sm" icon={<Upload size={13} />} onClick={() => { setCompleteTarget(r); setPickedFile(null) }}>แนบไฟล์ + เสร็จ</Button>
                   <Button variant="danger-soft" size="sm" icon={<X size={13} />} onClick={() => { setRejectTarget(r); setRejectNote('') }}>ปฏิเสธ</Button>
+                  <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => openEditReq(r)}>แก้ไข</Button>
+                  <Button variant="danger-soft" size="sm" icon={<Trash2 size={13} />} onClick={() => setReqDeleteTarget(r)}>ลบ</Button>
+                </div>
+              )}
+              {r.status !== 'PENDING' && !isReadOnly && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <Button variant="danger-soft" size="sm" icon={<Trash2 size={13} />} onClick={() => setReqDeleteTarget(r)}>ลบคำขอ</Button>
                 </div>
               )}
             </div>
@@ -217,6 +278,21 @@ export default function DocumentRequestsPage() {
                             style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                             <X size={13} />
                           </button>
+                          <button onClick={() => openEditReq(r)} title="แก้ไข"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setReqDeleteTarget(r)} title="ลบ"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ) : !isReadOnly ? (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button onClick={() => setReqDeleteTarget(r)} title="ลบ"
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       ) : <span style={{ color: '#cbd5e1', display: 'block', textAlign: 'right' }}>—</span>}
                     </td>
@@ -227,6 +303,69 @@ export default function DocumentRequestsPage() {
           </table>
           </div>
         </div>
+      )}
+
+      {reqModal && (
+        <Modal onClose={() => setReqModal(null)} width={420}>
+          <div style={{ padding: 24 }}>
+            <p style={{ fontWeight: 700, fontSize: '15px', margin: '0 0 16px' }}>{reqModal === 'add' ? 'เพิ่มคำขอเอกสาร' : `แก้ไขคำขอ: ${reqEditTarget?.employee.first_name} ${reqEditTarget?.employee.last_name}`}</p>
+
+            {reqModal === 'add' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={reqLabel}>พนักงาน</label>
+                <select value={reqForm.employee_id} onChange={e => setReqForm(f => ({ ...f, employee_id: e.target.value }))} style={reqInput}>
+                  <option value="">เลือกพนักงาน</option>
+                  {employees.map((e: any) => (
+                    <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''} — {e.employee_code}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={reqLabel}>ประเภทเอกสาร</label>
+              <select value={reqForm.type} onChange={e => setReqForm(f => ({ ...f, type: e.target.value as any }))} style={reqInput}>
+                {REQUEST_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+              </select>
+            </div>
+
+            {reqForm.type === 'OTHER' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={reqLabel}>ระบุประเภทเอกสาร</label>
+                <input value={reqForm.custom_type} onChange={e => setReqForm(f => ({ ...f, custom_type: e.target.value }))} placeholder="เช่น หนังสือรับรองภาษี" style={reqInput} />
+              </div>
+            )}
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={reqLabel}>งวด/เดือนที่ต้องการ (ถ้ามี)</label>
+              <input value={reqForm.period} onChange={e => setReqForm(f => ({ ...f, period: e.target.value }))} placeholder="เช่น 2026-09" style={reqInput} />
+            </div>
+
+            <div style={{ marginBottom: 4 }}>
+              <label style={reqLabel}>หมายเหตุ</label>
+              <textarea value={reqForm.note} onChange={e => setReqForm(f => ({ ...f, note: e.target.value }))} rows={3} style={{ ...reqInput, resize: 'vertical' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setReqModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={handleSaveReq} disabled={addReqMut.isPending || editReqMut.isPending}
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: (addReqMut.isPending || editReqMut.isPending) ? 0.7 : 1 }}>
+                {(addReqMut.isPending || editReqMut.isPending) ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {reqDeleteTarget && (
+        <ConfirmDialog
+          title="ลบคำขอเอกสาร?"
+          message={<>ยืนยันลบคำขอ "<strong>{TYPE_LABEL[reqDeleteTarget.type] ?? reqDeleteTarget.type}</strong>" ของ "<strong>{reqDeleteTarget.employee.first_name} {reqDeleteTarget.employee.last_name}</strong>" — ไม่กระทบเอกสารที่สร้างไว้แล้วในระบบ</>}
+          confirmLabel="ลบคำขอ"
+          variant="danger"
+          onConfirm={() => deleteReqMut.mutate(reqDeleteTarget.id)}
+          onCancel={() => setReqDeleteTarget(null)}
+        />
       )}
 
       {genTarget && (

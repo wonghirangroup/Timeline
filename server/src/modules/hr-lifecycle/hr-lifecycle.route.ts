@@ -220,6 +220,82 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     schema: { tags: ['Admin'], summary: 'คำขอเอกสาร HR', security: [{ oauth2: [] }], querystring: { type: 'object', properties: { status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'REJECTED'] } } } },
   }, async (req: any) => ok(await svc.listDocumentRequests(req.tenantId, { status: req.query.status, scoped: req.scopedEmployeeIds })))
 
+  // แอดมินสร้างคำขอเอกสารแทนพนักงาน (feedback 2026-09-24 — พนักงานโทร/เดินมา
+  // ขอตรงๆ ไม่ได้ยื่นผ่าน LIFF)
+  app.post('/admin/document-requests', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('document_request', 'add'), resolveDeptScope, requireFeature('document_request')],
+    schema: {
+      tags: ['Admin'], summary: 'สร้างคำขอเอกสาร HR แทนพนักงาน', security: [{ oauth2: [] }],
+      body: {
+        type: 'object', required: ['employee_id', 'type'],
+        properties: {
+          employee_id: { type: 'string' },
+          type: { type: 'string', enum: svc.DOCUMENT_REQUEST_TYPES as unknown as string[] },
+          custom_type: { type: 'string', nullable: true },
+          period: { type: 'string', nullable: true },
+          note: { type: 'string', nullable: true },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      if (req.scopedEmployeeIds && !req.scopedEmployeeIds.includes(req.body.employee_id)) {
+        return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
+      }
+      const r = await svc.createDocumentRequestByAdmin(req.tenantId, req.body)
+      return reply.code(201).send(ok(r, 'สร้างคำขอเอกสารสำเร็จ'))
+    } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      throw e
+    }
+  })
+
+  // แก้ไขคำขอ — เฉพาะตอนยัง PENDING
+  app.patch('/admin/document-requests/:id', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('document_request', 'edit'), resolveDeptScope, requireFeature('document_request')],
+    schema: {
+      tags: ['Admin'], summary: 'แก้ไขคำขอเอกสาร HR (เฉพาะตอนยังรอดำเนินการ)', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: svc.DOCUMENT_REQUEST_TYPES as unknown as string[] },
+          custom_type: { type: 'string', nullable: true },
+          period: { type: 'string', nullable: true },
+          note: { type: 'string', nullable: true },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const r = await svc.updateDocumentRequest(req.tenantId, req.params.id, req.body, req.scopedEmployeeIds)
+      if (!r) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ'))
+      return ok(r, 'บันทึกการแก้ไขเรียบร้อย')
+    } catch (e: any) {
+      if (e.message === 'NOT_PENDING') return reply.code(409).send(fail('NOT_PENDING', 'คำขอนี้ดำเนินการไปแล้ว แก้ไขไม่ได้'))
+      if (e.message === 'OUT_OF_SCOPE') return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
+      throw e
+    }
+  })
+
+  // ลบคำขอทิ้ง (รายการซ้ำ/กรอกผิด) — ลบได้ทุกสถานะ
+  app.delete('/admin/document-requests/:id', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('document_request', 'delete'), resolveDeptScope, requireFeature('document_request')],
+    schema: {
+      tags: ['Admin'], summary: 'ลบคำขอเอกสาร HR', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const success = await svc.deleteDocumentRequest(req.tenantId, req.params.id, req.scopedEmployeeIds)
+      if (!success) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ'))
+      return ok(null, 'ลบคำขอเรียบร้อย')
+    } catch (e: any) {
+      if (e.message === 'OUT_OF_SCOPE') return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
+      throw e
+    }
+  })
+
   app.post('/admin/document-requests/:id/review', {
     preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('document_request', 'approve'), resolveDeptScope, requireFeature('document_request')],
     schema: {
