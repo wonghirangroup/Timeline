@@ -129,9 +129,9 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
       }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(248,250,252,0.7)', zIndex: 1 }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(251,146,60,0.14)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.75)', zIndex: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(251,146,60,0.24)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(251,146,60,0.14)'}
         >
           <X size={16} />
         </button>
@@ -202,13 +202,13 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           borderRadius: 'var(--radius-md)',
           textDecoration: 'none', fontSize: '14px',
           fontWeight: isActive ? 700 : 500,
-          color: isActive ? accent.text : 'rgba(248,250,252,0.55)',
+          color: isActive ? accent.text : 'rgba(255,247,237,0.6)',
           background: isActive ? accent.bg : 'transparent',
           boxShadow: isActive ? `inset 3px 0 0 ${accent.text}` : 'none',
           transition: 'all 0.15s',
         }}
         onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(251,146,60,0.1)'; e.currentTarget.style.color = '#f8fafc'; } }}
-        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)'; } }}
+        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)'; } }}
       >
         <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>
           {item.icon}
@@ -254,9 +254,9 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           <button
             onClick={onToggleCollapse}
             title={collapsed ? 'ขยาย sidebar' : 'ย่อ sidebar'}
-            style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(248,250,252,0.55)', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.16)'; e.currentTarget.style.color = '#f8fafc' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(248,250,252,0.55)' }}
+            style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(251,146,60,0.14)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.6)', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.26)'; e.currentTarget.style.color = '#f8fafc' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.14)'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)' }}
           >
             {collapsed ? <ChevronRight size={14}/> : <ChevronLeft size={14}/>}
           </button>
@@ -272,19 +272,19 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           return (
             <div key={si} style={{ marginBottom: 8 }}>
               {section.label && !collapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '11px', fontWeight: 700, color: 'rgba(248,250,252,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '12px 10px 6px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '11px', fontWeight: 700, color: 'rgba(255,247,237,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '12px 10px 6px', whiteSpace: 'nowrap' }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent.text, flexShrink: 0 }} />
                   {section.label}
                 </div>
               )}
               {collapsed && si > 0 && (
-                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 4px' }} />
+                <div style={{ height: 1, background: 'rgba(251,146,60,0.10)', margin: '8px 4px' }} />
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {visItems.map(item => <NavItem key={item.path} item={item} accent={accent} />)}
               </div>
               {!collapsed && si < NAV_SECTIONS.length - 1 && (
-                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '12px 10px 4px' }} />
+                <div style={{ height: 1, background: 'rgba(251,146,60,0.10)', margin: '12px 10px 4px' }} />
               )}
             </div>
           )
@@ -301,7 +301,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
       {/* Footer — role chip + logout (user profile อยู่ Topbar) */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '12px' }}>
         {roleChip && !collapsed && (
-          <div style={{ margin: '0 2px 8px', padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', fontSize: '11px', fontWeight: 600, color: 'rgba(248,250,252,0.7)', lineHeight: 1.4 }}>
+          <div style={{ margin: '0 2px 8px', padding: '7px 10px', borderRadius: 8, background: 'rgba(251,146,60,0.10)', fontSize: '11px', fontWeight: 600, color: 'rgba(255,247,237,0.75)', lineHeight: 1.4 }}>
             {roleChip.label}
           </div>
         )}

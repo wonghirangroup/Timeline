@@ -196,8 +196,8 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <User size={15} color="#16a34a" />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <User size={15} color="var(--accent-hover)" />
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>แก้ไขชื่อที่แสดง</div>
@@ -433,7 +433,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             >
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', overflow: 'hidden',
-                background: '#fff', border: '2px solid rgba(255,255,255,0.7)',
+                background: 'var(--accent-light)', border: '2px solid rgba(255,255,255,0.7)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
                 <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -450,7 +450,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             {!isMobile && panelOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 12px)', right: 0,
-                width: 320, background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)',
+                width: 320, background: '#FFF8F2', borderRadius: 'var(--radius-lg)',
                 boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(0,0,0,0.05)',
                 zIndex: 300, overflow: 'hidden',
                 animation: 'fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -469,7 +469,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           onClick={() => setPanelOpen(false)}
         >
           <div
-            style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '24px 24px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-float)' }}
+            style={{ width: '100%', background: '#FFF8F2', borderRadius: '24px 24px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-float)' }}
             onClick={e => e.stopPropagation()}
             className="animate-fade-in-up"
           >
