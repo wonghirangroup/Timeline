@@ -5,10 +5,11 @@
   /* Colors - Premium Slate & Vibrant Orange Accent */
   --bg-page: #E6ECF4; /* slate-100 */
   --bg-card: #FFFFFF;
-  /* Rebrand 2026-09-25: navy เข้มเกือบดำ #131C45 (feedback: ภาพอ้างอิงที่ user
-     ส่งมา sidebar เข้มเกือบดำ ไม่ใช่น้ำเงินสว่างแบบ #131C45 ที่ทำไปรอบแรก —
-     ยังเป็นฮิว navy เดียวกัน แค่ลด lightness ลงมากให้เข้มเกือบดำตามภาพ) */
-  --bg-sidebar: #131C45;
+  /* Navy ทางการจาก YooNai Owl style guide (#131C45) — เพิ่ม gradient บางๆ
+     (feedback 2026-09-25 "อยากได้สีแบบนี้เลย แบบมีไล่เงาสี") ไล่จาก navy
+     อ่อนกว่านิดที่มุมบนซ้ายไปเข้มที่มุมล่างขวา มุม 135deg เดียวกับ pattern
+     gradient icon badge ที่ใช้ทั่วแอปอยู่แล้ว (DESIGN.md) ให้เข้าชุดกัน */
+  --bg-sidebar: linear-gradient(135deg, #2F375B, #131C45);
   
   --accent-primary: #EC6F44; /* orange-600 */
   --accent-hover: #C85E3A;   /* orange-700 */
@@ -71,7 +72,7 @@
   --sa-accent-border: #CAE9F6;
   --sa-accent-muted:  #2DA6DD;
   --sa-accent-soft:   #A0D7EF;
-  --sa-sidebar:       #131C45;
+  --sa-sidebar:       linear-gradient(135deg, #2F375B, #131C45);
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */

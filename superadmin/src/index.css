@@ -48,7 +48,7 @@
   --sa-accent-border: #CAE9F6;
   --sa-accent-muted:  #2DA6DD;
   --sa-accent-soft:   #A0D7EF;
-  --sa-sidebar:       #131C45;
+  --sa-sidebar:       linear-gradient(135deg, #2F375B, #131C45);
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
