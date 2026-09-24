@@ -72,12 +72,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   }, [me, name, setName])
 
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FEF8F6', color: '#C85E3A' },
+    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#F4F6F9', color: '#131C45' },
     MANAGER:   { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#dcfce7', color: '#15803d' },
     EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
     DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
   }
-  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FEF8F6', color: '#C85E3A' }
+  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#F4F6F9', color: '#131C45' }
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
 
@@ -174,7 +174,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
-            background: 'linear-gradient(135deg, #EC6F44, #C85E3A)',
+            background: 'linear-gradient(135deg, #244B83, #131C45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -315,7 +315,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button onClick={() => setView('profile')} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>
               ยกเลิก
             </button>
-            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
+            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
               {resetPwMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
@@ -346,7 +346,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ชื่อนี้จะแสดงบน Topbar และรายงาน</span>
-              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#EC6F44' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
+              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#244B83' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
             </div>
           </div>
 
@@ -357,7 +357,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={handleSaveName}
               disabled={!nameInput.trim() || saveNameMut.isPending}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#EC6F44' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#244B83' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
             >
               {saveNameMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>

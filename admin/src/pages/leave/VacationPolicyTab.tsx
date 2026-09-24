@@ -160,7 +160,7 @@ export default function VacationPolicyTab() {
                       <td style={{ ...td, color: '#0369a1', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>{preview ?? <span style={{ color: '#cbd5e1' }}>ไม่มีสิทธิ์</span>}</td>
                       <td style={td}>
                         <button onClick={() => savePosition(p)} disabled={savePositionMutation.isPending}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#244B83', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>
                           บันทึก
                         </button>
                       </td>

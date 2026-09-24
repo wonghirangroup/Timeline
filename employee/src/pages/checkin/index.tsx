@@ -744,7 +744,7 @@ export default function CheckinPage() {
           {(() => {
             const mode: 'checkin' | 'checkout' | 'done' = allCheckedOut ? 'done' : hasOpenRecord ? 'checkout' : 'checkin'
             const cfg = {
-              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(236,111,68,0.25)' },
+              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(36,75,131,0.25)' },
               checkout: { bg: '#2563EB',     Icon: Flag,   label: 'เช็คเอาต์', shadow: '0 4px 14px rgba(37,99,235,0.25)' },
               done:     { bg: '#e5e7eb',     Icon: CheckCircle2, label: 'เสร็จแล้ว', shadow: 'none' },
             }[mode]

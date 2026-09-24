@@ -70,7 +70,7 @@ export default function ProfilePage() {
   const STATUS_CFG: Record<string, { label: string; dot: string }> = {
     ACTIVE:     { label: 'พนักงานประจำ', dot: '#4ADE80' },
     INACTIVE:   { label: 'ไม่ได้ปฏิบัติงาน', dot: '#9CA3AF' },
-    RESIGNED:   { label: 'ลาออกแล้ว',    dot: '#EC6F44' },
+    RESIGNED:   { label: 'ลาออกแล้ว',    dot: '#244B83' },
     TERMINATED: { label: 'เลิกจ้าง',     dot: '#EF4444' },
   }
   const statusInfo = STATUS_CFG[employee.status ?? 'ACTIVE'] ?? STATUS_CFG.ACTIVE
@@ -92,7 +92,7 @@ export default function ProfilePage() {
             </div>
             {cloudinaryEnabled && (
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: '50%', border: '2px solid #fff', background: '#EC6F44', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: '50%', border: '2px solid #fff', background: '#244B83', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                 aria-label="เปลี่ยนรูปโปรไฟล์">
                 <Camera size={14} />
               </button>

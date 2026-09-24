@@ -93,7 +93,7 @@ function Pill({ label, color, bg, title }: { label: string; color: string; bg: s
 }
 function Avatar({ url, name }: { url?: string | null; name: string }) {
   return (
-    <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: url ? '#e2e8f0' : 'linear-gradient(135deg,#EC6F44,#EC6F44)', color: '#fff', fontSize: 12, fontWeight: 800 }}>
+    <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: url ? '#e2e8f0' : 'linear-gradient(135deg,#244B83,#244B83)', color: '#fff', fontSize: 12, fontWeight: 800 }}>
       {url ? <img src={avatarUrl(url, 56) ?? url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name.charAt(0) || '?')}
     </span>
   )
@@ -206,7 +206,7 @@ export default function PolicyOverview() {
   }
 
   const filterInput: React.CSSProperties = { padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const th: React.CSSProperties = { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#C85E3A', fontSize: '0.76rem', whiteSpace: 'nowrap' }
+  const th: React.CSSProperties = { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.76rem', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '9px 12px', fontSize: '0.82rem', verticalAlign: 'middle' }
 
   // เซลล์ override 3 สถานะ (ตามลำดับชั้น / บังคับเปิด / บังคับปิด)
@@ -279,7 +279,7 @@ export default function PolicyOverview() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E6ECF4', overflowX: 'auto', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#FEF8F6' }}>
+              <tr style={{ background: '#F4F6F9' }}>
                 {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'การจองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
@@ -304,7 +304,7 @@ export default function PolicyOverview() {
                   <td style={td}>
                     <select value={r.e.employee_status_type_id ?? ''} disabled={isReadOnly}
                       onChange={e => patch(r.e.id, { employee_status_type_id: e.target.value || null })}
-                      style={{ ...cellSel, fontWeight: 600, color: r.e.employee_status_type_id ? '#0f172a' : '#b45309', background: r.e.employee_status_type_id ? '#fff' : '#FEF8F6' }}>
+                      style={{ ...cellSel, fontWeight: 600, color: r.e.employee_status_type_id ? '#0f172a' : '#b45309', background: r.e.employee_status_type_id ? '#fff' : '#F4F6F9' }}>
                       <option value="">ยังไม่กำหนด</option>
                       {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
                     </select>

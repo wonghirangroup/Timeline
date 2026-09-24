@@ -251,7 +251,7 @@ export default function OffsitePage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setListView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#244B83' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -452,7 +452,7 @@ export default function OffsitePage() {
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
               <button onClick={() => setModal(null)} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>

@@ -135,7 +135,7 @@ function MiniMonth({
             return (
               <button key={idx} onClick={() => onDayClick(dateStr)}
                 style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 6,
-                  border: isSelected ? '2px solid #4f46e5' : isToday ? '2px solid #EC6F44' : '2px solid transparent',
+                  border: isSelected ? '2px solid #4f46e5' : isToday ? '2px solid #244B83' : '2px solid transparent',
                   background: isSelected ? '#eef2ff' : hols.length > 0 ? TYPE_CFG[hols[0].type].bg : 'transparent',
                   cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}>
@@ -615,7 +615,7 @@ export default function HolidayPage() {
                   </div>
                 ))}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#64748b' }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid #EC6F44', background: 'transparent' }} />
+                  <div style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid #244B83', background: 'transparent' }} />
                   วันนี้
                 </div>
               </div>

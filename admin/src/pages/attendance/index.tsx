@@ -701,7 +701,7 @@ export default function AttendancePage() {
               {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setListView(v)}
                   title={label}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#244B83' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                   <Icon size={13} /> {label}
                 </button>
               ))}
@@ -779,7 +779,7 @@ export default function AttendancePage() {
                             <button onClick={() => setResetTarget(row)} aria-label={`รีเซ็ตเวลาของ ${row.employee.first_name} ${row.employee.last_name}`} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
                           </>
                         ) : (
-                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #EC6F44', background: '#FEF8F6', color: '#EC6F44', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงบันทึก</button>
+                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #244B83', background: '#F4F6F9', color: '#244B83', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงบันทึก</button>
                         )}
                       </div>
                     </div>
@@ -791,9 +791,9 @@ export default function AttendancePage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ background: '#FEF8F6' }}>
+                  <tr style={{ background: '#F4F6F9' }}>
                     {['รหัส', 'ชื่อ-สกุล', 'สาขา', 'กะ', 'เวลาเข้า', 'เวลาออก', 'วิธี', 'สาย', 'สถานะ', 'จัดการ'].map(h => (
-                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#C85E3A', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
+                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#131C45', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -883,7 +883,7 @@ export default function AttendancePage() {
                               <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต" aria-label="รีเซ็ตเวลา"><Trash2 size={13}/></button>
                             </div>
                           ) : (
-                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #EC6F44', background: '#FEF8F6', color: '#EC6F44', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงบันทึก</button>
+                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #244B83', background: '#F4F6F9', color: '#244B83', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงบันทึก</button>
                           )}
                         </td>
                       </tr>
@@ -905,7 +905,7 @@ export default function AttendancePage() {
                   {isMobile && (
                     <div style={{ display: 'flex', gap: 4 }}>
                       {Array.from({ length: totalPages }, (_, i) => (
-                        <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#EC6F44' : '#e5e7eb', transition: 'all 0.2s' }} />
+                        <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#244B83' : '#e5e7eb', transition: 'all 0.2s' }} />
                       ))}
                     </div>
                   )}
@@ -962,8 +962,8 @@ export default function AttendancePage() {
                         <button key={s.id} type="button" onClick={() => handleEditShiftChange(s.id)}
                           style={{
                             flex: '1 1 auto', padding: '9px 10px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-                            border: editForm.shift_id === s.id ? '2px solid #EC6F44' : '1px solid #e5e7eb',
-                            background: editForm.shift_id === s.id ? '#EC6F44' : '#fff',
+                            border: editForm.shift_id === s.id ? '2px solid #244B83' : '1px solid #e5e7eb',
+                            background: editForm.shift_id === s.id ? '#244B83' : '#fff',
                             color: editForm.shift_id === s.id ? '#fff' : '#374151',
                           }}>
                           {s.name}
@@ -1017,7 +1017,7 @@ export default function AttendancePage() {
 
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
                 <button onClick={() => setEditTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-                <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Pencil size={14} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>
               </div>
@@ -1139,7 +1139,7 @@ export default function AttendancePage() {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setManualTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : manualMode === 'leave' ? 'ลงวันลา' : manualMode === 'off' ? 'ลงวันหยุด' : 'ลงเวลา'}
               </button>
             </div>

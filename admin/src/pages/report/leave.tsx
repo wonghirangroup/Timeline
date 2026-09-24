@@ -73,7 +73,7 @@ export default function LeaveReportPage() {
     { label: 'คำขอลารวม', value: totals.total, icon: <CalendarDays size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
     { label: 'รอพิจารณา', value: totals.pending, icon: <Clock size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    { label: 'วันลารวม (อนุมัติ)', value: totals.days, icon: <ClipboardList size={15}/>, color: '#EC6F44', bg: '#FEF8F6', border: '#F8CCBE' },
+    { label: 'วันลารวม (อนุมัติ)', value: totals.days, icon: <ClipboardList size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
   ]
 
   return (
@@ -89,7 +89,7 @@ export default function LeaveReportPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#244B83' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -146,7 +146,7 @@ export default function LeaveReportPage() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                   <button onClick={() => navigate(`/employee/${l.employee.id}`)}
                     style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                    <div style={{ fontWeight: 700, color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2, fontSize: '0.88rem' }}>{l.employee.first_name} {l.employee.last_name}</div>
+                    <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2, fontSize: '0.88rem' }}>{l.employee.first_name} {l.employee.last_name}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{l.employee.nickname} · {l.employee.branch.name}</div>
                   </button>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: statusColor, background: statusBg, borderRadius: 99, padding: '2px 9px', flexShrink: 0 }}>{STATUS_TH[l.status]}</span>
@@ -183,7 +183,7 @@ export default function LeaveReportPage() {
                     <td style={{ padding: '10px 12px' }}>
                       <button onClick={() => navigate(`/employee/${l.employee.id}`)}
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                        <div style={{ fontWeight: 700, color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>{l.employee.first_name} {l.employee.last_name}</div>
+                        <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{l.employee.first_name} {l.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{l.employee.nickname}</div>
                       </button>
                     </td>

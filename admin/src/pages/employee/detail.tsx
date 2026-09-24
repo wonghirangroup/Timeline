@@ -190,7 +190,7 @@ function resolveDayStatus(params: {
   if (hasRealCheckin) {
     const isLate2 = note.includes('ระดับ 2')
     const isLate1 = r?.is_late && !isLate2
-    if (isLate2) return { label: 'สาย ระดับ 2', color: '#C85E3A', bg: '#fde8d8' }
+    if (isLate2) return { label: 'สาย ระดับ 2', color: '#131C45', bg: '#fde8d8' }
     if (isLate1) return { label: 'สาย ระดับ 1', color: '#d97706', bg: '#fef3c7' }
     return { label: 'มาปกติ', color: '#059669', bg: '#dcfce7' }
   }
@@ -211,7 +211,7 @@ function resolveDayStatus(params: {
 
 const AVATAR_PALETTES = [
   ['#fde68a','#78350f'], ['#bfdbfe','#1e3a8a'], ['#bbf7d0','#14532d'],
-  ['#fecaca','#7f1d1d'], ['#ddd6fe','#4c1d95'], ['#F8CCBE','#7c2d12'],
+  ['#fecaca','#7f1d1d'], ['#ddd6fe','#4c1d95'], ['#B2C0D4','#7c2d12'],
 ]
 function avatarPalette(id: string) {
   const i = id.charCodeAt(id.length - 1) % AVATAR_PALETTES.length
@@ -1006,7 +1006,7 @@ export default function EmployeeDetailPage() {
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', opacity: 0.4 }}><Users size={36}/></div>
         <div style={{ fontSize: '1rem', color: '#64748b' }}>ไม่พบข้อมูลพนักงาน</div>
-        <button onClick={() => navigate('/employee')} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', cursor: 'pointer' }}>
+        <button onClick={() => navigate('/employee')} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', cursor: 'pointer' }}>
           <ChevronLeft size={14} style={{ display: 'inline', marginRight: 4 }}/>กลับรายการ
         </button>
       </div>
@@ -1084,7 +1084,7 @@ export default function EmployeeDetailPage() {
 
             {emp.branch && (
               <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#FEF8F6', color: '#C85E3A', border: '1px solid #F8CCBE', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#F4F6F9', color: '#131C45', border: '1px solid #B2C0D4', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Building2 size={11}/>{emp.branch.name}
                 </span>
               </div>
@@ -1118,8 +1118,8 @@ export default function EmployeeDetailPage() {
               padding: '9px 18px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
               fontSize: '0.875rem', fontWeight: tab === t.key ? 700 : 500,
               background: tab === t.key ? '#fff' : 'transparent',
-              color: tab === t.key ? '#EC6F44' : '#64748b',
-              borderBottom: tab === t.key ? '2px solid #EC6F44' : '2px solid transparent',
+              color: tab === t.key ? '#244B83' : '#64748b',
+              borderBottom: tab === t.key ? '2px solid #244B83' : '2px solid transparent',
               marginBottom: -2, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               {t.icon}{t.label}

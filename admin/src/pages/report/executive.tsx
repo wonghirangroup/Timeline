@@ -101,7 +101,7 @@ export default function ExecutiveReportPage() {
   }), [employees, branches, records, monthLeaves])
 
   const pendingApprovals = [
-    { label: 'คำขอลา รอพิจารณา', count: leaves.filter(l => l.status === 'PENDING').length, icon: <CalendarDays size={15}/>, color: '#EC6F44', path: '/leave' },
+    { label: 'คำขอลา รอพิจารณา', count: leaves.filter(l => l.status === 'PENDING').length, icon: <CalendarDays size={15}/>, color: '#244B83', path: '/leave' },
     { label: 'คำขอ OT รอพิจารณา', count: pendingOt.filter(r => r.status === 'PENDING').length, icon: <FileClock size={15}/>, color: '#7c3aed', path: '/ot' },
     { label: 'คำขอลาออก รอพิจารณา', count: pendingResign.filter(r => r.status === 'PENDING').length, icon: <DoorOpen size={15}/>, color: '#dc2626', path: '/resignations' },
     { label: 'ขอเอกสาร HR รอดำเนินการ', count: pendingDocs.filter(r => r.status === 'PENDING').length, icon: <FileText size={15}/>, color: '#0891b2', path: '/document-requests' },
@@ -114,7 +114,7 @@ export default function ExecutiveReportPage() {
     { label: 'เช็คอินรวม (วัน)', value: totals.checkins, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
     { label: 'มาสายรวม', value: totals.late, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
     { label: 'ค่าปรับรวม (฿)', value: totals.fine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-    { label: 'วันลารวม (อนุมัติ)', value: totals.leaveDays, icon: <CalendarDays size={15}/>, color: '#EC6F44', bg: '#FEF8F6', border: '#F8CCBE' },
+    { label: 'วันลารวม (อนุมัติ)', value: totals.leaveDays, icon: <CalendarDays size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
   ]
 
   return (
@@ -126,8 +126,8 @@ export default function ExecutiveReportPage() {
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, whiteSpace: 'nowrap',
-              color: tab === t.key ? '#C85E3A' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === t.key ? '#EC6F44' : 'transparent'}`, marginBottom: -1 }}>
+              color: tab === t.key ? '#131C45' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === t.key ? '#244B83' : 'transparent'}`, marginBottom: -1 }}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -143,12 +143,12 @@ export default function ExecutiveReportPage() {
 
           {/* งานค้างที่ต้องดำเนินการตอนนี้ — ไม่ผูกกับเดือนที่เลือก (สถานะปัจจุบัน) */}
           {totalPending > 0 && (
-            <div style={{ background: '#FEF8F6', border: '1.5px solid #F8CCBE', borderRadius: 14, padding: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#C85E3A', marginBottom: 10 }}>งานค้างที่ต้องดำเนินการตอนนี้ ({totalPending})</div>
+            <div style={{ background: '#F4F6F9', border: '1.5px solid #B2C0D4', borderRadius: 14, padding: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#131C45', marginBottom: 10 }}>งานค้างที่ต้องดำเนินการตอนนี้ ({totalPending})</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0,1fr))', gap: 8 }}>
                 {pendingApprovals.filter(p => p.count > 0).map(p => (
                   <button key={p.label} onClick={() => navigate(p.path)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid #F8CCBE', background: '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid #B2C0D4', background: '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                     <span style={{ color: p.color, display: 'flex' }}>{p.icon}</span>
                     <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>{p.label}</span>
                     <span style={{ fontWeight: 800, color: p.color, fontSize: '0.95rem' }}>{p.count}</span>

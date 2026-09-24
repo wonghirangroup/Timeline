@@ -81,7 +81,7 @@ function getWeeklyApprovedHours(rows: OtRequest[], employeeId: string, weekStart
 /** สี + ข้อความตาม cap level */
 function capLevel(hrs: number): { color: string; bg: string; border: string; emoji: ReactNode; label: string } {
   if (hrs >= OT_WEEKLY_CAP) return { color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', emoji: <Circle size={9} fill="#dc2626" stroke="none" />, label: 'เกินขีดจำกัด!' }
-  if (hrs >= 30)            return { color: '#EC6F44', bg: '#FEF8F6', border: '#FFCC99', emoji: <Circle size={9} fill="#EC6F44" stroke="none" />, label: 'ใกล้เกิน' }
+  if (hrs >= 30)            return { color: '#244B83', bg: '#F4F6F9', border: '#FFCC99', emoji: <Circle size={9} fill="#244B83" stroke="none" />, label: 'ใกล้เกิน' }
   if (hrs >= 24)            return { color: '#d97706', bg: '#fffbeb', border: '#fde68a', emoji: <Circle size={9} fill="#d97706" stroke="none" />, label: 'ใกล้ถึง' }
   return                           { color: '#15803d', bg: '#f0fdf4', border: '#86efac', emoji: <Circle size={9} fill="#15803d" stroke="none" />, label: 'ปกติ' }
 }
@@ -378,7 +378,7 @@ export default function OtPage() {
           </button>
           <button
             onClick={() => { setShowAddModal(true); setAddForm(INIT_FORM) }}
-            style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#EC6F44,#EC6F44)', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(236,111,68,0.3)' }}
+            style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#244B83,#244B83)', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(36,75,131,0.3)' }}
           >
             <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> เพิ่ม OT
           </button>
@@ -470,7 +470,7 @@ export default function OtPage() {
               {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setListView(v)}
                   title={label}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#244B83' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                   <Icon size={13} /> {label}
                 </button>
               ))}
@@ -536,7 +536,7 @@ export default function OtPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
-                <tr style={{ background: '#FEF8F6', borderBottom: '1px solid #E6ECF4' }}>
+                <tr style={{ background: '#F4F6F9', borderBottom: '1px solid #E6ECF4' }}>
                   {!isReadOnly && (
                     <th style={{ padding: '10px 8px 10px 14px', width: 34 }}>
                       <input type="checkbox" checked={bulk.allSelected} disabled={pendingVisibleIds.length === 0}
@@ -545,7 +545,7 @@ export default function OtPage() {
                     </th>
                   )}
                   {['พนักงาน','สาขา','วันที่','เวลา','ชม.','ตัวคูณ','OT สัปดาห์นี้','หมายเหตุ','สถานะ','จัดการ'].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#C85E3A', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#131C45', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -741,9 +741,9 @@ export default function OtPage() {
                         onClick={() => setCalcMultiplier(m)}
                         style={{
                           flex: 1, padding: '7px 0', borderRadius: 6, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                          border: calcMultiplier === m ? '1.5px solid #EC6F44' : '1px solid #e5e7eb',
-                          background: calcMultiplier === m ? '#FEF8F6' : '#fff',
-                          color: calcMultiplier === m ? '#EC6F44' : 'var(--text-muted)',
+                          border: calcMultiplier === m ? '1.5px solid #244B83' : '1px solid #e5e7eb',
+                          background: calcMultiplier === m ? '#F4F6F9' : '#fff',
+                          color: calcMultiplier === m ? '#244B83' : 'var(--text-muted)',
                         }}
                       >
                         {m}×
@@ -848,9 +848,9 @@ export default function OtPage() {
                     onClick={() => setAddForm(f => ({ ...f, multiplier: m }))}
                     style={{
                       flex: 1, padding: '9px 0', borderRadius: 8, fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                      border: addForm.multiplier === m ? '1.5px solid #EC6F44' : '1px solid #e5e7eb',
-                      background: addForm.multiplier === m ? '#FEF8F6' : '#fff',
-                      color: addForm.multiplier === m ? '#EC6F44' : 'var(--text-muted)',
+                      border: addForm.multiplier === m ? '1.5px solid #244B83' : '1px solid #e5e7eb',
+                      background: addForm.multiplier === m ? '#F4F6F9' : '#fff',
+                      color: addForm.multiplier === m ? '#244B83' : 'var(--text-muted)',
                     }}
                   >
                     {m}×
@@ -912,7 +912,7 @@ export default function OtPage() {
               <button
                 onClick={doAddOt}
                 disabled={!addForm.employee_id || addHours <= 0}
-                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !addForm.employee_id || addHours <= 0 ? '#e5e7eb' : '#EC6F44', color: !addForm.employee_id || addHours <= 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !addForm.employee_id || addHours <= 0 ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: 'none', background: !addForm.employee_id || addHours <= 0 ? '#e5e7eb' : '#244B83', color: !addForm.employee_id || addHours <= 0 ? 'var(--text-muted)' : '#fff', fontSize: '13px', fontWeight: 600, cursor: !addForm.employee_id || addHours <= 0 ? 'not-allowed' : 'pointer' }}
               >
                 บันทึก OT
               </button>

@@ -445,11 +445,11 @@ export default function DashboardPage() {
               )}
               {expiringDocs.length > 0 && (
                 <button onClick={() => navigate(`/employee/${expiringDocs[0].employee.id}`)} className="premium-card"
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: '#FEF8F6', border: '1.5px solid #FFCC99' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F8CCBE', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C85E3A', flexShrink: 0 }}><FileWarning size={19}/></div>
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', textAlign: 'left', background: '#F4F6F9', border: '1.5px solid #FFCC99' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#B2C0D4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#131C45', flexShrink: 0 }}><FileWarning size={19}/></div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>เอกสารใกล้/หมดอายุ</div>
-                    <div style={{ fontSize: '12px', color: '#C85E3A', fontWeight: 600, marginTop: 2 }}>{expiringDocs.length} ฉบับ</div>
+                    <div style={{ fontSize: '12px', color: '#131C45', fontWeight: 600, marginTop: 2 }}>{expiringDocs.length} ฉบับ</div>
                   </div>
                 </button>
               )}
@@ -504,7 +504,7 @@ export default function DashboardPage() {
               // "ทั้งหมด" เปลี่ยนจากฟ้า(info) เป็นส้ม(แบรนด์) — ไม่ใช่สถานะเชิงความหมาย
               // (success/warning) เหมือนอีก 3 การ์ด เลยเหมาะเป็นจุดที่ใช้สีแบรนด์แทน
               // (feedback 2026-09-15 "คุมธีมส้มไปเลย") ส่วนอีก 3 การ์ดคงสีความหมายเดิม
-              { label: 'ทั้งหมด',    value: total,   filter: 'ALL' as TodayFilter,     icon: <Users size={18}/>,         color: 'var(--accent-primary)', ring: '#EC6F44' },
+              { label: 'ทั้งหมด',    value: total,   filter: 'ALL' as TodayFilter,     icon: <Users size={18}/>,         color: 'var(--accent-primary)', ring: '#244B83' },
               { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', ring: '#10b981' },
               { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', ring: '#f59e0b' },
               { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: '#64748b', ring: '#94a3b8' },
@@ -535,8 +535,8 @@ export default function DashboardPage() {
             { label: 'จัดการกะ',       icon: <Clock size={20}/>,    path: '/shift' },
           ].map(q => (
             <button key={q.path} onClick={() => navigate(q.path)} className="premium-card"
-              style={{ padding: '16px', border: '1px solid #F8CCBE', cursor: 'pointer', background: '#fff', textAlign: 'center', fontFamily: 'inherit' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #F19A7C, #EC6F44)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', color: '#fff', boxShadow: '0 4px 10px rgba(236,111,68,0.3)' }}>{q.icon}</div>
+              style={{ padding: '16px', border: '1px solid #B2C0D4', cursor: 'pointer', background: '#fff', textAlign: 'center', fontFamily: 'inherit' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #6581A8, #244B83)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', color: '#fff', boxShadow: '0 4px 10px rgba(36,75,131,0.3)' }}>{q.icon}</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{q.label}</div>
             </button>
           ))}

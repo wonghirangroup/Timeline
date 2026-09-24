@@ -100,7 +100,7 @@ export default function FeedbackPage() {
                   onClick={() => setCategory(cat.code)}
                   style={{
                     padding: '12px 8px', borderRadius: 14, border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'transparent'}`,
-                    cursor: 'pointer', background: isSelected ? '#FEF8F6' : 'rgba(0,0,0,0.04)',
+                    cursor: 'pointer', background: isSelected ? '#F4F6F9' : 'rgba(0,0,0,0.04)',
                     transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   }}
                 >

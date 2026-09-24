@@ -51,8 +51,8 @@ export default function Footer() {
         ) : (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: '#475569' }}>
             <span style={{
-              width: 20, height: 20, borderRadius: 6, background: '#FEF8F6',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EC6F44', flexShrink: 0,
+              width: 20, height: 20, borderRadius: 6, background: '#F4F6F9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#244B83', flexShrink: 0,
             }}>
               <ShieldCheck size={13} />
             </span>

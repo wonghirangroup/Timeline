@@ -170,7 +170,7 @@ export default function DocumentRequestsPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#244B83' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -192,7 +192,7 @@ export default function DocumentRequestsPage() {
             <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < filteredRows.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                  <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>
                     {r.employee.first_name} {r.employee.last_name}{r.employee.nickname ? ` (${r.employee.nickname})` : ''}
                   </button>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2 }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
@@ -247,7 +247,7 @@ export default function DocumentRequestsPage() {
                   <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < filteredRows.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                        <div style={{ fontWeight: 700, color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
+                        <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
                       </button>
                     </td>
@@ -356,7 +356,7 @@ export default function DocumentRequestsPage() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setReqModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSaveReq} disabled={addReqMut.isPending || editReqMut.isPending}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: (addReqMut.isPending || editReqMut.isPending) ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: (addReqMut.isPending || editReqMut.isPending) ? 0.7 : 1 }}>
                 {(addReqMut.isPending || editReqMut.isPending) ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>

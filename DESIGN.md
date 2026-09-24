@@ -3,25 +3,29 @@
 ## Color
 
 > Official brand palette 2026-09-25: sourced from the "YooNai Owl" mascot
-> 3D character style guide the user provided — this is now the canonical
-> palette (supersedes the earlier hand-picked approximations from
-> 2026-09-24/25). Seven roles: Primary Blue `#2DA6DD`, Navy `#131C45`,
-> White `#FFFFFF`, Accent Orange `#EC6F44`, Secondary Blue `#244B83`,
-> Light Gray `#E6ECF4`, Shoe/Glasses (near-black) `#222222`. Orange stays
-> Admin's primary accent (tenant-facing), Primary Blue becomes Super
-> Admin's primary accent (vendor-facing, replacing indigo), Navy is the
-> shared dark Sidebar color for both apps, Secondary Blue serves as Super
-> Admin's hover/darker blue and Admin's Sidebar active-nav accent. Light
-> Gray replaces the old generic slate-100 page background app-wide.
-> Hover/light-tint shades for orange (`#C85E3A` / `#FCE9E3`) and for
-> Primary Blue's light tint (`#DFF1FA`) are computed, not from the style
-> guide (which only gives 7 flat swatches, no shade ramps).
+> 3D character style guide the user provided. Seven roles: Primary Blue
+> `#2DA6DD`, Navy `#131C45`, White `#FFFFFF`, Accent Orange `#EC6F44`,
+> Secondary Blue `#244B83`, Light Gray `#E6ECF4`, Shoe/Glasses (near-black)
+> `#222222`. Primary Blue is Super Admin's primary accent (vendor-facing,
+> replacing indigo), Navy is the shared dark Sidebar color for both apps,
+> Secondary Blue serves as Super Admin's hover/darker blue. Light Gray
+> replaces the old generic slate-100 page background app-wide.
+>
+> Feedback 2026-09-25 "เปลี่ยนจากส้มเป็นสีน้ำเงิน navy" (primary accent,
+> Admin+Employee): Accent Orange was dropped as Admin/Employee's primary
+> accent — replaced with the navy family (Secondary Blue as primary,
+> Navy as hover), reusing the mascot's own blue swatches rather than
+> inventing new hex values. Orange is no longer used as an app-wide
+> accent anywhere in the product; only the mascot's own coloring keeps it
+> alive as a reference. Hover/light-tint shades not given by the style
+> guide (which only has 7 flat swatches, no shade ramps) are computed by
+> white/black-mixing the nearest official swatch.
 
 ### Admin / Manager (tenant users)
-Primary accent: `#EC6F44` (brand accent orange) — CTAs, buttons, KPI highlights  
-Hover accent: `#C85E3A` (computed darken)  
-Light accent: `#FCE9E3` (computed tint) — backgrounds for pills, KPI cards  
-Sidebar active-nav accent: `#2DA6DD` (brand primary blue) — pill bg `rgba(45,166,221,0.18)`
+Primary accent: `#244B83` (brand secondary blue) — CTAs, buttons, KPI highlights  
+Hover accent: `#131C45` (brand navy — used directly, not computed)  
+Light accent: `#DEE4EC` (computed tint) — backgrounds for pills, KPI cards  
+Sidebar active-nav accent: `#2DA6DD` (brand primary blue) — pill bg `rgba(45,166,221,0.18)` — kept as the contrasting highlight against the dark Sidebar even though the primary accent itself is now navy-family too
 
 ### Super Admin (vendor-side only)
 Primary accent: `#2DA6DD` (brand primary blue) — all Super Admin CTAs, active states, key highlights  
@@ -32,7 +36,7 @@ Light accent: `#DFF1FA` (computed tint)
 Surface: `#E6ECF4` (brand light gray) — page background  
 Card: `#FFFFFF`  
 Sidebar: `linear-gradient(135deg, #2F375B, #131C45)` — lighter-navy-to-brand-navy diagonal gradient (feedback 2026-09-25 "แบบมีไล่เงาสี"), same 135deg angle as the icon-badge gradient pattern below — dark, anchoring — shared by both Admin and Super Admin  
-Topbar: `linear-gradient(135deg, #FFFFFF, #E6ECF4)` — white-to-light-gray, same 135deg angle as Sidebar/icon-badge gradients (feedback 2026-09-25 "เพิ่ม gradient แบบเดียวกับ Sidebar"); `border-bottom: 1px solid #e5e7eb` — base stays white per the 2026-09-25 shell redesign (reversed from solid-orange v151/152), just given gradient depth, not a hue change; role badge pill on the right keeps `--accent-primary` orange as the one orange touch in the header; shared by both Admin's Topbar and Super Admin's SuperAdminTopbar
+Topbar: `linear-gradient(135deg, #FFFFFF, #E6ECF4)` — white-to-light-gray, same 135deg angle as Sidebar/icon-badge gradients (feedback 2026-09-25 "เพิ่ม gradient แบบเดียวกับ Sidebar"); `border-bottom: 1px solid #e5e7eb` — base stays white per the 2026-09-25 shell redesign (reversed from solid-orange v151/152), just given gradient depth, not a hue change; role badge pill on the right uses `--accent-primary` (now navy-family) instead of the orange it had until the orange→navy accent switch; shared by both Admin's Topbar and Super Admin's SuperAdminTopbar
 
 Text primary: `#0F172A` (slate-900)  
 Text muted: `#64748B` (slate-500)  
@@ -80,7 +84,7 @@ Section gap: `20–24px`
 --shadow-md:    0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)
 --shadow-lg:    0 10px 25px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.025)
 --shadow-float: 0 20px 40px -10px rgba(0,0,0,0.08)
---shadow-accent: 0 8px 16px -4px rgba(236,111,68,0.3)
+--shadow-accent: 0 8px 16px -4px rgba(36,75,131,0.3)
 ```
 
 Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #E6ECF4`
@@ -88,11 +92,11 @@ Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #E6ECF4`
 ## Components
 
 **KPI Card** — pastel bg + 1.5px colored border + emoji icon (top-left) + large number (top-right) + label (bottom)  
-**Filter Pills** — active: `#EC6F44` bg `#FEF8F6` border `#F8CCBE` / inactive: `#E6ECF4` bg  
-**Table** — thead `bg #FEF8F6` / `color #C85E3A` / `fontWeight 700` ; row hover `#FEF8F6`  
+**Filter Pills** — active: `#244B83` bg `#F4F6F9` border `#B2C0D4` / inactive: `#E6ECF4` bg  
+**Table** — thead `bg #F4F6F9` / `color #131C45` / `fontWeight 700` ; row hover `#F4F6F9`  
 **Modal overlay** — `position:fixed; inset:0; z-index:200` (above sidebar 100, topbar 98)  
-**Add button** — orange gradient `linear-gradient(135deg, #EC6F44, #C85E3A)` + shadow  
-**Sidebar nav item active** — brand primary blue `#2DA6DD` bg subtle `rgba(45,166,221,0.18)`, text primary blue — same accent for every nav section (not per-section colors)
+**Add button** — navy gradient `linear-gradient(135deg, #244B83, #131C45)` + shadow  
+**Sidebar nav item active** — brand primary blue `#2DA6DD` bg subtle `rgba(45,166,221,0.18)`, text primary blue — same accent for every nav section (not per-section colors); kept blue even though the app's primary accent is now navy-family, so it still reads against the dark Sidebar
 **Stat/KPI card icon badge** — `linear-gradient(135deg, color-mix(in srgb, {color} 55%, white), {color})`, icon `#fff`, `box-shadow: 0 4px 10px {color}4D` — replaces the older flat-pastel-tint badge (`background: {bg}, color: {iconColor}`). Applied so far: Dashboard (KPI cards, RangeKpiCard, quick links). Roll out to other pages' stat cards over time — not done everywhere yet (feedback 2026-09-15, adapted from a colorful reference mockup's "feel" while keeping TimeLine's own orange-led palette, not the reference's literal purple/blue/pink)
 
 ## Motion

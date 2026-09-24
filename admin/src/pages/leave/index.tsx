@@ -16,12 +16,12 @@ type LeaveTab = 'requests' | 'time-off' | 'vacation-policy' | 'holiday' | 'balan
 // เลือกชดเชย/พักร้อนที่วันหยุด, ปุ่มรัน+รายงานที่โควต้า) — user บอกว่างง เลยรวมมาเป็นแท็บ
 // เดียวที่นี่ (VacationPolicyTab) เป็นจุดเริ่มต้น ส่วนการแก้ไขเต็มรูปแบบยังอยู่ที่เดิม
 const TABS: { id: LeaveTab; label: string; mobileLabel: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
-  { id: 'requests',  label: 'วันลา',              mobileLabel: 'ลา',    icon: <CalendarDays size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
-  { id: 'time-off',  label: 'จองวันหยุดประจำเดือน', mobileLabel: 'หยุด', icon: <CalendarOff  size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
-  { id: 'vacation-policy', label: 'นโยบายพักร้อน', mobileLabel: 'พักร้อน', icon: <Sparkles size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
-  { id: 'holiday',   label: 'วันหยุดนักขัตฤกษ์', mobileLabel: 'ขัตฤกษ์', icon: <Palmtree  size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
-  { id: 'balance',   label: 'โควต้า',             mobileLabel: 'โควต้า', icon: <BarChart3  size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
-  { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
+  { id: 'requests',  label: 'วันลา',              mobileLabel: 'ลา',    icon: <CalendarDays size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+  { id: 'time-off',  label: 'จองวันหยุดประจำเดือน', mobileLabel: 'หยุด', icon: <CalendarOff  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+  { id: 'vacation-policy', label: 'นโยบายพักร้อน', mobileLabel: 'พักร้อน', icon: <Sparkles size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+  { id: 'holiday',   label: 'วันหยุดนักขัตฤกษ์', mobileLabel: 'ขัตฤกษ์', icon: <Palmtree  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+  { id: 'balance',   label: 'โควต้า',             mobileLabel: 'โควต้า', icon: <BarChart3  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+  { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
 ]
 
 const VALID_TABS: LeaveTab[] = ['requests', 'time-off', 'vacation-policy', 'holiday', 'balance', 'calendar']

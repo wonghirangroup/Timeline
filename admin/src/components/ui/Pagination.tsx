@@ -45,7 +45,7 @@ export default function Pagination({ page, totalPages, onChange, totalItems, ite
           ? <span key={`e${i}`} style={{ padding: '0 4px', color: '#d1d5db', fontSize: '0.78rem' }}>…</span>
           : (
             <button key={p} onClick={() => onChange(p)}
-              style={{ ...btnBase, minWidth: 28, justifyContent: 'center', background: page === p ? '#EC6F44' : '#fff', color: page === p ? '#fff' : '#374151', borderColor: page === p ? '#EC6F44' : '#e5e7eb', fontWeight: page === p ? 700 : 500 }}>
+              style={{ ...btnBase, minWidth: 28, justifyContent: 'center', background: page === p ? '#244B83' : '#fff', color: page === p ? '#fff' : '#374151', borderColor: page === p ? '#244B83' : '#e5e7eb', fontWeight: page === p ? 700 : 500 }}>
               {p}
             </button>
           ))}

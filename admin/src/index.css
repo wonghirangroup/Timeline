@@ -11,9 +11,9 @@
      gradient icon badge ที่ใช้ทั่วแอปอยู่แล้ว (DESIGN.md) ให้เข้าชุดกัน */
   --bg-sidebar: linear-gradient(135deg, #2F375B, #131C45);
   
-  --accent-primary: #EC6F44; /* orange-600 */
-  --accent-hover: #C85E3A;   /* orange-700 */
-  --accent-light: #FCE9E3;   /* orange-100 */
+  --accent-primary: #244B83; /* orange-600 */
+  --accent-hover: #131C45;   /* orange-700 */
+  --accent-light: #DEE4EC;   /* orange-100 */
 
   --text-main: #0F172A; /* slate-900 */
   --text-muted: #64748B; /* slate-500 */
@@ -30,8 +30,8 @@
   --info-bg: #DFF1FA;
 
   /* ── Action colors — สีตามชนิดการกระทำ (ใช้กับ <Button>) ── */
-  --action-primary:        #EC6F44;  /* บันทึก / ยืนยัน / ปุ่มหลักของหน้า */
-  --action-primary-hover:  #C85E3A;
+  --action-primary:        #244B83;  /* บันทึก / ยืนยัน / ปุ่มหลักของหน้า */
+  --action-primary-hover:  #131C45;
   --action-approve:        #16A34A;  /* อนุมัติ / ยืนยันเชิงบวก */
   --action-approve-hover:  #15803D;
   --action-danger:         #DC2626;  /* ลบ / ปฏิเสธ / ทำลาย */
@@ -50,15 +50,15 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
   --shadow-float: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
-  --shadow-accent: 0 8px 16px -4px rgba(236,111,68, 0.3);
+  --shadow-accent: 0 8px 16px -4px rgba(36,75,131, 0.3);
 
   /* Glassmorphism — เดิมเป็นขาวล้วน (rgba(255,255,255,.85)) ทำให้ Topbar รู้สึก
      "ขาว" เกินไปทั้งที่ Sidebar ข้างๆ เป็นสีเข้ม + ส้ม — เปลี่ยนเป็นกระจกอุ่นโทน
-     ส้มอ่อน (จาก --accent-light ตระกูลเดียวกับ #FEF8F6/#FCE9E3 ที่ใช้ทั้งแอปอยู่
+     ส้มอ่อน (จาก --accent-light ตระกูลเดียวกับ #F4F6F9/#DEE4EC ที่ใช้ทั้งแอปอยู่
      แล้ว) ให้เข้าธีมส้มของแบรนด์มากขึ้นแต่ยังคงความ "Calm authority" ตาม
      PRODUCT.md (Restrained ไม่ใช่ Drenched) — feedback 2026-09-15 "ส้มมากกว่า ขาวน้อยลง" */
   --glass-bg: rgba(255, 248, 240, 0.88);
-  --glass-border: rgba(236,111,68, 0.1);
+  --glass-border: rgba(36,75,131, 0.1);
 
   /* Radius */
   --radius-md: 12px;

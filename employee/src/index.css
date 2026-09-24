@@ -11,13 +11,13 @@
   --bg-subtle:      #F8FAFC;
 
   /* Accent — Orange (เดียวกับ admin: orange-600/700) */
-  --accent-primary: #EC6F44;
-  --accent-hover:   #C85E3A;
-  --accent-light:   #FCE9E3;
+  --accent-primary: #244B83;
+  --accent-hover:   #131C45;
+  --accent-light:   #DEE4EC;
   /* alias เดิม (โค้ดบางที่ยังอ้าง --accent-start/mid/end อยู่) → map มาที่สีเดียว */
-  --accent-start:   #EC6F44;
-  --accent-mid:     #EC6F44;
-  --accent-end:     #EC6F44;
+  --accent-start:   #244B83;
+  --accent-mid:     #244B83;
+  --accent-end:     #244B83;
 
   /* Card */
   --card-bg:        #ffffff;
@@ -227,7 +227,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 /* App shell — ไล่เงาสีส้ม มุม 135deg เดียวกับ pattern gradient icon badge
    ที่ใช้ทั่วแอป admin (เดิม flat --accent-primary) */
 .app-header {
-  background: linear-gradient(135deg, #F19A7C, #EC6F44);
+  background: linear-gradient(135deg, #6581A8, #244B83);
   padding: 24px 20px 56px;
   position: relative;
 }
@@ -266,7 +266,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 .icon-bubble-blue   { background: #DBEAFE; color: #2563EB; }
 .icon-bubble-teal   { background: #D1FAE5; color: #0D9488; }
-.icon-bubble-orange { background: #FCE9E3; color: #C85E3A; }
+.icon-bubble-orange { background: #DEE4EC; color: #131C45; }
 .icon-bubble-purple { background: #EDE9FE; color: #7C3AED; }
 
 /* Stat row inside header */

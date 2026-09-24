@@ -115,10 +115,10 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
                 <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.6 }}>
                   แอดมินยังไม่ได้เปิดรอบการจอง<br/>
                   วันหยุดสำหรับ{' '}
-                  <span style={{ color: '#EC6F44', fontWeight: 600 }}>{fmtMonthTH(month)}</span>
+                  <span style={{ color: '#244B83', fontWeight: 600 }}>{fmtMonthTH(month)}</span>
                 </p>
               </div>
-              <div style={{ background: '#FEF8F6', border: '1px solid #F8CCBE', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
+              <div style={{ background: '#F4F6F9', border: '1px solid #B2C0D4', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
                 <p style={{ fontSize: '12px', color: '#9a3412', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
                   <MessageCircle size={12} style={{ verticalAlign: -1 }} /> เมื่อแอดมินเปิดการจอง<br/>
                   ระบบจะส่งแจ้งเตือนทาง Line
