@@ -101,7 +101,18 @@ export async function listHrDocuments(tenantId: string, filters: { employee_id?:
     orderBy: { created_at: 'desc' },
     select: {
       id: true, type: true, doc_number: true, period: true, created_at: true,
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true } },
+      // data (สรุปตัวเลขเงินได้/หัก) + branch/position (กรองกลุ่ม/สาขา/แผนก) —
+      // เพิ่มเข้ามาสำหรับหน้า "สรุปเอกสารที่ออกแล้ว" export (feedback 2026-09-24)
+      // EmployeeDocsTab เดิม (ต่อพนักงานคนเดียว) ไม่ได้ใช้ 2 field นี้ แต่ include
+      // เพิ่มไม่กระทบ เพราะเป็นแค่ query คนละหน้าจอ
+      data: true,
+      employee: {
+        select: {
+          id: true, first_name: true, last_name: true, nickname: true, employee_code: true,
+          position_id: true,
+          branch: { select: { id: true, name: true, group_id: true } },
+        },
+      },
     },
   })
 }

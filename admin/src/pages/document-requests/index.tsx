@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2, Download, Wallet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { uploadFile } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
@@ -17,6 +17,8 @@ import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import HrDocumentGenerateModal from '../hr-documents/generate'
+import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
+import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 const TYPE_LABEL: Record<string, string> = {
   PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'อื่นๆ',
@@ -136,13 +138,18 @@ export default function DocumentRequestsPage() {
     else addReqMut.mutate({ employee_id: reqForm.employee_id, ...body })
   }
 
+  const [showIssuedPanel, setShowIssuedPanel] = useState(false)
+
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> ขอเอกสาร HR</h1>
-        {!isReadOnly && (
-          <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAddReq}>เพิ่มคำขอ</Button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
+          {!isReadOnly && (
+            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAddReq}>เพิ่มคำขอ</Button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
@@ -424,6 +431,130 @@ export default function DocumentRequestsPage() {
           </div>
         </Modal>
       )}
+
+      {showIssuedPanel && <IssuedDocsPanel onClose={() => setShowIssuedPanel(false)} />}
+    </div>
+  )
+}
+
+// ── สรุปเอกสารเงินเดือน/สลิปที่ออกแล้ว (feedback 2026-09-24: "ระบบ Export
+// เงินเดือน/สลิป จากเอกสาร HR") — แยกจากคำขอ (PENDING/COMPLETED/REJECTED)
+// ด้านบนโดยตั้งใจ: นี่คือรายการเอกสารจริงที่ "สร้างแล้ว" (HrDocument, จาก
+// generate.tsx) ไม่ใช่คำขอ — กรองกลุ่ม/สาขา/แผนกได้ + export CSV
+interface ApiHrDoc {
+  id: string; type: 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER'
+  doc_number: string | null; period: string | null; created_at: string
+  data: any
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; position_id?: string | null; branch: { id: string; name: string; group_id?: string | null } }
+}
+const HR_DOC_TYPE_LABEL: Record<string, string> = { PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', RESIGNATION_LETTER: 'ใบลาออก' }
+
+function netAmount(doc: ApiHrDoc): number | null {
+  if (doc.type === 'PAYSLIP' && doc.data?.income) {
+    const incomeTotal = Object.values(doc.data.income as Record<string, unknown>).reduce((s: number, v) => s + (Number(v) || 0), 0)
+    const deductTotal = Object.values((doc.data.deduction ?? {}) as Record<string, unknown>).reduce((s: number, v) => s + (Number(v) || 0), 0)
+    return incomeTotal - deductTotal
+  }
+  if (doc.type === 'SALARY_CERT' && doc.data?.monthly_wage) return Number(doc.data.monthly_wage) || null
+  return null
+}
+
+function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
+  const [typeFilter, setTypeFilter] = useState<'PAYSLIP' | 'SALARY_CERT' | ''>('PAYSLIP')
+  const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+
+  const { data: docs = [], isLoading } = useQuery<ApiHrDoc[]>({
+    queryKey: ['admin', 'hr-documents', 'all', typeFilter],
+    queryFn: () => api.get('/api/v1/admin/hr-documents', { params: { type: typeFilter || undefined } }).then(r => r.data.data),
+  })
+  const { data: employees = [] } = useQuery<any[]>({
+    queryKey: ['admin', 'employees'],
+    queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
+  })
+  const { data: positions = [] } = useQuery<any[]>({
+    queryKey: ['positions'],
+    queryFn: () => api.get('/api/v1/admin/positions').then(r => r.data.data),
+  })
+  const employeeOrgMap = buildEmployeeOrgMap(employees, positions)
+  const filtered = docs.filter(d => matchesOrgFilter(employeeOrgMap[d.employee.id] ?? {
+    groupId: d.employee.branch.group_id ?? null, branchId: d.employee.branch.id, departmentId: null, positionId: d.employee.position_id ?? null,
+  }, orgFilter))
+
+  function exportIssuedDocs() {
+    const header = ['พนักงาน', 'รหัสพนักงาน', 'สาขา', 'ประเภทเอกสาร', 'เลขที่เอกสาร', 'งวด', 'วันที่ออก', 'ยอดสุทธิ (บาท)']
+    const rows = filtered.map(d => [
+      `${d.employee.first_name} ${d.employee.last_name}`, d.employee.employee_code, d.employee.branch.name,
+      HR_DOC_TYPE_LABEL[d.type] ?? d.type, d.doc_number || '', d.period || '',
+      thDate(d.created_at), netAmount(d) != null ? String(netAmount(d)) : '',
+    ])
+    const csv = '﻿' + [header, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `เอกสารที่ออกแล้ว_${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+  }
+
+  const totalNet = filtered.reduce((s, d) => s + (netAmount(d) ?? 0), 0)
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: 760, maxWidth: '100%', maxHeight: '86vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontWeight: 700, fontSize: '15px', margin: 0 }}>สรุปเอกสารเงินเดือน/สลิปที่ออกแล้ว</p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18}/></button>
+        </div>
+        <div style={{ padding: '14px 20px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as any)}
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}>
+            <option value="PAYSLIP">สลิปเงินเดือน</option>
+            <option value="SALARY_CERT">หนังสือรับรองเงินเดือน</option>
+            <option value="">ทุกประเภท</option>
+          </select>
+          <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
+          <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportIssuedDocs} disabled={filtered.length === 0} style={{ marginLeft: 'auto' }}>
+            Export
+          </Button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {isLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบเอกสารที่ออกแล้วตามตัวกรองนี้</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0 }}>
+                  {['พนักงาน', 'ประเภท', 'งวด/เลขที่', 'วันที่ออก', 'ยอดสุทธิ'].map(h => (
+                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((d, i) => {
+                  const net = netAmount(d)
+                  return (
+                    <tr key={d.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ fontWeight: 600, color: '#111827' }}>{d.employee.first_name} {d.employee.last_name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{d.employee.employee_code} · {d.employee.branch.name}</div>
+                      </td>
+                      <td style={{ padding: '9px 14px', color: '#374151' }}>{HR_DOC_TYPE_LABEL[d.type] ?? d.type}</td>
+                      <td style={{ padding: '9px 14px', color: '#374151' }}>{d.period || d.doc_number || '—'}</td>
+                      <td style={{ padding: '9px 14px', color: '#64748b', whiteSpace: 'nowrap' }}>{thDate(d.created_at)}</td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700, color: '#111827' }}>{net != null ? `฿${net.toLocaleString()}` : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {filtered.length > 0 && (
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+            <span style={{ color: 'var(--text-muted)' }}>{filtered.length} ฉบับ</span>
+            <span style={{ fontWeight: 700 }}>รวม ฿{totalNet.toLocaleString()}</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

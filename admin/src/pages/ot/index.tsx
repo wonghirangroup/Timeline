@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search, Table2, LayoutGrid } from 'lucide-react'
+import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search, Table2, LayoutGrid, Download } from 'lucide-react'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -237,6 +237,22 @@ export default function OtPage() {
     matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter) &&
     (!search.trim() || r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
   )
+  // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
+  // `filtered` ตรงๆ (กรองด้วย OrgFilterBar/สถานะ/ค้นหาที่ตั้งไว้บนจอแล้ว) ไม่ใช่
+  // แค่หน้าที่เห็น (paginated) — export ต้องได้ทุกแถวที่ผ่าน filter จริง
+  function exportOt() {
+    const header = ['พนักงาน', 'ชื่อเล่น', 'สาขา', 'วันที่', 'เวลาเริ่ม', 'เวลาสิ้นสุด', 'ชั่วโมง', 'ตัวคูณ', 'หมายเหตุ', 'สถานะ', 'ยอดจ่าย']
+    const rows = filtered.map(r => [
+      r.full_name, r.nickname, r.branch_name, r.date, r.start_time, r.end_time,
+      String(r.hours), String(r.multiplier), r.note || '', STATUS_CFG[r.status].label,
+      r.payment_amount ? String(r.payment_amount) : '',
+    ])
+    const csv = '﻿' + [header, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `OT_${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+  }
+
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 15
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -349,6 +365,11 @@ export default function OtPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={exportOt} disabled={filtered.length === 0}
+            style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+          >
+            <Download size={14} /> Export
+          </button>
           <button
             onClick={() => { setShowBulkPay(true); setBulkEmpId(''); setBulkDailyRate('') }}
             style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #7c3aed', background: '#faf5ff', color: '#7c3aed', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}

@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, Users, Smartphone, ExternalLink, ShieldAlert } from 'lucide-react'
+import { Search, Users, Smartphone, ExternalLink, ShieldAlert, Download } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
@@ -233,6 +233,46 @@ export default function MasterDataPage() {
     return true
   }), [employees, statusFilter, orgFilter, employeeOrgMap, search])
 
+  // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
+  // `filtered` ตรงๆ ทุกคอลัมน์ที่เห็นบนตาราง (org+status+ค้นหาที่ตั้งไว้แล้ว)
+  function exportMasterData() {
+    const header = [
+      'รหัสพนักงาน', 'ชื่อ-สกุล', 'ชื่อเล่น', 'เบอร์โทร', 'กลุ่ม', 'สาขา', 'แผนก', 'ตำแหน่ง',
+      'ประเภทพนักงาน', 'วันเริ่มงาน', 'อายุงาน', 'สถานะ', 'LINE', 'กะหลัก', 'โหมดวันหยุด',
+      'วันหยุดใช้ไป', 'โควต้าวันหยุด', 'สิทธิ์จอง', 'สิทธิ์ลา', 'ลาป่วย(ใช้/รวม)', 'ลากิจ(ใช้/รวม)',
+      'พักร้อน(ใช้/รวม)', 'ชดเชย(ใช้/รวม)', 'ค่าปรับค้าง',
+      'คำนำหน้า', 'อีเมล', 'เลขบัตรประชาชน', 'วันเกิด', 'หมู่เลือด', 'เบอร์สำรอง',
+      'ที่อยู่ตามบัตร', 'ที่อยู่ปัจจุบัน', 'ผู้ติดต่อฉุกเฉิน', 'การศึกษา', 'ทักษะ',
+      'ประเภทการจ้าง', 'เงินเดือน', 'หมายเหตุ',
+    ]
+    const rows = filtered.map(e => {
+      const bal = balanceByEmp[e.id]
+      const balStr = (v?: { total: number; used: number }) => v ? `${v.used}/${v.total}` : ''
+      return [
+        e.employee_code, `${e.first_name} ${e.last_name}`, e.nickname ?? '', e.phone || '',
+        (e.branch.group_id && groupName[e.branch.group_id]) || '', e.branch.name, deptName(e.department),
+        e.position?.name ?? '', e.employee_status_type?.name ?? '', thDateShort(e.hired_at), tenureShort(e.hired_at),
+        STATUS_CFG[e.status].label, e.line_user_id ? 'เชื่อมแล้ว' : 'ยังไม่เชื่อม',
+        e.default_shift_id ? (shiftName[e.default_shift_id] ?? '') : '',
+        e.weekly_off_mode === 'MONTHLY_BATCH' ? 'รายเดือน' : 'รายสัปดาห์',
+        String(dayoffUsedByEmp[e.id] ?? 0), String(resolveQuota(e)),
+        resolveFlag(e, 'booking_enabled') ? 'เปิด' : 'ปิด', resolveFlag(e, 'leave_enabled') ? 'เปิด' : 'ปิด',
+        balStr(bal?.sick), balStr(bal?.personal), balStr(bal?.vacation), balStr(bal?.compensate),
+        Number(e.pending_fine) > 0 ? String(Number(e.pending_fine)) : '',
+        e.prefix || '', e.email || '', e.id_card || '', thDateShort(e.birthdate ?? null), e.blood_type || '', e.phone_alt || '',
+        fmtAddress(e.address_id), fmtAddress(e.address_current ?? e.address_id),
+        (e.emergency_contacts ?? []).map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`).join('; '),
+        (e.educations ?? []).map(ed => `${ed.level}${ed.institution ? ` · ${ed.institution}` : ''}`).join('; '),
+        (e.skills ?? []).map(s => s.name).join(', '),
+        e.emp_type || '', e.salary ? String(Number(e.salary)) : '', e.notes || '',
+      ]
+    })
+    const csv = '﻿' + [header, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `MasterData_${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+  }
+
   if (!allowed) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '80px 20px', textAlign: 'center' }}>
@@ -257,8 +297,14 @@ export default function MasterDataPage() {
             มุมมองรวมสำหรับผู้บริหาร — ดูอย่างเดียว แก้ไขข้อมูลได้ที่หน้า "พนักงาน"
           </p>
         </div>
-        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 12px' }}>
-          {filtered.length} / {employees.length} คน
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 12px' }}>
+            {filtered.length} / {employees.length} คน
+          </div>
+          <button onClick={exportMasterData} disabled={filtered.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.82rem', cursor: filtered.length === 0 ? 'default' : 'pointer', opacity: filtered.length === 0 ? 0.5 : 1 }}>
+            <Download size={14} /> Export
+          </button>
         </div>
       </div>
 

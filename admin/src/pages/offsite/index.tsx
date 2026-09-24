@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
@@ -108,6 +108,23 @@ export default function OffsitePage() {
 
   const filtered = rows.filter(r => matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter))
 
+  // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
+  // `filtered` ตรงๆ (ผ่าน OrgFilterBar บนจอแล้ว)
+  function exportOffsite() {
+    const header = ['พนักงาน', 'สาขา', 'เข้า', 'ที่อยู่เข้า', 'ออก', 'ที่อยู่ออก', 'ระยะเวลา', 'หมายเหตุ', 'สถานะ']
+    const rows2 = filtered.map(r => [
+      `${r.employee.first_name} ${r.employee.last_name}`, r.employee.branch.name,
+      thDateTime(r.check_in_at), r.check_in_address || '',
+      r.check_out_at ? thDateTime(r.check_out_at) : '', r.check_out_address || '',
+      duration(r.check_in_at, r.check_out_at), r.note || '',
+      r.check_out_at ? 'เสร็จสิ้น' : 'กำลังนอกสถานที่',
+    ])
+    const csv = '﻿' + [header, ...rows2].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `เช็คอินนอกสถานที่_${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+  }
+
   const activeCount = rows.filter(r => !r.check_out_at).length
   const monthCount  = rows.filter(r => {
     const d = new Date(r.check_in_at), now = new Date()
@@ -204,12 +221,12 @@ export default function OffsitePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {!isReadOnly && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Button variant="secondary" icon={<Download size={15} />} onClick={exportOffsite} disabled={filtered.length === 0}>Export</Button>
+        {!isReadOnly && (
           <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>
-        </div>
-      )}
-
+        )}
+      </div>
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
