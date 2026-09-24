@@ -356,7 +356,7 @@ export default function BillingPage() {
             <thead>
               <tr style={{ background: '#f8fafc' }}>
                 {['Invoice', 'บริษัท', 'Plan', 'ระยะเวลา', 'จำนวน', 'ครบกำหนด', 'ชำระเมื่อ', 'สถานะ', 'จัดการ'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-body)', whiteSpace: 'nowrap', fontSize: '0.78rem', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-body)', whiteSpace: 'nowrap', fontSize: '0.78rem', borderBottom: '1px solid #E6ECF4' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -430,7 +430,7 @@ export default function BillingPage() {
       {createModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setCreateModal(false) }}>
           <div role="dialog" aria-modal="true" aria-labelledby="create-invoice-title" style={{ background: '#fff', borderRadius: 16, width: 520, maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span id="create-invoice-title" style={{ fontWeight: 700, fontSize: '1rem' }}>สร้าง Invoice ใหม่</span>
               <button onClick={() => setCreateModal(false)} aria-label="ปิดหน้าต่าง" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)' }}>
                 <X size={18} aria-hidden="true" />
@@ -491,7 +491,7 @@ export default function BillingPage() {
                 <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="เช่น ชำระรายปี, ส่วนลด..." style={inputSt} />
               </div>
             </div>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setCreateModal(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>ยกเลิก</button>
               <button
                 onClick={createInvoice}
@@ -507,7 +507,7 @@ export default function BillingPage() {
       {detailInv && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={e => { if (e.target === e.currentTarget) setDetailInv(null) }}>
           <div role="dialog" aria-modal="true" aria-labelledby="invoice-detail-title" style={{ background: '#fff', borderRadius: 16, width: 460, maxWidth: '92vw' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span id="invoice-detail-title" style={{ fontWeight: 700, fontSize: '1rem', fontFamily: 'monospace' }}>{detailInv.id}</span>
               <button onClick={() => setDetailInv(null)} aria-label="ปิดหน้าต่าง" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)' }}>
                 <X size={18} aria-hidden="true" />
@@ -541,7 +541,7 @@ export default function BillingPage() {
                 </div>
               )}
             </div>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {(detailInv.status === 'PENDING' || detailInv.status === 'OVERDUE') && (
                 <>
                   <button onClick={() => markPaid(detailInv)} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>✓ บันทึกชำระแล้ว</button>

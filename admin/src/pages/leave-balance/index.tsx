@@ -61,7 +61,7 @@ function MiniBar({ used, quota, color }: { used: number; quota: number; color: s
   const pct = quota === 0 ? 0 : Math.min(100, Math.round((used / quota) * 100))
   const barColor = quota === 0 ? '#e2e8f0' : used > quota ? '#dc2626' : used / quota >= 0.8 ? '#f59e0b' : '#10b981'
   return (
-    <div style={{ height: 4, borderRadius: 99, background: '#f1f5f9', overflow: 'hidden', marginTop: 4 }}>
+    <div style={{ height: 4, borderRadius: 99, background: '#E6ECF4', overflow: 'hidden', marginTop: 4 }}>
       <div style={{ height: '100%', width: '100%', background: barColor, borderRadius: 99, transform: `scaleX(${pct / 100})`, transformOrigin: 'left', transition: 'transform 0.3s' }} />
     </div>
   )
@@ -102,7 +102,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
     }}>
       <div style={{ background: '#fff', borderRadius: 18, width: 460, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
         {/* Header */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', flexShrink: 0 }}><CalendarDays size={18} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าวันลา</div>
@@ -154,11 +154,11 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
           <button
             onClick={() => onSave(balance.employee_id, quotas)}
-            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
           >บันทึกโควต้า</button>
         </div>
       </div>
@@ -444,7 +444,7 @@ export default function LeaveBalancePage() {
             // "พนักงานทั้งหมด" เดิมใช้ indigo (#4f46e5) ซึ่งเป็นสี Super Admin โดยเฉพาะ
             // (--sa-accent) ขัดกับ DESIGN.md "never mix orange and indigo" — เปลี่ยน
             // เป็นส้มแบรนด์แทน (feedback 2026-09-15 "คุมธีมส้มไปเลย")
-            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#FF8A00', bg: '#FFF3E5', iconColor: '#FF8A00' },
+            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#EC6F44', bg: '#FEF8F6', iconColor: '#EC6F44' },
             { label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
             { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
             { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
@@ -742,7 +742,7 @@ export default function LeaveBalancePage() {
       {bulkEditOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
           <div style={{ background: '#fff', borderRadius: 18, width: 460, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าพร้อมกัน</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>จะนำไปใช้กับพนักงานที่เลือก {selectedIds.size} คน</div>
@@ -763,9 +763,9 @@ export default function LeaveBalancePage() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setBulkEditOpen(false)} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
-              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
+              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
             </div>
           </div>
         </div>

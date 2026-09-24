@@ -72,12 +72,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   }, [me, name, setName])
 
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FFF3E5', color: '#E67A00' },
+    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FEF8F6', color: '#C85E3A' },
     MANAGER:   { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#dcfce7', color: '#15803d' },
     EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
     DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
   }
-  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FFF3E5', color: '#E67A00' }
+  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FEF8F6', color: '#C85E3A' }
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
 
@@ -170,11 +170,11 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const panelContent = (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9' }}>
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E6ECF4' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
-            background: 'linear-gradient(135deg, #FF8A00, #E67A00)',
+            background: 'linear-gradient(135deg, #EC6F44, #C85E3A)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -222,7 +222,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
           </button>
 
-          <div style={{ height: 1, background: '#f1f5f9', margin: '8px 0' }} />
+          <div style={{ height: 1, background: '#E6ECF4', margin: '8px 0' }} />
 
           <button
             onClick={handleLogout}
@@ -315,7 +315,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button onClick={() => setView('profile')} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>
               ยกเลิก
             </button>
-            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
+            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
               {resetPwMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
@@ -346,7 +346,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ชื่อนี้จะแสดงบน Topbar และรายงาน</span>
-              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#FF8A00' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
+              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#EC6F44' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
             </div>
           </div>
 
@@ -357,7 +357,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={handleSaveName}
               disabled={!nameInput.trim() || saveNameMut.isPending}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#FF8A00' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#EC6F44' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
             >
               {saveNameMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
@@ -428,7 +428,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={openPanel}
               style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 8, transition: 'background 0.15s' }}
-              onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#f1f5f9')}
+              onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#E6ECF4')}
               onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
             >
               <div style={{

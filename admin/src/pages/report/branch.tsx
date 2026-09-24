@@ -107,7 +107,7 @@ export default function BranchReportPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -138,9 +138,9 @@ export default function BranchReportPage() {
       ) : (isMobile || view === 'card') ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {rows.map(r => (
-            <div key={r.branch.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
+            <div key={r.branch.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #FFA733, #FF8A00)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #F19A7C, #EC6F44)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Building2 size={15} color="#fff" />
                 </div>
                 <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.9rem' }}>{r.branch.name}</div>
@@ -179,10 +179,10 @@ export default function BranchReportPage() {
             </thead>
             <tbody>
               {rows.map((r, idx) => (
-                <tr key={r.branch.id} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                <tr key={r.branch.id} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 700, color: '#111827' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #FFA733, #FF8A00)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #F19A7C, #EC6F44)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Building2 size={13} color="#fff" />
                       </div>
                       {r.branch.name}

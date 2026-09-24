@@ -61,7 +61,7 @@ interface ApiActivityLog { id: string; actor_name: string; action: string; messa
 // สีจุดตาม action prefix จริงจาก ActivityLog.action (TENANT_*/ADMIN_*/LINE_CONFIG_*/
 // FEATURE_*/INVOICE_*/SUPER_ADMIN_LOGIN — ดู server/src/prisma/schema.prisma)
 function activityColor(action: string): string {
-  if (action.startsWith('SUPER_ADMIN_LOGIN')) return '#4DB2FE'
+  if (action.startsWith('SUPER_ADMIN_LOGIN')) return '#2DA6DD'
   if (action.startsWith('TENANT_CREATED') || action.startsWith('ADMIN_CREATED')) return 'var(--success-text)'
   if (action.startsWith('TENANT_UPDATED') || action.startsWith('LINE_CONFIG')) return 'var(--warning-text)'
   if (action.startsWith('FEATURE')) return '#2563eb'

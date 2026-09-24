@@ -3,16 +3,16 @@
 
 :root {
   /* Colors - Premium Slate & Vibrant Orange Accent */
-  --bg-page: #F1F5F9; /* slate-100 */
+  --bg-page: #E6ECF4; /* slate-100 */
   --bg-card: #FFFFFF;
-  /* Rebrand 2026-09-25: navy เข้มเกือบดำ #0A0F1F (feedback: ภาพอ้างอิงที่ user
-     ส่งมา sidebar เข้มเกือบดำ ไม่ใช่น้ำเงินสว่างแบบ #0B2D6B ที่ทำไปรอบแรก —
+  /* Rebrand 2026-09-25: navy เข้มเกือบดำ #131C45 (feedback: ภาพอ้างอิงที่ user
+     ส่งมา sidebar เข้มเกือบดำ ไม่ใช่น้ำเงินสว่างแบบ #131C45 ที่ทำไปรอบแรก —
      ยังเป็นฮิว navy เดียวกัน แค่ลด lightness ลงมากให้เข้มเกือบดำตามภาพ) */
-  --bg-sidebar: #0A0F1F;
+  --bg-sidebar: #131C45;
   
-  --accent-primary: #FF8A00; /* orange-600 */
-  --accent-hover: #E67A00;   /* orange-700 */
-  --accent-light: #FFE8CC;   /* orange-100 */
+  --accent-primary: #EC6F44; /* orange-600 */
+  --accent-hover: #C85E3A;   /* orange-700 */
+  --accent-light: #FCE9E3;   /* orange-100 */
 
   --text-main: #0F172A; /* slate-900 */
   --text-muted: #64748B; /* slate-500 */
@@ -25,12 +25,12 @@
   --warning-bg: #FEF3C7;
   --error: #EF4444;
   --error-bg: #FEF2F2;
-  --info: #4DB2FE;
-  --info-bg: #E3F4FF;
+  --info: #2DA6DD;
+  --info-bg: #DFF1FA;
 
   /* ── Action colors — สีตามชนิดการกระทำ (ใช้กับ <Button>) ── */
-  --action-primary:        #FF8A00;  /* บันทึก / ยืนยัน / ปุ่มหลักของหน้า */
-  --action-primary-hover:  #E67A00;
+  --action-primary:        #EC6F44;  /* บันทึก / ยืนยัน / ปุ่มหลักของหน้า */
+  --action-primary-hover:  #C85E3A;
   --action-approve:        #16A34A;  /* อนุมัติ / ยืนยันเชิงบวก */
   --action-approve-hover:  #15803D;
   --action-danger:         #DC2626;  /* ลบ / ปฏิเสธ / ทำลาย */
@@ -49,15 +49,15 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
   --shadow-float: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
-  --shadow-accent: 0 8px 16px -4px rgba(255,138,0, 0.3);
+  --shadow-accent: 0 8px 16px -4px rgba(236,111,68, 0.3);
 
   /* Glassmorphism — เดิมเป็นขาวล้วน (rgba(255,255,255,.85)) ทำให้ Topbar รู้สึก
      "ขาว" เกินไปทั้งที่ Sidebar ข้างๆ เป็นสีเข้ม + ส้ม — เปลี่ยนเป็นกระจกอุ่นโทน
-     ส้มอ่อน (จาก --accent-light ตระกูลเดียวกับ #FFF3E5/#FFE8CC ที่ใช้ทั้งแอปอยู่
+     ส้มอ่อน (จาก --accent-light ตระกูลเดียวกับ #FEF8F6/#FCE9E3 ที่ใช้ทั้งแอปอยู่
      แล้ว) ให้เข้าธีมส้มของแบรนด์มากขึ้นแต่ยังคงความ "Calm authority" ตาม
      PRODUCT.md (Restrained ไม่ใช่ Drenched) — feedback 2026-09-15 "ส้มมากกว่า ขาวน้อยลง" */
   --glass-bg: rgba(255, 248, 240, 0.88);
-  --glass-border: rgba(255,138,0, 0.1);
+  --glass-border: rgba(236,111,68, 0.1);
 
   /* Radius */
   --radius-md: 12px;
@@ -65,13 +65,13 @@
   --radius-xl: 24px;
 
   /* ── Super Admin (light blue — vendor-side only, rebrand 2026-09-24) ── */
-  --sa-accent:        #4DB2FE;
-  --sa-accent-hover:  #2B93DB;
-  --sa-accent-light:  #E3F4FF;
-  --sa-accent-border: #B8E2FF;
-  --sa-accent-muted:  #4DB2FE;
-  --sa-accent-soft:   #8FD4FF;
-  --sa-sidebar:       #0A0F1F;
+  --sa-accent:        #2DA6DD;
+  --sa-accent-hover:  #244B83;
+  --sa-accent-light:  #DFF1FA;
+  --sa-accent-border: #CAE9F6;
+  --sa-accent-muted:  #2DA6DD;
+  --sa-accent-soft:   #A0D7EF;
+  --sa-sidebar:       #131C45;
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
@@ -89,7 +89,7 @@
   --bg-subtle:      #f8fafc;
   --bg-muted:       #f3f4f6;
   --border-default: #e5e7eb;
-  --border-light:   #f1f5f9;
+  --border-light:   #E6ECF4;
 
   /* ── Status text + border variants ── */
   --success-text:    #16a34a;
@@ -100,8 +100,8 @@
   --error-bg-badge:  #fee2e2;
   --warning-text:    #d97706;
   --warning-border:  #fcd34d;
-  --info-text:       #2B93DB;
-  --info-border:     #B8E2FF;
+  --info-text:       #244B83;
+  --info-border:     #CAE9F6;
 }
 
 html, body, #root {

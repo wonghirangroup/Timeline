@@ -115,7 +115,7 @@ function timeDiffLabel(base: string, target: string): string {
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 16,
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '1px solid #E6ECF4',
 }
 
 const inputStyle: React.CSSProperties = {
@@ -231,7 +231,7 @@ function BranchTour({ onClose }: { onClose: () => void }) {
   return (
     <>
       <style>{`
-        @keyframes btGlow{0%,100%{border-color:#FF8A00;box-shadow:0 0 0 5px rgba(255,138,0,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
+        @keyframes btGlow{0%,100%{border-color:#EC6F44;box-shadow:0 0 0 5px rgba(236,111,68,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
         @keyframes btTipIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
       `}</style>
 
@@ -247,18 +247,18 @@ function BranchTour({ onClose }: { onClose: () => void }) {
       )}
 
       {rect && (
-        <div style={{ position:'fixed',pointerEvents:'none',top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:12,border:'3px solid #FF8A00',zIndex:9001,animation:'btGlow 1.4s ease-in-out infinite' }} />
+        <div style={{ position:'fixed',pointerEvents:'none',top:rect.top-PAD,left:rect.left-PAD,width:rect.width+PAD*2,height:rect.height+PAD*2,borderRadius:12,border:'3px solid #EC6F44',zIndex:9001,animation:'btGlow 1.4s ease-in-out infinite' }} />
       )}
 
       <div key={step} style={{ position:'fixed',top:tipTop,left:tipLeft,width:TW,background:'#fff',borderRadius:16,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',zIndex:9002,overflow:'hidden',animation:'btTipIn 0.22s cubic-bezier(0.16,1,0.3,1)' }}>
-        <div style={{ background:'linear-gradient(135deg,#FF8A00,#FF8A00)',padding:'14px 16px 12px',position:'relative' }}>
+        <div style={{ background:'linear-gradient(135deg,#EC6F44,#EC6F44)',padding:'14px 16px 12px',position:'relative' }}>
           <div style={{ fontWeight:800,color:'#fff',fontSize:'15px',lineHeight:1.3,paddingRight:44 }}>{cur.title}</div>
           <span style={{ position:'absolute',top:11,right:14,fontSize:'11px',color:'rgba(255,255,255,0.85)',fontWeight:700,background:'rgba(0,0,0,0.18)',borderRadius:99,padding:'2px 8px' }}>{step+1}/{total}</span>
         </div>
         <div style={{ padding:'12px 16px 8px',fontSize:'13px',color:'#374151',lineHeight:1.65 }}>{cur.body}</div>
         <div style={{ padding:'2px 16px 8px',display:'flex',gap:5 }}>
           {BRANCH_TOUR_STEPS.map((_,i) => (
-            <button key={i} onClick={()=>setStep(i)} style={{ width:i===step?20:7,height:7,borderRadius:99,border:'none',cursor:'pointer',padding:0,background:i===step?'#FF8A00':i<step?'#FFDFB8':'#e5e7eb',transition:'all 0.25s' }} />
+            <button key={i} onClick={()=>setStep(i)} style={{ width:i===step?20:7,height:7,borderRadius:99,border:'none',cursor:'pointer',padding:0,background:i===step?'#EC6F44':i<step?'#F8CCBE':'#e5e7eb',transition:'all 0.25s' }} />
           ))}
         </div>
         <div style={{ padding:'4px 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
@@ -268,7 +268,7 @@ function BranchTour({ onClose }: { onClose: () => void }) {
               <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px',borderRadius:8,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#374151',fontSize:'12px',cursor:'pointer',fontFamily:'inherit' }}>← ก่อนหน้า</button>
             )}
             {step < total-1 ? (
-              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px',borderRadius:8,border:'none',background:'#FF8A00',color:'#fff',fontWeight:700,fontSize:'13px',cursor:'pointer',fontFamily:'inherit' }}>ถัดไป →</button>
+              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px',borderRadius:8,border:'none',background:'#EC6F44',color:'#fff',fontWeight:700,fontSize:'13px',cursor:'pointer',fontFamily:'inherit' }}>ถัดไป →</button>
             ) : (
               <button onClick={onClose} style={{ padding:'7px 18px',borderRadius:8,border:'none',background:'#16a34a',color:'#fff',fontWeight:700,fontSize:'13px',cursor:'pointer',fontFamily:'inherit' }}>✓ เสร็จแล้ว!</button>
             )}
@@ -648,7 +648,7 @@ export default function BranchPage() {
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 4, overflowX: 'auto' }}>
         {([
-          { id: 'branch', label: 'สาขา',      icon: <Building2 size={15}/>, color: '#FF8A00', activeBg: '#FFF3E5', activeBorder: '#FF8A00' },
+          { id: 'branch', label: 'สาขา',      icon: <Building2 size={15}/>, color: '#EC6F44', activeBg: '#FEF8F6', activeBorder: '#EC6F44' },
           { id: 'shift',  label: 'จัดการกะ',  icon: <Clock size={15}/>,     color: '#6366f1', activeBg: '#eef2ff', activeBorder: '#6366f1' },
         ] as const).map(t => {
           const isActive = activeTab === t.id
@@ -694,7 +694,7 @@ export default function BranchPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setBranchView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: branchView === v ? 700 : 500, background: branchView === v ? '#fff' : 'transparent', color: branchView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: branchView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: branchView === v ? 700 : 500, background: branchView === v ? '#fff' : 'transparent', color: branchView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: branchView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -715,7 +715,7 @@ export default function BranchPage() {
         {[
           { label: 'ทั้งหมด',     value: branchesFiltered.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
           { label: 'เปิดใช้งาน', value: branchesFiltered.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#FF8A00', bg: '#FFF3E5', border: '#FFDFB8' },
+          { label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#EC6F44', bg: '#FEF8F6', border: '#F8CCBE' },
         ].map(k => (
           <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -746,7 +746,7 @@ export default function BranchPage() {
             <div key={b.id} data-tour={idx === 0 ? 'branch-card-0' : undefined} style={{ ...card, padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #FFA733, #FF8A00)', boxShadow: '0 4px 10px rgba(255,138,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #F19A7C, #EC6F44)', boxShadow: '0 4px 10px rgba(236,111,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Building2 size={18} color="#fff" />
                   </div>
                   <div>
@@ -756,7 +756,7 @@ export default function BranchPage() {
                     </p>
                   </div>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: b.is_active ? '#FFF3E5' : '#f9fafb', color: b.is_active ? '#E67A00' : 'var(--text-muted)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: b.is_active ? '#FEF8F6' : '#f9fafb', color: b.is_active ? '#C85E3A' : 'var(--text-muted)' }}>
                   {b.is_active ? 'เปิด' : 'ปิด'}
                 </span>
               </div>
@@ -796,7 +796,7 @@ export default function BranchPage() {
                       </div>
                       <button
                         onClick={() => { setShiftForm(SHIFT_EMPTY); setAddShiftBranch(b) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 6, border: '1px dashed #FF8A00', background: '#FFF3E5', color: '#FF8A00', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 6, border: '1px dashed #EC6F44', background: '#FEF8F6', color: '#EC6F44', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                       >
                         <Plus size={10} /> เพิ่มกะ
                       </button>
@@ -878,15 +878,15 @@ export default function BranchPage() {
                 {paginated.map((b, idx) => {
                   const branchShifts = allShifts.filter(s => s.branch_id === b.id)
                   return (
-                    <tr key={b.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                    <tr key={b.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                       <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #FFA733, #FF8A00)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #F19A7C, #EC6F44)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <Building2 size={14} color="#fff" />
                           </div>
                           <div>
                             <div style={{ fontWeight: 700, color: '#111827' }}>{b.name}</div>
-                            <span style={{ fontSize: '10.5px', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: b.is_active ? '#FFF3E5' : '#f9fafb', color: b.is_active ? '#E67A00' : 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '10.5px', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: b.is_active ? '#FEF8F6' : '#f9fafb', color: b.is_active ? '#C85E3A' : 'var(--text-muted)' }}>
                               {b.is_active ? 'เปิด' : 'ปิด'}
                             </span>
                           </div>
@@ -918,7 +918,7 @@ export default function BranchPage() {
                           ? <span style={{ color: '#d1d5db', fontStyle: 'italic', fontSize: '11.5px' }}>ยังไม่มีกะ</span>
                           : (
                             <button onClick={() => { setDetailShift(branchShifts[0]); setShowAddEmpToShift(false); setShiftEmpSearch(''); setSelectedAddIds(new Set()) }}
-                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#FF8A00', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
+                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#EC6F44', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
                               {branchShifts.length} กะ
                             </button>
                           )}
@@ -930,7 +930,7 @@ export default function BranchPage() {
                             <QrCode size={13} />
                           </button>
                           <button onClick={() => openEdit(b)} title="แก้ไข"
-                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#FF8A00', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#EC6F44', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                             <Pencil size={13} />
                           </button>
                           <button onClick={() => setDeleteTarget(b)} title="ลบ"
@@ -951,7 +951,7 @@ export default function BranchPage() {
 
       {/* Pagination Controls */}
       {!loading && totalPages > 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E6ECF4' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
@@ -960,7 +960,7 @@ export default function BranchPage() {
               {isMobile && (
                 <div style={{ display: 'flex', gap: 4 }}>
                   {Array.from({ length: totalPages }, (_, i) => (
-                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#FF8A00' : '#e5e7eb', transition: 'all 0.2s' }} />
+                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#EC6F44' : '#e5e7eb', transition: 'all 0.2s' }} />
                   ))}
                 </div>
               )}
@@ -987,13 +987,13 @@ export default function BranchPage() {
         const dot = (n: number): React.CSSProperties => ({
           width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '13px', fontWeight: 700, flexShrink: 0,
-          background: step > n ? '#FF8A00' : step === n ? '#FF8A00' : '#e5e7eb',
+          background: step > n ? '#EC6F44' : step === n ? '#EC6F44' : '#e5e7eb',
           color: step >= n ? '#fff' : 'var(--text-muted)',
-          boxShadow: step === n ? '0 0 0 4px rgba(255,138,0,0.15)' : 'none',
+          boxShadow: step === n ? '0 0 0 4px rgba(236,111,68,0.15)' : 'none',
           transition: 'all 0.2s',
         })
         const line = (n: number): React.CSSProperties => ({
-          flex: 1, height: 2, background: step > n ? '#FF8A00' : '#e5e7eb', transition: 'background 0.3s',
+          flex: 1, height: 2, background: step > n ? '#EC6F44' : '#e5e7eb', transition: 'background 0.3s',
         })
 
         return (
@@ -1001,7 +1001,7 @@ export default function BranchPage() {
             <div style={{ ...sheetBox(480), width: isMobile ? '100%' : 'clamp(480px, 60vw, 780px)', maxWidth: isMobile ? '100%' : '92vw', display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
 
               {/* Header */}
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>
                     {modal === 'add' ? 'เพิ่มสาขาใหม่' : `แก้ไข: ${editTarget?.name}`}
@@ -1026,7 +1026,7 @@ export default function BranchPage() {
                             ? <Check size={14} />
                             : s.n}
                         </div>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: step >= s.n ? '#FF8A00' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: step >= s.n ? '#EC6F44' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                           {s.label}
                         </span>
                       </div>
@@ -1239,7 +1239,7 @@ export default function BranchPage() {
                 {/* ── Step 3: Geofencing ── */}
                 {step === 3 && (
                   <>
-                    <div style={{ padding: '12px 16px', background: '#FFF3E5', borderRadius: 10, border: '1px solid #FFDFB8', fontSize: '13px', color: '#92400e', lineHeight: 1.6 }}>
+                    <div style={{ padding: '12px 16px', background: '#FEF8F6', borderRadius: 10, border: '1px solid #F8CCBE', fontSize: '13px', color: '#92400e', lineHeight: 1.6 }}>
                       <strong>Geofencing</strong> คือการกำหนดขอบเขตพื้นที่ที่พนักงานสามารถเช็คอินได้<br/>
                       ระบบจะตรวจสอบ GPS ของพนักงานเทียบกับพิกัดสาขาที่ตั้งไว้
                     </div>
@@ -1282,7 +1282,7 @@ export default function BranchPage() {
               </div>
 
               {/* Footer nav */}
-              <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <Button variant={step === 1 ? 'ghost' : 'secondary'} icon={step === 1 ? undefined : <ChevronLeft size={14} />}
                   onClick={step === 1 ? () => setModal(null) : () => setStep(s => s - 1)}>
                   {step === 1 ? 'ยกเลิก' : 'ก่อนหน้า'}
@@ -1290,7 +1290,7 @@ export default function BranchPage() {
 
                 <div style={{ display: 'flex', gap: 4 }}>
                   {Array.from({ length: maxStep }, (_, i) => i + 1).map(n => (
-                    <div key={n} style={{ width: n === step ? 18 : 6, height: 6, borderRadius: 99, background: n === step ? '#FF8A00' : n < step ? '#FFCC99' : '#e5e7eb', transition: 'all 0.25s' }} />
+                    <div key={n} style={{ width: n === step ? 18 : 6, height: 6, borderRadius: 99, background: n === step ? '#EC6F44' : n < step ? '#FFCC99' : '#e5e7eb', transition: 'all 0.25s' }} />
                   ))}
                 </div>
 
@@ -1318,7 +1318,7 @@ export default function BranchPage() {
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <p style={{ fontWeight: 700, fontSize: '14px', color: '#111827', margin: 0 }}>ปักหมุดตำแหน่งสาขา</p>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>คลิกบนแผนที่เพื่อเลือกตำแหน่ง</p>
@@ -1332,7 +1332,7 @@ export default function BranchPage() {
             <div ref={mapContainerRef} style={{ flex: 1, minHeight: isMobile ? 300 : 380 }} />
 
             {/* Footer */}
-            <div style={{ padding: '12px 18px', borderTop: '1px solid #f1f5f9', background: '#fafafa', flexShrink: 0 }}>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid #E6ECF4', background: '#fafafa', flexShrink: 0 }}>
               {pickedCoords ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, fontSize: '12px', color: '#15803d', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -1424,7 +1424,7 @@ export default function BranchPage() {
                 <Download size={14} /> ดาวน์โหลด PNG
               </button>
               <button onClick={handleQrPrint} disabled={!qrString}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: qrString ? '#FF8A00' : '#d1d5db', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: qrString ? '#EC6F44' : '#d1d5db', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: qrString ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <Printer size={14} /> พิมพ์
               </button>
             </div>
@@ -1450,7 +1450,7 @@ export default function BranchPage() {
           <div style={{ ...sheetBox(480), width: isMobile ? '100%' : 'clamp(480px, 60vw, 780px)', maxWidth: isMobile ? '100%' : '92vw', display: 'flex', flexDirection: 'column', overflowY: 'hidden' }} onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827' }}>+ เพิ่มกะใหม่</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1584,7 +1584,7 @@ export default function BranchPage() {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
               <Button variant="ghost" onClick={() => setAddShiftBranch(null)}>ยกเลิก</Button>
               <Button
                 variant="primary"
@@ -1693,7 +1693,7 @@ export default function BranchPage() {
               <div style={{ flex:1,overflowY:'auto',overscrollBehavior:'contain' }}>
 
                 {/* Shift details */}
-                <div style={{ padding:'16px 20px',borderBottom:'1px solid #f1f5f9' }}>
+                <div style={{ padding:'16px 20px',borderBottom:'1px solid #E6ECF4' }}>
                   <div style={{ fontSize:'0.7rem',fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12 }}>รายละเอียดกะ</div>
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px 20px' }}>
                     <BranchInfoItem label={<><Clock size={11} /> เวลาเริ่มงาน</>}   value={s.start_time}  color="#15803d" />
@@ -1737,7 +1737,7 @@ export default function BranchPage() {
                           พนักงานในกะนี้ ({inShiftEmps.length} คน)
                         </div>
                         <button onClick={() => { setShowAddEmpToShift(v => !v); setShiftEmpSearch('') }}
-                          style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 9px', borderRadius:6, border:'1px dashed #FF8A00', background:'#FFF3E5', color:'#FF8A00', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
+                          style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 9px', borderRadius:6, border:'1px dashed #EC6F44', background:'#FEF8F6', color:'#EC6F44', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
                           <Plus size={10} /> {showAddEmpToShift ? 'ปิด' : 'เพิ่มพนักงาน'}
                         </button>
                       </div>
@@ -1750,7 +1750,7 @@ export default function BranchPage() {
                             <div key={e.id} style={{
                               display:'flex',alignItems:'center',gap:12,
                               padding:'10px 12px',borderRadius:10,
-                              background:'#f9fafb',border:'1px solid #f1f5f9',
+                              background:'#f9fafb',border:'1px solid #E6ECF4',
                             }}>
                               <div style={{
                                 width:36,height:36,borderRadius:'50%',overflow:'hidden',
@@ -1817,7 +1817,7 @@ export default function BranchPage() {
                                     const checked = selectedAddIds.has(e.id)
                                     return (
                                       <div key={e.id} onClick={() => toggleOne(e.id)}
-                                        style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:10,background: checked ? '#f0fdf4' : '#fff',border:`1px solid ${checked ? '#86efac' : '#f1f5f9'}`, cursor:'pointer' }}>
+                                        style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:10,background: checked ? '#f0fdf4' : '#fff',border:`1px solid ${checked ? '#86efac' : '#E6ECF4'}`, cursor:'pointer' }}>
                                         <input type="checkbox" checked={checked} onChange={() => toggleOne(e.id)} onClick={ev => ev.stopPropagation()}
                                           style={{ width:15, height:15, cursor:'pointer', flexShrink:0 }} />
                                         <div style={{

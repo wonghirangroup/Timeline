@@ -26,7 +26,7 @@ async function submitDecision(it: NotifItem, decision: 'approve' | 'reject') {
 const SEV: Record<NotifSeverity, { dot: string; bg: string; fg: string }> = {
   action: { dot: 'var(--action-primary)', bg: 'var(--accent-light)',  fg: 'var(--action-primary-hover)' },
   warn:   { dot: 'var(--warning)',        bg: 'var(--warning-bg)',     fg: 'var(--warning-text)' },
-  info:   { dot: '#94a3b8',               bg: '#f1f5f9',               fg: '#475569' },
+  info:   { dot: '#94a3b8',               bg: '#E6ECF4',               fg: '#475569' },
 }
 
 const KIND_ICON: Record<string, JSX.Element> = {
@@ -224,7 +224,7 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
         onClick={() => setOpen(o => !o)}
         aria-label={`การแจ้งเตือน${badge > 0 ? ` (${badge} รายการ)` : ''}`}
         style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 7, borderRadius: 9, color: 'var(--text-main)', display: 'flex', transition: 'background 0.15s' }}
-        onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#f1f5f9')}
+        onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#E6ECF4')}
         onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
       >
         <Bell size={19} />

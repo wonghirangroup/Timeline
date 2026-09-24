@@ -3,7 +3,7 @@
 
 :root {
   /* Colors - Premium Slate & Vibrant Orange Accent */
-  --bg-page: #F1F5F9; /* slate-100 */
+  --bg-page: #E6ECF4; /* slate-100 */
   --bg-card: #FFFFFF;
   --bg-sidebar: #0F172A; /* slate-900 */
   
@@ -42,13 +42,13 @@
   --radius-xl: 24px;
 
   /* ── Super Admin (indigo — vendor-side only) ── */
-  --sa-accent:        #4DB2FE;
-  --sa-accent-hover:  #2B93DB;
-  --sa-accent-light:  #E3F4FF;
-  --sa-accent-border: #B8E2FF;
-  --sa-accent-muted:  #4DB2FE;
-  --sa-accent-soft:   #8FD4FF;
-  --sa-sidebar:       #0A0F1F;
+  --sa-accent:        #2DA6DD;
+  --sa-accent-hover:  #244B83;
+  --sa-accent-light:  #DFF1FA;
+  --sa-accent-border: #CAE9F6;
+  --sa-accent-muted:  #2DA6DD;
+  --sa-accent-soft:   #A0D7EF;
+  --sa-sidebar:       #131C45;
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
@@ -63,7 +63,7 @@
   --bg-subtle:      #f8fafc;
   --bg-muted:       #f3f4f6;
   --border-default: #e5e7eb;
-  --border-light:   #f1f5f9;
+  --border-light:   #E6ECF4;
 
   /* ── Status text + border variants ── */
   --success-text:    #16a34a;

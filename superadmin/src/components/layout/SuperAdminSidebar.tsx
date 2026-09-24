@@ -72,7 +72,7 @@ export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: Sid
             background: 'var(--sa-accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
-            boxShadow: '0 4px 12px rgba(77,178,254,0.4)',
+            boxShadow: '0 4px 12px rgba(45,166,221,0.4)',
           }}>SA</div>
           <div>
             <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>Super Admin</div>
@@ -106,7 +106,7 @@ export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: Sid
               })}
               onMouseEnter={e => {
                 const el = e.currentTarget
-                if (el.getAttribute('aria-current') !== 'page') el.style.background = 'rgba(77,178,254,0.2)'
+                if (el.getAttribute('aria-current') !== 'page') el.style.background = 'rgba(45,166,221,0.2)'
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget
@@ -124,7 +124,7 @@ export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: Sid
         <a
           href="/dashboard"
           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, textDecoration: 'none', fontSize: '0.855rem', color: 'var(--sa-accent-soft)' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,178,254,0.2)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(45,166,221,0.2)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
           <ExternalLink size={16} aria-hidden="true" style={{ flexShrink: 0 }} />

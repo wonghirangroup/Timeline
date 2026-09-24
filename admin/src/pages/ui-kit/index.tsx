@@ -9,10 +9,10 @@
 export const TOKENS = {
   color: {
     // Primary
-    primary:        '#FF8A00',   // orange-500  → ปุ่มหลัก, active state
-    primaryDark:    '#FF8A00',   // orange-600  → hover, gradient end
-    primaryLight:   '#FFF3E5',   // orange-50   → active bg, chip bg
-    primaryBorder:  '#FFDFB8',   // orange-200  → border, divider
+    primary:        '#EC6F44',   // orange-500  → ปุ่มหลัก, active state
+    primaryDark:    '#EC6F44',   // orange-600  → hover, gradient end
+    primaryLight:   '#FEF8F6',   // orange-50   → active bg, chip bg
+    primaryBorder:  '#F8CCBE',   // orange-200  → border, divider
 
     // Text
     textPrimary:    '#111827',   // gray-900    → ชื่อหัวข้อ, label
@@ -47,7 +47,7 @@ export const TOKENS = {
     sm:  '0 1px 4px rgba(0,0,0,0.06)',
     md:  '0 4px 16px rgba(0,0,0,0.08)',
     lg:  '0 8px 30px rgba(0,0,0,0.12)',
-    orange: '0 4px 16px rgba(255,138,0,0.35)',
+    orange: '0 4px 16px rgba(236,111,68,0.35)',
   },
   font: {
     xs:   '11px',
@@ -99,7 +99,7 @@ function BtnPrimary({ children, disabled }: { children: React.ReactNode; disable
   return (
     <button disabled={disabled} style={{
       padding: '9px 18px', borderRadius: T.radius.md, border: 'none',
-      background: disabled ? '#FFDFB8' : `linear-gradient(135deg,${T.color.primary},${T.color.primaryDark})`,
+      background: disabled ? '#F8CCBE' : `linear-gradient(135deg,${T.color.primary},${T.color.primaryDark})`,
       color: '#fff', fontWeight: 600, fontSize: T.font.sm, cursor: disabled ? 'not-allowed' : 'pointer',
       boxShadow: disabled ? 'none' : T.shadow.orange, transition: 'all 0.15s',
     }}>{children}</button>
@@ -221,7 +221,7 @@ export default function UiKitPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: T.radius.full, background: T.color.primaryLight, color: T.color.primary, fontSize: T.font.xs, fontWeight: 700, marginBottom: 8 }}><Palette size={11} /> DESIGN SYSTEM</div>
         <h1 style={{ margin: 0, fontSize: T.font.xl, fontWeight: 800, color: T.color.textPrimary }}>UI Kit — TimeLine HR</h1>
-        <p style={{ margin: '6px 0 0', fontSize: T.font.sm, color: T.color.textMuted }}>แก้ TOKENS ใน <code style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontSize: T.font.xs }}>/pages/ui-kit/index.tsx</code> บรรทัดบนสุด เพื่อเปลี่ยนสีทั้งระบบ</p>
+        <p style={{ margin: '6px 0 0', fontSize: T.font.sm, color: T.color.textMuted }}>แก้ TOKENS ใน <code style={{ background: '#E6ECF4', padding: '1px 6px', borderRadius: 4, fontSize: T.font.xs }}>/pages/ui-kit/index.tsx</code> บรรทัดบนสุด เพื่อเปลี่ยนสีทั้งระบบ</p>
       </div>
 
       {/* ── 1. Colors ── */}

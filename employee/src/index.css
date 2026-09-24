@@ -6,18 +6,18 @@
    แอป employee เก็บแค่ touch target ใหญ่ + bottom-nav ergonomics ไว้ */
 :root {
   /* Background */
-  --bg-page:        #F1F5F9;   /* slate-100 — เดียวกับ admin */
+  --bg-page:        #E6ECF4;   /* slate-100 — เดียวกับ admin */
   --bg-deep:        #ffffff;
   --bg-subtle:      #F8FAFC;
 
   /* Accent — Orange (เดียวกับ admin: orange-600/700) */
-  --accent-primary: #FF8A00;
-  --accent-hover:   #E67A00;
-  --accent-light:   #FFE8CC;
+  --accent-primary: #EC6F44;
+  --accent-hover:   #C85E3A;
+  --accent-light:   #FCE9E3;
   /* alias เดิม (โค้ดบางที่ยังอ้าง --accent-start/mid/end อยู่) → map มาที่สีเดียว */
-  --accent-start:   #FF8A00;
-  --accent-mid:     #FF8A00;
-  --accent-end:     #FF8A00;
+  --accent-start:   #EC6F44;
+  --accent-mid:     #EC6F44;
+  --accent-end:     #EC6F44;
 
   /* Card */
   --card-bg:        #ffffff;
@@ -41,8 +41,8 @@
   --error:          #DC2626;
   --error-bg:       #FEE2E2;
   --error-border:   #FCA5A5;
-  --info:           #4DB2FE;
-  --info-bg:        #E3F4FF;
+  --info:           #2DA6DD;
+  --info-bg:        #DFF1FA;
 
   /* Nav */
   --nav-height:     76px;
@@ -246,7 +246,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   align-items: center;
   gap: 14px;
   padding: 13px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #E6ECF4;
 }
 .fw-row:last-child { border-bottom: none; }
 
@@ -263,7 +263,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 .icon-bubble-blue   { background: #DBEAFE; color: #2563EB; }
 .icon-bubble-teal   { background: #D1FAE5; color: #0D9488; }
-.icon-bubble-orange { background: #FFE8CC; color: #E67A00; }
+.icon-bubble-orange { background: #FCE9E3; color: #C85E3A; }
 .icon-bubble-purple { background: #EDE9FE; color: #7C3AED; }
 
 /* Stat row inside header */
@@ -301,7 +301,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .fw-tabs {
   display: flex;
   gap: 4px;
-  background: #f1f5f9;
+  background: #E6ECF4;
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 20px;

@@ -170,7 +170,7 @@ export default function DocumentRequestsPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -192,7 +192,7 @@ export default function DocumentRequestsPage() {
             <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < filteredRows.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#FF8A00', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                  <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>
                     {r.employee.first_name} {r.employee.last_name}{r.employee.nickname ? ` (${r.employee.nickname})` : ''}
                   </button>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2 }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
@@ -244,10 +244,10 @@ export default function DocumentRequestsPage() {
               {filteredRows.map((r, i) => {
                 const sc = STATUS_CFG[r.status]
                 return (
-                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < filteredRows.length - 1 ? '1px solid #f1f5f9' : 'none', ...rowHighlight(r.id) }}>
+                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < filteredRows.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                        <div style={{ fontWeight: 700, color: '#FF8A00', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
+                        <div style={{ fontWeight: 700, color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
                       </button>
                     </td>
@@ -356,7 +356,7 @@ export default function DocumentRequestsPage() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setReqModal(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSaveReq} disabled={addReqMut.isPending || editReqMut.isPending}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: (addReqMut.isPending || editReqMut.isPending) ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: (addReqMut.isPending || editReqMut.isPending) ? 0.7 : 1 }}>
                 {(addReqMut.isPending || editReqMut.isPending) ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>
@@ -498,11 +498,11 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: 760, maxWidth: '100%', maxHeight: '86vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <p style={{ fontWeight: 700, fontSize: '15px', margin: 0 }}>สรุปเอกสารเงินเดือน/สลิปที่ออกแล้ว</p>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18}/></button>
         </div>
-        <div style={{ padding: '14px 20px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ padding: '14px 20px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #E6ECF4' }}>
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as any)}
             style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer' }}>
             <option value="PAYSLIP">สลิปเงินเดือน</option>
@@ -532,7 +532,7 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
                 {filtered.map((d, i) => {
                   const net = netAmount(d)
                   return (
-                    <tr key={d.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                    <tr key={d.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                       <td style={{ padding: '9px 14px' }}>
                         <div style={{ fontWeight: 600, color: '#111827' }}>{d.employee.first_name} {d.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{d.employee.employee_code} · {d.employee.branch.name}</div>
@@ -549,7 +549,7 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
         {filtered.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
             <span style={{ color: 'var(--text-muted)' }}>{filtered.length} ฉบับ</span>
             <span style={{ fontWeight: 700 }}>รวม ฿{totalNet.toLocaleString()}</span>
           </div>

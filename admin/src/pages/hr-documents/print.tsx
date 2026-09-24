@@ -35,7 +35,7 @@ export default function HrDocumentPrintPage() {
       `}</style>
       <div className="no-print" style={{ position: 'sticky', top: 0, zIndex: 10, background: '#111827', color: '#fff', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '13px', fontWeight: 600 }}>ตัวอย่างเอกสาร — ใช้ปุ่มพิมพ์เพื่อพิมพ์หรือบันทึกเป็น PDF</span>
-        <button onClick={() => window.print()} disabled={!row} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: row ? 'pointer' : 'not-allowed', opacity: row ? 1 : 0.6 }}>
+        <button onClick={() => window.print()} disabled={!row} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: row ? 'pointer' : 'not-allowed', opacity: row ? 1 : 0.6 }}>
           <Printer size={15} /> พิมพ์ / บันทึกเป็น PDF
         </button>
       </div>

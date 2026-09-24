@@ -64,7 +64,7 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
       <div style={{ fontWeight: 700, color: '#dc2626', lineHeight: 1.5 }}>{message}</div>
       <button onClick={onRetry} style={{
         padding: '12px 28px', borderRadius: 14, border: 'none',
-        background: '#FF8A00', color: '#fff',
+        background: '#EC6F44', color: '#fff',
         fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem',
       }}>ลองใหม่</button>
 
@@ -85,8 +85,8 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
             }}
           />
           <button onClick={handleReport} disabled={reportState === 'sending'} style={{
-            padding: '11px 20px', borderRadius: 14, border: '1.5px solid #FF8A00',
-            background: '#fff', color: '#FF8A00',
+            padding: '11px 20px', borderRadius: 14, border: '1.5px solid #EC6F44',
+            background: '#fff', color: '#EC6F44',
             fontWeight: 700, cursor: reportState === 'sending' ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: '0.85rem',
           }}>
             {reportState === 'sending' ? 'กำลังส่ง...' : 'แจ้งปัญหานี้ให้แอดมิน'}
@@ -146,7 +146,7 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
 
       <input value={search} onChange={e => setSearch(e.target.value)}
         placeholder="🔍 ค้นหาชื่อ, รหัส, สาขา…"
-        style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #FFDFB8', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: 14, outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
+        style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #F8CCBE', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: 14, outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '32px 0', color: '#6B7280', fontSize: '0.85rem' }}>กำลังโหลดรายชื่อพนักงาน…</div>
@@ -157,13 +157,13 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
           {filtered.map(e => (
             <button key={e.id} onClick={() => onPick(e)} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px',
-              borderRadius: 14, border: '1.5px solid #FFDFB8', background: '#fff', cursor: 'pointer',
+              borderRadius: 14, border: '1.5px solid #F8CCBE', background: '#fff', cursor: 'pointer',
               textAlign: 'left', width: '100%', fontFamily: 'inherit',
               transition: 'all 0.12s',
             }}>
               <div style={{
                 width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                background: '#FF8A00',
+                background: '#EC6F44',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '1.1rem', fontWeight: 700, color: '#fff',
               }}>
@@ -178,7 +178,7 @@ function DevPicker({ onPick }: { onPick: (emp: DevEmployee) => void }) {
                   {e.employee_code} · {e.branch.name}
                 </div>
               </div>
-              <span style={{ color: '#FF8A00', fontSize: '1.2rem' }}>›</span>
+              <span style={{ color: '#EC6F44', fontSize: '1.2rem' }}>›</span>
             </button>
           ))}
         </div>

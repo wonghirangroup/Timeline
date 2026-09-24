@@ -83,7 +83,7 @@ export default function PermissionMatrixEditor({ userId, userLabel, onClose }: {
       <div style={{ padding: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#E67A00', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FEF8F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C85E3A', flexShrink: 0 }}>
               <ShieldCheck size={18} />
             </div>
             <div>
@@ -103,13 +103,13 @@ export default function PermissionMatrixEditor({ userId, userLabel, onClose }: {
                 style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: '12.5px', borderRadius: 8, border: '1px solid #e5e7eb', boxSizing: 'border-box' }}
               />
             </div>
-            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#E67A00', background: '#FFF3E5', padding: '5px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#C85E3A', background: '#FEF8F6', padding: '5px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
               ให้สิทธิ์แล้ว {totalGranted}/{totalPossible} สิทธิ์ย่อย
             </span>
           </div>
         )}
 
-        <div style={{ maxHeight: '56vh', overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: 10 }}>
+        <div style={{ maxHeight: '56vh', overflowY: 'auto', border: '1px solid #E6ECF4', borderRadius: 10 }}>
           {loading ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>กำลังโหลด...</p>
           ) : sections.length === 0 ? (

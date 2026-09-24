@@ -65,7 +65,7 @@ function fmtDateFull(s: string) {
 // นี้ (localStorage) ไม่ต้องเลือกใหม่ทุกครั้งที่ export — ถ้ายังไม่เคยตั้งเอง
 // จะสุ่มจาก palette ให้อัตโนมัติตามลำดับคนในตาราง
 const ROSTER_COLOR_PALETTE = [
-  '#FF8A00', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
+  '#EC6F44', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
   '#F59E0B', '#06B6D4', '#EF4444', '#84CC16', '#6366F1',
   '#14B8A6', '#D946EF',
 ]
@@ -160,8 +160,8 @@ function AvatarChip({ name, photoUrl, isPending }: { name: string; photoUrl?: st
       fontWeight: 700, color: '#fff', flexShrink: 0,
       background: photoUrl ? '#e2e8f0' : isPending
         ? 'linear-gradient(135deg,#fbbf24,#f59e0b)'
-        : 'linear-gradient(135deg,#FFA733,#FF8A00)',
-      border: isPending ? '2px dashed #f59e0b' : '2px solid #FF8A00',
+        : 'linear-gradient(135deg,#F19A7C,#EC6F44)',
+      border: isPending ? '2px dashed #f59e0b' : '2px solid #EC6F44',
     }}>
       {photoUrl
         ? <img src={avatarUrl(photoUrl, 48) ?? photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -214,12 +214,12 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       style={{
-        background: dragOver ? '#FFF3E5' : holiday ? '#fef2f2' : isSelected ? '#FFF3E5' : '#fff',
-        border: dragOver ? '2px dashed #FF8A00' : isSelected ? '2px solid #FF8A00' : '1px solid #f1f5f9',
+        background: dragOver ? '#FEF8F6' : holiday ? '#fef2f2' : isSelected ? '#FEF8F6' : '#fff',
+        border: dragOver ? '2px dashed #EC6F44' : isSelected ? '2px solid #EC6F44' : '1px solid #E6ECF4',
         borderRadius: compact ? 6 : 10, padding: compact ? '5px 3px 4px' : '8px 6px 6px',
         minHeight: compact ? 58 : 88, cursor: 'pointer', textAlign: 'left',
         position: 'relative', transition: 'all 0.12s',
-        boxShadow: isSelected ? '0 0 0 3px rgba(255,138,0,0.15)' : hasEvent ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+        boxShadow: isSelected ? '0 0 0 3px rgba(236,111,68,0.15)' : hasEvent ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
       }}
       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#fafafa' }}
       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = holiday ? '#fef2f2' : '#fff' }}
@@ -229,7 +229,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
         <span style={{
           fontSize: compact ? '0.75rem' : '0.85rem', fontWeight: isToday ? 700 : 500,
           color: isToday ? '#fff' : holiday ? '#dc2626' : '#374151',
-          background: isToday ? 'linear-gradient(135deg,#FFA733,#FF8A00)' : 'transparent',
+          background: isToday ? 'linear-gradient(135deg,#F19A7C,#EC6F44)' : 'transparent',
           borderRadius: '50%', width: compact ? 20 : 24, height: compact ? 20 : 24,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
@@ -239,7 +239,7 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
         {(totalOff + totalLeave) > 0 && (
           <span style={{
             fontSize: '0.55rem', fontWeight: 700, padding: '1px 4px',
-            borderRadius: 999, background: '#FF8A00', color: '#fff', lineHeight: 1.6,
+            borderRadius: 999, background: '#EC6F44', color: '#fff', lineHeight: 1.6,
           }}>
             {totalOff + totalLeave}
           </span>
@@ -264,8 +264,8 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
                 style={{
                 fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
                 padding: '0px 5px', borderRadius: 5, cursor: 'grab',
-                background: '#FFF3E5', color: '#E67A00',
-                border: d.status === 'PENDING' ? '1px dashed #FF8A00' : '1px solid #FF8A0055',
+                background: '#FEF8F6', color: '#C85E3A',
+                border: d.status === 'PENDING' ? '1px dashed #EC6F44' : '1px solid #EC6F4455',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {short}
@@ -364,14 +364,14 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
   return (
     <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={() => setKind('dayoff')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'dayoff' ? '#FF8A00' : '#e5e7eb'}`, background: kind === 'dayoff' ? '#FFF3E5' : '#fff', color: kind === 'dayoff' ? '#FF8A00' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>หยุดประจำ</button>
+        <button onClick={() => setKind('dayoff')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'dayoff' ? '#EC6F44' : '#e5e7eb'}`, background: kind === 'dayoff' ? '#FEF8F6' : '#fff', color: kind === 'dayoff' ? '#EC6F44' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>หยุดประจำ</button>
         <button onClick={() => setKind('leave')} style={{ flex: 1, padding: '5px', borderRadius: 7, border: `1.5px solid ${kind === 'leave' ? '#3b82f6' : '#e5e7eb'}`, background: kind === 'leave' ? '#eff6ff' : '#fff', color: kind === 'leave' ? '#3b82f6' : '#64748b', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>วันลา</button>
       </div>
       {kind === 'leave' && (
         <>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {QUICK_LEAVE_TYPES.map(t => {
-              const cfg = t.value === 'OTHER' ? { color: '#64748b', light: '#f1f5f9' } : LEAVE_CFG[t.value]
+              const cfg = t.value === 'OTHER' ? { color: '#64748b', light: '#E6ECF4' } : LEAVE_CFG[t.value]
               return (
                 <button key={t.value} onClick={() => setLeaveType(t.value)}
                   style={{ padding: '3px 9px', borderRadius: 99, border: `1px solid ${leaveType === t.value ? cfg.color : '#e5e7eb'}`, background: leaveType === t.value ? cfg.light : '#fff', color: leaveType === t.value ? cfg.color : '#64748b', fontWeight: 700, fontSize: '0.66rem', cursor: 'pointer' }}>
@@ -434,7 +434,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         <button onClick={() => setMovingId(m => m === id ? null : id)} title="ย้ายวันที่"
-          style={{ width: 24, height: 24, border: 'none', background: movingId === id ? '#FFF3E5' : 'none', cursor: 'pointer', color: movingId === id ? '#FF8A00' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
+          style={{ width: 24, height: 24, border: 'none', background: movingId === id ? '#FEF8F6' : 'none', cursor: 'pointer', color: movingId === id ? '#EC6F44' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
           onMouseEnter={e => { if (movingId !== id) e.currentTarget.style.background = '#f3f4f6' }} onMouseLeave={e => { if (movingId !== id) e.currentTarget.style.background = 'none' }}>
           <Pencil size={12} />
         </button>
@@ -477,7 +477,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
         </div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <button onClick={() => setShowAdd(a => !a)} title="เพิ่มวันหยุด/วันลา"
-            style={{ background: showAdd ? '#FFF3E5' : '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: showAdd ? '#FF8A00' : 'var(--text-muted)', display: 'flex' }}>
+            style={{ background: showAdd ? '#FEF8F6' : '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: showAdd ? '#EC6F44' : 'var(--text-muted)', display: 'flex' }}>
             <Plus size={14} />
           </button>
           <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
@@ -510,8 +510,8 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
       {approved.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <CalendarDays size={13} color="#FF8A00" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FF8A00' }}>
+            <CalendarDays size={13} color="#EC6F44" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EC6F44' }}>
               วันหยุดประจำ — อนุมัติแล้ว ({approved.length})
             </span>
           </div>
@@ -851,7 +851,7 @@ export default function TeamCalendarTab() {
     }
 
     const legendItems = [
-      ['#FF8A00', 'หยุดประจำ'],
+      ['#EC6F44', 'หยุดประจำ'],
       ...Object.values(LEAVE_CFG).map(c => [c.color, c.label] as [string, string]),
     ]
 
@@ -874,7 +874,7 @@ export default function TeamCalendarTab() {
         .daynum{font-size:11px;font-weight:700;margin-bottom:2px}
         .holiday{font-size:8px;color:#dc2626;font-weight:700;margin-bottom:2px}
         .chip{font-size:8px;font-weight:700;line-height:1.5;padding:0 4px;border-radius:4px;border:1px solid;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .chip.off{background:#FFF3E5;color:#E67A00;border-color:#FF8A00}
+        .chip.off{background:#FEF8F6;color:#C85E3A;border-color:#EC6F44}
         .chip.off.pending{border-style:dashed}
         .legend{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap}
         .legend span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#374151}
@@ -1067,7 +1067,7 @@ export default function TeamCalendarTab() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 8 : 12, marginBottom: 16 }}>
         {[
           { label: 'หยุดประจำ',    value: `${allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#ef4444', bg: '#fef2f2' },
-          { label: 'วันหยุดพิเศษ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'คำขอ',  color: '#FF8A00', bg: '#FFF3E5' },
+          { label: 'วันหยุดพิเศษ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'คำขอ',  color: '#EC6F44', bg: '#FEF8F6' },
           { label: 'วันลาเดือนนี้', value: `${allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#3b82f6', bg: '#eff6ff' },
           { label: 'รออนุมัติ',    value: `${pendingCount}`,                                                                 unit: 'รายการ', color: '#d97706', bg: '#fffbeb' },
         ].map(s => (
@@ -1088,13 +1088,13 @@ export default function TeamCalendarTab() {
 
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
+          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ background: '#E6ECF4', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
             <ChevronLeft size={16} color="#374151" />
           </button>
           <span style={{ fontSize: isMobile ? '0.82rem' : '0.95rem', fontWeight: 700, color: '#111827', minWidth: isMobile ? 110 : 160, textAlign: 'center' }}>
             {fmtMonthTH(month)}
           </span>
-          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
+          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: '#E6ECF4', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
             <ChevronRight size={16} color="#374151" />
           </button>
         </div>
@@ -1111,7 +1111,7 @@ export default function TeamCalendarTab() {
           </button>
           <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
           <button onClick={() => setShowRosterSettings(true)} title="ตั้งค่า + Export ตารางแยกกลุ่ม — เลือกคอลัมน์ / สีต่อคนเอง"
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #FFDFB8', background: '#FFF3E5', color: '#E67A00', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #F8CCBE', background: '#FEF8F6', color: '#C85E3A', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Table2 size={14} /> ตารางแยกกลุ่ม
           </button>
         </div>
@@ -1262,7 +1262,7 @@ export default function TeamCalendarTab() {
             style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: '#fff', borderRadius: 14, width: 480, maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>ตั้งค่า Export ตารางแยกกลุ่ม</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtMonthTH(month)}</div>
@@ -1343,11 +1343,11 @@ export default function TeamCalendarTab() {
                 </div>
               </div>
 
-              <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 8, flexShrink: 0 }}>
-                <button onClick={exportRosterExcel} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #FFDFB8', background: '#FFF3E5', color: '#E67A00', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={exportRosterExcel} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #F8CCBE', background: '#FEF8F6', color: '#C85E3A', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <FileSpreadsheet size={14} /> Export Excel
                 </button>
-                <button onClick={exportRosterPdf} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #FFDFB8', background: '#FFF3E5', color: '#E67A00', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <button onClick={exportRosterPdf} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #F8CCBE', background: '#FEF8F6', color: '#C85E3A', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <Printer size={14} /> Export PDF
                 </button>
               </div>
@@ -1359,7 +1359,7 @@ export default function TeamCalendarTab() {
       {/* Legend */}
       <div style={{ display: 'flex', gap: isMobile ? 8 : 16, marginTop: 16, flexWrap: 'wrap', padding: '10px 12px', background: '#f8fafc', borderRadius: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg,#FFA733,#FF8A00)', flexShrink: 0 }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg,#F19A7C,#EC6F44)', flexShrink: 0 }} />
           หยุดประจำ (อนุมัติ)
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.68rem', color: 'var(--text-muted)' }}>

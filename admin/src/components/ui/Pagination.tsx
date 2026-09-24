@@ -30,7 +30,7 @@ export default function Pagination({ page, totalPages, onChange, totalItems, ite
   const btnBase = { padding: '5px 10px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer' as const, display: 'flex', alignItems: 'center', fontSize: '0.8rem', fontFamily: 'inherit' }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E6ECF4', marginTop: 10 }}>
       {!compact && (
         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           หน้า {page}/{totalPages} · {totalItems} {itemLabel}
@@ -45,7 +45,7 @@ export default function Pagination({ page, totalPages, onChange, totalItems, ite
           ? <span key={`e${i}`} style={{ padding: '0 4px', color: '#d1d5db', fontSize: '0.78rem' }}>…</span>
           : (
             <button key={p} onClick={() => onChange(p)}
-              style={{ ...btnBase, minWidth: 28, justifyContent: 'center', background: page === p ? '#FF8A00' : '#fff', color: page === p ? '#fff' : '#374151', borderColor: page === p ? '#FF8A00' : '#e5e7eb', fontWeight: page === p ? 700 : 500 }}>
+              style={{ ...btnBase, minWidth: 28, justifyContent: 'center', background: page === p ? '#EC6F44' : '#fff', color: page === p ? '#fff' : '#374151', borderColor: page === p ? '#EC6F44' : '#e5e7eb', fontWeight: page === p ? 700 : 500 }}>
               {p}
             </button>
           ))}

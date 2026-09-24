@@ -51,7 +51,7 @@ const TYPE_CFG: Record<LeaveType, { label: string; color: string; bg: string }> 
   VACATION:  { label: 'พักร้อน',   color: '#d97706', bg: '#fef3c7' },
   MATERNITY: { label: 'ลาคลอด',   color: '#7c3aed', bg: '#ede9fe' },
   COMPENSATE: { label: 'ชดเชย',   color: '#0891b2', bg: '#ecfeff' },
-  OTHER:     { label: 'อื่นๆ',    color: '#64748b', bg: '#f1f5f9' },
+  OTHER:     { label: 'อื่นๆ',    color: '#64748b', bg: '#E6ECF4' },
 }
 const STATUS_CFG: Record<LeaveStatus, { label: string; color: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', color: '#d97706', bg: '#fef3c7' },
@@ -121,9 +121,9 @@ function MonthYearPicker({ value, onChange, requests }: {
       <button onClick={() => setOpen(o => !o)} style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 14px', borderRadius: 10,
-        border: `2px solid ${value ? '#FF8A00' : '#e5e7eb'}`,
-        background: value ? '#FFF3E5' : '#fff',
-        color: value ? '#FF8A00' : 'var(--text-muted)',
+        border: `2px solid ${value ? '#EC6F44' : '#e5e7eb'}`,
+        background: value ? '#FEF8F6' : '#fff',
+        color: value ? '#EC6F44' : 'var(--text-muted)',
         fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
       }}>
         <CalendarDays size={15} /> {label}
@@ -151,16 +151,16 @@ function MonthYearPicker({ value, onChange, requests }: {
               return (
                 <button key={ym} onClick={() => { onChange(ym); setOpen(false) }} style={{
                   position: 'relative', padding: '8px 4px', borderRadius: 10, cursor: 'pointer',
-                  border: `2px solid ${isSelected ? '#FF8A00' : '#f3f4f6'}`,
-                  background: isSelected ? '#FFF3E5' : '#fafafa',
-                  color: isSelected ? '#FF8A00' : '#374151',
+                  border: `2px solid ${isSelected ? '#EC6F44' : '#f3f4f6'}`,
+                  background: isSelected ? '#FEF8F6' : '#fafafa',
+                  color: isSelected ? '#EC6F44' : '#374151',
                   fontWeight: isSelected ? 700 : 500, fontSize: '0.78rem',
                 }}>
                   {MONTHS_SHORT[i]}
                   {pending > 0 && (
                     <span style={{
                       position: 'absolute', top: 2, right: 4,
-                      background: '#FF8A00', color: '#fff', borderRadius: 99,
+                      background: '#EC6F44', color: '#fff', borderRadius: 99,
                       fontSize: '0.58rem', fontWeight: 700, padding: '0 4px', lineHeight: '14px',
                     }}>{pending}</span>
                   )}
@@ -445,7 +445,7 @@ export default function LeaveRequestsTab() {
       {/* Header / Action */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
         <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
-          style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
+          style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
           {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}
         </button>
       </div>
@@ -478,7 +478,7 @@ export default function LeaveRequestsTab() {
           {monthFilter && (() => {
             const cnt = requests.filter(r => r.start_date.slice(0, 7) === monthFilter && r.status === 'PENDING').length
             return cnt > 0 ? (
-              <span style={{ background: '#FFF3E5', color: '#FF8A00', border: '1px solid #FFDFB8', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px' }}>
+              <span style={{ background: '#FEF8F6', color: '#EC6F44', border: '1px solid #F8CCBE', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px' }}>
                 รอพิจารณา {cnt} รายการ
               </span>
             ) : null
@@ -585,7 +585,7 @@ export default function LeaveRequestsTab() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button onClick={() => setTab('requests')} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>ยกเลิก</button>
               <button onClick={handleAddLeave} disabled={addSaving}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: addSaving ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: addSaving ? 0.7 : 1 }}>
                 {addSaving ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>
@@ -615,7 +615,7 @@ export default function LeaveRequestsTab() {
                 {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                   <button key={v} onClick={() => setListView(v)}
                     title={label}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                     <Icon size={13} /> {label}
                   </button>
                 ))}
@@ -699,7 +699,7 @@ export default function LeaveRequestsTab() {
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                   <thead>
-                    <tr style={{ background: '#FFF3E5' }}>
+                    <tr style={{ background: '#FEF8F6' }}>
                       {!isReadOnly && (
                         <th style={{ padding: '11px 8px 11px 14px', width: 34 }}>
                           <input type="checkbox" checked={allVisibleSelected} disabled={pendingVisibleIds.length === 0}
@@ -709,7 +709,7 @@ export default function LeaveRequestsTab() {
                         </th>
                       )}
                       {['พนักงาน', 'สาขา', 'ประเภท', 'ช่วงวันลา', 'จำนวน', 'เหตุผล', 'สถานะ', 'จัดการ'].map(h => (
-                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#E67A00', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#C85E3A', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -931,7 +931,7 @@ export default function LeaveRequestsTab() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setEditTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleEdit} disabled={saving}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>

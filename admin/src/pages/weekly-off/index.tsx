@@ -154,7 +154,7 @@ const WEEKLY_OFF_MODE_LABEL: Record<'WEEKLY' | 'MONTHLY_BATCH', string> = {
 // ได้สีเดียวกันไม่ว่า export จากหน้าไหน (feedback 2026-09-14: export ให้เหมือน
 // ปฏิทินรวม แยกกลุ่ม + แบ่งสี)
 const ROSTER_COLOR_PALETTE = [
-  '#FF8A00', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
+  '#EC6F44', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899',
   '#F59E0B', '#06B6D4', '#EF4444', '#84CC16', '#6366F1',
   '#14B8A6', '#D946EF',
 ]
@@ -201,7 +201,7 @@ function DatePicker({ month, value, onChange, disabledDates = [] }: {
           return (
             <button key={i} onClick={() => !isDisabled && onChange(dateStr)} style={{
               padding: '5px 2px', borderRadius: 6, border: 'none', cursor: isDisabled ? 'not-allowed' : 'pointer',
-              background: isSelected ? '#FF8A00' : 'transparent',
+              background: isSelected ? '#EC6F44' : 'transparent',
               color: isSelected ? '#fff' : isDisabled ? '#d1d5db' : '#374151',
               fontSize: '0.78rem', fontWeight: isSelected ? 700 : 400,
             }}>{day}</button>
@@ -328,7 +328,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setPeriodView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: periodView === v ? 700 : 500, background: periodView === v ? '#fff' : 'transparent', color: periodView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: periodView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: periodView === v ? 700 : 500, background: periodView === v ? '#fff' : 'transparent', color: periodView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: periodView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -408,7 +408,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                       openMutation.mutate({ branch_id: p.branch_id, month, deadline: editDeadline || null, note: editNote || null })
                       setEditId(null)
                     }
-                  }} style={{ flex: 1, padding: '6px', borderRadius: 7, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                  }} style={{ flex: 1, padding: '6px', borderRadius: 7, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                     บันทึก
                   </button>
                   <button onClick={() => setEditId(null)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.8rem', cursor: 'pointer' }}>
@@ -475,7 +475,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                   .filter(r => r.employee.branch.id === p.branch_id && resolveDate(r.week_start, r.day_of_week).slice(0, 7) === p.month)
                 const pendingBookings = bookings.filter(b => b.status === 'PENDING').length
                 return (
-                  <tr key={p.branch_id} style={{ borderBottom: idx < periods.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <tr key={p.branch_id} style={{ borderBottom: idx < periods.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top', fontWeight: 700, color: '#111827' }}>{p.branch.name}</td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -496,7 +496,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       {bookings.length === 0 ? <span style={{ color: '#cbd5e1' }}>—</span> : (
                         <button onClick={() => setViewBookingsBranch(p.branch_id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#FF8A00', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#EC6F44', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit' }}>
                           {bookings.length} รายการ
                           {pendingBookings > 0 && <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', borderRadius: 99, padding: '1px 7px' }}>{pendingBookings} รอ</span>}
                         </button>
@@ -551,7 +551,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                     openMutation.mutate({ branch_id: p.branch_id, month, deadline: editDeadline || null, note: editNote || null })
                     setEditId(null)
                   }
-                }} style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                }} style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                   บันทึก
                 </button>
                 <button onClick={() => setEditId(null)} style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -581,7 +581,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
             style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: '#fff', borderRadius: 14, width: 420, maxWidth: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
-              <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ padding: '16px 18px', borderBottom: '1px solid #E6ECF4', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{p?.branch.name}</div>
@@ -598,7 +598,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
                       <Check size={13} /> อนุมัติทั้งหมด ({pendingIds.length})
                     </button>
                     <button onClick={() => approveManyMutation.mutate([...selectedIds])} disabled={approveManyMutation.isPending || selectedPendingCount === 0}
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: selectedPendingCount > 0 ? '#FFF3E5' : '#f9fafb', color: selectedPendingCount > 0 ? '#FF8A00' : '#9ca3af', fontSize: '0.76rem', fontWeight: 700, cursor: selectedPendingCount > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: selectedPendingCount > 0 ? '#FEF8F6' : '#f9fafb', color: selectedPendingCount > 0 ? '#EC6F44' : '#9ca3af', fontSize: '0.76rem', fontWeight: 700, cursor: selectedPendingCount > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                       <Check size={13} /> อนุมัติที่เลือก ({selectedPendingCount})
                     </button>
                   </div>
@@ -881,7 +881,7 @@ export default function WeeklyOffPage() {
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: isMobile ? '6px 10px' : '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
               background: tab === t ? '#fff' : 'transparent',
-              color: tab === t ? '#FF8A00' : 'var(--text-muted)',
+              color: tab === t ? '#EC6F44' : 'var(--text-muted)',
               fontWeight: tab === t ? 700 : 500,
               fontSize: isMobile ? '0.75rem' : '0.82rem',
               boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
@@ -921,7 +921,7 @@ export default function WeeklyOffPage() {
           </button>
         )}
         <button onClick={() => { setShowAdd(s => !s); setShowCalendar(false) }}
-          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: showAdd ? 'var(--text-muted)' : '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: showAdd ? 'var(--text-muted)' : '#EC6F44', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={14} /> {showAdd ? 'ยกเลิก' : 'เพิ่มวันหยุด'}
         </button>
       </div>
@@ -983,14 +983,14 @@ export default function WeeklyOffPage() {
             )}
 
             {addForm.date && selectedEmp && (
-              <div style={{ background: '#FFF3E5', border: '1px solid #FFDFB8', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#FF8A00' }}>
+              <div style={{ background: '#FEF8F6', border: '1px solid #F8CCBE', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#EC6F44' }}>
                 <strong>{selectedEmp.first_name} {selectedEmp.last_name}</strong> จะหยุด{' '}
                 <strong>{fmtDate(addForm.date)} ({DAYS_TH[new Date(addForm.date + 'T00:00:00').getDay()]})</strong>
               </div>
             )}
 
             <button onClick={handleAdd} disabled={addMutation.isPending || !addForm.employee_id || !addForm.date}
-              style={{ padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem', opacity: (!addForm.employee_id || !addForm.date) ? 0.5 : 1 }}>
+              style={{ padding: '9px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem', opacity: (!addForm.employee_id || !addForm.date) ? 0.5 : 1 }}>
               {addMutation.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
           </div>
@@ -1028,7 +1028,7 @@ export default function WeeklyOffPage() {
             return (
               <div key={g.employee.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
                 {/* Card header — ชื่อพนักงาน + ปุ่ม bulk (เฉพาะเมื่อมีรอพิจารณา >1 วัน) */}
-                <div style={{ padding: '12px 14px', background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ padding: '12px 14px', background: '#FEF8F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>
                       {g.employee.first_name} {g.employee.last_name}{g.employee.nickname ? ` (${g.employee.nickname})` : ''}
@@ -1123,7 +1123,7 @@ export default function WeeklyOffPage() {
                                   <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>{DAYS_TH[r.day_of_week]}</span>
                                 )}
                                 {isRange && (
-                                  <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#FFF3E5', color: '#FF8A00', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>{block.items.length} วัน</span>
+                                  <span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#FEF8F6', color: '#EC6F44', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>{block.items.length} วัน</span>
                                 )}
                               </span>
                               {block.hasConflict && (
@@ -1293,7 +1293,7 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Alert: เช็คอินวันที่จองไว้เอง */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertTriangle size={16} color="#d97706" />
           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>เช็คอินในวันที่จองวันหยุดไว้เอง</div>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>— รอ HR ตรวจสอบว่าเกิดจากอะไร</span>
@@ -1313,7 +1313,7 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
                 {!isReadOnly && (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => setResolveTarget({ alert: a, action: 'RESCHEDULE' })}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #FFDFB8', background: '#FFF3E5', color: '#FF8A00', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #F8CCBE', background: '#FEF8F6', color: '#EC6F44', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                       <CalendarClock size={13} /> เลื่อนวันหยุด
                     </button>
                     <button onClick={() => setResolveTarget({ alert: a, action: 'COMPENSATE' })}
@@ -1382,7 +1382,7 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 400, maxWidth: '100%', padding: 22, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              {resolveTarget.action === 'RESCHEDULE' ? <CalendarClock size={18} color="#FF8A00" /> : <Gift size={18} color="#16a34a" />}
+              {resolveTarget.action === 'RESCHEDULE' ? <CalendarClock size={18} color="#EC6F44" /> : <Gift size={18} color="#16a34a" />}
               <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>
                 {resolveTarget.action === 'RESCHEDULE' ? 'เลื่อนวันหยุด' : 'ให้วันหยุดชดเชย'}
               </div>
@@ -1400,7 +1400,7 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
               <button onClick={() => setResolveTarget(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={() => resolveMutation.mutate({ id: resolveTarget.alert.id, action: resolveTarget.action, note: resolveNote })}
                 disabled={resolveMutation.isPending}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: resolveTarget.action === 'RESCHEDULE' ? '#FF8A00' : '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: resolveTarget.action === 'RESCHEDULE' ? '#EC6F44' : '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
                 {resolveMutation.isPending ? 'กำลังบันทึก...' : 'ยืนยัน'}
               </button>
             </div>
@@ -1567,7 +1567,7 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
             <button key={v} onClick={() => setStatus(v as any)} style={{
               padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.78rem',
               background: statusFilter === v ? '#fff' : 'transparent',
-              color: statusFilter === v ? '#FF8A00' : 'var(--text-muted)',
+              color: statusFilter === v ? '#EC6F44' : 'var(--text-muted)',
               fontWeight: statusFilter === v ? 700 : 500,
               boxShadow: statusFilter === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
             }}>{label}</button>
@@ -1583,7 +1583,7 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
 
         <button onClick={exportRosterExcel} disabled={requests.filter(r => r.status !== 'REJECTED').length === 0}
           title="Export Excel แยกกลุ่ม + สีต่อคน เหมือนหน้าปฏิทินรวม (ไม่ขึ้นกับตัวกรองบนจอ)"
-          style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #FFDFB8', background: '#FFF3E5', color: '#E67A00', fontWeight: 600, fontSize: '0.82rem', cursor: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 0.5 : 1 }}>
+          style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #F8CCBE', background: '#FEF8F6', color: '#C85E3A', fontWeight: 600, fontSize: '0.82rem', cursor: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: requests.filter(r => r.status !== 'REJECTED').length === 0 ? 0.5 : 1 }}>
           <FileSpreadsheet size={14} /> Export Excel (แยกกลุ่ม+สี)
         </button>
       </div>
@@ -1593,11 +1593,11 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
           {/* Day headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', background: '#FFF3E5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', background: '#FEF8F6' }}>
             {['อา','จ','อ','พ','พฤ','ศ','ส'].map((d, i) => (
               <div key={d} style={{
                 padding: '10px 4px', textAlign: 'center', fontWeight: 700, fontSize: '0.8rem',
-                color: i === 0 ? '#dc2626' : i === 6 ? '#2563eb' : '#E67A00',
+                color: i === 0 ? '#dc2626' : i === 6 ? '#2563eb' : '#C85E3A',
                 borderRight: i < 6 ? '1px solid #fde8d0' : 'none',
               }}>{d}</div>
             ))}
@@ -1622,12 +1622,12 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
                   minHeight: 100, padding: '6px 5px',
                   borderTop: '1px solid #f3f4f6',
                   borderRight: (idx % 7) < 6 ? '1px solid #f3f4f6' : 'none',
-                  background: isToday ? '#FFF3E5' : entries.length > 0 ? '#fffbf5' : '#fff',
+                  background: isToday ? '#FEF8F6' : entries.length > 0 ? '#fffbf5' : '#fff',
                 }}>
                   {/* Date number */}
                   <div style={{
                     width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-                    background: isToday ? '#FF8A00' : 'transparent',
+                    background: isToday ? '#EC6F44' : 'transparent',
                     fontSize: '0.8rem', fontWeight: isToday ? 800 : 600,
                     color: isToday ? '#fff' : isSun ? '#dc2626' : isSat ? '#2563eb' : '#374151',
                   }}>{dayNum}</div>
@@ -1671,7 +1671,7 @@ function OverviewTab({ requests, isLoading, month, employeeOrgMap }: {
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem' }}>
-          <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#FF8A00', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 700 }}>วันนี้</span>
+          <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#EC6F44', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 700 }}>วันนี้</span>
         </div>
       </div>
     </div>

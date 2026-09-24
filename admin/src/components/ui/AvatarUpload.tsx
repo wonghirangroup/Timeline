@@ -45,7 +45,7 @@ export default function AvatarUpload({ value, fallback, size = 88, disabled, onC
           title={value ? 'ดูรูปเต็ม' : undefined}
           style={{
             width: size, height: size, borderRadius: '50%', overflow: 'hidden',
-            background: value ? '#e2e8f0' : 'linear-gradient(135deg,#FF8A00,#FF8A00)',
+            background: value ? '#e2e8f0' : 'linear-gradient(135deg,#EC6F44,#EC6F44)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontSize: size * 0.34, fontWeight: 800, border: '3px solid #fff', boxShadow: 'var(--shadow-md)',
             cursor: value ? 'pointer' : 'default',

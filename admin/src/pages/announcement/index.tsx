@@ -32,9 +32,9 @@ function EmployeeSearchMultiSelect({ employees, selected, onToggle }: {
       {selectedEmps.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
           {selectedEmps.map(e => (
-            <span key={e.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px 3px 10px', borderRadius: 99, background: '#FFE8CC', color: '#E67A00', fontSize: '0.74rem', fontWeight: 600 }}>
+            <span key={e.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px 3px 10px', borderRadius: 99, background: '#FCE9E3', color: '#C85E3A', fontSize: '0.74rem', fontWeight: 600 }}>
               {empDisplayName(e)}
-              <button type="button" onClick={() => onToggle(e.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E67A00', padding: 2, display: 'flex' }}><X size={11} /></button>
+              <button type="button" onClick={() => onToggle(e.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C85E3A', padding: 2, display: 'flex' }}><X size={11} /></button>
             </span>
           ))}
         </div>
@@ -44,18 +44,18 @@ function EmployeeSearchMultiSelect({ employees, selected, onToggle }: {
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
           style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
-      <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+      <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #E6ECF4', borderRadius: 8 }}>
         {filtered.length === 0 ? (
           <div style={{ padding: 14, textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>ไม่พบพนักงาน</div>
         ) : filtered.slice(0, 80).map(e => {
           const active = selected.has(e.id)
           return (
             <button key={e.id} type="button" onClick={() => onToggle(e.id)}
-              style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderBottom: '1px solid #f8fafc', background: active ? '#FFF3E5' : '#fff', cursor: 'pointer' }}>
-              <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${active ? '#FF8A00' : '#cbd5e1'}`, background: active ? '#FF8A00' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderBottom: '1px solid #f8fafc', background: active ? '#FEF8F6' : '#fff', cursor: 'pointer' }}>
+              <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${active ? '#EC6F44' : '#cbd5e1'}`, background: active ? '#EC6F44' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {active && <Check size={10} color="#fff" />}
               </div>
-              <span style={{ fontSize: '0.8rem', color: active ? '#E67A00' : '#374151', fontWeight: active ? 700 : 500 }}>{empDisplayName(e)}</span>
+              <span style={{ fontSize: '0.8rem', color: active ? '#C85E3A' : '#374151', fontWeight: active ? 700 : 500 }}>{empDisplayName(e)}</span>
             </button>
           )
         })}
@@ -222,7 +222,7 @@ export default function AnnouncementPage() {
     borderRadius: 8, border: 'none', cursor: 'pointer',
     fontSize: isMobile ? '0.8rem' : '0.875rem',
     fontWeight: active ? 700 : 400,
-    background: active ? '#FF8A00' : '#f3f4f6',
+    background: active ? '#EC6F44' : '#f3f4f6',
     color: active ? '#fff' : 'var(--text-muted)',
     transition: 'all 0.15s',
     whiteSpace: 'nowrap',
@@ -235,7 +235,7 @@ export default function AnnouncementPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Megaphone size={18} style={{ color: '#FF8A00' }}/>ประกาศ & ข้อความ</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Megaphone size={18} style={{ color: '#EC6F44' }}/>ประกาศ & ข้อความ</h2>
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
       </div>
 
@@ -252,7 +252,7 @@ export default function AnnouncementPage() {
           {/* Form */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><PenLine size={16} style={{ color: '#FF8A00' }}/>แต่งประกาศใหม่</h3>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><PenLine size={16} style={{ color: '#EC6F44' }}/>แต่งประกาศใหม่</h3>
               <button onClick={() => setShowTemplateManager(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid #e5e7eb', borderRadius: 7, padding: '5px 10px', fontSize: '0.75rem', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
                 <LayoutTemplate size={13} /> จัดการ Template
               </button>
@@ -282,7 +282,7 @@ export default function AnnouncementPage() {
                   {([['all', 'ทุกคน'], ['branch', 'ตามสาขา'], ['individual', 'เลือกรายคน']] as const).map(([mode, label]) => (
                     <button key={mode} type="button" onClick={() => setBTargetMode(mode)}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
-                        border: `1.5px solid ${bTargetMode === mode ? '#FF8A00' : '#e5e7eb'}`, background: bTargetMode === mode ? '#FFF3E5' : '#fff', color: bTargetMode === mode ? '#FF8A00' : '#64748b' }}>
+                        border: `1.5px solid ${bTargetMode === mode ? '#EC6F44' : '#e5e7eb'}`, background: bTargetMode === mode ? '#FEF8F6' : '#fff', color: bTargetMode === mode ? '#EC6F44' : '#64748b' }}>
                       {label}
                     </button>
                   ))}
@@ -332,7 +332,7 @@ export default function AnnouncementPage() {
       {tab === 'direct' && (
         <div style={{ maxWidth: 560 }}>
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 20px', fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><Mail size={16} style={{ color: '#FF8A00' }}/>ส่งข้อความส่วนตัว</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}><Mail size={16} style={{ color: '#EC6F44' }}/>ส่งข้อความส่วนตัว</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={labelStyle}>พนักงานที่ต้องการส่งถึง</label>
@@ -396,7 +396,7 @@ export default function AnnouncementPage() {
                 {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                   <button key={v} onClick={() => setFeedbackView(v)}
                     title={label}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: feedbackView === v ? 700 : 500, background: feedbackView === v ? '#fff' : 'transparent', color: feedbackView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: feedbackView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: feedbackView === v ? 700 : 500, background: feedbackView === v ? '#fff' : 'transparent', color: feedbackView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: feedbackView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                     <Icon size={13} /> {label}
                   </button>
                 ))}
@@ -427,9 +427,9 @@ export default function AnnouncementPage() {
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ background: '#FFF3E5' }}>
+                  <tr style={{ background: '#FEF8F6' }}>
                     {['หมวดหมู่', 'ข้อความ', 'วันที่รับ'].map(h => (
-                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#E67A00', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#C85E3A', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -463,8 +463,8 @@ export default function AnnouncementPage() {
         <div onClick={() => { setShowTemplateManager(false); setTplForm({ id: null, name: '', title: '', content: '' }) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 560, maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 7 }}><LayoutTemplate size={16} color="#FF8A00" />จัดการ Template ข้อความ</div>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 7 }}><LayoutTemplate size={16} color="#EC6F44" />จัดการ Template ข้อความ</div>
               <button onClick={() => { setShowTemplateManager(false); setTplForm({ id: null, name: '', title: '', content: '' }) }} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
             </div>
             <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>

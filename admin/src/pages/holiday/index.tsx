@@ -135,7 +135,7 @@ function MiniMonth({
             return (
               <button key={idx} onClick={() => onDayClick(dateStr)}
                 style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 6,
-                  border: isSelected ? '2px solid #4f46e5' : isToday ? '2px solid #FF8A00' : '2px solid transparent',
+                  border: isSelected ? '2px solid #4f46e5' : isToday ? '2px solid #EC6F44' : '2px solid transparent',
                   background: isSelected ? '#eef2ff' : hols.length > 0 ? TYPE_CFG[hols[0].type].bg : 'transparent',
                   cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}>
@@ -198,7 +198,7 @@ function EmployeeMultiSelect({
         <input value={q} onChange={e => setQ(e.target.value)} placeholder={placeholder}
           style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
-      <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+      <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid #E6ECF4', borderRadius: 8 }}>
         {filtered.length === 0 ? (
           <div style={{ padding: '12px', textAlign: 'center', fontSize: '0.76rem', color: '#94a3b8' }}>ไม่พบพนักงาน</div>
         ) : filtered.slice(0, 60).map(e => {
@@ -269,7 +269,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
   return (
     <div ref={overlayRef} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}>
       <div style={{ background: '#fff', borderRadius: 18, width: 480, maxWidth: '100%', maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>{initial?.id ? 'แก้ไขวันหยุด' : <><Plus size={16} /> เพิ่มวันหยุด</>}</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>กรอกข้อมูลวันหยุดที่ต้องการเพิ่ม</div>
@@ -311,7 +311,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
             </div>
           </label>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+          <div style={{ borderTop: '1px solid #E6ECF4', paddingTop: 14 }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>สาขาที่ให้หยุด</label>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 8 }}>ไม่เลือก = หยุดทุกสาขา</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -346,7 +346,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+          <div style={{ borderTop: '1px solid #E6ECF4', paddingTop: 14 }}>
             <button type="button" onClick={() => setShowIndividual(v => !v)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               <Users size={14} color="#374151" />
@@ -374,7 +374,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
             )}
           </div>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ borderTop: '1px solid #E6ECF4', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <Gift size={14} color="#d97706" /> วันที่ได้ถ้ามาทำงาน
@@ -391,7 +391,7 @@ function HolidayModal({ initial, branches, employees, onSave, onClose }: ModalPr
             </select>
           </div>
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
           <button onClick={() => canSave && onSave({
               date, name: name.trim(), type, recurring,
@@ -615,7 +615,7 @@ export default function HolidayPage() {
                   </div>
                 ))}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#64748b' }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid #FF8A00', background: 'transparent' }} />
+                  <div style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid #EC6F44', background: 'transparent' }} />
                   วันนี้
                 </div>
               </div>
@@ -624,7 +624,7 @@ export default function HolidayPage() {
             <div style={{ width: isMobile ? '100%' : 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {selectedDate && (
                 <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                  <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>{thDate(selectedDate)}</div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 1 }}>{selectedHols.length === 0 ? 'ไม่มีวันหยุด' : `${selectedHols.length} รายการ`}</div>
@@ -685,7 +685,7 @@ export default function HolidayPage() {
               )}
 
               <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', flex: 1 }}>รายการวันหยุด {year}</span>
                   <select value={filterType} onChange={e => setFilterType(e.target.value as HolidayType | 'ALL')}
                     style={{ padding: '4px 8px', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.75rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
@@ -718,14 +718,14 @@ export default function HolidayPage() {
                           <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: tc.bg, color: tc.color }}>{tc.label}</span>
                             {h.recurring && <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed' }}><Repeat2 size={10} /></span>}
-                            {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}><Target size={10} /> {targetLabel(h)}</span>}
-                            {individualLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#374151' }}><Users size={10} /> {individualLabel(h)}</span>}
+                            {targetLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#E6ECF4', color: '#374151' }}><Target size={10} /> {targetLabel(h)}</span>}
+                            {individualLabel(h) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#E6ECF4', color: '#374151' }}><Users size={10} /> {individualLabel(h)}</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
                           <button onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', holiday: h }) }}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 5px', borderRadius: 5, color: '#94a3b8' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                            onMouseEnter={e => e.currentTarget.style.background = '#E6ECF4'}
                             onMouseLeave={e => e.currentTarget.style.background = 'none'}>
                             <Pencil size={13}/>
                           </button>

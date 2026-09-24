@@ -23,7 +23,7 @@ export default function ReportBarChart({ data, xKey, series, height = 320, empty
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', padding: '16px 12px 8px' }}>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: angled ? 8 : 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E6ECF4" vertical={false} />
           <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748b' }} interval={0}
             angle={angled ? -30 : 0} textAnchor={angled ? 'end' : 'middle'} height={angled ? 52 : 26} />
           <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />

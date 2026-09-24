@@ -85,10 +85,10 @@ const STATUS_CFG: Record<Status, { label: string; color: string; bg: string }> =
   ON_TIME: { label: 'มาปกติ',            color: '#16a34a', bg: '#dcfce7' },
   LATE_1:  { label: 'สายระดับ 1',        color: '#d97706', bg: '#fef3c7' },
   LATE_2:  { label: 'สายระดับ 2 / ขาด', color: '#dc2626', bg: '#fee2e2' },
-  PENDING: { label: 'ยังไม่เช็ค',       color: '#64748b', bg: '#f1f5f9' },
+  PENDING: { label: 'ยังไม่เช็ค',       color: '#64748b', bg: '#E6ECF4' },
   ABSENT:  { label: 'ขาดงาน',            color: '#7f1d1d', bg: '#fef2f2' },
   LEAVE:   { label: 'ลา',                color: '#0369a1', bg: '#e0f2fe' },
-  DAY_OFF: { label: 'หยุด',              color: '#475569', bg: '#f1f5f9' },
+  DAY_OFF: { label: 'หยุด',              color: '#475569', bg: '#E6ECF4' },
   HOLIDAY: { label: 'นักขัตฤกษ์',        color: '#be123c', bg: '#ffe4e6' },
 }
 
@@ -129,7 +129,7 @@ const METHOD_CFG: Record<string, { label: string; color: string; bg: string }> =
   LIFF:         { label: 'LINE App', color: '#2563eb', bg: '#dbeafe' },
   QR:           { label: 'QR',      color: '#7c3aed', bg: '#ede9fe' },
   ADMIN:        { label: 'Admin',   color: '#0891b2', bg: '#cffafe' },
-  WEB_FALLBACK: { label: 'Web',     color: '#64748b', bg: '#f1f5f9' },
+  WEB_FALLBACK: { label: 'Web',     color: '#64748b', bg: '#E6ECF4' },
   SELFIE:       { label: 'Selfie',  color: '#be185d', bg: '#fce7f3' },
   OFFSITE:      { label: 'Offsite', color: '#b45309', bg: '#fef3c7' },
 }
@@ -701,7 +701,7 @@ export default function AttendancePage() {
               {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setListView(v)}
                   title={label}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                   <Icon size={13} /> {label}
                 </button>
               ))}
@@ -714,7 +714,7 @@ export default function AttendancePage() {
 
       {/* Table */}
       {!loading && (
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E6ECF4', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
           {(isMobile || listView === 'card') ? (
             <div {...swipeHandlers}>
               {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</p>}
@@ -764,7 +764,7 @@ export default function AttendancePage() {
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Clock size={10}/>นอกเวลากะ</span>
                       )}
                       {isGpsMissing(row.record) && (
-                        <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#f1f5f9', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPinOff size={10}/>ไม่มี GPS</span>
+                        <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#E6ECF4', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPinOff size={10}/>ไม่มี GPS</span>
                       )}
                       {row.record?.gps_lat && row.record?.gps_lng && (
                         <a href={`https://maps.google.com/?q=${row.record.gps_lat},${row.record.gps_lng}`} target="_blank" rel="noreferrer"
@@ -779,7 +779,7 @@ export default function AttendancePage() {
                             <button onClick={() => setResetTarget(row)} aria-label={`รีเซ็ตเวลาของ ${row.employee.first_name} ${row.employee.last_name}`} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem' }}><Trash2 size={13}/></button>
                           </>
                         ) : (
-                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #FF8A00', background: '#FFF3E5', color: '#FF8A00', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงบันทึก</button>
+                          <button onClick={() => openManual(row.employee)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #EC6F44', background: '#FEF8F6', color: '#EC6F44', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>+ ลงบันทึก</button>
                         )}
                       </div>
                     </div>
@@ -791,9 +791,9 @@ export default function AttendancePage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ background: '#FFF3E5' }}>
+                  <tr style={{ background: '#FEF8F6' }}>
                     {['รหัส', 'ชื่อ-สกุล', 'สาขา', 'กะ', 'เวลาเข้า', 'เวลาออก', 'วิธี', 'สาย', 'สถานะ', 'จัดการ'].map(h => (
-                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#E67A00', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
+                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#C85E3A', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -829,7 +829,7 @@ export default function AttendancePage() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', width: 'fit-content' }}><Clock size={9} /> นอกเวลากะ</span>
                             )}
                             {isGpsMissing(row.record) && (
-                              <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#f1f5f9', color: '#64748b', width: 'fit-content' }}><MapPinOff size={9} /> ไม่มี GPS</span>
+                              <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#E6ECF4', color: '#64748b', width: 'fit-content' }}><MapPinOff size={9} /> ไม่มี GPS</span>
                             )}
                           </div>
                         </td>
@@ -883,7 +883,7 @@ export default function AttendancePage() {
                               <button onClick={() => setResetTarget(row)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }} title="รีเซ็ต" aria-label="รีเซ็ตเวลา"><Trash2 size={13}/></button>
                             </div>
                           ) : (
-                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FF8A00', background: '#FFF3E5', color: '#FF8A00', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงบันทึก</button>
+                            <button onClick={() => openManual(row.employee)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #EC6F44', background: '#FEF8F6', color: '#EC6F44', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>+ ลงบันทึก</button>
                           )}
                         </td>
                       </tr>
@@ -896,7 +896,7 @@ export default function AttendancePage() {
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderTop: '1px solid #E6ECF4' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                   แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
@@ -905,7 +905,7 @@ export default function AttendancePage() {
                   {isMobile && (
                     <div style={{ display: 'flex', gap: 4 }}>
                       {Array.from({ length: totalPages }, (_, i) => (
-                        <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#FF8A00' : '#e5e7eb', transition: 'all 0.2s' }} />
+                        <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#EC6F44' : '#e5e7eb', transition: 'all 0.2s' }} />
                       ))}
                     </div>
                   )}
@@ -962,8 +962,8 @@ export default function AttendancePage() {
                         <button key={s.id} type="button" onClick={() => handleEditShiftChange(s.id)}
                           style={{
                             flex: '1 1 auto', padding: '9px 10px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-                            border: editForm.shift_id === s.id ? '2px solid #FF8A00' : '1px solid #e5e7eb',
-                            background: editForm.shift_id === s.id ? '#FF8A00' : '#fff',
+                            border: editForm.shift_id === s.id ? '2px solid #EC6F44' : '1px solid #e5e7eb',
+                            background: editForm.shift_id === s.id ? '#EC6F44' : '#fff',
                             color: editForm.shift_id === s.id ? '#fff' : '#374151',
                           }}>
                           {s.name}
@@ -1017,7 +1017,7 @@ export default function AttendancePage() {
 
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
                 <button onClick={() => setEditTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-                <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={handleEdit} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Pencil size={14} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>
               </div>
@@ -1038,7 +1038,7 @@ export default function AttendancePage() {
             </p>
 
             {/* โหมด: มาทำงาน / ลา / หยุด */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#f1f5f9', padding: 4, borderRadius: 10 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#E6ECF4', padding: 4, borderRadius: 10 }}>
               {([['work', 'มาทำงาน'], ['leave', 'ลา'], ['off', 'หยุด']] as const).map(([m, label]) => (
                 <button key={m} onClick={() => { setManualMode(m); setManualNoteError(false) }}
                   style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit',
@@ -1139,7 +1139,7 @@ export default function AttendancePage() {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setManualTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#EC6F44', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'กำลังบันทึก...' : manualMode === 'leave' ? 'ลงวันลา' : manualMode === 'off' ? 'ลงวันหยุด' : 'ลงเวลา'}
               </button>
             </div>

@@ -394,7 +394,7 @@ export default function ReportPage() {
     if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
     if (note.includes('ลากิจ'))   return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'ลากิจ', status: 'leave' }
     if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
-    if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: <AlertOctagon size={13} />, color: '#E67A00', tip: 'มาสาย ระดับ 2', status: 'late2' }
+    if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: <AlertOctagon size={13} />, color: '#C85E3A', tip: 'มาสาย ระดับ 2', status: 'late2' }
     if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: <AlertTriangle size={13} />, color: '#92400e', tip: 'มาสาย', status: 'late' }
     return { bg: '#dcfce7', label: <Check size={13} />, color: '#15803d', tip: 'มาปกติ', status: 'ok' }
   }
@@ -484,7 +484,7 @@ export default function ReportPage() {
   function dotColor(status: string) {
     if (status === 'ok')       return '#22c55e'
     if (status === 'late')     return '#f59e0b'
-    if (status === 'late2')    return '#FF8A00'
+    if (status === 'late2')    return '#EC6F44'
     if (status === 'absent')   return '#ef4444'
     if (status === 'weekend')  return '#e5e7eb'
     if (status === 'leave' || status === 'holiday') return '#38bdf8'
@@ -507,7 +507,7 @@ export default function ReportPage() {
         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
           {([['month', 'ปฏิทิน'], ['range', 'ช่วงเวลา']] as const).map(([v, label]) => (
             <button key={v} onClick={() => setViewMode(v)}
-              style={{ padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: viewMode === v ? 700 : 500, background: viewMode === v ? '#fff' : 'transparent', color: viewMode === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: viewMode === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+              style={{ padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: viewMode === v ? 700 : 500, background: viewMode === v ? '#fff' : 'transparent', color: viewMode === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: viewMode === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
               {label}
             </button>
           ))}
@@ -523,7 +523,7 @@ export default function ReportPage() {
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
             {([['table', 'ตาราง', Table2], ['card', 'การ์ด', LayoutGrid], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -635,10 +635,10 @@ export default function ReportPage() {
           {rangeSummary.map(({ info, byDate, ok, late, absent, leave, fine }) => {
             const isExpanded = expandedRangeEmp === info.id
             return (
-              <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                 <div onClick={() => setExpandedRangeEmp(isExpanded ? null : info.id)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}>
-                  <div style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#FF8A00,#FF8A00)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#EC6F44,#EC6F44)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
                     {info.photo_url
                       ? <img src={avatarUrl(info.photo_url, 84) ?? info.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : initials(info.first_name, info.last_name)}
@@ -646,7 +646,7 @@ export default function ReportPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <button onClick={e => { e.stopPropagation(); navigate(`/employee/${info.id}`) }}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#FF8A00', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
                         {info.first_name} {info.last_name}
                       </button>
                       {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
@@ -666,7 +666,7 @@ export default function ReportPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#FF8A00' : 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</div>
+                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#EC6F44' : 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</div>
                     <button onClick={e => { e.stopPropagation(); exportOne({ info, byDate }) }}
                       style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                       <Download size={11} />
@@ -691,7 +691,7 @@ export default function ReportPage() {
                       return (
                         <div key={dateKey}>
                           {showMonthDivider && (
-                            <div style={{ padding: '7px 16px', background: '#f8fafc', fontSize: '0.72rem', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <div style={{ padding: '7px 16px', background: '#f8fafc', fontSize: '0.72rem', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #E6ECF4', position: 'sticky', top: 0, zIndex: 1 }}>
                               {MONTHS_TH[d.getMonth()]} {d.getFullYear() + 543}
                             </div>
                           )}
@@ -735,7 +735,7 @@ export default function ReportPage() {
             const isExpanded = expandedEmp === info.id
 
             return (
-              <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div key={info.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                 {/* Card header */}
                 <div
                   onClick={() => setExpandedEmp(isExpanded ? null : info.id)}
@@ -744,7 +744,7 @@ export default function ReportPage() {
                   {/* Avatar */}
                   <div style={{
                     width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-                    background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#FF8A00,#FF8A00)',
+                    background: info.photo_url ? '#e2e8f0' : 'linear-gradient(135deg,#EC6F44,#EC6F44)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#fff', fontWeight: 700, fontSize: '0.85rem',
                   }}>
@@ -757,7 +757,7 @@ export default function ReportPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <button onClick={e => { e.stopPropagation(); navigate(`/employee/${info.id}`) }}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#FF8A00', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2, fontWeight: 700, fontSize: '0.9rem' }}>
                         {info.first_name} {info.last_name}
                       </button>
                       {info.nickname && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--text-muted)' }}>({info.nickname})</span>}
@@ -786,7 +786,7 @@ export default function ReportPage() {
 
                   {/* Right side */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#FF8A00' : 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.7rem', color: isExpanded ? '#EC6F44' : 'var(--text-muted)' }}>
                       {isExpanded ? '▲' : '▼'}
                     </div>
                     <button
@@ -812,7 +812,7 @@ export default function ReportPage() {
                           style={{
                             width: 8, height: 8, borderRadius: '50%',
                             background: dotColor(status),
-                            border: isToday ? '2px solid #FF8A00' : 'none',
+                            border: isToday ? '2px solid #EC6F44' : 'none',
                             flexShrink: 0,
                           }}
                         />
@@ -869,7 +869,7 @@ export default function ReportPage() {
                                 <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>{firstRec.shift.name}</div>
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                   เข้า {fmtTime(firstRec.check_in_at)} · ออก {fmtTime(firstRec.check_out_at)}
-                                  {recs && recs.length > 1 && <span style={{ color: '#FF8A00', marginLeft: 4 }}>+{recs.length - 1} กะ</span>}
+                                  {recs && recs.length > 1 && <span style={{ color: '#EC6F44', marginLeft: 4 }}>+{recs.length - 1} กะ</span>}
                                 </div>
                               </>
                             ) : (
@@ -965,7 +965,7 @@ export default function ReportPage() {
                           <div>
                             <button onClick={() => navigate(`/employee/${info.id}`)}
                               style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontWeight: 600, color: '#FF8A00', textDecoration: 'underline', textUnderlineOffset: 2 }}>{info.first_name} {info.last_name}</span>
+                              <span style={{ fontWeight: 600, color: '#EC6F44', textDecoration: 'underline', textUnderlineOffset: 2 }}>{info.first_name} {info.last_name}</span>
                               {info.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>({info.nickname})</span>}
                             </button>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{info.employee_code} · {info.branch.name}</div>
@@ -1041,7 +1041,7 @@ export default function ReportPage() {
               </div>
             ))}
             <button onClick={() => setDetail(null)}
-              style={{ width: '100%', marginTop: 8, padding: '11px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#FF8A00,#FF8A00)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
+              style={{ width: '100%', marginTop: 8, padding: '11px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#EC6F44,#EC6F44)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
               ปิด
             </button>
           </div>

@@ -56,7 +56,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, #E3F4FF 100%)',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #E6ECF4 60%, #DFF1FA 100%)',
     }}>
       <div style={{ width: '100%', maxWidth: 440, padding: '0 20px' }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: '40px 36px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)' }}>
@@ -67,7 +67,7 @@ export default function LoginPage() {
                 background: 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '-1px',
-                boxShadow: '0 6px 20px rgba(77,178,254,0.35)',
+                boxShadow: '0 6px 20px rgba(45,166,221,0.35)',
               }}>TL</div>
               <div style={{ textAlign: 'left' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -116,7 +116,7 @@ export default function LoginPage() {
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626' }}>⚠ {error}</div>
               )}
 
-              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#B8E2FF' : 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(77,178,254,0.4)', transition: 'all 0.2s' }}>
+              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#CAE9F6' : 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(45,166,221,0.4)', transition: 'all 0.2s' }}>
                 {loading ? '⏳ กำลังเข้าสู่ระบบ...' : '🔐 เข้าสู่ระบบ'}
               </button>
             </div>

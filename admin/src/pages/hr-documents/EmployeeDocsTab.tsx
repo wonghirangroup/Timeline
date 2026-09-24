@@ -43,7 +43,7 @@ export default function EmployeeDocsTab({ employeeId }: { employeeId: string }) 
 
       <div>
         <p style={{ fontSize: '12.5px', fontWeight: 700, color: '#374151', margin: '0 0 8px' }}>ประวัติเอกสารที่ออกแล้ว</p>
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E6ECF4', overflow: 'hidden' }}>
           {isLoading ? (
             <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>กำลังโหลด...</div>
           ) : rows.length === 0 ? (
@@ -55,7 +55,7 @@ export default function EmployeeDocsTab({ employeeId }: { employeeId: string }) 
                 <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{r.period ? `${r.period} · ` : ''}ออกเมื่อ {thDate(r.created_at)}</div>
               </div>
               <a href={`/hr-documents/${r.id}/print`} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px', fontWeight: 700, color: '#FF8A00', textDecoration: 'none', flexShrink: 0 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px', fontWeight: 700, color: '#EC6F44', textDecoration: 'none', flexShrink: 0 }}>
                 <Printer size={13}/> พิมพ์ซ้ำ
               </a>
             </div>

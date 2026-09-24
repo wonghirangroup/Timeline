@@ -86,7 +86,7 @@ export default function HolidayReportPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -108,7 +108,7 @@ export default function HolidayReportPage() {
 
       {/* วันหยุดบริษัท */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>วันหยุดบริษัทที่ประกาศ</div>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E6ECF4', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>วันหยุดบริษัทที่ประกาศ</div>
         {monthHolidays.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่มีวันหยุดบริษัทประกาศไว้ในเดือนนี้</div>
         ) : (
@@ -139,7 +139,7 @@ export default function HolidayReportPage() {
           <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#111827', marginBottom: 10 }}>คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {branchRows.map(r => (
-              <div key={r.branch.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
+              <div key={r.branch.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#111827', fontSize: '0.88rem', marginBottom: 10 }}><Users size={13} color="#94a3b8" />{r.branch.name}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: '0.78rem' }}>
                   <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>รวม</div><div style={{ fontWeight: 700, color: '#374151' }}>{r.total}</div></div>
@@ -165,7 +165,7 @@ export default function HolidayReportPage() {
         </div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา</div>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #E6ECF4', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา</div>
           <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
@@ -177,7 +177,7 @@ export default function HolidayReportPage() {
             </thead>
             <tbody>
               {branchRows.map((r, idx) => (
-                <tr key={r.branch.id} style={{ borderBottom: idx < branchRows.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                <tr key={r.branch.id} style={{ borderBottom: idx < branchRows.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}><Users size={12} color="#94a3b8" />{r.branch.name}</td>
                   <td style={{ padding: '10px 12px', color: '#374151' }}>{r.total}</td>
                   <td style={{ padding: '10px 12px', color: '#16a34a', fontWeight: 700 }}>{r.approved}</td>

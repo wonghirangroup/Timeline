@@ -81,7 +81,7 @@ type AttItem =
 type DayStatus = { label: string; color: string; bg: string; Icon: typeof CheckCircle2; bubble: string }
 
 const ST_LEAVE:   Omit<DayStatus, 'label'> = { color: '#0369a1', bg: '#e0f2fe', Icon: FileText,    bubble: 'icon-bubble icon-bubble-blue' }
-const ST_OFF:     Omit<DayStatus, 'label'> = { color: '#475569', bg: '#f1f5f9', Icon: Palmtree,    bubble: 'icon-bubble icon-bubble-purple' }
+const ST_OFF:     Omit<DayStatus, 'label'> = { color: '#475569', bg: '#E6ECF4', Icon: Palmtree,    bubble: 'icon-bubble icon-bubble-purple' }
 const ST_HOLIDAY: Omit<DayStatus, 'label'> = { color: '#4338ca', bg: '#e0e7ff', Icon: PartyPopper, bubble: 'icon-bubble icon-bubble-purple' }
 const ST_WEEKEND: Omit<DayStatus, 'label'> = { color: COLOR.textMuted, bg: '#f8fafc', Icon: Palmtree, bubble: 'icon-bubble icon-bubble-purple' }
 const TONE_ST: Record<Tone, Omit<DayStatus, 'label'>> = { leave: ST_LEAVE, off: ST_OFF, holiday: ST_HOLIDAY, weekend: ST_WEEKEND }

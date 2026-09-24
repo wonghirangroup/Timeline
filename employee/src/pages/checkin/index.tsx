@@ -727,7 +727,7 @@ export default function CheckinPage() {
           <div style={{ margin: '20px 0 0', padding: '12px 16px', borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>วันนี้</div>
             {todayRecords.map(r => (
-              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: '0.82rem' }}>
+              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #E6ECF4', fontSize: '0.82rem' }}>
                 <span style={{ color: '#475569', fontWeight: 600 }}>{r.shift.name}</span>
                 <span style={{ color: '#64748b' }}>
                   เข้า {fmtHHMM(r.check_in_at)}
@@ -744,7 +744,7 @@ export default function CheckinPage() {
           {(() => {
             const mode: 'checkin' | 'checkout' | 'done' = allCheckedOut ? 'done' : hasOpenRecord ? 'checkout' : 'checkin'
             const cfg = {
-              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(255,138,0,0.25)' },
+              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(236,111,68,0.25)' },
               checkout: { bg: '#2563EB',     Icon: Flag,   label: 'เช็คเอาต์', shadow: '0 4px 14px rgba(37,99,235,0.25)' },
               done:     { bg: '#e5e7eb',     Icon: CheckCircle2, label: 'เสร็จแล้ว', shadow: 'none' },
             }[mode]

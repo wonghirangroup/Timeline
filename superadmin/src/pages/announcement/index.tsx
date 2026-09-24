@@ -197,7 +197,7 @@ function ComposeModal({ onClose, onSend, initialData, tenants }: ComposeProps) {
         boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
       }}>
         {/* Modal Header */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h2 id="compose-modal-title" style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
               {step === 'compose' ? '📣 สร้างประกาศระบบใหม่' : '👀 ตรวจสอบก่อนส่ง'}
@@ -375,9 +375,9 @@ function ComposeModal({ onClose, onSend, initialData, tenants }: ComposeProps) {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
               }}>
                 {/* Phone mockup top bar */}
-                <div style={{ background: '#0A0F1F', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ background: '#131C45', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sa-accent)' }} />
-                  <span style={{ fontSize: '0.7rem', color: '#8FD4FF', fontWeight: 600 }}>TimeLine System</span>
+                  <span style={{ fontSize: '0.7rem', color: '#A0D7EF', fontWeight: 600 }}>TimeLine System</span>
                 </div>
                 {/* Message bubble */}
                 <div style={{ padding: '12px', background: '#f8fafc', minHeight: 160 }}>
@@ -449,7 +449,7 @@ function ComposeModal({ onClose, onSend, initialData, tenants }: ComposeProps) {
         )}
 
         {/* Footer */}
-        <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '14px 24px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={() => step === 'compose' ? onClose() : setStep('compose')}
             style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: 'var(--text-body)' }}
@@ -531,7 +531,7 @@ function DetailModal({ ann, onClose, onDelete, tenants }: { ann: SystemAnn; onCl
         maxHeight: '88vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
       }}>
-        <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 10, background: tc.bg,
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
@@ -572,7 +572,7 @@ function DetailModal({ ann, onClose, onDelete, tenants }: { ann: SystemAnn; onCl
           </div>
         </div>
 
-        <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 24px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'space-between' }}>
           {ann.status !== 'SENT' ? (
             <button
               onClick={onDelete}
@@ -676,7 +676,7 @@ export default function SAAnnouncementPage() {
             padding: '10px 22px', borderRadius: 10, border: 'none',
             background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.9rem',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-            boxShadow: '0 2px 8px rgba(77,178,254,0.35)',
+            boxShadow: '0 2px 8px rgba(45,166,221,0.35)',
           }}
         >
           <span style={{ fontSize: '1.1rem' }}>📣</span> สร้างประกาศใหม่
@@ -740,7 +740,7 @@ export default function SAAnnouncementPage() {
               style={{
                 padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 500,
                 cursor: 'pointer', border: 'none',
-                background: filterStatus === f.k ? 'var(--sa-accent)' : '#f1f5f9',
+                background: filterStatus === f.k ? 'var(--sa-accent)' : '#E6ECF4',
                 color: filterStatus === f.k ? '#fff' : '#64748b',
               }}
             >{f.l}</button>

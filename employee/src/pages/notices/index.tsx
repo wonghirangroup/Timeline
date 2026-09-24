@@ -53,7 +53,7 @@ export default function NoticesPage() {
         ) : rows.map(r => (
           <div key={r.id} style={{ background: '#fff', border: `1px solid ${r.acknowledged_at ? '#e5e7eb' : '#fca5a5'}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 24, height: 24, borderRadius: 6, background: r.level >= 3 ? '#fee2e2' : r.level === 2 ? '#fef3c7' : '#f1f5f9', color: r.level >= 3 ? '#dc2626' : r.level === 2 ? '#d97706' : '#64748b', fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.level}</span>
+              <span style={{ width: 24, height: 24, borderRadius: 6, background: r.level >= 3 ? '#fee2e2' : r.level === 2 ? '#fef3c7' : '#E6ECF4', color: r.level >= 3 ? '#dc2626' : r.level === 2 ? '#d97706' : '#64748b', fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.level}</span>
               <span style={{ fontWeight: 800, fontSize: '0.9rem', color: COLOR.textPrimary }}>{CAT_LABEL[r.category] ?? r.category}</span>
               <span style={{ fontSize: '0.72rem', color: COLOR.textMuted }}>· {LEVEL_LABEL[r.level]}</span>
             </div>

@@ -54,7 +54,7 @@ function Blank({ w = 160 }: { w?: number }) { return <span style={{ ...dotted, w
 
 function Letterhead({ company, title }: { company: CompanySnap; title?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #FF8A00', paddingBottom: 12, marginBottom: 22 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #EC6F44', paddingBottom: 12, marginBottom: 22 }}>
       {company.logo_url && <img src={company.logo_url} alt="" style={{ height: 52, objectFit: 'contain' }} />}
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 800, fontSize: '17px' }}>{company.name}</div>
@@ -135,7 +135,7 @@ export function PayslipView({ data }: { data: PayslipData }) {
   const totalDeduct = (parseFloat(data.deduction.social_security) || 0) + (parseFloat(data.deduction.other) || 0)
   return (
     <div style={{ ...page, fontSize: '13px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #FF8A00', paddingBottom: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #EC6F44', paddingBottom: 10, marginBottom: 14 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {data.company.logo_url && <img src={data.company.logo_url} alt="" style={{ height: 40, objectFit: 'contain' }} />}
           <div>
@@ -154,7 +154,7 @@ export function PayslipView({ data }: { data: PayslipData }) {
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e5e7eb' }}>
         <thead>
-          <tr style={{ background: '#FFF3E5' }}>
+          <tr style={{ background: '#FEF8F6' }}>
             <th style={{ ...cell, textAlign: 'left' }}>รายการเงินได้ (บาท)</th>
             <th style={{ ...cell, textAlign: 'left' }}>รายการเงินหัก (บาท)</th>
           </tr>

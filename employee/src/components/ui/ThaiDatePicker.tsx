@@ -88,7 +88,7 @@ export function ThaiDatePicker({ value, onChange, min, placeholder = 'เลื�
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
           background: '#fff', borderRadius: 16, padding: 14, width: 260,
-          boxShadow: '0 12px 32px rgba(0,0,0,0.16)', border: '1px solid #f1f5f9',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.16)', border: '1px solid #E6ECF4',
         }}>
           {/* Month nav */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>

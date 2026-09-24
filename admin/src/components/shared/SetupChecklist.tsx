@@ -63,7 +63,7 @@ export default function SetupChecklist() {
             }}>
             <span style={{
               width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: s.done ? 'var(--success)' : '#f1f5f9',
+              background: s.done ? 'var(--success)' : '#E6ECF4',
               border: s.done ? 'none' : '1.5px solid #cbd5e1',
             }}>
               {s.done && <Check size={13} color="#fff" strokeWidth={3} />}

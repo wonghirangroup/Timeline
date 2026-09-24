@@ -88,7 +88,7 @@ function resolveDayoffDate(weekStart: string, dayOfWeek: number): string {
 const STATUS_CFG: Record<EmployeeStatusValue, { label: string; color: string; bg: string; border: string }> = {
   ACTIVE:     { label: 'ใช้งาน',    color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
   INACTIVE:   { label: 'ไม่ใช้งาน', color: 'var(--text-muted)', bg: '#f3f4f6', border: '#e5e7eb' },
-  RESIGNED:   { label: 'ลาออก',    color: '#FF8A00', bg: '#FFF3E5', border: '#FFDFB8' },
+  RESIGNED:   { label: 'ลาออก',    color: '#EC6F44', bg: '#FEF8F6', border: '#F8CCBE' },
   TERMINATED: { label: 'เลิกจ้าง', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
 }
 const STATUS_OPTIONS: { value: EmployeeStatusValue | 'ALL'; label: string }[] = [
@@ -126,7 +126,7 @@ const th: React.CSSProperties = {
 }
 const td: React.CSSProperties = {
   padding: '10px 12px', fontSize: '0.82rem', color: '#374151',
-  borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap',
+  borderBottom: '1px solid #E6ECF4', whiteSpace: 'nowrap',
 }
 // เซลล์ที่มีความยาวไม่แน่นอน (ที่อยู่/หมายเหตุ/ทักษะ) — ตัดด้วย ellipsis + title
 // เต็มตอน hover กันตารางกว้างเกินจากข้อความยาวผิดปกติของบางคน
@@ -291,7 +291,7 @@ export default function MasterDataPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Users size={20} color="#FF8A00" /> Master Data พนักงาน
+            <Users size={20} color="#EC6F44" /> Master Data พนักงาน
           </h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
             มุมมองรวมสำหรับผู้บริหาร — ดูอย่างเดียว แก้ไขข้อมูลได้ที่หน้า "พนักงาน"
@@ -387,7 +387,7 @@ export default function MasterDataPage() {
                     >
                       <td style={{ ...td, position: 'sticky', left: 0, background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: e.photo_url ? '#e2e8f0' : '#FFF3E5', color: '#FF8A00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: e.photo_url ? '#e2e8f0' : '#FEF8F6', color: '#EC6F44', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
                             {e.photo_url
                               ? <img src={avatarUrl(e.photo_url, 56) ?? e.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               : (e.first_name.charAt(0) + e.last_name.charAt(0)).toUpperCase()}

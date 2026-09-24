@@ -32,7 +32,7 @@ function daysLabel(dateStr: string) {
 const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box' }
 const lbl: React.CSSProperties = { fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }
-const secHead: React.CSSProperties = { padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }
+const secHead: React.CSSProperties = { padding: '12px 16px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }
 
 interface Features { employee_documents?: boolean; probation?: boolean; disciplinary?: boolean }
 

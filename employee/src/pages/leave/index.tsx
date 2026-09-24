@@ -175,7 +175,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
             {month === thisMonth && (
-              <div style={{ fontSize: '0.68rem', color: '#FF8A00', fontWeight: 600, marginTop: 1 }}>
+              <div style={{ fontSize: '0.68rem', color: '#EC6F44', fontWeight: 600, marginTop: 1 }}>
                 หยุดแล้ว {myOffThisMonth} วัน เดือนนี้
               </div>
             )}
@@ -223,14 +223,14 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             if (isAutoOffsite) cellBg = '#FAF5FF'
             if (isAutoOff)   cellBg = '#F0F9FF'
             if (holiday)     cellBg = '#FFF1F2'
-            if (isApprOff)   cellBg = '#FFF3E5'
+            if (isApprOff)   cellBg = '#FEF8F6'
             if (isPendOff)   cellBg = '#FFFBEB'
 
             return (
               <button key={i} onClick={() => setSelDay(p => p === dateStr ? null : dateStr)}
                 style={{
-                  height: 72, borderRadius: 12, border: isSel ? '2px solid #FF8A00'
-                    : isApprOff ? '1.5px solid #FFDFB8'
+                  height: 72, borderRadius: 12, border: isSel ? '2px solid #EC6F44'
+                    : isApprOff ? '1.5px solid #F8CCBE'
                     : isPendOff ? '1.5px dashed #FCD34D'
                     : '1px solid transparent',
                   cursor: 'pointer', background: cellBg,
@@ -238,20 +238,20 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                   paddingTop: 7, paddingBottom: 5, gap: 3,
                   opacity: isPast && !myOff && !myLeaves.length ? 0.45 : 1,
                   transition: 'all 0.12s', fontFamily: 'inherit',
-                  boxShadow: isApprOff || isSel ? '0 2px 8px rgba(255,138,0,0.15)' : 'none',
+                  boxShadow: isApprOff || isSel ? '0 2px 8px rgba(236,111,68,0.15)' : 'none',
                 }}>
 
                 {/* Date number */}
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', fontSize: '0.82rem', fontWeight: 800,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: isToday ? '#fff' : holiday ? '#dc2626' : isApprOff ? '#FF8A00' : '#1A2B3C',
-                  background: isToday ? '#FF8A00' : 'transparent',
+                  color: isToday ? '#fff' : holiday ? '#dc2626' : isApprOff ? '#EC6F44' : '#1A2B3C',
+                  background: isToday ? '#EC6F44' : 'transparent',
                 }}>{day}</div>
 
                 {/* My day-off mark — big and clear */}
                 {isApprOff && !firstLeave && (
-                  <div style={{ fontSize: '0.7rem', color: '#FF8A00', fontWeight: 800, lineHeight: 1 }}>หยุด</div>
+                  <div style={{ fontSize: '0.7rem', color: '#EC6F44', fontWeight: 800, lineHeight: 1 }}>หยุด</div>
                 )}
                 {isPendOff && !firstLeave && (
                   <div style={{ fontSize: '0.62rem', color: '#D97706', fontWeight: 700, lineHeight: 1 }}>รออนุมัติ</div>
@@ -275,7 +275,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
         {/* Legend */}
         <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
-            { bg: '#FFF3E5', border: '1.5px solid #FFDFB8', label: 'วันหยุดของฉัน' },
+            { bg: '#FEF8F6', border: '1.5px solid #F8CCBE', label: 'วันหยุดของฉัน' },
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
@@ -294,7 +294,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
       {/* Selected day detail card */}
       {selDay && (
-        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 18, padding: '16px', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 18, padding: '16px', border: '1px solid #E6ECF4', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A2B3C', marginBottom: 12 }}>
             {fmtDate(selDay)}
           </div>
@@ -303,7 +303,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <Calendar size={32} color="#D1D5DB" style={{ marginBottom: 6 }} />
               <div style={{ fontSize: '0.82rem', color: '#6B7280' }}>ไม่มีกำหนดการในวันนี้</div>
-              <button onClick={onBooking} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 20, border: 'none', background: '#FFF3E5', color: '#FF8A00', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button onClick={onBooking} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 20, border: 'none', background: '#FEF8F6', color: '#EC6F44', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 จองวันหยุดวันนี้ →
               </button>
             </div>
@@ -324,13 +324,13 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               <button onClick={onBooking} style={{
                 width: '100%', textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
                 marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8,
-                padding: '12px 14px', borderRadius: 12, background: '#FFF3E5', border: '1.5px solid #FFDFB8',
+                padding: '12px 14px', borderRadius: 12, background: '#FEF8F6', border: '1.5px solid #F8CCBE',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Palmtree size={22} color="#FF8A00" />
+                  <Palmtree size={22} color="#EC6F44" />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.88rem' }}>วันหยุดประจำ</div>
-                    <div style={{ fontSize: '0.7rem', color: '#FF8A00', marginTop: 1 }}>แตะเพื่อไปหน้าจองหยุดเดือนนี้ →</div>
+                    <div style={{ fontSize: '0.7rem', color: '#EC6F44', marginTop: 1 }}>แตะเพื่อไปหน้าจองหยุดเดือนนี้ →</div>
                   </div>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 99, flexShrink: 0 }}>{s.label}</span>
                 </div>
@@ -376,7 +376,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               const s   = STATUS_CFG[r.status]
               const cfg = r.leave_type === 'OTHER' && (r as any).custom_type ? { label: (r as any).custom_type.name, color: (r as any).custom_type.color } : DISPLAY_LEAVE_TYPES.find(t => t.code === r.leave_type)
               return (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: `${cfg?.color ?? '#94A3B8'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <CalendarDays size={19} color={cfg?.color ?? '#94A3B8'} />
                   </div>
@@ -778,7 +778,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
       </div>
 
       {periodQ.data?.note && (
-        <div style={{ padding: '10px 14px', background: '#FFF3E5', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#FF8A00', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: '10px 14px', background: '#FEF8F6', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EC6F44', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
           <ClipboardList size={14} /> {periodQ.data.note}
         </div>
       )}
@@ -1067,7 +1067,7 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
 
       {/* ── Admin note ──────────────────────────────────────────── */}
       {periodQ.data?.note && isCurrentWeek && (
-        <div style={{ padding: '10px 14px', background: '#FFF3E5', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#FF8A00', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: '10px 14px', background: '#FEF8F6', borderRadius: 10, marginBottom: 12, fontSize: '0.8rem', color: '#EC6F44', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
           <ClipboardList size={14} /> {periodQ.data.note}
         </div>
       )}
@@ -1296,8 +1296,8 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
               const date  = resolveDate(r.week_start, r.day_of_week)
               const dLabel = DAYS_DISPLAY[DISPLAY_TO_DOW.indexOf(r.day_of_week)]
               return (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FEF8F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Palmtree size={19} color={COLOR.primary} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

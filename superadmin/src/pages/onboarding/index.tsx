@@ -282,7 +282,7 @@ export default function OnboardingPage() {
                 {/* Completion ring */}
                 <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
                   <svg width="52" height="52" style={{ transform: 'rotate(-90deg)' }}>
-                    <circle cx="26" cy="26" r="22" fill="none" stroke="#f1f5f9" strokeWidth="4" />
+                    <circle cx="26" cy="26" r="22" fill="none" stroke="#E6ECF4" strokeWidth="4" />
                     <circle
                       cx="26" cy="26" r="22" fill="none"
                       stroke={c.pct === 100 ? '#10b981' : 'var(--sa-accent)'}
@@ -349,7 +349,7 @@ export default function OnboardingPage() {
                   {incomplete.length > 3 && (
                     <span style={{
                       fontSize: '0.7rem', padding: '3px 8px', borderRadius: 99,
-                      background: '#f1f5f9', color: '#64748b',
+                      background: '#E6ECF4', color: '#64748b',
                     }}>+{incomplete.length - 3}</span>
                   )}
                   {incomplete.length === 0 && (
@@ -367,7 +367,7 @@ export default function OnboardingPage() {
 
               {/* Expanded checklist */}
               {isOpen && (
-                <div style={{ borderTop: '1px solid #f1f5f9', padding: '8px 20px 16px' }}>
+                <div style={{ borderTop: '1px solid #E6ECF4', padding: '8px 20px 16px' }}>
                   {/* Mini stat row */}
                   <div style={{ display: 'flex', gap: 20, padding: '10px 0 14px', borderBottom: '1px solid #f8fafc', marginBottom: 12 }}>
                     {[
@@ -417,7 +417,7 @@ export default function OnboardingPage() {
                               {done ? '✓' : (idx + 1)}
                             </div>
                             {!isLast && (
-                              <div style={{ width: 2, flex: 1, background: done ? '#d1fae5' : '#f1f5f9', margin: '2px 0' }} />
+                              <div style={{ width: 2, flex: 1, background: done ? '#d1fae5' : '#E6ECF4', margin: '2px 0' }} />
                             )}
                           </div>
 

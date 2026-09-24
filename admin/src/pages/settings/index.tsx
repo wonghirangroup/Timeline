@@ -26,7 +26,7 @@ import { PlanUsageRow } from '../../components/shared/PlanUsage'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #E6ECF4',
 }
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '8px 12px', fontSize: '13px',
@@ -43,7 +43,7 @@ const ROLE_LABEL: Record<string, string> = {
   EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
 }
 const ROLE_BADGE: Record<string, { bg: string; color: string }> = {
-  ADMIN: { bg: '#FFF3E5', color: '#E67A00' }, MANAGER: { bg: '#FFF3E5', color: '#E67A00' },
+  ADMIN: { bg: '#FEF8F6', color: '#C85E3A' }, MANAGER: { bg: '#FEF8F6', color: '#C85E3A' },
   EXECUTIVE: { bg: '#eef2ff', color: '#4338ca' }, DEPT_HEAD: { bg: '#ecfeff', color: '#0e7490' },
 }
 interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string }
@@ -299,7 +299,7 @@ function CompanyProfileTab() {
   return (
     <div style={{ ...card, padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00', flexShrink: 0 }}><Building2 size={18} /></div>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FEF8F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EC6F44', flexShrink: 0 }}><Building2 size={18} /></div>
         <div>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>ข้อมูลบริษัท & แบรนด์</p>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>ชื่อ/ที่อยู่บริษัทใช้บนเอกสารและรายงาน · โลโก้และสีใช้ปรับหน้าตาให้ตรงแบรนด์ · แพ็กเกจ {data?.plan}</p>
@@ -313,19 +313,19 @@ function CompanyProfileTab() {
         <div>
           <label style={fieldLabel}>สีหลักของแบรนด์</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="color" disabled={readOnly} value={form.primary_color || '#FF8A00'} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: readOnly ? 'default' : 'pointer' }} />
-            <input style={{ ...inputStyle, flex: 1 }} value={form.primary_color} disabled={readOnly} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} placeholder="#FF8A00" />
+            <input type="color" disabled={readOnly} value={form.primary_color || '#EC6F44'} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: readOnly ? 'default' : 'pointer' }} />
+            <input style={{ ...inputStyle, flex: 1 }} value={form.primary_color} disabled={readOnly} onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))} placeholder="#EC6F44" />
           </div>
         </div>
       </div>
       {form.logo_url && (
         <div style={{ marginTop: 12 }}>
           <label style={fieldLabel}>ตัวอย่างโลโก้</label>
-          <img src={form.logo_url} alt="logo" style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain', borderRadius: 6, border: '1px solid #f1f5f9', padding: 4, background: '#fff' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          <img src={form.logo_url} alt="logo" style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain', borderRadius: 6, border: '1px solid #E6ECF4', padding: 4, background: '#fff' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         </div>
       )}
 
-      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #E6ECF4' }}>
         <p style={{ fontSize: '12.5px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>ผู้ลงนามท้ายเอกสาร HR</p>
         <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: '0 0 10px' }}>ใช้เติมอัตโนมัติทุกครั้งที่สร้างเอกสาร (สลิปเงินเดือน/รับรองเงินเดือน/ใบลาออก) ในหน้าเอกสารของพนักงาน</p>
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
@@ -385,7 +385,7 @@ function LeavePolicyTab() {
           วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
         </div>
       )}
-      <div style={{ borderTop: '1px solid #f1f5f9', margin: '16px 0 0', paddingTop: 16 }}>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16 }}>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer' }}>
           <input type="checkbox" checked={selfResign} disabled={readOnly} onChange={e => setSelfResign(e.target.checked)} style={{ marginTop: 3 }} />
           <span>
@@ -454,7 +454,7 @@ function NotificationPrefsTab() {
               <button onClick={() => mut.mutate({ [n.key]: !checked })} disabled={disabled}
                 aria-label={n.label} aria-pressed={checked}
                 style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
-                  background: checked ? '#FF8A00' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
+                  background: checked ? '#EC6F44' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
                 <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               </button>
             </div>
@@ -504,7 +504,7 @@ function FeatureToggleRow({ f, checked, onToggle, disabled, dimmed }: { f: { key
       </div>
       <button onClick={onToggle} disabled={disabled}
         style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
-          background: checked ? '#FF8A00' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
+          background: checked ? '#EC6F44' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
         <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
       </button>
     </div>
@@ -567,7 +567,7 @@ function ShortcutCard() {
         { icon: <Users size={16} />, label: 'สถานะพนักงาน (ประจำ/ชั่วคราว) + โควต้าวันหยุด', desc: 'พนักงาน → ผังองค์กร → สถานะพนักงาน', to: '/org-structure' },
       ].map((s, i) => (
         <Link key={i} to={s.to} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: '#f9fafb', textDecoration: 'none', color: 'inherit' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00', flexShrink: 0 }}>{s.icon}</div>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#FEF8F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EC6F44', flexShrink: 0 }}>{s.icon}</div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', margin: 0 }}>{s.label}</p>
             <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: '2px 0 0' }}>{s.desc}</p>
@@ -665,8 +665,8 @@ export default function SettingsPage() {
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ padding: '9px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
-              color: tab === t.key ? '#E67A00' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === t.key ? '#FF8A00' : 'transparent'}`, marginBottom: -1 }}>
+              color: tab === t.key ? '#C85E3A' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === t.key ? '#EC6F44' : 'transparent'}`, marginBottom: -1 }}>
             {t.label}
           </button>
         ))}

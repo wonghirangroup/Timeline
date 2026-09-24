@@ -9,9 +9,9 @@ export default function ComingSoonReport({ title, icon, hint }: { title: string;
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
       <div style={{ textAlign: 'center', maxWidth: 380, padding: '20px' }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 16, background: 'var(--accent-light, #FFF3E5)',
+          width: 56, height: 56, borderRadius: 16, background: 'var(--accent-light, #FEF8F6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-          color: 'var(--accent-primary, #FF8A00)',
+          color: 'var(--accent-primary, #EC6F44)',
         }}>
           {icon}
         </div>

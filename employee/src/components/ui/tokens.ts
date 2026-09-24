@@ -7,12 +7,12 @@
 
 export const COLOR = {
   // Primary — Orange (เดียวกับ admin: orange-600 / 700)
-  primary:       '#FF8A00',
-  primaryMid:    '#FF8A00',   // (เดิมเป็น mid-stop ของ gradient) → สีเดียว
-  primaryEnd:    '#FF8A00',   // (เดิมเป็น end-stop ของ gradient) → สีเดียว
-  primaryBg:     '#FFF3E5',
-  primarySubtle: '#FFE8CC',
-  primaryBorder: 'rgba(255,138,0,0.18)',
+  primary:       '#EC6F44',
+  primaryMid:    '#EC6F44',   // (เดิมเป็น mid-stop ของ gradient) → สีเดียว
+  primaryEnd:    '#EC6F44',   // (เดิมเป็น end-stop ของ gradient) → สีเดียว
+  primaryBg:     '#FEF8F6',
+  primarySubtle: '#FCE9E3',
+  primaryBorder: 'rgba(236,111,68,0.18)',
 
   // Text — ทุกระดับผ่าน WCAG AA 4.5:1
   textPrimary:   '#1A1A1A',
@@ -22,7 +22,7 @@ export const COLOR = {
 
   // Surface
   white:         '#FFFFFF',
-  pageBg:        '#F1F5F9',
+  pageBg:        '#E6ECF4',
   cardBg:        '#FFFFFF',
 
   // Status — text เข้มพอผ่าน AA, พื้น badge เป็น tint ทึบ

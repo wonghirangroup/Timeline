@@ -191,7 +191,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
   return (
     <>
       <style>{`
-        @keyframes stGlow{0%,100%{border-color:#FF8A00;box-shadow:0 0 0 5px rgba(255,138,0,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
+        @keyframes stGlow{0%,100%{border-color:#EC6F44;box-shadow:0 0 0 5px rgba(236,111,68,0.18);}50%{border-color:#fbbf24;box-shadow:0 0 0 10px rgba(251,191,36,0.10);}}
         @keyframes stTipIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
       `}</style>
 
@@ -213,7 +213,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
           position:'fixed', pointerEvents:'none',
           top:rect.top-PAD, left:rect.left-PAD,
           width:rect.width+PAD*2, height:rect.height+PAD*2,
-          borderRadius:12, border:'3px solid #FF8A00',
+          borderRadius:12, border:'3px solid #EC6F44',
           zIndex:9001,
           animation:'stGlow 1.4s ease-in-out infinite',
         }} />
@@ -227,7 +227,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
         zIndex:9002, overflow:'hidden',
         animation:'stTipIn 0.22s cubic-bezier(0.16,1,0.3,1)',
       }}>
-        <div style={{ background:'linear-gradient(135deg,#FF8A00,#FF8A00)', padding:'14px 16px 12px', position:'relative' }}>
+        <div style={{ background:'linear-gradient(135deg,#EC6F44,#EC6F44)', padding:'14px 16px 12px', position:'relative' }}>
           <div style={{ fontWeight:800, color:'#fff', fontSize:'15px', lineHeight:1.3, paddingRight:44 }}>{cur.title}</div>
           <span style={{ position:'absolute', top:11, right:14, fontSize:'11px', color:'rgba(255,255,255,0.85)', fontWeight:700, background:'rgba(0,0,0,0.18)', borderRadius:99, padding:'2px 8px' }}>
             {step+1}/{total}
@@ -238,7 +238,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
           {SHIFT_TOUR_STEPS.map((_,i) => (
             <button key={i} onClick={()=>setStep(i)} style={{
               width:i===step?20:7, height:7, borderRadius:99, border:'none', cursor:'pointer', padding:0,
-              background:i===step?'#FF8A00':i<step?'#FFDFB8':'#e5e7eb', transition:'all 0.25s',
+              background:i===step?'#EC6F44':i<step?'#F8CCBE':'#e5e7eb', transition:'all 0.25s',
             }}/>
           ))}
         </div>
@@ -249,7 +249,7 @@ function ShiftTour({ onClose }: { onClose: () => void }) {
               <button onClick={()=>setStep(s=>s-1)} style={{ padding:'7px 12px', borderRadius:8, border:'1px solid #e5e7eb', background:'#f9fafb', color:'#374151', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' }}>← ก่อนหน้า</button>
             )}
             {step < total-1 ? (
-              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px', borderRadius:8, border:'none', background:'#FF8A00', color:'#fff', fontWeight:700, fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>ถัดไป →</button>
+              <button onClick={()=>setStep(s=>s+1)} style={{ padding:'7px 18px', borderRadius:8, border:'none', background:'#EC6F44', color:'#fff', fontWeight:700, fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>ถัดไป →</button>
             ) : (
               <button onClick={onClose} style={{ padding:'7px 18px', borderRadius:8, border:'none', background:'#16a34a', color:'#fff', fontWeight:700, fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}>✓ เสร็จแล้ว!</button>
             )}
@@ -623,7 +623,7 @@ export default function ShiftPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setShiftView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: shiftView === v ? 700 : 500, background: shiftView === v ? '#fff' : 'transparent', color: shiftView === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: shiftView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: shiftView === v ? 700 : 500, background: shiftView === v ? '#fff' : 'transparent', color: shiftView === v ? '#EC6F44' : 'var(--text-muted)', boxShadow: shiftView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -643,7 +643,7 @@ export default function ShiftPage() {
       {/* KPI row */}
       <div data-tour="shift-kpi" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
         {[
-          { label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#FF8A00', bg: '#FFF3E5', border: '#FFDFB8' },
+          { label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#EC6F44', bg: '#FEF8F6', border: '#F8CCBE' },
           { label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
           { label: 'จำนวนสาขา',  value: branches.length,                          icon: <Building2 size={15}/>,    color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
         ].map(k => (
@@ -714,7 +714,7 @@ export default function ShiftPage() {
             const cfg        = STATUS_CFG[st]
             const empCnt     = (shiftEmpMap[s.id] ?? []).length
             const isSpecial  = s.shift_type === 'SPECIAL'
-            const cardBorder = isSpecial ? '#c4b5fd' : st === 'active' ? '#86efac' : '#f1f5f9'
+            const cardBorder = isSpecial ? '#c4b5fd' : st === 'active' ? '#86efac' : '#E6ECF4'
             const cardShadow = isSpecial ? '0 2px 12px rgba(124,58,237,0.1)' : st === 'active' ? '0 2px 12px rgba(22,163,74,0.1)' : '0 2px 12px rgba(0,0,0,0.04)'
             const headerBg   = isSpecial ? '#f5f3ff' : st === 'active' ? '#f0fdf4' : st === 'upcoming' ? '#fffbeb' : '#f9fafb'
             return (
@@ -810,7 +810,7 @@ export default function ShiftPage() {
                     const empCnt    = (shiftEmpMap[s.id] ?? []).length
                     const isSpecial = s.shift_type === 'SPECIAL'
                     return (
-                      <tr key={s.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <tr key={s.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                         <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                           <button onClick={() => setDetailShift(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700, color: '#1e293b' }}>
@@ -845,14 +845,14 @@ export default function ShiftPage() {
                           )}
                         </td>
                         <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
-                          <button onClick={() => setEmpViewShift(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#FF8A00', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
+                          <button onClick={() => setEmpViewShift(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#EC6F44', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: 2, fontFamily: 'inherit' }}>
                             {empCnt} คน
                           </button>
                         </td>
                         <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                             <button onClick={() => openEdit(s)} title="แก้ไข"
-                              style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#FF8A00', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                              style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#EC6F44', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                               <Pencil size={13} />
                             </button>
                             <button onClick={() => setDeleteTarget(s)} title="ลบ"
@@ -874,7 +874,7 @@ export default function ShiftPage() {
 
       {/* Pagination — always pinned at bottom */}
       {!loading && (
-        <div data-tour="shift-pagination" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginTop: 10 }}>
+        <div data-tour="shift-pagination" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E6ECF4', marginTop: 10 }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {filtered.length === 0
               ? 'ไม่มีกะ'
@@ -892,7 +892,7 @@ export default function ShiftPage() {
                 <button
                   key={i}
                   onClick={() => setPage(i + 1)}
-                  style={{ width: page === i + 1 ? 20 : 8, height: 8, borderRadius: 99, border: 'none', padding: 0, cursor: 'pointer', background: page === i + 1 ? '#FF8A00' : '#e5e7eb', transition: 'all 0.2s' }}
+                  style={{ width: page === i + 1 ? 20 : 8, height: 8, borderRadius: 99, border: 'none', padding: 0, cursor: 'pointer', background: page === i + 1 ? '#EC6F44' : '#e5e7eb', transition: 'all 0.2s' }}
                 />
               ))}
             </div>
@@ -911,7 +911,7 @@ export default function ShiftPage() {
       {modal && (
         <div style={sheetOverlay} onClick={() => setModal(null)}>
           <div style={sheetBox} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '18px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <div style={{ padding: '18px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
               <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: 0 }}>
                 {modal.mode === 'add' ? '+ เพิ่มกะใหม่' : `แก้ไขกะ: ${modal.data?.name}`}
               </p>
@@ -987,9 +987,9 @@ export default function ShiftPage() {
                           onClick={() => setForm(f => ({ ...f, gps_radius: r }))}
                           style={{
                             padding: '7px 14px', borderRadius: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500,
-                            border: `1.5px solid ${Number(form.gps_radius) === r ? '#FF8A00' : '#e5e7eb'}`,
-                            background: Number(form.gps_radius) === r ? '#FFF3E5' : '#fff',
-                            color: Number(form.gps_radius) === r ? '#FF8A00' : '#4b5563',
+                            border: `1.5px solid ${Number(form.gps_radius) === r ? '#EC6F44' : '#e5e7eb'}`,
+                            background: Number(form.gps_radius) === r ? '#FEF8F6' : '#fff',
+                            color: Number(form.gps_radius) === r ? '#EC6F44' : '#4b5563',
                           }}
                         >{r}ม.</button>
                       ))}
@@ -1020,8 +1020,8 @@ export default function ShiftPage() {
                         { v: 'PER_MINUTE', label: 'หักตามนาที', desc: 'ปรับ = นาทีที่สาย × อัตรา/นาที' },
                       ] as const).map(o => (
                         <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, fine_mode: o.v }))}
-                          style={{ flex: 1, padding: '9px 10px', borderRadius: 8, textAlign: 'left', border: `2px solid ${form.fine_mode === o.v ? '#FF8A00' : '#e5e7eb'}`, background: form.fine_mode === o.v ? '#FFF3E5' : '#fff', cursor: 'pointer' }}>
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: form.fine_mode === o.v ? '#FF8A00' : '#374151' }}>{o.label}</div>
+                          style={{ flex: 1, padding: '9px 10px', borderRadius: 8, textAlign: 'left', border: `2px solid ${form.fine_mode === o.v ? '#EC6F44' : '#e5e7eb'}`, background: form.fine_mode === o.v ? '#FEF8F6' : '#fff', cursor: 'pointer' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: form.fine_mode === o.v ? '#EC6F44' : '#374151' }}>{o.label}</div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{o.desc}</div>
                         </button>
                       ))}
@@ -1132,7 +1132,7 @@ export default function ShiftPage() {
               </div>
             </div>
 
-            <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 10, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
               <Button variant="ghost" onClick={() => setModal(null)}>ยกเลิก</Button>
               <Button variant="primary" loading={saving} icon={modal.mode === 'add' ? <Plus size={14} /> : <Save size={14} />} onClick={handleSave}>
                 {modal.mode === 'add' ? 'เพิ่มกะ' : 'บันทึก'}
@@ -1186,7 +1186,7 @@ export default function ShiftPage() {
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{empViewShift.name} — {empViewShift.branch.name}</div>
                   <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} aria-label="ปิด"><X size={18}/></button>
@@ -1197,13 +1197,13 @@ export default function ShiftPage() {
               </div>
 
               {/* Tabs */}
-              <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid #E6ECF4', flexShrink: 0 }}>
                 {([
                   ['in',  <><Users size={13}/> ในกะนี้ ({inShift.length})</>],
-                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length > 0 && <span style={{ background: '#f1f5f9', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)' }}>{allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length}</span>}</>],
+                  ['add', <><UserPlus size={13}/> เพิ่มพนักงาน {allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length > 0 && <span style={{ background: '#E6ECF4', borderRadius: 99, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)' }}>{allEmployees.filter(e => !inShiftIds.has(e.id) && e.branch_id === empViewShift.branch_id).length}</span>}</>],
                 ] as const).map(([tab, label]) => (
                   <button key={tab} onClick={() => { setAddEmpTab(tab as 'in'|'add'); setEmpSearch(''); setRemoveConfirm(null) }}
-                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#FF8A00' : 'transparent'}`, color: addEmpTab === tab ? '#FF8A00' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: addEmpTab === tab ? 700 : 400, border: 'none', background: 'none', cursor: 'pointer', borderBottom: `2px solid ${addEmpTab === tab ? '#EC6F44' : 'transparent'}`, color: addEmpTab === tab ? '#EC6F44' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                     {label}
                   </button>
                 ))}
@@ -1297,7 +1297,7 @@ export default function ShiftPage() {
               </div>
 
               {/* Footer */}
-              <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fafafa', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ padding: '12px 16px', borderTop: '1px solid #E6ECF4', flexShrink: 0, background: '#fafafa', display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={() => { setEmpViewShift(null); setEmpSearch(''); setAddEmpTab('in'); setRemoveConfirm(null) }}
                   style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
                   เสร็จสิ้น
@@ -1411,7 +1411,7 @@ export default function ShiftPage() {
               <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain' }}>
 
                 {/* Shift detail section */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>รายละเอียดกะ</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>
                     <InfoItem label={<><Clock size={11} /> เวลาเริ่มงาน</>} value={s.start_time} color="#15803d" />
@@ -1466,7 +1466,7 @@ export default function ShiftPage() {
                             display: 'flex', alignItems: 'center', gap: 12,
                             padding: '10px 12px', borderRadius: 10,
                             background: isAssigned ? '#f0fdf4' : '#f9fafb',
-                            border: `1px solid ${isAssigned ? '#bbf7d0' : '#f1f5f9'}`,
+                            border: `1px solid ${isAssigned ? '#bbf7d0' : '#E6ECF4'}`,
                           }}>
                             <div style={{
                               width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',

@@ -73,7 +73,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
       {/* Phone frame */}
       <div onClick={e => e.stopPropagation()} style={{
         width: 375, maxHeight: '90vh',
-        background: '#f1f5f9', borderRadius: 40,
+        background: '#E6ECF4', borderRadius: 40,
         boxShadow: '0 32px 80px rgba(0,0,0,0.35), 0 0 0 8px #1e293b, 0 0 0 10px #334155',
         display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
       }}>
@@ -107,7 +107,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
           {/* ── CLOSED state ── */}
           {roundStatus === 'CLOSED' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', gap: 14 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <CalendarOff size={36} stroke="#94a3b8" strokeWidth={1.5}/>
               </div>
               <div style={{ textAlign: 'center' }}>
@@ -115,10 +115,10 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
                 <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.6 }}>
                   แอดมินยังไม่ได้เปิดรอบการจอง<br/>
                   วันหยุดสำหรับ{' '}
-                  <span style={{ color: '#FF8A00', fontWeight: 600 }}>{fmtMonthTH(month)}</span>
+                  <span style={{ color: '#EC6F44', fontWeight: 600 }}>{fmtMonthTH(month)}</span>
                 </p>
               </div>
-              <div style={{ background: '#FFF3E5', border: '1px solid #FFDFB8', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
+              <div style={{ background: '#FEF8F6', border: '1px solid #F8CCBE', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
                 <p style={{ fontSize: '12px', color: '#9a3412', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>
                   <MessageCircle size={12} style={{ verticalAlign: -1 }} /> เมื่อแอดมินเปิดการจอง<br/>
                   ระบบจะส่งแจ้งเตือนทาง Line
@@ -190,7 +190,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <div style={{
                                 width: 38, height: 38, borderRadius: 10,
-                                background: isSelected ? '#06C755' : isBooked ? '#e5e7eb' : '#f1f5f9',
+                                background: isSelected ? '#06C755' : isBooked ? '#e5e7eb' : '#E6ECF4',
                                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                               }}>
                                 <span style={{ fontSize: '9px', fontWeight: 600, color: isSelected ? '#fff' : '#64748b', lineHeight: 1 }}>{DAYS_TH[d.getDay()]}</span>
@@ -278,7 +278,7 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
         {roundStatus === 'OPEN' && screen === 'confirm' && selected && (
           <div style={{ padding: '12px 16px 20px', background: '#fff', borderTop: '1px solid #e2e8f0', flexShrink: 0, display: 'flex', gap: 10 }}>
             <button onClick={() => setScreen('home')}
-              style={{ flex: 1, background: '#f1f5f9', color: '#374151', border: 'none', borderRadius: 14, padding: '14px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ flex: 1, background: '#E6ECF4', color: '#374151', border: 'none', borderRadius: 14, padding: '14px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               ยกเลิก
             </button>
             <button onClick={handleBook}
