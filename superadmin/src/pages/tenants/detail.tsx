@@ -47,16 +47,24 @@ function thDate(s: string | null | undefined) {
   const d = new Date(s)
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
+function thDateTime(s: string) {
+  const d = new Date(s)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear() + 543} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 type Tab = 'info' | 'line' | 'branches' | 'features' | 'activity'
 
-const MOCK_ACTIVITY = [
-  { at: '25/05/2569 10:32', msg: 'ผู้ดูแลระบบล็อกอินเข้าสู่ระบบ', type: 'login' },
-  { at: '24/05/2569 14:15', msg: 'เพิ่มพนักงานใหม่ 2 คน', type: 'add' },
-  { at: '23/05/2569 09:00', msg: 'แก้ไขข้อมูลสาขาสำนักงานใหญ่', type: 'edit' },
-]
-const ACT_COLOR: Record<string, string> = {
-  login: '#6366f1', add: 'var(--success-text)', edit: 'var(--warning-text)', approve: '#2563eb', plan: '#7c3aed',
+interface ApiActivityLog { id: string; actor_name: string; action: string; message: string; created_at: string }
+// สีจุดตาม action prefix จริงจาก ActivityLog.action (TENANT_*/ADMIN_*/LINE_CONFIG_*/
+// FEATURE_*/INVOICE_*/SUPER_ADMIN_LOGIN — ดู server/src/prisma/schema.prisma)
+function activityColor(action: string): string {
+  if (action.startsWith('SUPER_ADMIN_LOGIN')) return '#6366f1'
+  if (action.startsWith('TENANT_CREATED') || action.startsWith('ADMIN_CREATED')) return 'var(--success-text)'
+  if (action.startsWith('TENANT_UPDATED') || action.startsWith('LINE_CONFIG')) return 'var(--warning-text)'
+  if (action.startsWith('FEATURE')) return '#2563eb'
+  if (action.startsWith('INVOICE')) return '#7c3aed'
+  return '#9ca3af'
 }
 
 const inputSt: React.CSSProperties = {
@@ -103,6 +111,14 @@ export default function TenantDetailPage() {
   const [copiedPw, setCopiedPw]           = useState(false)
   const [editLimits, setEditLimits]      = useState(false)
   const [limitForm, setLimitForm]        = useState({ max_employees: 0, max_branches: 0, max_groups: 0 })
+
+  // log กิจกรรมรายบริษัท (feedback 2026-09-24) — ดึงเฉพาะตอนเปิดแท็บ "กิจกรรม"
+  // จริงๆ ไม่ต้องยิงทุกครั้งที่เปิดหน้า tenant detail
+  const { data: activityLog = [], isLoading: activityLoading } = useQuery({
+    queryKey: ['sa', 'tenant', id, 'activity'],
+    queryFn: () => api.get('/api/v1/super-admin/activity', { params: { tenant_id: id, limit: 50 } }).then((r: any) => r.data.data),
+    enabled: !!id && tab === 'activity',
+  })
 
   // ── fetch tenant ────────────────────────────────────────────────────
   const { data: tenant, isLoading } = useQuery({
@@ -792,25 +808,23 @@ export default function TenantDetailPage() {
       {tab === 'activity' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px' }}>
           <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', fontWeight: 700 }}>ประวัติกิจกรรมล่าสุด</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {MOCK_ACTIVITY.map((a, i) => (
-              <div key={i} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: i < MOCK_ACTIVITY.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'flex-start' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACT_COLOR[a.type] ?? '#9ca3af', marginTop: 6, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-dark)' }}>{a.msg}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 3 }}>{a.at}</div>
+          {activityLoading ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af', fontSize: '0.85rem' }}>กำลังโหลด...</div>
+          ) : activityLog.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af', fontSize: '0.85rem' }}>ยังไม่มีกิจกรรมที่บันทึกไว้สำหรับบริษัทนี้</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {(activityLog as ApiActivityLog[]).map((a, i) => (
+                <div key={a.id} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: i < activityLog.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'flex-start' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: activityColor(a.action), marginTop: 6, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-dark)' }}>{a.message}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 3 }}>{thDateTime(a.created_at)} · {a.actor_name}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <button
-              onClick={() => showToast('info', 'Activity log จะเชื่อมต่อ Backend ในเวอร์ชันถัดไป')}
-              style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.82rem' }}
-            >
-              ดูประวัติทั้งหมด
-            </button>
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
