@@ -141,13 +141,13 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
   )
 }
 
-// ── สีประจำหมวด ── เดิมแยกสีต่อหมวด (teal/blue/violet/amber) ทำให้แบรนด์ส้มเจือ
-// จางไปเหลือแค่หมวดแรก ขัดกับ DESIGN.md ("Sidebar nav item active — orange bg
-// subtle, text orange" ไม่ได้ระบุไว้เป็นสีรุ้งต่อหมวด) — รวมเป็นส้มเดียวกันหมด
-// ทุกหมวด (feedback 2026-09-15 "ส้มมากกว่า") ใช้ orange-400 (#FFA733) แทน
-// accent-primary ตรงๆ เพราะเฉดนี้ปรับให้อ่านง่ายบนพื้นเข้มของ sidebar แล้ว
+// ── สีประจำหมวด ── รวมเป็นสีเดียวกันหมดทุกหมวด (feedback 2026-09-15 "ส้ม
+// มากกว่า", ยังคงหลักการนี้ไว้ — ไม่แยกสีรุ้งต่อหมวด) แต่เปลี่ยนจากส้มเป็น
+// ฟ้าอ่อน (rebrand 2026-09-25 "เอาธีมสีแบบนี้" ตามภาพอ้างอิง — active nav
+// item ในภาพเป็น pill สีฟ้า ไม่ใช่ส้ม บน sidebar navy เข้ม) ส้มเก็บไว้เป็น
+// accent เฉพาะจุดอื่น (เช่น role badge บน Topbar) ไม่ใช่สีหลักของ Sidebar แล้ว
 interface SecAccent { text: string; bg: string }
-const ACTIVE_ACCENT: SecAccent = { text: '#FFA733', bg: 'rgba(255,138,0,0.16)' }
+const ACTIVE_ACCENT: SecAccent = { text: '#4DB2FE', bg: 'rgba(77,178,254,0.18)' }
 const SETTINGS_ACCENT: SecAccent = { text: '#94A3B8', bg: 'rgba(148,163,184,0.16)' } // slate
 
 const ROLE_CHIP: Partial<Record<string, { label: string; bg: string; color: string }>> = {
@@ -207,7 +207,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           boxShadow: isActive ? `inset 3px 0 0 ${accent.text}` : 'none',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,167,51,0.1)'; e.currentTarget.style.color = '#f8fafc'; } }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(77,178,254,0.12)'; e.currentTarget.style.color = '#f8fafc'; } }}
         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)'; } }}
       >
         <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>

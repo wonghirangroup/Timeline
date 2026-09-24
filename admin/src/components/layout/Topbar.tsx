@@ -369,20 +369,20 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
 
   return (
     <>
-      {/* Header bar ส้มเต็มรูป (feedback 2026-09-16: "ปรับ Headerbar เป็นสีส้ม")
-          — ใช้สีเดียวกับ --accent-primary (#FF8A00) ตรงตาม DESIGN.md ไปเลย
-          แบบราบ (ไม่ไล่สี) ให้เข้าชุดกับ Sidebar ที่คุมธีมส้มเต็มไปแล้วก่อนหน้า
-          (v151/152) — เดิมเป็นแก้วขาวอมส้มจางๆ ตอนนี้ทึบส้มชัดเจน เลย drop
-          backdrop-blur ทิ้งด้วย (ไม่มีผลอะไรกับพื้นทึบ) และเปลี่ยนเงาขอบล่าง
-          จาก border เป็น box-shadow บางๆ ให้ดูลอยเหนือเนื้อหาแทน */}
+      {/* Header bar ขาว (rebrand 2026-09-25: "เอาธีมสีแบบนี้" ตามภาพอ้างอิง —
+          sidebar navy เข้ม + header ขาว + active nav ฟ้า + ส้มเก็บไว้เป็น
+          accent เฉพาะจุด เช่น role badge) — เดิมทึบส้มเต็มจาก v151/152 ตอนนี้
+          กลับมาขาว ใช้ border ล่างบางๆ แทน box-shadow เดิมให้ดูมีขอบชัดกับ
+          พื้นหลังหน้าเพจที่ก็ขาว/เทาอ่อนเหมือนกัน */}
       <header style={{
         position: 'fixed',
         left: sidebarW,
         right: 0,
         top: 0,
         height: isMobile ? 56 : 64,
-        background: 'var(--accent-primary)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+        background: '#FFFFFF',
+        borderBottom: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -398,12 +398,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           {isMobile && (
             <button
               onClick={onMenuClick}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             >
               <Menu size={20} />
             </button>
           )}
-          <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+          <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
             {title}
           </span>
         </div>
@@ -411,12 +411,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
           {!isMobile && (
             <>
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)' }}>{formatDateTime(now)}</span>
-              <div style={{ width: '1px', height: 16, background: 'rgba(255,255,255,0.3)' }} />
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatDateTime(now)}</span>
+              <div style={{ width: '1px', height: 16, background: '#e5e7eb' }} />
             </>
           )}
           {!isMobile && (
-            <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.18)', color: '#fff' }}>{roleLabel}</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--accent-primary)', color: '#fff' }}>{roleLabel}</span>
           )}
 
           <NotificationBell isMobile={isMobile} />
@@ -428,20 +428,20 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={openPanel}
               style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 8, transition: 'background 0.15s' }}
-              onMouseEnter={e => !isMobile && (e.currentTarget.style.background = 'rgba(255,255,255,0.14)')}
+              onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#f1f5f9')}
               onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
             >
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', overflow: 'hidden',
-                background: 'var(--accent-light)', border: '2px solid rgba(255,255,255,0.7)',
+                background: 'var(--accent-light)', border: '2px solid #e5e7eb',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
                 <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               {!isMobile && (
                 <>
-                  <span style={{ fontSize: '12.5px', color: '#fff', fontWeight: 500 }}>{name || 'Admin'}</span>
-                  <ChevronDown size={12} color="rgba(255,255,255,0.8)" />
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-main)', fontWeight: 500 }}>{name || 'Admin'}</span>
+                  <ChevronDown size={12} color="var(--text-muted)" />
                 </>
               )}
             </button>

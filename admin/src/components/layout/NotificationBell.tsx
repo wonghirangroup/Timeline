@@ -223,8 +223,8 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label={`การแจ้งเตือน${badge > 0 ? ` (${badge} รายการ)` : ''}`}
-        style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 7, borderRadius: 9, color: '#fff', display: 'flex', transition: 'background 0.15s' }}
-        onMouseEnter={e => !isMobile && (e.currentTarget.style.background = 'rgba(255,255,255,0.14)')}
+        style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 7, borderRadius: 9, color: 'var(--text-main)', display: 'flex', transition: 'background 0.15s' }}
+        onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#f1f5f9')}
         onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
       >
         <Bell size={19} />
@@ -232,7 +232,7 @@ export default function NotificationBell({ isMobile }: { isMobile: boolean }) {
           <span style={{
             position: 'absolute', top: 1, right: 1, minWidth: 16, height: 16, padding: '0 4px',
             borderRadius: 99, background: 'var(--action-danger)', color: '#fff', fontSize: 10, fontWeight: 800,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--accent-primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff',
           }}>
             {badge > 99 ? '99+' : badge}
           </span>

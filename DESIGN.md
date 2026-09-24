@@ -11,10 +11,18 @@
 > "never mix accents across a layout" separation rule while unifying both
 > apps under one real brand identity via the shared navy + white base.
 
+> Shell redesign 2026-09-25: user sent a reference screenshot ("เอาธีมสีแบบ
+> นี้") of a dark-navy-sidebar + white-header + blue-active-nav layout.
+> Topbar flipped from solid orange back to white (reversing the v151/152
+> "Headerbar เป็นสีส้ม" decision); Sidebar's active-nav-item accent flipped
+> from orange to light blue. Orange remains the primary accent for CTAs/
+> buttons/KPI highlights — it's no longer the Sidebar's active-state color.
+
 ### Admin / Manager (tenant users)
-Primary accent: `#FF8A00` (brand orange) — used for CTAs, active states, key highlights  
+Primary accent: `#FF8A00` (brand orange) — CTAs, buttons, KPI highlights  
 Hover accent: `#E67A00`  
-Light accent: `#FFE8CC` — backgrounds for active pills, KPI cards  
+Light accent: `#FFE8CC` — backgrounds for pills, KPI cards  
+Sidebar active-nav accent: `#4DB2FE` (brand light blue) — pill bg `rgba(77,178,254,0.18)`
 
 ### Super Admin (vendor-side only)
 Primary accent: `#4DB2FE` (brand light blue) — all Super Admin CTAs, active states, key highlights  
@@ -25,7 +33,7 @@ Light accent: `#E3F4FF` — backgrounds for active pills, stat cards
 Surface: `#F1F5F9` (slate-100) — page background  
 Card: `#FFFFFF`  
 Sidebar: `#0B2D6B` (brand navy) — dark, anchoring — shared by both Admin and Super Admin  
-Topbar glass: `rgba(255,248,240,0.88)` (warm orange-tinted, blur 12px) — border `rgba(255,138,0,0.1)`; was plain white glass, tinted warmer toward brand so Header doesn't read as flat white next to the orange-accented Sidebar (feedback 2026-09-15)
+Topbar: `#FFFFFF` solid, `border-bottom: 1px solid #e5e7eb` — reversed from solid-orange (v151/152) back to white per the 2026-09-25 shell redesign; role badge pill on the right keeps `--accent-primary` orange as the one orange touch in the header
 
 Text primary: `#0F172A` (slate-900)  
 Text muted: `#64748B` (slate-500)  
@@ -85,7 +93,7 @@ Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #f1f5f9`
 **Table** — thead `bg #FFF3E5` / `color #E67A00` / `fontWeight 700` ; row hover `#FFF3E5`  
 **Modal overlay** — `position:fixed; inset:0; z-index:200` (above sidebar 100, topbar 98)  
 **Add button** — orange gradient `linear-gradient(135deg, #FF8A00, #E67A00)` + shadow  
-**Sidebar nav item active** — orange `#FFA733` (tuned for dark navy bg) bg subtle `rgba(255,138,0,0.16)`, text orange — same accent for every nav section (not per-section colors) so the brand orange stays dominant throughout the Sidebar
+**Sidebar nav item active** — light blue `#4DB2FE` bg subtle `rgba(77,178,254,0.18)`, text light blue — same accent for every nav section (not per-section colors), flipped from orange 2026-09-25 to match the white-header/navy-sidebar/blue-active shell redesign
 **Stat/KPI card icon badge** — `linear-gradient(135deg, color-mix(in srgb, {color} 55%, white), {color})`, icon `#fff`, `box-shadow: 0 4px 10px {color}4D` — replaces the older flat-pastel-tint badge (`background: {bg}, color: {iconColor}`). Applied so far: Dashboard (KPI cards, RangeKpiCard, quick links). Roll out to other pages' stat cards over time — not done everywhere yet (feedback 2026-09-15, adapted from a colorful reference mockup's "feel" while keeping TimeLine's own orange-led palette, not the reference's literal purple/blue/pink)
 
 ## Motion
