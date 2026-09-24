@@ -32,7 +32,7 @@ Light accent: `#E3F4FF` — backgrounds for active pills, stat cards
 
 Surface: `#F1F5F9` (slate-100) — page background  
 Card: `#FFFFFF`  
-Sidebar: `#0B2D6B` (brand navy) — dark, anchoring — shared by both Admin and Super Admin  
+Sidebar: `#0A0F1F` (darkened navy — near-black, same hue as brand navy `#0B2D6B` at much lower lightness per the reference screenshot) — dark, anchoring — shared by both Admin and Super Admin  
 Topbar: `#FFFFFF` solid, `border-bottom: 1px solid #e5e7eb` — reversed from solid-orange (v151/152) back to white per the 2026-09-25 shell redesign; role badge pill on the right keeps `--accent-primary` orange as the one orange touch in the header
 
 Text primary: `#0F172A` (slate-900)  

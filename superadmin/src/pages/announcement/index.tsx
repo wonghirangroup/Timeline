@@ -375,7 +375,7 @@ function ComposeModal({ onClose, onSend, initialData, tenants }: ComposeProps) {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
               }}>
                 {/* Phone mockup top bar */}
-                <div style={{ background: '#0B2D6B', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ background: '#0A0F1F', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sa-accent)' }} />
                   <span style={{ fontSize: '0.7rem', color: '#8FD4FF', fontWeight: 600 }}>TimeLine System</span>
                 </div>

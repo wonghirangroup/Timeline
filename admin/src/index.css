@@ -5,10 +5,10 @@
   /* Colors - Premium Slate & Vibrant Orange Accent */
   --bg-page: #F1F5F9; /* slate-100 */
   --bg-card: #FFFFFF;
-  /* Rebrand 2026-09-24: navy #0B2D6B (เดิมน้ำตาลอุ่น #1F140A จาก v152) — เข้ม
-     พอทำหน้าที่ "anchoring" เหมือนเดิม เปลี่ยนจากอุ่นเป็นน้ำเงินกรมท่าตามพาเลต
-     แบรนด์ใหม่ (navy/light-blue/orange/white) */
-  --bg-sidebar: #0B2D6B;
+  /* Rebrand 2026-09-25: navy เข้มเกือบดำ #0A0F1F (feedback: ภาพอ้างอิงที่ user
+     ส่งมา sidebar เข้มเกือบดำ ไม่ใช่น้ำเงินสว่างแบบ #0B2D6B ที่ทำไปรอบแรก —
+     ยังเป็นฮิว navy เดียวกัน แค่ลด lightness ลงมากให้เข้มเกือบดำตามภาพ) */
+  --bg-sidebar: #0A0F1F;
   
   --accent-primary: #FF8A00; /* orange-600 */
   --accent-hover: #E67A00;   /* orange-700 */
@@ -71,7 +71,7 @@
   --sa-accent-border: #B8E2FF;
   --sa-accent-muted:  #4DB2FE;
   --sa-accent-soft:   #8FD4FF;
-  --sa-sidebar:       #0B2D6B;
+  --sa-sidebar:       #0A0F1F;
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */
