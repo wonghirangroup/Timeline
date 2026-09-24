@@ -165,7 +165,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   height: var(--nav-height);
-  background: var(--nav-bg);
+  background: linear-gradient(135deg, #FFFFFF, #E6ECF4);
   border-top: 1px solid var(--nav-border);
   display: flex;
   align-items: center;
@@ -217,14 +217,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* ── Header ────────────────────────────────────────────────── */
+/* ไล่เงาสีขาว→เทาอ่อนแบรนด์ มุม 135deg เดียวกับ Topbar/Sidebar ฝั่ง admin
+   (feedback 2026-09-25 "ออกแบบในฝั่งพนักงานด้วย") */
 .header-strip {
-  background: #ffffff;
+  background: linear-gradient(135deg, #FFFFFF, #E6ECF4);
   border-bottom: 1px solid var(--card-border);
 }
 
-/* App shell — solid header + plain panel (เดิมเป็น gradient + floating glass) */
+/* App shell — ไล่เงาสีส้ม มุม 135deg เดียวกับ pattern gradient icon badge
+   ที่ใช้ทั่วแอป admin (เดิม flat --accent-primary) */
 .app-header {
-  background: var(--accent-primary);
+  background: linear-gradient(135deg, #F19A7C, #EC6F44);
   padding: 24px 20px 56px;
   position: relative;
 }
