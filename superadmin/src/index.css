@@ -42,13 +42,13 @@
   --radius-xl: 24px;
 
   /* ── Super Admin (indigo — vendor-side only) ── */
-  --sa-accent:        #4f46e5;
-  --sa-accent-hover:  #4338ca;
-  --sa-accent-light:  #eef2ff;
-  --sa-accent-border: #c7d2fe;
-  --sa-accent-muted:  #6366f1;
-  --sa-accent-soft:   #a5b4fc;
-  --sa-sidebar:       #1e1b4b;
+  --sa-accent:        #4DB2FE;
+  --sa-accent-hover:  #2B93DB;
+  --sa-accent-light:  #E3F4FF;
+  --sa-accent-border: #B8E2FF;
+  --sa-accent-muted:  #4DB2FE;
+  --sa-accent-soft:   #8FD4FF;
+  --sa-sidebar:       #0B2D6B;
 
   /* ── Extended text scale ── */
   --text-dark:   #111827;  /* gray-900 — primary headings */

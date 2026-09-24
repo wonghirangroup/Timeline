@@ -78,13 +78,13 @@ export default function MagicLoginPage() {
             <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 6px' }}>เข้าสู่ระบบอัตโนมัติไม่สำเร็จ</p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted, #6b7280)', margin: '0 0 18px' }}>{error}</p>
             <button onClick={() => navigate('/login', { replace: true })}
-              style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+              style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
               ไปหน้าล็อกอิน
             </button>
           </>
         ) : (
           <>
-            <Loader2 className="animate-spin" size={26} color="#f97316" style={{ margin: '0 auto 14px' }} />
+            <Loader2 className="animate-spin" size={26} color="#FF8A00" style={{ margin: '0 auto 14px' }} />
             <p style={{ fontWeight: 600, fontSize: '13.5px', color: '#374151', margin: 0 }}>กำลังเข้าสู่ระบบ...</p>
           </>
         )}

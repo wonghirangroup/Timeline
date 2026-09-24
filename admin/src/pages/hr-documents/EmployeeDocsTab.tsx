@@ -55,7 +55,7 @@ export default function EmployeeDocsTab({ employeeId }: { employeeId: string }) 
                 <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{r.period ? `${r.period} · ` : ''}ออกเมื่อ {thDate(r.created_at)}</div>
               </div>
               <a href={`/hr-documents/${r.id}/print`} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px', fontWeight: 700, color: '#ea580c', textDecoration: 'none', flexShrink: 0 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12px', fontWeight: 700, color: '#FF8A00', textDecoration: 'none', flexShrink: 0 }}>
                 <Printer size={13}/> พิมพ์ซ้ำ
               </a>
             </div>

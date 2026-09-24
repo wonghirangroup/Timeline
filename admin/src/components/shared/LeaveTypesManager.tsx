@@ -96,7 +96,7 @@ function CustomTypes({ readOnly }: { readOnly: boolean }) {
                 <input type="checkbox" checked={form.deducts_quota} onChange={e => setForm(f => ({ ...f, deducts_quota: e.target.checked }))} style={{ accentColor: '#16a34a' }} /> หักโควต้า (ปิด = ลาได้ไม่จำกัดวัน)
               </label>
               <button onClick={() => addMut.mutate()} disabled={!form.name.trim() || addMut.isPending}
-                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>บันทึก</button>
+                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>บันทึก</button>
             </div>
           </div>
         </Modal>
@@ -192,7 +192,7 @@ function Accrual({ readOnly, customEnabled }: { readOnly: boolean; customEnabled
               </label>
               <button onClick={() => saveMut.mutate({ leave_type: editing.leave_type, custom_type_id: editing.custom_type_id ?? null, days_per_month: editing.days_per_month, max_balance: editing.max_balance, max_carryover: editing.max_carryover, start_after_probation: editing.start_after_probation, active: editing.active })}
                 disabled={saveMut.isPending}
-                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>บันทึกกติกา</button>
+                style={{ marginTop: 4, padding: '10px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>บันทึกกติกา</button>
             </div>
           </div>
         </Modal>

@@ -74,7 +74,7 @@ export default function DocumentsPage() {
         {/* ปุ่มเปิดฟอร์ม / ฟอร์มขอเอกสารใหม่ */}
         {!showForm ? (
           <button onClick={() => { setShowForm(true); setErrorMsg(null) }}
-            style={{ width: '100%', padding: '14px', borderRadius: 14, border: `1.5px dashed ${COLOR.primary}`, background: '#FFF7ED', color: COLOR.primary, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            style={{ width: '100%', padding: '14px', borderRadius: 14, border: `1.5px dashed ${COLOR.primary}`, background: '#FFF3E5', color: COLOR.primary, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <FileText size={17} /> ขอเอกสารใหม่
           </button>
         ) : (
@@ -85,7 +85,7 @@ export default function DocumentsPage() {
                 const isSelected = type === t.value
                 return (
                   <button key={t.value} onClick={() => setType(t.value)}
-                    style={{ padding: '12px 8px', borderRadius: 12, border: `2px solid ${isSelected ? COLOR.primary : 'transparent'}`, cursor: 'pointer', background: isSelected ? '#FFF7ED' : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+                    style={{ padding: '12px 8px', borderRadius: 12, border: `2px solid ${isSelected ? COLOR.primary : 'transparent'}`, cursor: 'pointer', background: isSelected ? '#FFF3E5' : 'rgba(0,0,0,0.04)', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
                     <span style={{ color: isSelected ? COLOR.primary : COLOR.textSecondary }}>{t.icon}</span>
                     <span style={{ fontSize: '0.72rem', fontWeight: 600, color: isSelected ? COLOR.primary : COLOR.textSecondary, textAlign: 'center', lineHeight: 1.3 }}>{t.label}</span>
                   </button>

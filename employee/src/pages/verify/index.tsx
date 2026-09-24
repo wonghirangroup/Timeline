@@ -15,7 +15,7 @@ interface EmpItem {
 type Step = 'loading' | 'select' | 'confirm' | 'success' | 'error'
 
 const COLORS = [
-  '#EA580C',
+  '#FF8A00',
   '#2563EB',
   '#7C3AED',
   '#16A34A',

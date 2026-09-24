@@ -11,13 +11,13 @@
   --bg-subtle:      #F8FAFC;
 
   /* Accent — Orange (เดียวกับ admin: orange-600/700) */
-  --accent-primary: #EA580C;
-  --accent-hover:   #C2410C;
-  --accent-light:   #FFEDD5;
+  --accent-primary: #FF8A00;
+  --accent-hover:   #E67A00;
+  --accent-light:   #FFE8CC;
   /* alias เดิม (โค้ดบางที่ยังอ้าง --accent-start/mid/end อยู่) → map มาที่สีเดียว */
-  --accent-start:   #EA580C;
-  --accent-mid:     #EA580C;
-  --accent-end:     #EA580C;
+  --accent-start:   #FF8A00;
+  --accent-mid:     #FF8A00;
+  --accent-end:     #FF8A00;
 
   /* Card */
   --card-bg:        #ffffff;
@@ -41,8 +41,8 @@
   --error:          #DC2626;
   --error-bg:       #FEE2E2;
   --error-border:   #FCA5A5;
-  --info:           #2563EB;
-  --info-bg:        #DBEAFE;
+  --info:           #4DB2FE;
+  --info-bg:        #E3F4FF;
 
   /* Nav */
   --nav-height:     76px;
@@ -263,7 +263,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 .icon-bubble-blue   { background: #DBEAFE; color: #2563EB; }
 .icon-bubble-teal   { background: #D1FAE5; color: #0D9488; }
-.icon-bubble-orange { background: #FFEDD5; color: #C2410C; }
+.icon-bubble-orange { background: #FFE8CC; color: #E67A00; }
 .icon-bubble-purple { background: #EDE9FE; color: #7C3AED; }
 
 /* Stat row inside header */

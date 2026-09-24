@@ -9,10 +9,10 @@
 export const TOKENS = {
   color: {
     // Primary
-    primary:        '#f97316',   // orange-500  → ปุ่มหลัก, active state
-    primaryDark:    '#ea580c',   // orange-600  → hover, gradient end
-    primaryLight:   '#fff7ed',   // orange-50   → active bg, chip bg
-    primaryBorder:  '#fed7aa',   // orange-200  → border, divider
+    primary:        '#FF8A00',   // orange-500  → ปุ่มหลัก, active state
+    primaryDark:    '#FF8A00',   // orange-600  → hover, gradient end
+    primaryLight:   '#FFF3E5',   // orange-50   → active bg, chip bg
+    primaryBorder:  '#FFDFB8',   // orange-200  → border, divider
 
     // Text
     textPrimary:    '#111827',   // gray-900    → ชื่อหัวข้อ, label
@@ -47,7 +47,7 @@ export const TOKENS = {
     sm:  '0 1px 4px rgba(0,0,0,0.06)',
     md:  '0 4px 16px rgba(0,0,0,0.08)',
     lg:  '0 8px 30px rgba(0,0,0,0.12)',
-    orange: '0 4px 16px rgba(249,115,22,0.35)',
+    orange: '0 4px 16px rgba(255,138,0,0.35)',
   },
   font: {
     xs:   '11px',
@@ -99,7 +99,7 @@ function BtnPrimary({ children, disabled }: { children: React.ReactNode; disable
   return (
     <button disabled={disabled} style={{
       padding: '9px 18px', borderRadius: T.radius.md, border: 'none',
-      background: disabled ? '#fed7aa' : `linear-gradient(135deg,${T.color.primary},${T.color.primaryDark})`,
+      background: disabled ? '#FFDFB8' : `linear-gradient(135deg,${T.color.primary},${T.color.primaryDark})`,
       color: '#fff', fontWeight: 600, fontSize: T.font.sm, cursor: disabled ? 'not-allowed' : 'pointer',
       boxShadow: disabled ? 'none' : T.shadow.orange, transition: 'all 0.15s',
     }}>{children}</button>

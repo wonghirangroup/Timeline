@@ -43,7 +43,7 @@ export default function ForcedPasswordChange() {
           {confirm && next !== confirm && <p style={err}>รหัสผ่านใหม่ไม่ตรงกัน</p>}
           {next && cur && next === cur && <p style={err}>รหัสผ่านใหม่ต้องต่างจากรหัสชั่วคราว</p>}
           <button onClick={() => mut.mutate()} disabled={!valid || mut.isPending}
-            style={{ marginTop: 4, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13.5px', fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed', opacity: valid && !mut.isPending ? 1 : 0.5 }}>
+            style={{ marginTop: 4, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '13.5px', fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed', opacity: valid && !mut.isPending ? 1 : 0.5 }}>
             {mut.isPending ? 'กำลังบันทึก…' : 'ตั้งรหัสผ่านและเข้าใช้งาน'}
           </button>
         </div>

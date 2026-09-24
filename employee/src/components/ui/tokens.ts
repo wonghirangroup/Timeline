@@ -7,12 +7,12 @@
 
 export const COLOR = {
   // Primary — Orange (เดียวกับ admin: orange-600 / 700)
-  primary:       '#EA580C',
-  primaryMid:    '#EA580C',   // (เดิมเป็น mid-stop ของ gradient) → สีเดียว
-  primaryEnd:    '#EA580C',   // (เดิมเป็น end-stop ของ gradient) → สีเดียว
-  primaryBg:     '#FFF7ED',
-  primarySubtle: '#FFEDD5',
-  primaryBorder: 'rgba(234,88,12,0.18)',
+  primary:       '#FF8A00',
+  primaryMid:    '#FF8A00',   // (เดิมเป็น mid-stop ของ gradient) → สีเดียว
+  primaryEnd:    '#FF8A00',   // (เดิมเป็น end-stop ของ gradient) → สีเดียว
+  primaryBg:     '#FFF3E5',
+  primarySubtle: '#FFE8CC',
+  primaryBorder: 'rgba(255,138,0,0.18)',
 
   // Text — ทุกระดับผ่าน WCAG AA 4.5:1
   textPrimary:   '#1A1A1A',

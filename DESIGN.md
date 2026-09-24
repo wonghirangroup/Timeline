@@ -2,21 +2,30 @@
 
 ## Color
 
+> Rebrand 2026-09-24: platform-wide brand palette is now navy `#0B2D6B` /
+> light blue `#4DB2FE` / orange `#FF8A00` / white `#FFFFFF`. Orange stays
+> Admin's primary accent (tenant-facing), light blue becomes Super Admin's
+> primary accent (vendor-facing, replacing indigo), navy is the shared dark
+> "anchoring" color for both apps' Sidebars (replacing the old warm-brown
+> Admin sidebar and indigo Super Admin sidebar). This keeps the existing
+> "never mix accents across a layout" separation rule while unifying both
+> apps under one real brand identity via the shared navy + white base.
+
 ### Admin / Manager (tenant users)
-Primary accent: `#EA580C` (orange-600) — used for CTAs, active states, key highlights  
-Hover accent: `#C2410C` (orange-700)  
-Light accent: `#FFEDD5` (orange-100) — backgrounds for active pills, KPI cards  
+Primary accent: `#FF8A00` (brand orange) — used for CTAs, active states, key highlights  
+Hover accent: `#E67A00`  
+Light accent: `#FFE8CC` — backgrounds for active pills, KPI cards  
 
 ### Super Admin (vendor-side only)
-Primary accent: `#4F46E5` (indigo-600) — all Super Admin CTAs, active states, key highlights  
-Hover accent: `#4338CA` (indigo-700)  
-Light accent: `#EEF2FF` (indigo-50) — backgrounds for active pills, stat cards  
-> Rationale: visual separation makes it immediately obvious which context (vendor vs. tenant) the user is operating in. Never mix orange and indigo within the same layout.
+Primary accent: `#4DB2FE` (brand light blue) — all Super Admin CTAs, active states, key highlights  
+Hover accent: `#2B93DB`  
+Light accent: `#E3F4FF` — backgrounds for active pills, stat cards  
+> Rationale: visual separation makes it immediately obvious which context (vendor vs. tenant) the user is operating in. Never mix orange and light-blue accents within the same layout.
 
 Surface: `#F1F5F9` (slate-100) — page background  
 Card: `#FFFFFF`  
-Sidebar: `#0F172A` (slate-900) — dark, anchoring  
-Topbar glass: `rgba(255,248,240,0.88)` (warm orange-tinted, blur 12px) — border `rgba(234,88,12,0.1)`; was plain white glass, tinted warmer toward brand so Header doesn't read as flat white next to the orange-accented Sidebar (feedback 2026-09-15)
+Sidebar: `#0B2D6B` (brand navy) — dark, anchoring — shared by both Admin and Super Admin  
+Topbar glass: `rgba(255,248,240,0.88)` (warm orange-tinted, blur 12px) — border `rgba(255,138,0,0.1)`; was plain white glass, tinted warmer toward brand so Header doesn't read as flat white next to the orange-accented Sidebar (feedback 2026-09-15)
 
 Text primary: `#0F172A` (slate-900)  
 Text muted: `#64748B` (slate-500)  
@@ -26,7 +35,7 @@ Status:
 - Success `#10B981` / bg `#ECFDF5`
 - Warning `#F59E0B` / bg `#FEF3C7`
 - Error `#EF4444` / bg `#FEF2F2`
-- Info `#3B82F6` / bg `#EFF6FF`
+- Info `#4DB2FE` (brand light blue) / bg `#E3F4FF`
 
 ## Typography
 
@@ -64,7 +73,7 @@ Section gap: `20–24px`
 --shadow-md:    0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)
 --shadow-lg:    0 10px 25px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.025)
 --shadow-float: 0 20px 40px -10px rgba(0,0,0,0.08)
---shadow-accent: 0 8px 16px -4px rgba(234,88,12,0.3)
+--shadow-accent: 0 8px 16px -4px rgba(255,138,0,0.3)
 ```
 
 Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #f1f5f9`
@@ -72,11 +81,11 @@ Card default: `0 2px 12px rgba(0,0,0,0.04)` with `1px solid #f1f5f9`
 ## Components
 
 **KPI Card** — pastel bg + 1.5px colored border + emoji icon (top-left) + large number (top-right) + label (bottom)  
-**Filter Pills** — active: `#f97316` bg `#fff7ed` border `#fed7aa` / inactive: `#f1f5f9` bg  
-**Table** — thead `bg #fff7ed` / `color #c2410c` / `fontWeight 700` ; row hover `#fff7ed`  
+**Filter Pills** — active: `#FF8A00` bg `#FFF3E5` border `#FFDFB8` / inactive: `#f1f5f9` bg  
+**Table** — thead `bg #FFF3E5` / `color #E67A00` / `fontWeight 700` ; row hover `#FFF3E5`  
 **Modal overlay** — `position:fixed; inset:0; z-index:200` (above sidebar 100, topbar 98)  
-**Add button** — orange gradient `linear-gradient(135deg, #f97316, #ea580c)` + shadow  
-**Sidebar nav item active** — orange `#FB923C` (orange-400, tuned for dark bg) bg subtle `rgba(249,115,22,0.16)`, text orange — same accent for every nav section (not per-section colors) so the brand orange stays dominant throughout the Sidebar
+**Add button** — orange gradient `linear-gradient(135deg, #FF8A00, #E67A00)` + shadow  
+**Sidebar nav item active** — orange `#FFA733` (tuned for dark navy bg) bg subtle `rgba(255,138,0,0.16)`, text orange — same accent for every nav section (not per-section colors) so the brand orange stays dominant throughout the Sidebar
 **Stat/KPI card icon badge** — `linear-gradient(135deg, color-mix(in srgb, {color} 55%, white), {color})`, icon `#fff`, `box-shadow: 0 4px 10px {color}4D` — replaces the older flat-pastel-tint badge (`background: {bg}, color: {iconColor}`). Applied so far: Dashboard (KPI cards, RangeKpiCard, quick links). Roll out to other pages' stat cards over time — not done everywhere yet (feedback 2026-09-15, adapted from a colorful reference mockup's "feel" while keeping TimeLine's own orange-led palette, not the reference's literal purple/blue/pink)
 
 ## Motion

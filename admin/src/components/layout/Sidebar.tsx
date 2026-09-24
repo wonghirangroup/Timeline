@@ -129,9 +129,9 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
       }}>
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(251,146,60,0.14)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.75)', zIndex: 1 }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(251,146,60,0.24)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(251,146,60,0.14)'}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,167,51,0.14)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.75)', zIndex: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,167,51,0.24)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,167,51,0.14)'}
         >
           <X size={16} />
         </button>
@@ -144,10 +144,10 @@ export default function Sidebar({ isMobile, drawerOpen, onClose, collapsed = fal
 // ── สีประจำหมวด ── เดิมแยกสีต่อหมวด (teal/blue/violet/amber) ทำให้แบรนด์ส้มเจือ
 // จางไปเหลือแค่หมวดแรก ขัดกับ DESIGN.md ("Sidebar nav item active — orange bg
 // subtle, text orange" ไม่ได้ระบุไว้เป็นสีรุ้งต่อหมวด) — รวมเป็นส้มเดียวกันหมด
-// ทุกหมวด (feedback 2026-09-15 "ส้มมากกว่า") ใช้ orange-400 (#FB923C) แทน
+// ทุกหมวด (feedback 2026-09-15 "ส้มมากกว่า") ใช้ orange-400 (#FFA733) แทน
 // accent-primary ตรงๆ เพราะเฉดนี้ปรับให้อ่านง่ายบนพื้นเข้มของ sidebar แล้ว
 interface SecAccent { text: string; bg: string }
-const ACTIVE_ACCENT: SecAccent = { text: '#FB923C', bg: 'rgba(249,115,22,0.16)' }
+const ACTIVE_ACCENT: SecAccent = { text: '#FFA733', bg: 'rgba(255,138,0,0.16)' }
 const SETTINGS_ACCENT: SecAccent = { text: '#94A3B8', bg: 'rgba(148,163,184,0.16)' } // slate
 
 const ROLE_CHIP: Partial<Record<string, { label: string; bg: string; color: string }>> = {
@@ -207,7 +207,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           boxShadow: isActive ? `inset 3px 0 0 ${accent.text}` : 'none',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(251,146,60,0.1)'; e.currentTarget.style.color = '#f8fafc'; } }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,167,51,0.1)'; e.currentTarget.style.color = '#f8fafc'; } }}
         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)'; } }}
       >
         <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>
@@ -241,7 +241,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         gap: collapsed ? 10 : 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(249,115,22,0.4)' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(255,138,0,0.4)' }}>
             TL
           </div>
           {!collapsed && (
@@ -254,9 +254,9 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
           <button
             onClick={onToggleCollapse}
             title={collapsed ? 'ขยาย sidebar' : 'ย่อ sidebar'}
-            style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(251,146,60,0.14)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.6)', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.26)'; e.currentTarget.style.color = '#f8fafc' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.14)'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)' }}
+            style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,167,51,0.14)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,247,237,0.6)', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,167,51,0.26)'; e.currentTarget.style.color = '#f8fafc' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,167,51,0.14)'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)' }}
           >
             {collapsed ? <ChevronRight size={14}/> : <ChevronLeft size={14}/>}
           </button>
@@ -278,13 +278,13 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
                 </div>
               )}
               {collapsed && si > 0 && (
-                <div style={{ height: 1, background: 'rgba(251,146,60,0.10)', margin: '8px 4px' }} />
+                <div style={{ height: 1, background: 'rgba(255,167,51,0.10)', margin: '8px 4px' }} />
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {visItems.map(item => <NavItem key={item.path} item={item} accent={accent} />)}
               </div>
               {!collapsed && si < NAV_SECTIONS.length - 1 && (
-                <div style={{ height: 1, background: 'rgba(251,146,60,0.10)', margin: '12px 10px 4px' }} />
+                <div style={{ height: 1, background: 'rgba(255,167,51,0.10)', margin: '12px 10px 4px' }} />
               )}
             </div>
           )
@@ -301,7 +301,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
       {/* Footer — role chip + logout (user profile อยู่ Topbar) */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 8px' : '12px' }}>
         {roleChip && !collapsed && (
-          <div style={{ margin: '0 2px 8px', padding: '7px 10px', borderRadius: 8, background: 'rgba(251,146,60,0.10)', fontSize: '11px', fontWeight: 600, color: 'rgba(255,247,237,0.75)', lineHeight: 1.4 }}>
+          <div style={{ margin: '0 2px 8px', padding: '7px 10px', borderRadius: 8, background: 'rgba(255,167,51,0.10)', fontSize: '11px', fontWeight: 600, color: 'rgba(255,247,237,0.75)', lineHeight: 1.4 }}>
             {roleChip.label}
           </div>
         )}

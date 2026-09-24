@@ -83,7 +83,7 @@ export default function PermissionMatrixEditor({ userId, userLabel, onClose }: {
       <div style={{ padding: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c2410c', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#E67A00', flexShrink: 0 }}>
               <ShieldCheck size={18} />
             </div>
             <div>
@@ -103,7 +103,7 @@ export default function PermissionMatrixEditor({ userId, userLabel, onClose }: {
                 style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: '12.5px', borderRadius: 8, border: '1px solid #e5e7eb', boxSizing: 'border-box' }}
               />
             </div>
-            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#c2410c', background: '#fff7ed', padding: '5px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#E67A00', background: '#FFF3E5', padding: '5px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>
               ให้สิทธิ์แล้ว {totalGranted}/{totalPossible} สิทธิ์ย่อย
             </span>
           </div>

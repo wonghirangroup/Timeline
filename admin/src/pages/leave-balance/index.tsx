@@ -158,7 +158,7 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
           <button
             onClick={() => onSave(balance.employee_id, quotas)}
-            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#f97316', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
           >บันทึกโควต้า</button>
         </div>
       </div>
@@ -444,7 +444,7 @@ export default function LeaveBalancePage() {
             // "พนักงานทั้งหมด" เดิมใช้ indigo (#4f46e5) ซึ่งเป็นสี Super Admin โดยเฉพาะ
             // (--sa-accent) ขัดกับ DESIGN.md "never mix orange and indigo" — เปลี่ยน
             // เป็นส้มแบรนด์แทน (feedback 2026-09-15 "คุมธีมส้มไปเลย")
-            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#EA580C', bg: '#fff7ed', iconColor: '#EA580C' },
+            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#FF8A00', bg: '#FFF3E5', iconColor: '#FF8A00' },
             { label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
             { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
             { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
@@ -765,7 +765,7 @@ export default function LeaveBalancePage() {
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setBulkEditOpen(false)} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
-              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#f97316', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
+              <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
             </div>
           </div>
         </div>

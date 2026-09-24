@@ -23,7 +23,7 @@ const inputStyle: React.CSSProperties = {
 const btnPrimary: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
   padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-  background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600,
+  background: '#FF8A00', color: '#fff', fontSize: '13px', fontWeight: 600,
 }
 const btnGhost = (color: string, bg: string): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -184,7 +184,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
               {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setView(v)}
                   title={label}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                   <Icon size={13} /> {label}
                 </button>
               ))}
@@ -205,7 +205,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
           return (
             <div key={g.id} style={{ ...card, padding: 14, border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00', flexShrink: 0 }}>
                   <Landmark size={17} />
                 </div>
                 <div style={{ flex: 1, minWidth: 140 }}>
@@ -221,7 +221,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 10px', borderRadius: 99 }}>
                   ส {g.saturday_rule === 'WORK' ? 'ทำงาน' : g.saturday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · อา {g.sunday_rule === 'WORK' ? 'ทำงาน' : g.sunday_rule === 'OFFSITE' ? 'นอก' : 'หยุด'} · จอง {g.booking_quota ?? 5}/ด
                 </span>
-                <button onClick={onViewTree} style={btnGhost('#f97316', '#fff7ed')}>
+                <button onClick={onViewTree} style={btnGhost('#FF8A00', '#FFF3E5')}>
                   ดูผังองค์กร
                 </button>
                 <button onClick={() => openEdit(g)} style={{ padding: 6, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex' }}><Pencil size={13}/></button>
@@ -276,7 +276,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
                     <tr key={g.id} style={{ borderBottom: idx < groups.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                       <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00', flexShrink: 0 }}>
                             <Landmark size={14} />
                           </div>
                           <div>
@@ -309,7 +309,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
                       <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button onClick={onViewTree} title="ดูผังองค์กร"
-                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px dashed #f97316', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            style={{ padding: '5px 8px', borderRadius: 7, border: '1px dashed #FF8A00', background: '#FFF3E5', color: '#FF8A00', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                             <Eye size={13} />
                           </button>
                           <button onClick={() => openEdit(g)} title="แก้ไข"
@@ -357,7 +357,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
             <input type="number" min={0} max={31} style={quotaInputStyle} value={form.booking_quota} onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} />
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
+              <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
                 {modal.edit ? 'บันทึก' : 'สร้าง'}
               </button>
             </div>
@@ -440,7 +440,7 @@ function AddEntityModal({ level, groupId, divs, depts, onClose }: {
 
         <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
           <button onClick={onClose} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-          <button onClick={handleSave} disabled={!canSave || createMutation.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !canSave ? 0.5 : 1 }}>
+          <button onClick={handleSave} disabled={!canSave || createMutation.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !canSave ? 0.5 : 1 }}>
             สร้าง
           </button>
         </div>
@@ -755,8 +755,8 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
           <button onClick={() => setEmployeePanelOpen(v => !v)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 8,
-              border: `1.5px solid ${employeePanelOpen ? '#f97316' : '#e5e7eb'}`, cursor: 'pointer',
-              background: employeePanelOpen ? '#fff7ed' : '#fff', color: employeePanelOpen ? '#ea580c' : '#374151',
+              border: `1.5px solid ${employeePanelOpen ? '#FF8A00' : '#e5e7eb'}`, cursor: 'pointer',
+              background: employeePanelOpen ? '#FFF3E5' : '#fff', color: employeePanelOpen ? '#FF8A00' : '#374151',
               fontSize: '13px', fontWeight: 700,
             }}>
             <UserSquare2 size={15} /> {employeePanelOpen ? 'ปิดแผงลาก-วางพนักงาน' : 'ลาก-วางจัดพนักงาน'}
@@ -781,9 +781,9 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                   const divs = treeByGroup.get(g.id) ?? []
                   return (
                     <li key={g.id}>
-                      <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: 12, padding: '10px 18px', minWidth: 120 }}>
+                      <div style={{ background: '#FFF3E5', border: '1.5px solid #FF8A00', borderRadius: 12, padding: '10px 18px', minWidth: 120 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          <Building2 size={14} color="#f97316" />
+                          <Building2 size={14} color="#FF8A00" />
                           <span style={{ fontWeight: 800, fontSize: '13px', color: '#111827', whiteSpace: 'nowrap' }}>{g.name}</span>
                         </div>
                         <div style={{ textAlign: 'center', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: 2 }}>{divs.length} ฝ่าย</div>
@@ -854,7 +854,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                 onDragStart={ev => { ev.dataTransfer.setData('text/employee-id', e.id); ev.dataTransfer.effectAllowed = 'move' }}
                 style={{
                   display: 'flex', flexDirection: 'column', gap: 2, padding: '7px 10px', borderRadius: 8,
-                  border: '1px solid #e5e7eb', background: e.position_id ? '#fff' : '#fff7ed', cursor: 'grab',
+                  border: '1px solid #e5e7eb', background: e.position_id ? '#fff' : '#FFF3E5', cursor: 'grab',
                 }}>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>
                   {e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''}
@@ -863,7 +863,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                   {e.branch?.name ?? '—'}{e.branch?.group_id && groupName.get(e.branch.group_id) ? ` · ${groupName.get(e.branch.group_id)}` : ''}
                 </span>
                 {!e.position_id && (
-                  <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#ea580c', width: 'fit-content' }}>ยังไม่มีตำแหน่ง</span>
+                  <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#FF8A00', width: 'fit-content' }}>ยังไม่มีตำแหน่ง</span>
                 )}
               </div>
             ))}
@@ -935,7 +935,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
             })()}
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setEditModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleEditSave} disabled={!editForm.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !editForm.name.trim() ? 0.5 : 1 }}>
+              <button onClick={handleEditSave} disabled={!editForm.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !editForm.name.trim() ? 0.5 : 1 }}>
                 บันทึก
               </button>
             </div>
@@ -1010,7 +1010,7 @@ function StatusTypesTab() {
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
 
   const CheckRow = ({ label: lbl, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: checked ? '#fff7ed' : '#f9fafb', cursor: 'pointer', marginBottom: 6 }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: checked ? '#FFF3E5' : '#f9fafb', cursor: 'pointer', marginBottom: 6 }}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
       <span style={{ fontSize: '12.5px', color: '#374151', fontWeight: 600 }}>{lbl}</span>
     </label>
@@ -1048,7 +1048,7 @@ function StatusTypesTab() {
         )}
         {types.map((t, i) => (
           <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i > 0 ? '1px solid #f1f5f9' : 'none', flexWrap: 'wrap' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00', flexShrink: 0 }}>
               <IdCard size={16} />
             </div>
             <div style={{ flex: 1, minWidth: 120 }}>
@@ -1056,7 +1056,7 @@ function StatusTypesTab() {
               <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{t._count.employees} คน</p>
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#ea580c', background: '#fff7ed', padding: '3px 9px', borderRadius: 99 }}>{t.monthly_off_quota} วัน/เดือน</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#FF8A00', background: '#FFF3E5', padding: '3px 9px', borderRadius: 99 }}>{t.monthly_off_quota} วัน/เดือน</span>
               {t.saturday_rule !== 'WORK' && (
                 <span style={{ fontSize: '11px', fontWeight: 700, color: DAY_RULE_CFG[t.saturday_rule].color, background: DAY_RULE_CFG[t.saturday_rule].bg, padding: '3px 9px', borderRadius: 99 }}>เสาร์: {DAY_RULE_CFG[t.saturday_rule].label}</span>
               )}
@@ -1094,7 +1094,7 @@ function StatusTypesTab() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
+              <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
                 {modal.edit ? 'บันทึก' : 'สร้าง'}
               </button>
             </div>

@@ -72,12 +72,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   }, [me, name, setName])
 
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#fff7ed', color: '#c2410c' },
+    ADMIN:     { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FFF3E5', color: '#E67A00' },
     MANAGER:   { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#dcfce7', color: '#15803d' },
     EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
     DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
   }
-  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#fff7ed', color: '#c2410c' }
+  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#FFF3E5', color: '#E67A00' }
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
 
@@ -174,7 +174,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
-            background: 'linear-gradient(135deg, #f97316, #ea580c)',
+            background: 'linear-gradient(135deg, #FF8A00, #E67A00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -315,7 +315,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button onClick={() => setView('profile')} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', cursor: 'pointer' }}>
               ยกเลิก
             </button>
-            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
+            <button onClick={handleResetPassword} disabled={resetPwMut.isPending} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: resetPwMut.isPending ? 'default' : 'pointer', opacity: resetPwMut.isPending ? 0.7 : 1 }}>
               {resetPwMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
@@ -346,7 +346,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ชื่อนี้จะแสดงบน Topbar และรายงาน</span>
-              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#f97316' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
+              <span style={{ fontSize: '11px', color: nameInput.length > 35 ? '#FF8A00' : 'var(--text-muted)' }}>{nameInput.length}/40</span>
             </div>
           </div>
 
@@ -357,7 +357,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <button
               onClick={handleSaveName}
               disabled={!nameInput.trim() || saveNameMut.isPending}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#f97316' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: nameInput.trim() ? '#FF8A00' : '#f3f4f6', color: nameInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, cursor: (nameInput.trim() && !saveNameMut.isPending) ? 'pointer' : 'not-allowed', opacity: saveNameMut.isPending ? 0.7 : 1 }}
             >
               {saveNameMut.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
@@ -370,7 +370,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   return (
     <>
       {/* Header bar ส้มเต็มรูป (feedback 2026-09-16: "ปรับ Headerbar เป็นสีส้ม")
-          — ใช้สีเดียวกับ --accent-primary (#EA580C) ตรงตาม DESIGN.md ไปเลย
+          — ใช้สีเดียวกับ --accent-primary (#FF8A00) ตรงตาม DESIGN.md ไปเลย
           แบบราบ (ไม่ไล่สี) ให้เข้าชุดกับ Sidebar ที่คุมธีมส้มเต็มไปแล้วก่อนหน้า
           (v151/152) — เดิมเป็นแก้วขาวอมส้มจางๆ ตอนนี้ทึบส้มชัดเจน เลย drop
           backdrop-blur ทิ้งด้วย (ไม่มีผลอะไรกับพื้นทึบ) และเปลี่ยนเงาขอบล่าง

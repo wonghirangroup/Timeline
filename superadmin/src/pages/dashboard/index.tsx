@@ -182,7 +182,7 @@ export default function SuperAdminDashboard() {
                     <thead>
                       <tr style={{ background: '#ede9fe' }}>
                         {['บริษัท / ผู้ดูแล', 'Plan', 'สาขา', 'พนักงาน', 'Line OA', 'สถานะ', 'หมดอายุ'].map(h => (
-                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#4338ca', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#2B93DB', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>

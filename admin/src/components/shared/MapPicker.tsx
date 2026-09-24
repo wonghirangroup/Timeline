@@ -11,7 +11,7 @@ const THAILAND_BOUNDS = L.latLngBounds(
 
 const PIN_ICON = L.divIcon({
   className: '',
-  html: `<div style="width:28px;height:28px;background:linear-gradient(135deg,#f97316,#ea580c);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>`,
+  html: `<div style="width:28px;height:28px;background:linear-gradient(135deg,#FF8A00,#FF8A00);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>`,
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 })
@@ -95,8 +95,8 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
     if (!circleRef.current) {
       circleRef.current = L.circle(pos, {
         radius,
-        color: '#f97316',
-        fillColor: '#f97316',
+        color: '#FF8A00',
+        fillColor: '#FF8A00',
         fillOpacity: 0.12,
         weight: 2,
       }).addTo(map)
@@ -155,9 +155,9 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
           }}
         >
           {locating ? (
-            <Loader2 size={13} color="#f97316" style={{ animation: 'spin 1s linear infinite' }} />
+            <Loader2 size={13} color="#FF8A00" style={{ animation: 'spin 1s linear infinite' }} />
           ) : (
-            <Crosshair size={13} color="#f97316" />
+            <Crosshair size={13} color="#FF8A00" />
           )}
           {locating ? 'กำลังหาตำแหน่ง…' : 'ตำแหน่งปัจจุบัน'}
         </button>
@@ -170,7 +170,7 @@ export default function MapPicker({ lat, lng, radius, onMove }: Props) {
         borderTop: '1px solid #e5e7eb',
         display: 'flex', alignItems: 'center', gap: 6, minHeight: 36,
       }}>
-        <MapPin size={12} color="#f97316" />
+        <MapPin size={12} color="#FF8A00" />
 
         {locError ? (
           <span style={{ fontSize: '11px', color: '#ef4444' }}>{locError}</span>

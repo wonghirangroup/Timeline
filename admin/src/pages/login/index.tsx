@@ -95,16 +95,16 @@ export default function LoginPage() {
         boxSizing: 'border-box',
       }}>
         {/* decorative glow */}
-        <div style={{ position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249,115,22,0.35), transparent 70%)' }} />
-        <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249,115,22,0.2), transparent 70%)' }} />
+        <div style={{ position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,138,0,0.35), transparent 70%)' }} />
+        <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,138,0,0.2), transparent 70%)' }} />
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg,#f97316,#ea580c)',
+            background: 'linear-gradient(135deg,#FF8A00,#FF8A00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1.05rem', fontWeight: 800, color: '#fff', letterSpacing: '-1px',
-            boxShadow: '0 6px 20px rgba(249,115,22,0.45)', flexShrink: 0,
+            boxShadow: '0 6px 20px rgba(255,138,0,0.45)', flexShrink: 0,
           }}>TL</div>
           <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>TimeLine</span>
         </div>
@@ -120,7 +120,7 @@ export default function LoginPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {FEATURES.map(f => (
                 <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(249,115,22,0.18)', border: '1px solid rgba(249,115,22,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fb923c', flexShrink: 0 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,138,0,0.18)', border: '1px solid rgba(255,138,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFA733', flexShrink: 0 }}>
                     <f.icon size={15} />
                   </div>
                   <span style={{ fontSize: '0.84rem', color: 'rgba(255,255,255,0.85)' }}>{f.text}</span>
@@ -157,7 +157,7 @@ export default function LoginPage() {
                   placeholder="username"
                   autoComplete="username"
                   style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
-                  onFocus={e => { e.target.style.borderColor = '#f97316' }}
+                  onFocus={e => { e.target.style.borderColor = '#FF8A00' }}
                   onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
                 />
               </div>
@@ -170,7 +170,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     autoComplete="current-password"
                     style={{ width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
-                    onFocus={e => { e.target.style.borderColor = '#f97316' }}
+                    onFocus={e => { e.target.style.borderColor = '#FF8A00' }}
                     onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
                   />
                   <button type="button" onClick={() => setShowPwd(p => !p)} aria-label={showPwd ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
@@ -183,11 +183,11 @@ export default function LoginPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -4 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
                   <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-                    style={{ accentColor: '#f97316', width: 15, height: 15, cursor: 'pointer' }} />
+                    style={{ accentColor: '#FF8A00', width: 15, height: 15, cursor: 'pointer' }} />
                   จดจำฉันไว้
                 </label>
                 <button type="button" onClick={() => setShowForgot(true)}
-                  style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.82rem', color: '#f97316', fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.82rem', color: '#FF8A00', fontWeight: 600, cursor: 'pointer' }}>
                   ลืมรหัสผ่าน?
                 </button>
               </div>
@@ -198,7 +198,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#fed7aa' : 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(249,115,22,0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#FFDFB8' : 'linear-gradient(135deg,#FF8A00,#FF8A00)', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(255,138,0,0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {loading ? <><Loader2 size={17} className="animate-spin" /> กำลังเข้าสู่ระบบ...</> : <><LogIn size={17} /> เข้าสู่ระบบ</>}
               </button>
             </div>
@@ -209,8 +209,8 @@ export default function LoginPage() {
             <div style={{ marginTop: 24, borderTop: '1px solid #f3f4f6', paddingTop: 18 }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo (DEV only)</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <button type="button" onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid #f9731625', background: '#fff7ed', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f97316', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={14} /> Admin</span>
+                <button type="button" onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid #FF8A0025', background: '#FFF3E5', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#FF8A00', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={14} /> Admin</span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>wonghi_admin</span>
                 </button>
               </div>
@@ -230,7 +230,7 @@ export default function LoginPage() {
         <Modal onClose={() => setShowForgot(false)} width={380}>
           <div style={{ padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FFF3E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8A00' }}>
                 <Mail size={19} />
               </div>
               <button onClick={() => setShowForgot(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} aria-label="ปิด"><X size={18} /></button>
@@ -240,7 +240,7 @@ export default function LoginPage() {
               ตอนนี้ระบบยังไม่รองรับการรีเซ็ตรหัสผ่านด้วยตัวเองผ่านอีเมล
               กรุณาติดต่อ Super Admin หรือทีมผู้ดูแลระบบของบริษัทเพื่อขอตั้งรหัสผ่านใหม่
             </p>
-            <button onClick={() => setShowForgot(false)} style={{ marginTop: 18, width: '100%', padding: '10px', borderRadius: 9, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
+            <button onClick={() => setShowForgot(false)} style={{ marginTop: 18, width: '100%', padding: '10px', borderRadius: 9, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
               เข้าใจแล้ว
             </button>
           </div>

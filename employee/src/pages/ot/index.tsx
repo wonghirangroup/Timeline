@@ -220,7 +220,7 @@ export default function OtPage() {
                 ))}
               </div>
               {hours > 0 && (
-                <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: '#FFF7ED', fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: '#FFF3E5', fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Clock size={14} /> รวม {hours} ชั่วโมง
                 </div>
               )}

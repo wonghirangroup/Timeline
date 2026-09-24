@@ -80,7 +80,7 @@ export default function LineMessagesReportPage() {
     { label: 'ส่งทั้งหมด', value: totals.total, icon: <MessageCircle size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'สำเร็จ', value: totals.success, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
     { label: 'ล้มเหลว', value: totals.failed, icon: <X size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-    { label: 'ถึงพนักงาน / แอดมิน', value: `${totals.toEmployee} / ${totals.toAdmin}`, icon: totals.toEmployee >= totals.toAdmin ? <Users size={15}/> : <Shield size={15}/>, color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
+    { label: 'ถึงพนักงาน / แอดมิน', value: `${totals.toEmployee} / ${totals.toAdmin}`, icon: totals.toEmployee >= totals.toAdmin ? <Users size={15}/> : <Shield size={15}/>, color: '#FF8A00', bg: '#FFF3E5', border: '#FFDFB8' },
   ]
 
   return (
@@ -96,7 +96,7 @@ export default function LineMessagesReportPage() {
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#ea580c' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: view === v ? 700 : 500, background: view === v ? '#fff' : 'transparent', color: view === v ? '#FF8A00' : 'var(--text-muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -120,7 +120,7 @@ export default function LineMessagesReportPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {byCategory.map(([cat, count]) => (
             <span key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, color: '#374151', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 99, padding: '4px 11px' }}>
-              {CATEGORY_LABEL[cat] ?? cat} <span style={{ fontWeight: 800, color: '#ea580c' }}>{count}</span>
+              {CATEGORY_LABEL[cat] ?? cat} <span style={{ fontWeight: 800, color: '#FF8A00' }}>{count}</span>
             </span>
           ))}
         </div>

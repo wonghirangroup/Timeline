@@ -100,7 +100,7 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
     <Modal onClose={onClose} width={type === 'PAYSLIP' ? 640 : 480}>
       <div style={{ padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <FileText size={17} color="#ea580c" />
+          <FileText size={17} color="#FF8A00" />
           <p style={{ fontWeight: 700, fontSize: '15px', margin: 0 }}>สร้าง{TYPE_LABEL[type]}</p>
         </div>
 
@@ -163,7 +163,7 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={() => mut.mutate()} disabled={mut.isPending}
-                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#f97316', color: '#fff', fontWeight: 700, cursor: mut.isPending ? 'default' : 'pointer', opacity: mut.isPending ? 0.7 : 1 }}>
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#FF8A00', color: '#fff', fontWeight: 700, cursor: mut.isPending ? 'default' : 'pointer', opacity: mut.isPending ? 0.7 : 1 }}>
                 {mut.isPending ? 'กำลังบันทึก...' : 'บันทึกและพิมพ์'}
               </button>
             </div>
