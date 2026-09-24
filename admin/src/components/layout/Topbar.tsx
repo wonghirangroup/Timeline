@@ -369,18 +369,18 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
 
   return (
     <>
-      {/* Header bar ขาว (rebrand 2026-09-25: "เอาธีมสีแบบนี้" ตามภาพอ้างอิง —
-          sidebar navy เข้ม + header ขาว + active nav ฟ้า + ส้มเก็บไว้เป็น
-          accent เฉพาะจุด เช่น role badge) — เดิมทึบส้มเต็มจาก v151/152 ตอนนี้
-          กลับมาขาว ใช้ border ล่างบางๆ แทน box-shadow เดิมให้ดูมีขอบชัดกับ
-          พื้นหลังหน้าเพจที่ก็ขาว/เทาอ่อนเหมือนกัน */}
+      {/* Header bar ขาว+gradient บางๆ (feedback 2026-09-25 "เพิ่ม gradient แบบ
+          เดียวกับ Sidebar" — คงพื้นขาวไว้ตามที่ตัดสินใจไปแล้วรอบ v216 แค่
+          เพิ่มมิติด้วย gradient ขาว→เทาอ่อนแบรนด์ (#E6ECF4) มุม 135deg
+          เดียวกับ Sidebar/icon badge ทั่วแอป ไม่ใช่กลับไปใช้สีส้ม/น้ำเงินเข้ม
+          เพราะ header ขาวเป็นการตัดสินใจที่ยืนยันแล้วจากภาพอ้างอิงรอบก่อน) */}
       <header style={{
         position: 'fixed',
         left: sidebarW,
         right: 0,
         top: 0,
         height: isMobile ? 56 : 64,
-        background: '#FFFFFF',
+        background: 'linear-gradient(135deg, #FFFFFF, #E6ECF4)',
         borderBottom: '1px solid #e5e7eb',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         display: 'flex',

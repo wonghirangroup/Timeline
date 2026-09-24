@@ -32,7 +32,7 @@ Light accent: `#DFF1FA` (computed tint)
 Surface: `#E6ECF4` (brand light gray) — page background  
 Card: `#FFFFFF`  
 Sidebar: `linear-gradient(135deg, #2F375B, #131C45)` — lighter-navy-to-brand-navy diagonal gradient (feedback 2026-09-25 "แบบมีไล่เงาสี"), same 135deg angle as the icon-badge gradient pattern below — dark, anchoring — shared by both Admin and Super Admin  
-Topbar: `#FFFFFF` solid, `border-bottom: 1px solid #e5e7eb` — reversed from solid-orange (v151/152) back to white per the 2026-09-25 shell redesign; role badge pill on the right keeps `--accent-primary` orange as the one orange touch in the header
+Topbar: `linear-gradient(135deg, #FFFFFF, #E6ECF4)` — white-to-light-gray, same 135deg angle as Sidebar/icon-badge gradients (feedback 2026-09-25 "เพิ่ม gradient แบบเดียวกับ Sidebar"); `border-bottom: 1px solid #e5e7eb` — base stays white per the 2026-09-25 shell redesign (reversed from solid-orange v151/152), just given gradient depth, not a hue change; role badge pill on the right keeps `--accent-primary` orange as the one orange touch in the header; shared by both Admin's Topbar and Super Admin's SuperAdminTopbar
 
 Text primary: `#0F172A` (slate-900)  
 Text muted: `#64748B` (slate-500)  

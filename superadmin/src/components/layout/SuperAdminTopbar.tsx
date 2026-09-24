@@ -90,7 +90,7 @@ export default function SuperAdminTopbar({ isMobile, onMenuClick }: TopbarProps)
   return (
     <header style={{
       position: 'fixed', left: isMobile ? 0 : 220, right: 0, top: 0, height: 56,
-      background: '#fff', borderBottom: '1px solid #e5e7eb',
+      background: 'linear-gradient(135deg, #FFFFFF, #E6ECF4)', borderBottom: '1px solid #e5e7eb',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: isMobile ? '0 14px' : '0 24px', zIndex: 99,
     }}>
