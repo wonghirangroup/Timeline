@@ -76,7 +76,7 @@ export default function SuperAdminSidebar({ isMobile, drawerOpen, onClose }: Sid
           }}>SA</div>
           <div>
             <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>Super Admin</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--sa-accent-soft)' }}>TimeLine Platform</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--sa-accent-soft)' }}>YooNai Platform</div>
           </div>
         </div>
       </div>

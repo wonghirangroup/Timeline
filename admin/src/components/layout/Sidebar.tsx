@@ -241,12 +241,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         gap: collapsed ? 10 : 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(36,75,131,0.4)' }}>
-            TL
-          </div>
-          {!collapsed && (
-            <p style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap' }}>TimeLine HR</p>
-          )}
+          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: collapsed ? 32 : 40, flexShrink: 0, borderRadius: 10 }} />
         </div>
 
         {/* Collapse toggle button — desktop only */}

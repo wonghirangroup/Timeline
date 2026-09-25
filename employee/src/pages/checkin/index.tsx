@@ -654,7 +654,7 @@ export default function CheckinPage() {
       <div className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 1 }}>TimeLine HR</div>
+            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 1 }}>YooNai HR</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{th}</div>
             <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>{en}</div>
           </div>

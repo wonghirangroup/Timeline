@@ -99,14 +99,7 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.2), transparent 70%)' }} />
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg,#244B83,#244B83)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.05rem', fontWeight: 800, color: '#fff', letterSpacing: '-1px',
-            boxShadow: '0 6px 20px rgba(36,75,131,0.45)', flexShrink: 0,
-          }}>TL</div>
-          <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>TimeLine</span>
+          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 44, borderRadius: 12, flexShrink: 0 }} />
         </div>
 
         {!isMobile && (
@@ -132,7 +125,7 @@ export default function LoginPage() {
 
         {!isMobile && (
           <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
-            TimeLine HR System · Powered by WH Group
+            YooNai HR System · Powered by WH Group
           </div>
         )}
       </div>
@@ -219,7 +212,7 @@ export default function LoginPage() {
 
           {isMobile && (
             <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              TimeLine HR System · Powered by WH Group
+              YooNai HR System · Powered by WH Group
             </div>
           )}
         </div>

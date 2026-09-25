@@ -104,8 +104,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           flexDirection: 'column'
         }} className="animate-fade-in-up">
           {children}
-          <Footer />
         </main>
+        <Footer />
       </div>
 
       {mustChangePassword && <ForcedPasswordChange />}

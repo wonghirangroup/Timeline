@@ -298,7 +298,7 @@ export default function App() {
     setBootState('authed')
   }
 
-  if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub={retrying ? `สัญญาณไม่นิ่ง กำลังลองใหม่ (${retrying}/${AUTO_RETRY_DELAYS.length})` : 'TimeLine HR'} />
+  if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub={retrying ? `สัญญาณไม่นิ่ง กำลังลองใหม่ (${retrying}/${AUTO_RETRY_DELAYS.length})` : 'YooNai HR'} />
   if (bootState === 'error')    return <ErrorScreen message={errMsg} onRetry={boot} reportCtx={reportCtx} />
   if (bootState === 'dev-pick') return <DevPicker onPick={handleDevPick} />
 

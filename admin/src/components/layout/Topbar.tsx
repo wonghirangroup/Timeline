@@ -45,7 +45,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const navigate = useNavigate()
   const { showToast } = useToast()
   const now = useClock()
-  const title = PAGE_TITLES[location.pathname] ?? 'TimeLine HR'
+  const title = PAGE_TITLES[location.pathname] ?? 'YooNai HR'
   const name = useAuthStore(s => s.name)
   const role = useAuthStore(s => s.role)
   const clear = useAuthStore(s => s.clear)

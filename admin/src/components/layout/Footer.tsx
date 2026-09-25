@@ -16,13 +16,20 @@
 // เอาโลโก้และชื่อ Timeline ออก เอา Yoonai ใส่แทน"): เดิมโปร่งใส (เห็นสีเทา
 // อ่อนของพื้นหลังหน้าทะลุ) เปลี่ยนเป็นแถบพื้นขาวชัดเจน + ขนาดโลโก้/ตัวอักษร
 // ใหญ่ขึ้นทั้งหมด + ตัดคำว่า "TimeLine HR" (ชื่อ+โลโก้เดิม) ออกจากฝั่งซ้าย
-// ใช้โลโก้ YooNai (มี wordmark ในตัวอยู่แล้ว) แทนที่ตรงนั้นเลย — สโคปจำกัดแค่
-// Footer เท่านั้น ไม่ได้แตะชื่อ "TimeLine HR" ที่อื่นในแอป (Topbar/Sidebar/
-// browser tab title ฯลฯ) เพราะ user ระบุเจาะจงถึงภาพ Footer นี้เท่านั้น
+// ใช้โลโก้ YooNai (มี wordmark ในตัวอยู่แล้ว) แทนที่ตรงนั้นเลย
+//
+// รอบ 3 (feedback 2026-09-25 "เอาออกด้วยทั้งระบบเลย เอา Yoonai มาแทน — ทำ
+// เป็น Footer สิ ติดกับขอบจอร่างเลย แบบตัวอย่างที่ส่งให้"): ขยายสโคปคำว่า
+// "TimeLine" → "YooNai" ไปทั้งระบบ (Sidebar/Topbar/login ทั้ง 3 แอป ไม่ใช่
+// แค่ Footer แล้ว) + Footer ย้ายออกจาก <main> (ที่มี padding+maxWidth) ไป
+// เป็น sibling หลัง <main> ใน Layout.tsx แทน ให้เป็นแถบเต็มความกว้างจริง
+// ติดขอบจอ (ไม่ scroll ไปกับเนื้อหา เพราะอยู่นอก container ที่ overflow-y:
+// auto) ตามภาพตัวอย่าง "SafeMind AI" ที่ user ส่งมา — เอา border-radius/
+// border-all-sides/margin แบบการ์ดออก เหลือแค่ border-top บาง ๆ
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 
-const APP_VERSION = 'v224'
+const APP_VERSION = 'v225'
 const PARTNER_LOGO_URL = '/smartjigsaw-logo.jpg'
 const PARTNER_NAME = 'Smart Jigsaw'
 
@@ -41,8 +48,8 @@ export default function Footer() {
 
   return (
     <footer style={{
-      flexShrink: 0, marginTop: 24, padding: '20px 24px',
-      background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid #e5e7eb',
+      flexShrink: 0, padding: '16px 32px',
+      background: '#FFFFFF', borderTop: '1px solid #e5e7eb',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       gap: 20, flexWrap: 'wrap',
       fontSize: '13px', color: 'var(--text-muted)',

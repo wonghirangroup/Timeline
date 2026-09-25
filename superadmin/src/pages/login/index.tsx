@@ -62,16 +62,9 @@ export default function LoginPage() {
         <div style={{ background: '#fff', borderRadius: 20, padding: '40px 36px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)' }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: 'linear-gradient(135deg,var(--sa-accent),var(--sa-accent-hover))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '-1px',
-                boxShadow: '0 6px 20px rgba(45,166,221,0.35)',
-              }}>TL</div>
+              <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 48, borderRadius: 12, flexShrink: 0 }} />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>TimeLine</span>
                   <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--sa-accent)', background: 'var(--sa-accent-light)', borderRadius: 99, padding: '2px 8px' }}>SUPER ADMIN</span>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>Vendor Control Panel</div>
@@ -124,7 +117,7 @@ export default function LoginPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: '0.72rem', color: '#9ca3af' }}>
-          TimeLine HR System · Powered by WH Group
+          YooNai HR System · Powered by WH Group
         </div>
       </div>
     </div>
