@@ -62,7 +62,7 @@ export default function LoginPage() {
         <div style={{ background: '#fff', borderRadius: 20, padding: '40px 36px', boxShadow: '0 20px 60px rgba(0,0,0,0.1)' }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-              <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 48, borderRadius: 12, flexShrink: 0 }} />
+              <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--sa-accent)', background: 'var(--sa-accent-light)', borderRadius: 99, padding: '2px 8px' }}>SUPER ADMIN</span>

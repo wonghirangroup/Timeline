@@ -99,7 +99,7 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.2), transparent 70%)' }} />
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 44, borderRadius: 12, flexShrink: 0 }} />
+          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
         </div>
 
         {!isMobile && (

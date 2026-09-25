@@ -241,7 +241,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         gap: collapsed ? 10 : 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 12 }}>
-          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: collapsed ? 32 : 40, flexShrink: 0, borderRadius: 10 }} />
+          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: collapsed ? 48 : 64, flexShrink: 0, borderRadius: 10 }} />
         </div>
 
         {/* Collapse toggle button — desktop only */}
