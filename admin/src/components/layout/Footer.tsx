@@ -11,10 +11,18 @@
 // เลขเวอร์ชัน (feedback 2026-09-25 "อิงจาก v ใน Logview") = v ล่าสุดใน
 // brain/_LOG_VIEW.txt ตอนที่แก้ไฟล์นี้ครั้งล่าสุด — อัปเดตเลขนี้เองด้วยมือทุก
 // ครั้งที่ touch ไฟล์นี้ ไม่ได้ sync อัตโนมัติจาก log
+//
+// รอบ 2 (feedback 2026-09-25 "ขอเป็นแทบสีขาว และโลโก้ใหญ่ๆกับ Text ใหญ่...
+// เอาโลโก้และชื่อ Timeline ออก เอา Yoonai ใส่แทน"): เดิมโปร่งใส (เห็นสีเทา
+// อ่อนของพื้นหลังหน้าทะลุ) เปลี่ยนเป็นแถบพื้นขาวชัดเจน + ขนาดโลโก้/ตัวอักษร
+// ใหญ่ขึ้นทั้งหมด + ตัดคำว่า "TimeLine HR" (ชื่อ+โลโก้เดิม) ออกจากฝั่งซ้าย
+// ใช้โลโก้ YooNai (มี wordmark ในตัวอยู่แล้ว) แทนที่ตรงนั้นเลย — สโคปจำกัดแค่
+// Footer เท่านั้น ไม่ได้แตะชื่อ "TimeLine HR" ที่อื่นในแอป (Topbar/Sidebar/
+// browser tab title ฯลฯ) เพราะ user ระบุเจาะจงถึงภาพ Footer นี้เท่านั้น
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 
-const APP_VERSION = 'v223'
+const APP_VERSION = 'v224'
 const PARTNER_LOGO_URL = '/smartjigsaw-logo.jpg'
 const PARTNER_NAME = 'Smart Jigsaw'
 
@@ -33,25 +41,25 @@ export default function Footer() {
 
   return (
     <footer style={{
-      flexShrink: 0, marginTop: 24, paddingTop: 16, paddingBottom: 4,
-      borderTop: '1px solid #e5e7eb',
+      flexShrink: 0, marginTop: 24, padding: '20px 24px',
+      background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid #e5e7eb',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      gap: 16, flexWrap: 'wrap',
-      fontSize: '11.5px', color: 'var(--text-muted)',
+      gap: 20, flexWrap: 'wrap',
+      fontSize: '13px', color: 'var(--text-muted)',
     }}>
-      {/* ซ้าย: ชื่อระบบ + เวอร์ชัน + ลิขสิทธิ์ + โลโก้ tenant/มาสคอต */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, color: '#374151' }}>TimeLine HR <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{APP_VERSION}</span></span>
+      {/* ซ้าย: โลโก้ YooNai (แทนชื่อ+โลโก้ TimeLine เดิม) + เวอร์ชัน + ลิขสิทธิ์ + โลโก้ tenant */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 40, objectFit: 'contain' }} />
+        <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{APP_VERSION}</span>
         <span style={{ color: '#cbd5e1' }}>·</span>
-        <span>© {buddhistYear()} {data?.name ?? '…'}</span>
-        <img src="/wonghirang-logo.png" alt="วงษ์หิรัญ" style={{ height: 20, objectFit: 'contain' }} />
-        <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 18, objectFit: 'contain' }} />
+        <span style={{ fontSize: '13.5px' }}>© {buddhistYear()} {data?.name ?? '…'}</span>
+        <img src="/wonghirang-logo.png" alt="วงษ์หิรัญ" style={{ height: 34, objectFit: 'contain' }} />
       </div>
 
       {/* กลาง: Powered by Smart Jigsaw */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em' }}>POWERED BY</span>
-        <img src={PARTNER_LOGO_URL} alt={PARTNER_NAME} style={{ height: 18, objectFit: 'contain' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em' }}>POWERED BY</span>
+        <img src={PARTNER_LOGO_URL} alt={PARTNER_NAME} style={{ height: 32, objectFit: 'contain' }} />
       </div>
 
       {/* ขวา: ลิงก์นโยบาย/ติดต่อ — TODO: ยังไม่มีหน้าจริงรองรับ ใส่เมื่อมีเนื้อหาแล้ว */}
