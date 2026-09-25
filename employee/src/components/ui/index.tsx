@@ -6,9 +6,9 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { COLOR, RADIUS, SHADOW, FONT, STATUS } from './tokens'
 
-// แมววิ่ง — animation หน้าจอ Loading เริ่มต้นของทุก tenant (แทนภาพนิ่งเดิม +
-// เลิกให้ tenant อัปโหลดภาพ Loading เองแล้ว feedback 2026-08-27)
-const LOADING_ANIMATION = '/running-cat-loading.gif'
+// นกฮูก YooNai — animation หน้าจอ Loading เริ่มต้นของทุก tenant (เดิมแมววิ่ง
+// จาก feedback 2026-08-27, เปลี่ยนเป็นมาสคอตนกฮูกตามรีแบรนด์ 2026-09-25)
+const LOADING_ANIMATION = '/owl-gif-loading.gif'
 
 function useSimProgress() {
   const [pct, setPct] = useState(0)
