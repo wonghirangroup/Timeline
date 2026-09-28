@@ -444,10 +444,25 @@ textarea:focus-visible {
    ใช้ browser print แทน generate PDF ด้วย library ตรงๆ — กัน Thai font เพี้ยน
    (ดู hr-documents/print.tsx ที่ใช้ pattern เดียวกันมาก่อน) ซ่อน Sidebar/Topbar/
    Footer + ปุ่ม/ฟิลเตอร์ที่ mark .no-print ไว้ เหลือแค่เนื้อหารายงานจริง แล้ว
-   คืน scroll container ให้ไหลข้ามหน้ากระดาษได้แทนที่จะตัดแค่ viewport เดิม */
+   คืน scroll container ให้ไหลข้ามหน้ากระดาษได้แทนที่จะตัดแค่ viewport เดิม
+   (feedback 2026-09-28 "พิมพ์ PDF หน้าว่างเป็นตารางเหมือน Excel เลย" — เดิมซ่อน
+   แค่ Sidebar/Topbar/ปุ่ม Export แต่ยังเหลือแถบ filter/toggle โชว์อยู่ ตารางก็
+   ไม่มีสีพื้นหลัง/เส้นขอบตอนพิมพ์เพราะ browser ปิด background printing เป็น
+   ค่าเริ่มต้น เลยดูเหมือน dump ตารางดิบๆ ไม่มีหัวเรื่อง) */
+.print-only { display: none; }
 @media print {
   .no-print { display: none !important; }
-  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .print-only { display: block !important; }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    /* บังคับ browser พิมพ์สีพื้นหลัง/badge สี — ปกติปิดไว้เป็นค่าเริ่มต้น ทำให้
+       ตารางที่ไล่สีสถานะ (มาสาย/ขาด/ลา ฯลฯ) ออกมาเป็นตัวหนังสือเปล่าๆ ดูจืด */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
   .admin-print-root { display: block !important; height: auto !important; overflow: visible !important; }
   .admin-print-main {
     height: auto !important;
@@ -456,4 +471,11 @@ textarea:focus-visible {
     padding: 0 !important;
     max-width: none !important;
   }
+
+  /* ตารางรายงาน — คืน overflow ที่ครอบไว้ (เดิม overflow-x:auto ตัดคอลัมน์ที่ล้น
+     จอเวลาพิมพ์), ให้หัวตารางซ้ำทุกหน้ากระดาษ, กันแถวถูกตัดครึ่งข้ามหน้า */
+  table { width: 100% !important; border-collapse: collapse !important; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  .report-table-scroll { overflow: visible !important; }
 }

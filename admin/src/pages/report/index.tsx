@@ -495,10 +495,14 @@ export default function ReportPage() {
       <div style={{ marginBottom: 16 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: isMobile ? '1.05rem' : '1.2rem', fontWeight: 700 }}>รายงานการเข้างาน</h2>
         {!isMobile && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>ประวัติการมาทำงานรายพนักงานแต่ละวัน</p>}
+        <p className="print-only" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#374151' }}>
+          {viewMode === 'range' ? `${fmtThaiDate(rangeStart)} – ${fmtThaiDate(rangeEnd)}` : `${MONTHS_TH[month - 1]} ${year + 543}`}
+          {' · '}พิมพ์เมื่อ {fmtThaiDate(now.toISOString().slice(0, 10))}
+        </p>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+      {/* Filters — ซ่อนตอนพิมพ์ เหลือแค่หัวเรื่อง + ตาราง */}
+      <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
         {/* View mode toggle */}
         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
           {([['month', 'ปฏิทิน'], ['range', 'ช่วงเวลา']] as const).map(([v, label]) => (
@@ -916,7 +920,7 @@ export default function ReportPage() {
             <span style={{ color: 'var(--text-muted)' }}>กดวันที่มีข้อมูลเพื่อดูเวลา</span>
           </div>
 
-          <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff' }}>
+          <div className="report-table-scroll" style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ background: '#f9fafb' }}>

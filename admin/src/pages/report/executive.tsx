@@ -133,7 +133,7 @@ export default function ExecutiveReportPage() {
       {/* แท็บรวมทุกรายงาน — ภาพรวม (สังเคราะห์ข้ามโดเมน) + อีก 6 หมวดที่เหลือ
           แต่ละหมวดเรียก component หน้ารายงานเดิมตรงๆ (การ์ด/ตาราง/กราฟ + เดือน
           ของตัวเอง อยู่ในนั้นแล้ว ไม่ต้องแยกเขียนใหม่) */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', overflowX: 'auto' }}>
+      <div className="no-print" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', overflowX: 'auto' }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, whiteSpace: 'nowrap',
@@ -146,8 +146,12 @@ export default function ExecutiveReportPage() {
 
       {tab === 'overview' && (
         <>
+          <div className="print-only" style={{ margin: 0 }}>
+            <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานภาพรวมผู้บริหาร</h2>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
+            <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
               <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
               <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
               <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>

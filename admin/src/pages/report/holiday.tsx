@@ -89,7 +89,11 @@ export default function HolidayReportPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div className="print-only" style={{ margin: 0 }}>
+        <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานวันหยุด</h2>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      </div>
+      <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
           <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
           <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
@@ -181,7 +185,7 @@ export default function HolidayReportPage() {
       ) : (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #E6ECF4', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา</div>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="report-table-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
