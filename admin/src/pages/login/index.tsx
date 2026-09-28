@@ -177,7 +177,7 @@ export default function LoginPage() {
         position: 'relative', overflow: 'hidden',
         width: isMobile ? '100%' : '46%',
         minHeight: isMobile ? 200 : '100vh',
-        background: ads.length > 0 ? '#131C45' : 'linear-gradient(155deg, #1c1917 0%, #292524 45%, #431407 100%)',
+        background: ads.length > 0 ? '#131C45' : 'linear-gradient(155deg, #131C45 0%, #1B2557 55%, #244B83 100%)',
         display: 'flex', flexDirection: 'column',
         justifyContent: isMobile ? 'center' : 'space-between',
         padding: (!isMobile && ads.length > 0) ? 0 : (isMobile ? '32px 28px' : '52px 48px'),
@@ -189,16 +189,17 @@ export default function LoginPage() {
           </div>
         ) : (
           <>
-            {/* decorative glow */}
-            <div style={{ position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.35), transparent 70%)' }} />
-            <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.2), transparent 70%)' }} />
+            {/* decorative glow — brand primary blue, อ่านออกชัดกว่าเดิม (secondary
+                blue กลืนกับพื้นหลัง navy ที่เพิ่งเปลี่ยนมา) */}
+            <div style={{ position: 'absolute', top: -140, right: -100, width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,166,221,0.22), transparent 70%)' }} />
+            <div style={{ position: 'absolute', bottom: -160, left: -100, width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,166,221,0.14), transparent 70%)' }} />
 
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
               <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
             </div>
 
             {!isMobile && (
-              <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+              <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.02em' }}>
                 YooNai HR System · Powered by WH Group
               </div>
             )}
@@ -208,39 +209,44 @@ export default function LoginPage() {
 
       {/* ── Right — Login form ── */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#fff' }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <div style={{ marginBottom: 28 }}>
-            <h2 style={{ margin: '0 0 6px', fontSize: '1.4rem', fontWeight: 800, color: '#111827' }}>เข้าสู่ระบบ</h2>
+        <div style={{
+          width: '100%', maxWidth: 380,
+          opacity: introPhase === 'in' ? 0 : 1,
+          transform: introPhase === 'in' ? 'translateY(10px)' : 'translateY(0)',
+          transition: 'opacity 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s, transform 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s',
+        }}>
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ margin: '0 0 7px', fontSize: '1.55rem', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>เข้าสู่ระบบ</h2>
             <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
               เข้าสู่ระบบเพื่อจัดการพนักงาน
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>ชื่อผู้ใช้</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 7, display: 'block' }}>ชื่อผู้ใช้</label>
                 <input
                   type="text" value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="username"
                   autoComplete="username"
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
-                  onFocus={e => { e.target.style.borderColor = '#244B83' }}
-                  onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
+                  style={{ width: '100%', padding: '12px 15px', borderRadius: 11, fontSize: '0.9rem', border: '1.5px solid #E2E5EA', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.18s, box-shadow 0.18s', outline: 'none' }}
+                  onFocus={e => { e.target.style.borderColor = '#2DA6DD'; e.target.style.boxShadow = '0 0 0 4px rgba(45,166,221,0.14)' }}
+                  onBlur={e => { e.target.style.borderColor = '#E2E5EA'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>รหัสผ่าน</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 7, display: 'block' }}>รหัสผ่าน</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPwd ? 'text' : 'password'} value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    style={{ width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: '0.9rem', border: '1.5px solid #d1d5db', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
-                    onFocus={e => { e.target.style.borderColor = '#244B83' }}
-                    onBlur={e => { e.target.style.borderColor = '#d1d5db' }}
+                    style={{ width: '100%', padding: '12px 44px 12px 15px', borderRadius: 11, fontSize: '0.9rem', border: '1.5px solid #E2E5EA', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.18s, box-shadow 0.18s', outline: 'none' }}
+                    onFocus={e => { e.target.style.borderColor = '#2DA6DD'; e.target.style.boxShadow = '0 0 0 4px rgba(45,166,221,0.14)' }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E5EA'; e.target.style.boxShadow = 'none' }}
                   />
                   <button type="button" onClick={() => setShowPwd(p => !p)} aria-label={showPwd ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                     style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
@@ -267,7 +273,18 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={loading} style={{ marginTop: 4, padding: '13px', borderRadius: 10, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? '#B2C0D4' : 'linear-gradient(135deg,#244B83,#244B83)', color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 16px rgba(36,75,131,0.4)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button type="submit" disabled={loading} style={{
+                marginTop: 6, padding: '14px', borderRadius: 11, border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                background: loading ? '#B2C0D4' : 'linear-gradient(135deg, #2A5695, #131C45)',
+                color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit',
+                boxShadow: loading ? 'none' : '0 10px 24px -6px rgba(19,28,69,0.45)',
+                transition: 'transform 0.18s, box-shadow 0.18s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+                onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1.5px)'; e.currentTarget.style.boxShadow = '0 14px 28px -6px rgba(19,28,69,0.55)' } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 10px 24px -6px rgba(19,28,69,0.45)' }}
+              >
                 {loading ? <><Loader2 size={17} className="animate-spin" /> กำลังเข้าสู่ระบบ...</> : <><LogIn size={17} /> เข้าสู่ระบบ</>}
               </button>
             </div>
