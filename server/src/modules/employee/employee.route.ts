@@ -6,6 +6,7 @@ import { requirePermission, requirePermissionAny } from '../../common/middleware
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
+import { logAudit, resolveActorName } from '../../common/utils/auditLog'
 
 const TAG = 'Admin'
 
@@ -113,6 +114,13 @@ export async function employeeRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     try {
       const employee = await createEmployee(req.tenantId, req.body)
+      const actorName = await resolveActorName(req.userId)
+      const fullName = `${employee.first_name} ${employee.last_name}`
+      logAudit({
+        tenantId: req.tenantId, branchId: employee.branch_id, actorName,
+        action: 'EMPLOYEE_CREATED', entityName: fullName,
+        message: `${actorName} เพิ่มพนักงาน ${fullName} (${employee.employee_code})`,
+      })
       return reply.code(201).send(ok(employee, 'เพิ่มพนักงานสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LIMIT_REACHED') return reply.code(409).send(fail('LIMIT_REACHED', 'จำนวนพนักงานเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'))
@@ -157,6 +165,13 @@ export async function employeeRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const employee = await updateEmployee(req.tenantId, req.params.id, req.body)
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    const actorName = await resolveActorName(req.userId)
+    const fullName = `${employee.first_name} ${employee.last_name}`
+    logAudit({
+      tenantId: req.tenantId, branchId: employee.branch_id, actorName,
+      action: 'EMPLOYEE_UPDATED', entityName: fullName,
+      message: `${actorName} แก้ไขข้อมูลพนักงาน ${fullName} (${employee.employee_code})`,
+    })
     return ok(employee, 'อัปเดตพนักงานสำเร็จ')
   })
 
@@ -301,8 +316,20 @@ export async function employeeRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
+    // ต้องดึงข้อมูลพนักงานไว้ก่อนลบ — deleteEmployee คืนแค่ true/false ไม่มีชื่อ/สาขา
+    // ให้ log แล้ว (soft delete — เลย query ได้ปกติก่อนเรียก)
+    const before = await getEmployee(req.tenantId, req.params.id)
     const deleted = await deleteEmployee(req.tenantId, req.params.id)
     if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+    if (before) {
+      const actorName = await resolveActorName(req.userId)
+      const fullName = `${before.first_name} ${before.last_name}`
+      logAudit({
+        tenantId: req.tenantId, branchId: before.branch_id, actorName,
+        action: 'EMPLOYEE_DELETED', entityName: fullName,
+        message: `${actorName} ลบพนักงาน ${fullName} (${before.employee_code})`,
+      })
+    }
     return ok(null, 'ลบพนักงานสำเร็จ')
   })
 }

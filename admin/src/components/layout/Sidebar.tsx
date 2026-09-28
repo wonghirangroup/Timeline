@@ -71,6 +71,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/report/holiday',       label: 'รายงานวันหยุด',          permKey: 'report_holiday',        icon: <CalendarOff  size={16}/> },
       { path: '/report/leave',         label: 'รายงานวันลา',            permKey: 'report_leave',          icon: <CalendarDays size={16}/> },
       { path: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', permKey: 'report_line_messages', icon: <MessageCircle size={16}/> },
+      { path: '/audit-log',            label: 'บันทึกกิจกรรมพนักงาน',    icon: <FileClock size={16}/> },
     ],
   },
 ]

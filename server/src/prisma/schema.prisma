@@ -49,6 +49,7 @@ model Tenant {
   feedbacks             Feedback[]
   invoices              Invoice[]
   activity_logs         ActivityLog[]
+  audit_logs            AuditLog[]
   firebase_sync_runs    FirebaseSyncRun[]
   groups                Group[]
   divisions             Division[]
@@ -629,6 +630,7 @@ model Branch {
   managers           BranchManager[]
   weekly_off_periods WeeklyOffPeriod[]
   extra_employees    EmployeeBranch[]
+  audit_logs         AuditLog[]
 
   @@index([tenant_id])
   @@index([group_id])
@@ -1325,6 +1327,33 @@ model ActivityLog {
   @@index([tenant_id])
   @@index([created_at])
   @@map("activity_logs")
+}
+
+// บันทึกกิจกรรมระดับ "ข้อมูลพนักงาน" (feedback 2026-09-28 "admin ดูได้สาขาตัวเอง
+// ว่ามีการเพิ่มลบ แก้ไข หรือแจ้งเตือนอะไรไหม / superadmin ดูล็อคของแต่ละบริษัท
+// ได้") — แยกจาก ActivityLog เดิม (ซึ่งเป็น feed ระดับจัดการบัญชี/แพลตฟอร์ม
+// ของ Super Admin Dashboard) เพราะคนละวัตถุประสงค์: อันนี้เป็น audit trail
+// ระดับข้อมูลพนักงานจริง (เกี่ยวโยงกับ PDPA accountability — เจอ gap นี้ตอน
+// เขียนหน้า pdpa/index.tsx) ตอบคำถาม "ใครเพิ่ม/ลบ/แก้ไข/ส่งแจ้งเตือนพนักงาน
+// คนไหนเมื่อไหร่" — Super Admin เห็นของทุกบริษัท, Admin เห็นเฉพาะ tenant ตัวเอง
+// (กรองสาขาเพิ่มได้ที่ frontend ผ่าน branch_id)
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  branch_id   String? // สาขาของพนักงานที่ถูกกระทำ ณ ตอนนั้น — null ถ้าไม่ผูกสาขาเดียว
+  actor_name  String // ชื่อ/อีเมลผู้ทำ ณ ตอนนั้น (เก็บเป็น snapshot ไม่ join User ทีหลัง กันชื่อเปลี่ยน/บัญชีถูกลบแล้วอ่านค่าไม่ได้)
+  action      String // EMPLOYEE_CREATED, EMPLOYEE_UPDATED, EMPLOYEE_DELETED, NOTIFICATION_SENT
+  entity_name String // ชื่อพนักงานที่เกี่ยวข้อง ณ ตอนนั้น (snapshot เหตุผลเดียวกับ actor_name)
+  message     String   @db.Text // ข้อความพร้อมแสดงผลเลย ไม่ต้อง compose ฝั่ง frontend
+  created_at  DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenant_id], references: [id])
+  branch Branch? @relation(fields: [branch_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@index([created_at])
+  @@map("audit_logs")
 }
 
 // ─────────────────────────────────────────────

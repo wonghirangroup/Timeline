@@ -31,6 +31,7 @@ import MagicLoginPage       from './pages/magic-login'
 import UiKitPage            from './pages/ui-kit'
 import PdpaPage              from './pages/pdpa'
 import TermsPage             from './pages/terms'
+import AuditLogPage          from './pages/audit-log'
 
 function AdminRoutes() {
   const token = useAuthStore(s => s.token)
@@ -70,6 +71,7 @@ function AdminRoutes() {
         <Route path="/resignations"  element={<ResignationsPage />} />
         <Route path="/document-requests" element={<DocumentRequestsPage />} />
         <Route path="/settings"      element={<SettingsPage />} />
+        <Route path="/audit-log"     element={<AuditLogPage />} />
         <Route path="/ui-kit"        element={<UiKitPage />} />
         <Route path="*"              element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -59,13 +59,17 @@ type Tab = 'info' | 'line' | 'branches' | 'features' | 'activity'
 
 interface ApiActivityLog { id: string; actor_name: string; action: string; message: string; created_at: string }
 // สีจุดตาม action prefix จริงจาก ActivityLog.action (TENANT_*/ADMIN_*/LINE_CONFIG_*/
-// FEATURE_*/INVOICE_*/SUPER_ADMIN_LOGIN — ดู server/src/prisma/schema.prisma)
+// FEATURE_*/INVOICE_*/SUPER_ADMIN_LOGIN — ดู server/src/prisma/schema.prisma) +
+// EMPLOYEE_*/NOTIFICATION_SENT จาก AuditLog/LineMessageLog ที่รวมเข้ามาด้วยตอน
+// ดู tenant รายบริษัท (feedback 2026-09-28 "superadmin ดูล็อคของแต่ละบริษัทได้")
 function activityColor(action: string): string {
   if (action.startsWith('SUPER_ADMIN_LOGIN')) return '#2DA6DD'
-  if (action.startsWith('TENANT_CREATED') || action.startsWith('ADMIN_CREATED')) return 'var(--success-text)'
-  if (action.startsWith('TENANT_UPDATED') || action.startsWith('LINE_CONFIG')) return 'var(--warning-text)'
+  if (action.startsWith('TENANT_CREATED') || action.startsWith('ADMIN_CREATED') || action.startsWith('EMPLOYEE_CREATED')) return 'var(--success-text)'
+  if (action.startsWith('TENANT_UPDATED') || action.startsWith('LINE_CONFIG') || action.startsWith('EMPLOYEE_UPDATED')) return 'var(--warning-text)'
   if (action.startsWith('FEATURE')) return '#2563eb'
   if (action.startsWith('INVOICE')) return '#7c3aed'
+  if (action.startsWith('EMPLOYEE_DELETED')) return 'var(--error-text)'
+  if (action.startsWith('NOTIFICATION_SENT')) return '#244B83'
   return '#9ca3af'
 }
 

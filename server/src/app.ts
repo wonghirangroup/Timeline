@@ -34,6 +34,7 @@ import { notificationRoutes } from './modules/notifications/notifications.route'
 import { settingsRoutes } from './modules/settings/settings.route'
 import { firebaseSyncRoutes } from './modules/firebase-sync/firebase-sync.route'
 import { hrLifecycleRoutes } from './modules/hr-lifecycle/hr-lifecycle.route'
+import { auditLogRoutes } from './modules/audit-log/audit-log.route'
 import { hrDocumentRoutes } from './modules/hr-document/hr-document.route'
 import { leaveTypesRoutes } from './modules/leave-types/leave-types.route'
 import { vacationPolicyRoutes } from './modules/leave/vacation-policy.route'
@@ -144,6 +145,7 @@ app.register(issueReportRoutes, { prefix: '/api/v1' })               // EMPLOYEE
 app.register(billingRoutes,     { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: Invoice tracking (manual, ไม่มี payment gateway)
 app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_ADMIN: กิจกรรมล่าสุด (Dashboard feed)
 app.register(offsiteRoutes,     { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE ปักหมุดเช็คอิน-เอาต์นอกสถานที่ (LIFF)
+app.register(auditLogRoutes, { prefix: '/api/v1/admin' })            // ADMIN: บันทึกกิจกรรมพนักงาน (เพิ่ม/ลบ/แก้ไข/แจ้งเตือน) — feedback 2026-09-28
 app.register(groupRoutes, { prefix: '/api/v1/admin' })               // ADMIN: กลุ่ม(บริษัท) — ชั้นนโยบายเหนือสาขา
 app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: ผังองค์กร Division→Department→Position (ใต้กลุ่ม)
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
