@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom'
 import { Users, Building2, ClipboardCheck, AlertTriangle, Wallet, CalendarDays, DoorOpen, FileText, FileClock, ChevronRight, LayoutDashboard, Palmtree, MessageCircle } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 import BranchReportPage from './branch'
 import EmployeeReportPage from './employee'
 import HolidayReportPage from './holiday'
@@ -108,6 +110,15 @@ export default function ExecutiveReportPage() {
   ]
   const totalPending = pendingApprovals.reduce((s, p) => s + p.count, 0)
 
+  function exportCsv() {
+    const header = ['เดือน', 'พนักงานทั้งหมด', 'สาขาทั้งหมด', 'เช็คอินรวม (วัน)', 'มาสายรวม', 'ขาดรวม', 'ค่าปรับรวม (บาท)', 'วันลาอนุมัติ (วัน)', 'วันลารออนุมัติ']
+    const row = [
+      `${MONTHS_TH[month - 1]} ${year + 543}`, String(totals.employees), String(totals.branches), String(totals.checkins),
+      String(totals.late), String(totals.absent), String(totals.fine), String(totals.leaveDays), String(totals.leavePending),
+    ]
+    downloadCsv([header, row], `รายงานภาพรวมผู้บริหาร_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'พนักงานทั้งหมด', value: totals.employees, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'สาขาทั้งหมด', value: totals.branches, icon: <Building2 size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
@@ -135,10 +146,13 @@ export default function ExecutiveReportPage() {
 
       {tab === 'overview' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
-            <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
-            <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
+              <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
+              <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+            </div>
+            <ReportExportBar onExportCsv={exportCsv} disabled={isLoading} mobile={isMobile} />
           </div>
 
           {/* งานค้างที่ต้องดำเนินการตอนนี้ — ไม่ผูกกับเดือนที่เลือก (สถานะปัจจุบัน) */}

@@ -76,7 +76,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const sidebarW = isMobile ? 0 : (collapsed ? SIDEBAR_COL : SIDEBAR_W)
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-page)' }}>
+    <div className="admin-print-root" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-page)' }}>
       {isMobile && drawerOpen && (
         <div
           onClick={() => setDrawerOpen(false)}
@@ -84,10 +84,16 @@ export default function Layout({ children }: { children: ReactNode }) {
         />
       )}
 
-      <Sidebar isMobile={isMobile} drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+      {/* no-print: กด "พิมพ์ / บันทึกเป็น PDF" จากหน้ารายงานแล้วซ่อน chrome รอบนอก
+          ให้เหลือแค่เนื้อหารายงานจริง (ดู index.css @media print) */}
+      <div className="no-print">
+        <Sidebar isMobile={isMobile} drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+      </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, marginLeft: sidebarW, transition: 'margin-left 0.25s cubic-bezier(0.4,0,0.2,1)' }}>
-        <Topbar isMobile={isMobile} sidebarW={sidebarW} onMenuClick={() => setDrawerOpen(o => !o)} />
+        <div className="no-print">
+          <Topbar isMobile={isMobile} sidebarW={sidebarW} onMenuClick={() => setDrawerOpen(o => !o)} />
+        </div>
 
         <main style={{
           flex: 1,
@@ -102,10 +108,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           overflowX: 'hidden', // กันหน้าเลื่อนแนวนอนทั้งแอป — เนื้อหาข้างในต้องยุบ/wrap เอง
           display: 'flex',
           flexDirection: 'column'
-        }} className="animate-fade-in-up">
+        }} className="animate-fade-in-up admin-print-main">
           {children}
         </main>
-        <Footer />
+        <div className="no-print"><Footer /></div>
       </div>
 
       {mustChangePassword && <ForcedPasswordChange />}

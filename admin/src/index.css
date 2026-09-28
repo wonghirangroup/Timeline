@@ -439,3 +439,21 @@ textarea:focus-visible {
     transform: none;
   }
 }
+
+/* ── พิมพ์ / บันทึกเป็น PDF (หน้ารายงาน) ──────────────────────────────────────
+   ใช้ browser print แทน generate PDF ด้วย library ตรงๆ — กัน Thai font เพี้ยน
+   (ดู hr-documents/print.tsx ที่ใช้ pattern เดียวกันมาก่อน) ซ่อน Sidebar/Topbar/
+   Footer + ปุ่ม/ฟิลเตอร์ที่ mark .no-print ไว้ เหลือแค่เนื้อหารายงานจริง แล้ว
+   คืน scroll container ให้ไหลข้ามหน้ากระดาษได้แทนที่จะตัดแค่ viewport เดิม */
+@media print {
+  .no-print { display: none !important; }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .admin-print-root { display: block !important; height: auto !important; overflow: visible !important; }
+  .admin-print-main {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}

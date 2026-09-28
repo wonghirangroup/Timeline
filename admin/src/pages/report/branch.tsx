@@ -10,6 +10,8 @@ import { Building2, Users, ClipboardCheck, AlertTriangle, Wallet, Table2, Layout
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportBarChart from '../../components/shared/ReportBarChart'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiBranch { id: string; name: string }
 interface ApiEmployee { id: string; branch_id: string }
@@ -86,6 +88,15 @@ export default function BranchReportPage() {
     pendingLeaves: acc.pendingLeaves + r.pendingLeaves,
   }), { empCount: 0, checkinCount: 0, lateCount: 0, absentCount: 0, totalFine: 0, approvedLeaves: 0, pendingLeaves: 0 }), [rows])
 
+  function exportCsv() {
+    const header = ['สาขา', 'พนักงาน', 'เช็คอิน (วัน)', 'มาสาย', 'ขาด', 'ค่าปรับ (บาท)', 'ลา อนุมัติ', 'ลา รออนุมัติ']
+    const body = rows.map(r => [
+      r.branch.name, String(r.empCount), String(r.checkinCount), String(r.lateCount), String(r.absentCount),
+      String(r.totalFine), String(r.approvedLeaves), String(r.pendingLeaves),
+    ])
+    downloadCsv([header, ...body], `รายงานสาขา_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'พนักงานรวม', value: totals.empCount, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -113,6 +124,7 @@ export default function BranchReportPage() {
             ))}
           </div>
         )}
+        <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
       </div>
 
       {/* KPI row */}

@@ -9,6 +9,8 @@ import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 }
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportBarChart from '../../components/shared/ReportBarChart'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiLineLog {
   id: string; category: string; recipient_type: 'EMPLOYEE' | 'ADMIN'
@@ -76,6 +78,15 @@ export default function LineMessagesReportPage() {
       .sort((a, b) => (b.success + b.failed) - (a.success + a.failed))
   }, [logs])
 
+  function exportCsv() {
+    const header = ['เวลา', 'ประเภท', 'ผู้รับ', 'หัวข้อ', 'สถานะ', 'ข้อผิดพลาด']
+    const body = logs.map(l => [
+      fmtDateTime(l.created_at), CATEGORY_LABEL[l.category] ?? l.category, l.recipient_label, l.title,
+      l.success ? 'สำเร็จ' : 'ล้มเหลว', l.error_message ?? '',
+    ])
+    downloadCsv([header, ...body], `รายงานข้อความไลน์_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'ส่งทั้งหมด', value: totals.total, icon: <MessageCircle size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'สำเร็จ', value: totals.success, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -102,6 +113,7 @@ export default function LineMessagesReportPage() {
             ))}
           </div>
         )}
+        <ReportExportBar onExportCsv={exportCsv} disabled={logs.length === 0} mobile={isMobile} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

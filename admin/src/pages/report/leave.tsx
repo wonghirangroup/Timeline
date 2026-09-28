@@ -8,6 +8,8 @@ import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check,
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportPieChart from '../../components/shared/ReportPieChart'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiLeave {
   id: string; leave_type: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -69,6 +71,18 @@ export default function LeaveReportPage() {
     days: monthLeaves.filter(l => l.status === 'APPROVED').reduce((s, l) => s + l.days, 0),
   }), [monthLeaves])
 
+  function exportCsv() {
+    const header = ['พนักงาน', 'สาขา', 'ประเภท', 'วันเริ่ม', 'วันสิ้นสุด', 'จำนวนวัน', 'สถานะ']
+    const body = monthLeaves.map(l => {
+      const cfg = LEAVE_TYPE_CFG[l.leave_type] ?? LEAVE_TYPE_CFG.OTHER
+      return [
+        `${l.employee.first_name} ${l.employee.last_name}`, l.employee.branch.name, cfg.label,
+        l.start_date.slice(0, 10), l.end_date.slice(0, 10), String(l.days), STATUS_TH[l.status],
+      ]
+    })
+    downloadCsv([header, ...body], `รายงานวันลา_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'คำขอลารวม', value: totals.total, icon: <CalendarDays size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -95,6 +109,7 @@ export default function LeaveReportPage() {
             ))}
           </div>
         )}
+        <ReportExportBar onExportCsv={exportCsv} disabled={monthLeaves.length === 0} mobile={isMobile} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

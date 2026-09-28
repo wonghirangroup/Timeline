@@ -7,6 +7,8 @@ import { CalendarOff, Palmtree, Users, Clock, Check, Table2, LayoutGrid, BarChar
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportBarChart from '../../components/shared/ReportBarChart'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiHoliday { id: string; date: string; name: string; compensate_days: number | null; target_branches: string[] | null }
 interface ApiBranch { id: string; name: string }
@@ -66,6 +68,18 @@ export default function HolidayReportPage() {
     total: acc.total + r.total, approved: acc.approved + r.approved, pending: acc.pending + r.pending,
   }), { total: 0, approved: 0, pending: 0 }), [branchRows])
 
+  function exportCsv() {
+    const holidayHeader = ['วันหยุดบริษัทที่ประกาศ']
+    const holidayRows = [['วันที่', 'ชื่อวันหยุด', 'ขอบเขต', 'ชดเชย (วัน)'], ...monthHolidays.map(h => [
+      h.date.slice(0, 10), h.name, h.target_branches?.length ? `${h.target_branches.length} สาขา` : 'ทั้งบริษัท', String(h.compensate_days ?? 1),
+    ])]
+    const branchHeader = ['คำขอวันหยุดประจำเดือน/สัปดาห์ ต่อสาขา']
+    const branchRowsOut = [['สาขา', 'คำขอรวม', 'อนุมัติ', 'รอพิจารณา', 'ปฏิเสธ'], ...branchRows.map(r => [
+      r.branch.name, String(r.total), String(r.approved), String(r.pending), String(r.rejected),
+    ])]
+    downloadCsv([holidayHeader, ...holidayRows, [], branchHeader, ...branchRowsOut], `รายงานวันหยุด_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'วันหยุดบริษัทเดือนนี้', value: monthHolidays.length, icon: <Palmtree size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
     { label: 'คำขอวันหยุดรวม', value: totals.total, icon: <CalendarOff size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
@@ -92,6 +106,7 @@ export default function HolidayReportPage() {
             ))}
           </div>
         )}
+        <ReportExportBar onExportCsv={exportCsv} disabled={isLoading} mobile={isMobile} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

@@ -9,6 +9,8 @@ import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGri
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportBarChart from '../../components/shared/ReportBarChart'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 interface ApiAttendance { id: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string; employee: { id: string } }
@@ -76,6 +78,15 @@ export default function EmployeeReportPage() {
     [...rows].sort((a, b) => (b.lateCount + b.absentCount) - (a.lateCount + a.absentCount)).slice(0, 10),
     [rows])
 
+  function exportCsv() {
+    const header = ['รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'สาขา', 'เช็คอิน (วัน)', 'มาสาย', 'ขาด', 'ค่าปรับ (บาท)', 'ลา (วัน)']
+    const body = rows.map(r => [
+      r.employee.employee_code, r.employee.first_name, r.employee.last_name, r.employee.nickname ?? '', r.employee.branch.name,
+      String(r.checkinCount), String(r.lateCount), String(r.absentCount), String(r.totalFine), String(r.leaveDays),
+    ])
+    downloadCsv([header, ...body], `รายงานพนักงาน_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
+  }
+
   const kpis = [
     { label: 'พนักงานรวม', value: rows.length, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
     { label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -97,7 +108,7 @@ export default function EmployeeReportPage() {
             style={{ width: '100%', padding: '7px 12px 7px 30px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', boxSizing: 'border-box', fontFamily: 'inherit' }} />
         </div>
         {!isMobile && (
-          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 title={label}
@@ -107,6 +118,7 @@ export default function EmployeeReportPage() {
             ))}
           </div>
         )}
+        <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

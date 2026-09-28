@@ -10,6 +10,8 @@ import { avatarUrl } from '../../lib/upload'
 import { fmtThaiDate } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import ReportExportBar from '../../components/shared/ReportExportBar'
+import { downloadCsv } from '../../lib/exportCsv'
 
 interface AttendanceRecord {
   id: string
@@ -444,12 +446,6 @@ export default function ReportPage() {
     return [header, ...rows]
   }
 
-  function downloadCsv(rows: string[][], filename: string) {
-    const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    a.download = filename; a.click()
-  }
   function exportAll() {
     if (viewMode === 'range') downloadCsv(buildCsvRows(filteredEmployees, rangeDateKeys), `รายงาน_${rangeStart}_ถึง_${rangeEnd}.csv`)
     else downloadCsv(buildCsvRows(filteredEmployees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`)
@@ -602,18 +598,7 @@ export default function ReportPage() {
             </button>
           )}
           <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{filteredEmployees.length} คน</span>
-          {!isMobile && (
-            <button onClick={exportAll} disabled={filteredEmployees.length === 0}
-              style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Download size={13} /> Export รวม
-            </button>
-          )}
-          {isMobile && (
-            <button onClick={exportAll} disabled={filteredEmployees.length === 0}
-              style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Download size={12} /> Export
-            </button>
-          )}
+          <ReportExportBar onExportCsv={exportAll} disabled={filteredEmployees.length === 0} mobile={isMobile} />
         </div>
       )}
 
