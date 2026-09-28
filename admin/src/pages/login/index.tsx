@@ -1,7 +1,7 @@
 // admin/src/pages/login/index.tsx
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, Clock, Users, BarChart3, ShieldCheck, X, Mail } from 'lucide-react'
+import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -165,13 +165,6 @@ export default function LoginPage() {
     setUsername(demoUsername); setPassword(demoPassword); setError('')
   }
 
-  const FEATURES = [
-    { icon: Clock,      text: 'เช็คอิน-เช็คเอาต์ผ่าน Line LIFF แบบเรียลไทม์' },
-    { icon: Users,      text: 'จัดการพนักงานและสาขาได้จากที่เดียว' },
-    { icon: BarChart3,  text: 'รายงานเข้างาน-วันลา ครบในไม่กี่คลิก' },
-    { icon: ShieldCheck, text: 'แยกข้อมูลแต่ละบริษัทอย่างปลอดภัย' },
-  ]
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#fff' }}>
       {introPhase !== 'done' && <IntroSplash exiting={introPhase === 'out'} />}
@@ -198,27 +191,6 @@ export default function LoginPage() {
         {!isMobile && ads.length > 0 && (
           <div style={{ position: 'relative', flex: 1, minHeight: 0, margin: '20px 0' }}>
             <AdCarousel ads={ads} />
-          </div>
-        )}
-
-        {!isMobile && ads.length === 0 && (
-          <div style={{ position: 'relative' }}>
-            <h1 style={{ margin: '0 0 14px', fontSize: 'clamp(1.6rem, 2.4vw, 2.1rem)', fontWeight: 800, color: '#fff', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
-              จัดการเวลาทำงานทั้งทีม<br />ในที่เดียว
-            </h1>
-            <p style={{ margin: '0 0 28px', fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, maxWidth: 360 }}>
-              ระบบ HR สำหรับเช็คชื่อ จัดกะ และวันลา ที่เชื่อมต่อกับ Line โดยตรง
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {FEATURES.map(f => (
-                <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(36,75,131,0.18)', border: '1px solid rgba(36,75,131,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6581A8', flexShrink: 0 }}>
-                    <f.icon size={15} />
-                  </div>
-                  <span style={{ fontSize: '0.84rem', color: 'rgba(255,255,255,0.85)' }}>{f.text}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
