@@ -42,6 +42,7 @@ import { permissionRoutes } from './modules/permissions/permission.route'
 import { packagePlanRoutes } from './modules/package-plan/package-plan.route'
 import { systemAnnouncementRoutes } from './modules/system-announcement/system-announcement.route'
 import { platformSettingsRoutes, platformSettingsPublicRoutes } from './modules/platform-settings/platform-settings.route'
+import { loginAdsRoutes, loginAdsPublicRoutes } from './modules/login-ads/login-ads.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
 import { startVacationPolicyCron } from './jobs/vacation-policy.job'
@@ -163,6 +164,8 @@ app.register(packagePlanRoutes,  { prefix: '/api/v1/super-admin' })  // SUPER_AD
 app.register(systemAnnouncementRoutes, { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ประกาศถึงแอดมิน tenant ข้ามบริษัท (LINE push จริง)
 app.register(platformSettingsRoutes,       { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ช่องทางชำระเงิน/ติดต่อระดับแพลตฟอร์ม (feedback 2026-09-24)
 app.register(platformSettingsPublicRoutes, { prefix: '/api/v1/admin' })       // แอดมิน tenant: อ่านช่องทางชำระเงิน/ติดต่อ (read-only)
+app.register(loginAdsRoutes,       { prefix: '/api/v1/super-admin' })         // SUPER_ADMIN: จัดการแบนเนอร์หน้า login แอดมิน
+app.register(loginAdsPublicRoutes, { prefix: '/api/v1' })                     // public: หน้า login ดึงก่อนล็อกอิน (ไม่มี auth)
 
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {

@@ -12,6 +12,7 @@ import SABillingPage      from './pages/billing'
 import SAOnboardingPage   from './pages/onboarding'
 import SAAnnouncementPage from './pages/announcement'
 import SAPlatformSettingsPage from './pages/settings'
+import SALoginAdsPage     from './pages/login-ads'
 
 function SuperAdminRoutes() {
   const token = useAuthStore(s => s.token)
@@ -31,6 +32,7 @@ function SuperAdminRoutes() {
         <Route path="onboarding"   element={<SAOnboardingPage />} />
         <Route path="announcement" element={<SAAnnouncementPage />} />
         <Route path="settings"     element={<SAPlatformSettingsPage />} />
+        <Route path="login-ads"    element={<SALoginAdsPage />} />
         <Route path="*"            element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </SuperAdminLayout>

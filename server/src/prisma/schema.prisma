@@ -1434,6 +1434,27 @@ model PlatformSettings {
   @@map("platform_settings")
 }
 
+// ─────────────────────────────────────────────
+// LOGIN ADS — แบนเนอร์/โฆษณาฝั่งซ้ายของหน้า login แอดมิน (feedback 2026-09-28
+// "พื้นที่ฝั่งซ้ายของฟอร์ม superadmin จัดการเพิ่มเหมือนโฆษณาได้") — ระดับ
+// แพลตฟอร์ม ไม่ผูก tenant (คนละเรื่องกับ TenantLineConfig หรือข้อมูลบริษัท) —
+// หน้า login ดึงผ่าน endpoint public (ไม่ต้อง login) เพราะยังไม่มี auth ตอนนั้น
+// sort_order ต่ำ = แสดงก่อน, is_active=false = ปิดชั่วคราวไม่ต้องลบ
+// ─────────────────────────────────────────────
+model LoginAd {
+  id         String   @id @default(uuid())
+  image_url  String   @db.Text
+  link_url   String?  @db.Text // เปิดแท็บใหม่เมื่อกด — ไม่ใส่ = ไม่มีลิงก์
+  title      String? // ป้ายกำกับภายในให้ SuperAdmin ดูในลิสต์เฉยๆ ไม่ได้โชว์บนหน้า login
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([is_active, sort_order])
+  @@map("login_ads")
+}
+
 // log ทุกครั้งที่ระบบยิงข้อความ LINE ออกไปจริง (แจ้งเตือนแอดมิน/พนักงาน,
 // ประกาศ, แจ้งปัญหา, เปิดจองวันหยุด ฯลฯ) — เดิมไม่มีการเก็บเลยสักครั้ง ทำให้
 // ตอบไม่ได้ว่า "ส่งไปหาใครบ้าง สำเร็จไหม" ย้อนหลัง (feedback 2026-09-22

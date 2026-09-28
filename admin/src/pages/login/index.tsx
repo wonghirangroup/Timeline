@@ -1,5 +1,5 @@
 // admin/src/pages/login/index.tsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, Clock, Users, BarChart3, ShieldCheck, X, Mail } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
@@ -13,6 +13,74 @@ const API_URL       = import.meta.env.VITE_API_URL ?? ''
 const SUPERADMIN_URL = import.meta.env.VITE_SUPERADMIN_URL ?? 'https://timeline-superadmin.vercel.app'
 const REMEMBER_KEY  = 'tl_remember_username'
 
+function prefersReducedMotion() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+}
+
+// ── Intro splash — โลโก้ YooNai ขึ้นก่อนแล้วเลื่อนออก เผยฟอร์ม login ข้างใต้
+// (feedback 2026-09-28 "กดฝั่งแอดมินแล้วจะเป็นสไลด์โลโก้ก่อน แล้วสไลด์ออก")
+// เล่นครั้งเดียวตอนเข้าเพจ ไม่ persist (เข้าใหม่ทุกครั้งก็เห็นอีก — เป็น brand
+// moment ไม่ใช่ onboarding ที่ควรเห็นแค่ครั้งแรก) — ข้ามอัตโนมัติถ้า
+// prefers-reduced-motion (CSS ทั่วแอปมี override เร่ง transition ให้ทันทีอยู่
+// แล้วที่ index.css แต่ setTimeout ของ JS ไม่รู้เรื่องด้วย เลยต้องเช็คแยก)
+function IntroSplash({ exiting }: { exiting: boolean }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 500,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(155deg, #1c1917 0%, #292524 45%, #431407 100%)',
+      transform: exiting ? 'translateX(-100%)' : 'translateX(0)',
+      transition: 'transform 0.65s cubic-bezier(0.65,0,0.35,1)',
+    }}>
+      <img
+        src="/yoonai-logo.png" alt="YooNai"
+        className={exiting ? undefined : 'animate-intro-logo-pop'}
+        style={{ height: 96, borderRadius: 16, opacity: exiting ? 0 : 1, transition: 'opacity 0.3s' }}
+      />
+    </div>
+  )
+}
+
+interface LoginAd { id: string; image_url: string; link_url: string | null }
+
+// ── Ad carousel — SuperAdmin จัดการที่ superadmin/pages/login-ads ── แทนที่
+// เนื้อหาแนะนำฟีเจอร์เดิมทั้งหมดถ้ามีแบนเนอร์ตั้งไว้ (ไม่มี = โชว์เนื้อหาเดิม
+// เป็น fallback กันพาเนลว่างเปล่า)
+function AdCarousel({ ads }: { ads: LoginAd[] }) {
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    if (ads.length < 2) return
+    const t = setInterval(() => setIdx(i => (i + 1) % ads.length), 5000)
+    return () => clearInterval(t)
+  }, [ads.length])
+
+  const ad = ads[idx]
+  if (!ad) return null
+
+  function openAd() {
+    if (ad.link_url) window.open(ad.link_url, '_blank', 'noopener,noreferrer')
+  }
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <img
+        key={ad.id} src={ad.image_url} alt=""
+        onClick={ad.link_url ? openAd : undefined}
+        className="animate-fade-in"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16, cursor: ad.link_url ? 'pointer' : 'default' }}
+      />
+      {ads.length > 1 && (
+        <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+          {ads.map((a, i) => (
+            <button key={a.id} onClick={() => setIdx(i)} aria-label={`แบนเนอร์ ${i + 1}`}
+              style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 99, border: 'none', cursor: 'pointer', background: i === idx ? '#fff' : 'rgba(255,255,255,0.4)', transition: 'width 0.25s, background 0.25s' }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile(900)
@@ -24,6 +92,22 @@ export default function LoginPage() {
   const [error, setError]        = useState('')
   const [remember, setRemember]  = useState(() => !!localStorage.getItem(REMEMBER_KEY))
   const [showForgot, setShowForgot] = useState(false)
+
+  // Intro splash — เล่นทุกครั้งที่เข้าหน้านี้ (ดู comment ที่ IntroSplash ด้านบน)
+  const [introPhase, setIntroPhase] = useState<'in' | 'out' | 'done'>(() => (prefersReducedMotion() ? 'done' : 'in'))
+  useEffect(() => {
+    if (introPhase === 'done') return
+    const t1 = setTimeout(() => setIntroPhase('out'), 900)
+    const t2 = setTimeout(() => setIntroPhase('done'), 1550)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [introPhase])
+
+  // แบนเนอร์ที่ SuperAdmin ตั้งไว้ (public endpoint, ไม่ต้อง login) — ว่าง =
+  // fallback กลับไปโชว์ข้อความแนะนำฟีเจอร์เดิม
+  const [ads, setAds] = useState<LoginAd[]>([])
+  useEffect(() => {
+    axios.get(`${API_URL}/api/v1/login-ads`).then(res => setAds(res.data.data ?? [])).catch(() => {})
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -83,6 +167,8 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#fff' }}>
+      {introPhase !== 'done' && <IntroSplash exiting={introPhase === 'out'} />}
+
       {/* ── Left — Brand panel (ส้ม-ดำ-ขาว) ── */}
       <div style={{
         position: 'relative', overflow: 'hidden',
@@ -102,7 +188,13 @@ export default function LoginPage() {
           <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
         </div>
 
-        {!isMobile && (
+        {!isMobile && ads.length > 0 && (
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, margin: '20px 0' }}>
+            <AdCarousel ads={ads} />
+          </div>
+        )}
+
+        {!isMobile && ads.length === 0 && (
           <div style={{ position: 'relative' }}>
             <h1 style={{ margin: '0 0 14px', fontSize: 'clamp(1.6rem, 2.4vw, 2.1rem)', fontWeight: 800, color: '#fff', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
               จัดการเวลาทำงานทั้งทีม<br />ในที่เดียว
