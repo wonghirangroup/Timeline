@@ -152,14 +152,23 @@ export interface EmployeeLineNotice {
 export async function notifyEmployeeLine(tenantId: string, employeeId: string, fromName: string, notice: EmployeeLineNotice): Promise<void> {
   try {
     const [lineConfig, emp] = await Promise.all([
-      prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true } }),
+      prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true, line_liff_id: true } }),
       prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { line_user_id: true, first_name: true, last_name: true, nickname: true } }),
     ])
     if (!lineConfig?.line_channel_access_token || !emp?.line_user_id) return
 
     const label = emp.nickname || `${emp.first_name} ${emp.last_name}`
+    // เดิม uri ชี้ EMPLOYEE_APP_URL+path ตรงๆ (URL เว็บจริง ไม่ผ่าน liff.line.me) —
+    // LINE เปิดเป็นลิงก์ภายนอกธรรมดา ไม่ใช่ LIFF session จริง ทำให้ initLiff()/
+    // getLiffProfile() ในแอปไม่ได้ context ที่ถูกต้อง สุดท้ายเรียก API ไม่ผ่าน
+    // ("Failed to fetch" — feedback 2026-09-28 "กดจาก Flexbox massgage แล้วขึ้น
+    // แบบนี้") — ห่อผ่าน liff.line.me?liff.state=... เหมือน weekly-off-period.
+    // service.ts ที่ทำถูกอยู่แล้ว ให้ LINE เปิดเป็น LIFF session จริง
+    const actionUrl = lineConfig.line_liff_id && notice.path
+      ? `https://liff.line.me/${lineConfig.line_liff_id}?liff.state=${encodeURIComponent(notice.path)}`
+      : undefined
     try {
-      await lineMulticast(lineConfig.line_channel_access_token, [emp.line_user_id], buildFlexMessage(fromName, notice, EMPLOYEE_APP_URL))
+      await lineMulticast(lineConfig.line_channel_access_token, [emp.line_user_id], buildFlexMessage(fromName, notice, EMPLOYEE_APP_URL, actionUrl))
       await logLineSend({ tenantId, category: 'EMPLOYEE_NOTICE', title: notice.title, success: true,
         recipients: [{ type: 'EMPLOYEE', id: employeeId, label }] })
     } catch (e: any) {
