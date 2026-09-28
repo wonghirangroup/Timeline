@@ -29,6 +29,8 @@ import DocumentRequestsPage from './pages/document-requests'
 import HrDocumentPrintPage  from './pages/hr-documents/print'
 import MagicLoginPage       from './pages/magic-login'
 import UiKitPage            from './pages/ui-kit'
+import PdpaPage              from './pages/pdpa'
+import TermsPage             from './pages/terms'
 
 function AdminRoutes() {
   const token = useAuthStore(s => s.token)
@@ -82,6 +84,10 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         {/* auto-login ครั้งเดียวจากลิงก์แจ้งเตือนไลน์/ปุ่มสลับจาก LIFF — นอก Layout เหมือน /login */}
         <Route path="/magic-login" element={<MagicLoginPage />} />
+        {/* เอกสารกฎหมาย (feedback 2026-09-28) — จงใจอยู่นอก Layout/ไม่บังคับ login
+            เพราะเป็นเอกสารสาธารณะที่ควรอ่านได้โดยไม่ต้องมีบัญชี */}
+        <Route path="/pdpa"  element={<PdpaPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         {/* เอกสาร HR ที่พิมพ์/พิมพ์ซ้ำ — จงใจอยู่นอก Layout (ไม่มี Sidebar/Topbar) เพื่อให้
             หน้าพิมพ์สะอาด ไม่มีอะไรติดไปตอนสั่งพิมพ์/บันทึกเป็น PDF */}
         <Route path="/hr-documents/:id/print" element={<HrDocumentPrintPage />} />

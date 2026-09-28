@@ -27,9 +27,10 @@
 // auto) ตามภาพตัวอย่าง "SafeMind AI" ที่ user ส่งมา — เอา border-radius/
 // border-all-sides/margin แบบการ์ดออก เหลือแค่ border-top บาง ๆ
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { api } from '../../lib/axios'
 
-const APP_VERSION = 'v225'
+const APP_VERSION = 'v232'
 const PARTNER_LOGO_URL = '/smartjigsaw-logo.jpg'
 const PARTNER_NAME = 'Smart Jigsaw'
 
@@ -69,7 +70,14 @@ export default function Footer() {
         <img src={PARTNER_LOGO_URL} alt={PARTNER_NAME} style={{ height: 32, objectFit: 'contain' }} />
       </div>
 
-      {/* ขวา: ลิงก์นโยบาย/ติดต่อ — TODO: ยังไม่มีหน้าจริงรองรับ ใส่เมื่อมีเนื้อหาแล้ว */}
+      {/* ขวา: ลิงก์นโยบาย/เงื่อนไข (feedback 2026-09-28) — มีหน้าจริงรองรับแล้ว
+          (pdpa/index.tsx, terms/index.tsx) เปิดแท็บใหม่ให้อ่านได้โดยไม่เสียงาน
+          ที่ทำค้างอยู่ในหน้าเดิม */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '12.5px' }}>
+        <Link to="/pdpa" target="_blank" rel="noopener" style={{ color: '#244B83', textDecoration: 'none', fontWeight: 600 }}>นโยบายความเป็นส่วนตัว (PDPA)</Link>
+        <span style={{ color: '#cbd5e1' }}>|</span>
+        <Link to="/terms" target="_blank" rel="noopener" style={{ color: '#244B83', textDecoration: 'none', fontWeight: 600 }}>เงื่อนไขการใช้งาน</Link>
+      </div>
     </footer>
   )
 }
