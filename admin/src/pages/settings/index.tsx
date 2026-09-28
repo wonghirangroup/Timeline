@@ -39,7 +39,7 @@ const fieldLabel: React.CSSProperties = { fontSize: '12px', fontWeight: 600, col
 
 // ── จัดการผู้ใช้งานเว็บ (Admin/Manager/ผู้บริหาร/หัวหน้าแผนก) ────────────────
 const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'แอดมิน / HR', MANAGER: 'ผู้จัดการ',
+  ADMIN: 'แอดมิน', MANAGER: 'ผู้จัดการ',
   EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
 }
 const ROLE_BADGE: Record<string, { bg: string; color: string }> = {
@@ -187,7 +187,7 @@ function UserManagementSettings() {
               <>
                 <label style={{ ...fieldLabel, margin: '10px 0 4px' }}>บทบาท</label>
                 <select style={inputStyle} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                  <option value="ADMIN">แอดมิน / HR</option>
+                  <option value="ADMIN">แอดมิน</option>
                   <option value="EXECUTIVE">ผู้บริหาร (ดูอย่างเดียว แก้ไข/ลบไม่ได้)</option>
                   <option value="DEPT_HEAD">หัวหน้าแผนก (เห็นแค่แผนกที่ดูแล)</option>
                 </select>

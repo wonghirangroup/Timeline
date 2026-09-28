@@ -658,7 +658,7 @@ function LeaveTab({ employeeId }: { employeeId: string }) {
 
 // ── Info Tab ──────────────────────────────────────────────────────────────────
 const ADMIN_ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'แอดมิน / HR', MANAGER: 'ผู้จัดการ', EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
+  ADMIN: 'แอดมิน', MANAGER: 'ผู้จัดการ', EXECUTIVE: 'ผู้บริหาร (ดูอย่างเดียว)', DEPT_HEAD: 'หัวหน้าแผนก',
 }
 
 function AdminAccessCard({ emp }: { emp: any }) {

@@ -72,12 +72,12 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   }, [me, name, setName])
 
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    ADMIN:     { label: 'แอดมิน / HR',              bg: '#F4F6F9', color: '#131C45' },
+    ADMIN:     { label: 'แอดมิน',                    bg: '#F4F6F9', color: '#131C45' },
     MANAGER:   { label: 'ผู้จัดการ',                bg: '#dcfce7', color: '#15803d' },
     EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
     DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
   }
-  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน / HR / ผู้จัดการ', bg: '#F4F6F9', color: '#131C45' }
+  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน', bg: '#F4F6F9', color: '#131C45' }
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
 
