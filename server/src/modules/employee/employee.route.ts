@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
-import { requirePermission, requirePermissionAny } from '../../common/middleware/permission'
+import { requirePermission, requirePermissionAny, requireRootAdmin } from '../../common/middleware/permission'
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
@@ -222,8 +222,13 @@ export async function employeeRoutes(app: FastifyInstance) {
   })
 
   // PATCH /api/v1/admin/employees/:id/admin-access — ให้/ถอนสิทธิ์เข้าเว็บแอดมิน
+  // — จำกัดเฉพาะ root admin (feedback 2026-09-28 "คนที่จะแบ่งสิทธิ์ได้ต้องเป็น
+  // ผู้ดูแลระบบ") เดิม ADMIN/MANAGER ทุกคนแก้ role ของคนอื่นได้ รวมถึงยกระดับ
+  // เป็น ADMIN เองก็ได้ — เข้มกว่า requirePermission ธรรมดาเพราะเป็นการยกระดับ
+  // สิทธิ์คนอื่น ไม่ใช่แค่แก้ข้อมูลทั่วไป (เหมือนกับหน้า "ผู้ใช้งานเว็บ" เดิมที่ทำ
+  // ไว้แบบนี้อยู่แล้วใน tenant.route.ts)
   app.patch('/employees/:id/admin-access', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('employee', 'edit')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('employee', 'edit'), requireRootAdmin()],
     schema: {
       tags: [TAG],
       summary: 'ให้/ถอนสิทธิ์เข้าเว็บแอดมินของพนักงาน — role=null ถอนสิทธิ์, มี role ครั้งแรกต้องส่ง email เพื่อสร้างบัญชี (ได้รหัสชั่วคราวกลับมา)',

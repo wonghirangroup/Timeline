@@ -4,6 +4,7 @@
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
+import { requireRootAdmin } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { FEATURES, PERMISSION_ACTIONS } from '../../common/permissions/features'
 import { getUserPermissions, setUserPermissions, resetUserPermissions } from './permission.service'
@@ -36,9 +37,11 @@ export async function permissionRoutes(app: FastifyInstance) {
     return ok(await getUserPermissions(req.tenantId, req.params.id))
   })
 
-  // PUT /api/v1/admin/users/:id/permissions
+  // PUT /api/v1/admin/users/:id/permissions — จำกัดเฉพาะ root admin (feedback
+  // 2026-09-28 "คนที่จะแบ่งสิทธิ์ได้ต้องเป็นผู้ดูแลระบบ") — GET ยังเปิดให้
+  // ADMIN/MANAGER ทั่วไปดูได้ (แค่ดู ไม่ใช่แก้)
   app.put('/users/:id/permissions', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireRootAdmin()],
     schema: {
       tags: ['Admin'],
       summary: 'บันทึกสิทธิ์แบบละเอียดของบัญชีนี้ (แทนที่ทั้งชุด)',
@@ -63,8 +66,9 @@ export async function permissionRoutes(app: FastifyInstance) {
   })
 
   // POST /api/v1/admin/users/:id/permissions/reset — กลับเป็นค่าเริ่มต้นของ role
+  // — จำกัดเฉพาะ root admin เหตุผลเดียวกับ PUT ด้านบน
   app.post('/users/:id/permissions/reset', {
-    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER')],
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireRootAdmin()],
     schema: {
       tags: ['Admin'],
       summary: 'รีเซ็ตสิทธิ์กลับเป็นค่าเริ่มต้นของ role ปัจจุบัน',

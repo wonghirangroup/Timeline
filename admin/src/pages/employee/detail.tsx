@@ -664,6 +664,13 @@ const ADMIN_ROLE_LABEL: Record<string, string> = {
 function AdminAccessCard({ emp }: { emp: any }) {
   const qc = useQueryClient()
   const { showToast } = useToast()
+  // จำกัดการ "ให้/ถอนสิทธิ์แอดมิน" เฉพาะ root admin (feedback 2026-09-28 "คนที่
+  // จะแบ่งสิทธิ์ได้ต้องเป็นผู้ดูแลระบบ") — backend บล็อกไว้แล้ว (requireRootAdmin()
+  // ใน employee.route.ts) จุดนี้แค่ซ่อน control ฝั่ง UI ให้ตรงกัน ไม่ให้เห็นปุ่ม
+  // ที่กดแล้วโดน 403 อยู่ดี — ยังโชว์สถานะปัจจุบันได้ตามปกติ (read-only)
+  const isRootAdmin = useAuthStore(s => s.isRootAdmin)
+  const myRole = useAuthStore(s => s.role)
+  const canManage = isRootAdmin || myRole === 'SUPER_ADMIN'
   const current = emp.admin_user as { id: string; email: string; role: string; is_active: boolean } | null | undefined
   const active = !!current?.is_active
 
@@ -731,43 +738,49 @@ function AdminAccessCard({ emp }: { emp: any }) {
           ) : (
             <>
               <span style={{ color: '#475569' }}>· {current.email} · {ADMIN_ROLE_LABEL[current.role] ?? current.role}</span>
-              <button onClick={() => { setNewEmail(current.email); setEditingEmail(true) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.7rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
-                <Pencil size={10} /> แก้ไข username
-              </button>
+              {canManage && (
+                <button onClick={() => { setNewEmail(current.email); setEditingEmail(true) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.7rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                  <Pencil size={10} /> แก้ไข username
+                </button>
+              )}
             </>
           )}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ flex: '1 1 160px' }}>
-          <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>บทบาท</label>
-          <select value={role} onChange={e => setRole(e.target.value)}
-            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', background: '#fff' }}>
-            <option value="">— ไม่มีสิทธิ์แอดมิน —</option>
-            {Object.keys(ADMIN_ROLE_LABEL).map(r => <option key={r} value={r}>{ADMIN_ROLE_LABEL[r]}</option>)}
-          </select>
-        </div>
-        {needEmail && (
-          <div style={{ flex: '1 1 180px' }}>
-            <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>อีเมลหรือ Username สำหรับล็อกอิน *</label>
-            <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com หรือ username"
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
+      {canManage ? (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: '1 1 160px' }}>
+            <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>บทบาท</label>
+            <select value={role} onChange={e => setRole(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', background: '#fff' }}>
+              <option value="">— ไม่มีสิทธิ์แอดมิน —</option>
+              {Object.keys(ADMIN_ROLE_LABEL).map(r => <option key={r} value={r}>{ADMIN_ROLE_LABEL[r]}</option>)}
+            </select>
           </div>
-        )}
-        <button disabled={!canSave || mut.isPending}
-          onClick={() => mut.mutate({ role, email: needEmail ? email.trim() : undefined })}
-          style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: canSave && !mut.isPending ? 'var(--action-primary)' : '#e2e8f0', color: canSave && !mut.isPending ? '#fff' : '#94a3b8', fontSize: '0.82rem', fontWeight: 700, cursor: canSave && !mut.isPending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
-          {mut.isPending ? 'กำลังบันทึก...' : current ? 'เปลี่ยนบทบาท' : 'สร้างบัญชีแอดมิน'}
-        </button>
-        {active && (
-          <button onClick={() => setConfirmRevoke(true)}
-            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            ถอนสิทธิ์
+          {needEmail && (
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>อีเมลหรือ Username สำหรับล็อกอิน *</label>
+              <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com หรือ username"
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem' }} />
+            </div>
+          )}
+          <button disabled={!canSave || mut.isPending}
+            onClick={() => mut.mutate({ role, email: needEmail ? email.trim() : undefined })}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: canSave && !mut.isPending ? 'var(--action-primary)' : '#e2e8f0', color: canSave && !mut.isPending ? '#fff' : '#94a3b8', fontSize: '0.82rem', fontWeight: 700, cursor: canSave && !mut.isPending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+            {mut.isPending ? 'กำลังบันทึก...' : current ? 'เปลี่ยนบทบาท' : 'สร้างบัญชีแอดมิน'}
           </button>
-        )}
-      </div>
+          {active && (
+            <button onClick={() => setConfirmRevoke(true)}
+              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              ถอนสิทธิ์
+            </button>
+          )}
+        </div>
+      ) : (
+        <p style={{ margin: 0, fontSize: '0.76rem', color: '#94a3b8' }}>เฉพาะผู้ดูแลระบบ (บัญชีแรกที่ตั้งบริษัท) เท่านั้นที่ให้/ถอนสิทธิ์แอดมินได้</p>
+      )}
 
       {tempPw && (
         <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 12px', fontSize: '0.8rem' }}>
