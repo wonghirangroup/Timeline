@@ -27,16 +27,23 @@ function IntroSplash({ exiting }: { exiting: boolean }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 500,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(155deg, #1c1917 0%, #292524 45%, #431407 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
+      background: '#131C45', // navy ทางการจาก YooNai Owl style guide
       transform: exiting ? 'translateX(-100%)' : 'translateX(0)',
       transition: 'transform 0.65s cubic-bezier(0.65,0,0.35,1)',
     }}>
       <img
         src="/yoonai-logo.png" alt="YooNai"
         className={exiting ? undefined : 'animate-intro-logo-pop'}
-        style={{ height: 96, borderRadius: 16, opacity: exiting ? 0 : 1, transition: 'opacity 0.3s' }}
+        style={{ height: 240, maxWidth: '70vw', borderRadius: 24, opacity: exiting ? 0 : 1, transition: 'opacity 0.3s' }}
       />
+      <p style={{
+        margin: 0, opacity: exiting ? 0 : 1, transition: 'opacity 0.3s',
+        fontSize: '1.05rem', fontWeight: 600, letterSpacing: '0.04em',
+        color: 'rgba(255,255,255,0.75)',
+      }}>
+        YooNai by Smart Jigsaw
+      </p>
     </div>
   )
 }
