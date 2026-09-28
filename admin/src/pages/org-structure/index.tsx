@@ -4,7 +4,8 @@
 // ที่อยู่ของ policy cascade (booking_enabled) ด้วย ไม่ใช่แค่ label เฉยๆ แบบเวอร์ชันก่อน
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye, Table2, LayoutGrid } from 'lucide-react'
+import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye, Table2, LayoutGrid, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { PlanMeter } from '../../components/shared/PlanUsage'
@@ -51,7 +52,11 @@ interface TreeDiv extends Div { departments: TreeDept[] }
 type Level = 'division' | 'department' | 'position'
 const LEVEL_LABEL: Record<Level, string> = { division: 'ฝ่าย', department: 'แผนก', position: 'ตำแหน่ง' }
 const LEVEL_ICON: Record<Level, JSX.Element> = { division: <Layers size={15}/>, department: <Building2 size={14}/>, position: <UserSquare2 size={15}/> }
-const LEVEL_COLOR: Record<Level, string> = { division: '#6366f1', department: '#0891b2', position: '#16a34a' }
+// สี navy/light-blue ของแบรนด์เราเอง (feedback 2026-09-28 "อยากได้หน้าตาแบบนี้"
+// จากภาพอ้างอิงที่ใช้ส้ม/ฟ้า — เลือกใช้พาเลตแบรนด์ navy/light-blue แทนสีเป๊ะๆ
+// ตามภาพ) — ฝ่าย(division)=navy, แผนก/ตำแหน่ง(department/position)=light-blue
+// เพราะภาพอ้างอิงมีแค่ 2 สี ไม่ใช่ต่อระดับ 3 สีแบบเดิม
+const LEVEL_COLOR: Record<Level, string> = { division: '#244B83', department: '#2DA6DD', position: '#2DA6DD' }
 const LEVEL_ENDPOINT: Record<Level, string> = { division: 'divisions', department: 'departments', position: 'positions' }
 
 // null = inherit จากชั้นบน, true/false = override ตรงๆ — ใช้ซ้ำทั้ง Branch/Division/Department/Position/Employee
@@ -472,11 +477,32 @@ const TREE_CSS = `
 }
 `
 const NODE_CFG: Record<Level, { color: string }> = {
-  division: { color: '#6366f1' }, department: { color: '#0891b2' }, position: { color: '#16a34a' },
+  division: { color: '#244B83' }, department: { color: '#2DA6DD' }, position: { color: '#2DA6DD' },
 }
+// ปุ่ม zoom in/out/reset มุมล่างขวาของ canvas ผัง (feedback 2026-09-28 "อยากได้
+// หน้าตาแบบนี้" — ภาพอ้างอิงมีปุ่มซูม+เต็มจอ) react-zoom-pan-pinch ไม่มี UI ปุ่มมาให้
+// เอง ต้องสร้างเอง ใช้ render-prop ของ TransformWrapper (zoomIn/zoomOut/resetTransform)
+function ZoomControls({ zoomIn, zoomOut, reset }: { zoomIn: () => void; zoomOut: () => void; reset: () => void }) {
+  const btn: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff',
+    color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+  }
+  return (
+    <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
+      <button onClick={() => zoomIn()} title="ซูมเข้า" style={btn}><ZoomIn size={15} /></button>
+      <button onClick={() => zoomOut()} title="ซูมออก" style={btn}><ZoomOut size={15} /></button>
+      <button onClick={() => reset()} title="รีเซ็ตมุมมอง" style={btn}><Maximize size={14} /></button>
+    </div>
+  )
+}
+// Dot สีต่อคนใน preview รายชื่อในการ์ด (feedback 2026-09-28) — วนสีตามลำดับ ไม่ผูก
+// กับระดับ ให้ดูมีชีวิตชีวาเหมือนภาพอ้างอิงที่แต่ละคนสีไม่ซ้ำกัน
+const MEMBER_DOT_COLORS = ['#16A34A', '#2563EB', '#7C3AED', '#DC2626', '#0D9488', '#D97706']
 
-function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, onDropEmployee, children }: {
+function TreeNode({ level, name, subtitle, badge, members, onView, onEdit, onDelete, onDropEmployee, children }: {
   level: Level; name: string; subtitle: string; badge?: React.ReactNode
+  members?: { id: string; name: string }[]
   onView: () => void; onEdit: () => void; onDelete: () => void
   onDropEmployee?: (employeeId: string) => void
   children?: React.ReactNode
@@ -510,6 +536,22 @@ function TreeNode({ level, name, subtitle, badge, onView, onEdit, onDelete, onDr
           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{subtitle}</span>
           {badge}
         </div>
+        {/* preview รายชื่อพนักงานในการ์ด (feedback 2026-09-28 "อยากได้หน้าตาแบบนี้"
+            — ภาพอ้างอิงโชว์ชื่อ+จุดสีในการ์ดตรงๆ ไม่ใช่แค่ตัวเลขนับ) แสดงสูงสุด 2
+            คนแบบ preview เท่านั้น — ดูครบจริงต้องกด "ดู" (NodeDetailModal) */}
+        {members && members.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6, alignItems: 'flex-start' }}>
+            {members.slice(0, 2).map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: MEMBER_DOT_COLORS[i % MEMBER_DOT_COLORS.length], flexShrink: 0 }} />
+                <span style={{ fontSize: '10.5px', color: '#374151', whiteSpace: 'nowrap' }}>{m.name}</span>
+              </div>
+            ))}
+            {members.length > 2 && (
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: 11 }}>+{members.length - 2} คน</span>
+            )}
+          </div>
+        )}
         {hovered && (
           <div style={{ position: 'absolute', top: -9, right: -7, display: 'flex', gap: 3 }}>
             <button onClick={onView} title="ดูรายละเอียด" style={{ width: 20, height: 20, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}><Eye size={10}/></button>
@@ -739,6 +781,16 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
   const orgBadges = (row: { booking_enabled: boolean | null; leave_enabled: boolean | null }) => (
     <>{policyBadge(row.booking_enabled, 'จองได้', 'จองไม่ได้')}{policyBadge(row.leave_enabled, 'ลาได้', 'ลาไม่ได้')}</>
   )
+  // preview รายชื่อพนักงานในการ์ด (feedback 2026-09-28) — ลอจิกเดียวกับที่ NodeDetailModal
+  // ใช้หา posIds ตามระดับ แค่ map ต่อเป็น {id,name} ให้ TreeNode
+  const membersOf = (level: Level, row: any): { id: string; name: string }[] => {
+    const posIds: string[] = level === 'position' ? [row.id]
+      : level === 'department' ? (row.positions ?? []).map((p: any) => p.id)
+      : (row.departments ?? []).flatMap((d: any) => (d.positions ?? []).map((p: any) => p.id))
+    return allEmployees
+      .filter((e: any) => posIds.includes(e.position_id) && e.is_active !== false)
+      .map((e: any) => ({ id: e.id, name: e.nickname || `${e.first_name} ${e.last_name}` }))
+  }
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
 
@@ -765,8 +817,13 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
       )}
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-      <div style={{ ...card, overflowX: 'auto', flex: 1, minWidth: 0 }}>
+      <div style={{ ...card, position: 'relative', overflow: 'hidden', flex: 1, minWidth: 0, height: 640, padding: 0 }}>
         <style>{TREE_CSS}</style>
+        <TransformWrapper initialScale={1} minScale={0.4} maxScale={2} centerOnInit>
+          {({ zoomIn, zoomOut, resetTransform }) => (
+            <>
+              <ZoomControls zoomIn={() => zoomIn()} zoomOut={() => zoomOut()} reset={() => resetTransform()} />
+              <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ padding: 24 }}>
         <div className="org-chart-tree">
           <ul>
             <li>
@@ -806,16 +863,19 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                         <ul>
                           {divs.map(dv => (
                             <TreeNode key={dv.id} level="division" name={dv.name} subtitle={`${dv.departments.length} แผนก`} badge={orgBadges(dv)}
+                              members={membersOf('division', dv)}
                               onView={() => setViewTarget({ level: 'division', row: dv, groupId: g.id })}
                               onEdit={() => openEdit('division', dv)} onDelete={() => setDeleteTarget({ level: 'division', id: dv.id, name: dv.name })}
                               onDropEmployee={employeePanelOpen ? handleDropEmployee('division', dv.id) : undefined}>
                               {dv.departments.length > 0 ? dv.departments.map(dt => (
                                 <TreeNode key={dt.id} level="department" name={dt.name} subtitle={`${dt.positions.length} ตำแหน่ง`} badge={orgBadges(dt)}
+                                  members={membersOf('department', dt)}
                                   onView={() => setViewTarget({ level: 'department', row: dt, groupId: g.id })}
                                   onEdit={() => openEdit('department', dt)} onDelete={() => setDeleteTarget({ level: 'department', id: dt.id, name: dt.name })}
                                   onDropEmployee={employeePanelOpen ? handleDropEmployee('department', dt.id) : undefined}>
                                   {dt.positions.map(p => (
                                     <TreeNode key={p.id} level="position" name={p.name} subtitle={`${p._count.employees} คน`} badge={orgBadges(p)}
+                                      members={membersOf('position', p)}
                                       onView={() => setViewTarget({ level: 'position', row: p, groupId: g.id })}
                                       onEdit={() => openEdit('position', p)} onDelete={() => setDeleteTarget({ level: 'position', id: p.id, name: p.name })}
                                       onDropEmployee={employeePanelOpen ? handleDropEmployee('position', p.id) : undefined} />
@@ -833,6 +893,10 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
             </li>
           </ul>
         </div>
+              </TransformComponent>
+            </>
+          )}
+        </TransformWrapper>
       </div>
 
       {employeePanelOpen && !isMobile && (
