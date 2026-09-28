@@ -74,7 +74,7 @@ function AdCarousel({ ads }: { ads: LoginAd[] }) {
         key={ad.id} src={ad.image_url} alt=""
         onClick={ad.link_url ? openAd : undefined}
         className="animate-fade-in"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16, cursor: ad.link_url ? 'pointer' : 'default' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
       />
       {ads.length > 1 && (
         <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
@@ -169,35 +169,40 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#fff' }}>
       {introPhase !== 'done' && <IntroSplash exiting={introPhase === 'out'} />}
 
-      {/* ── Left — Brand panel (ส้ม-ดำ-ขาว) ── */}
+      {/* ── Left — Brand panel — เต็มพาเนลด้วยแบนเนอร์ (login-ads) ถ้ามี ไม่มี
+          padding/โลโก้ซ้อนทับ (feedback 2026-09-28 "เอาโลโก้ตรงฟอร์มออก ให้รูป
+          เต็มจอ") — ถ้ายังไม่มีแบนเนอร์เลยค่อย fallback เป็นพื้นเข้ม + โลโก้/
+          footer แบบเดิม กันพาเนลว่างเปล่าไม่มีอะไรเลย ── */}
       <div style={{
         position: 'relative', overflow: 'hidden',
         width: isMobile ? '100%' : '46%',
         minHeight: isMobile ? 200 : '100vh',
-        background: 'linear-gradient(155deg, #1c1917 0%, #292524 45%, #431407 100%)',
+        background: ads.length > 0 ? '#131C45' : 'linear-gradient(155deg, #1c1917 0%, #292524 45%, #431407 100%)',
         display: 'flex', flexDirection: 'column',
         justifyContent: isMobile ? 'center' : 'space-between',
-        padding: isMobile ? '32px 28px' : '52px 48px',
+        padding: (!isMobile && ads.length > 0) ? 0 : (isMobile ? '32px 28px' : '52px 48px'),
         boxSizing: 'border-box',
       }}>
-        {/* decorative glow */}
-        <div style={{ position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.35), transparent 70%)' }} />
-        <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.2), transparent 70%)' }} />
-
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
-        </div>
-
-        {!isMobile && ads.length > 0 && (
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, margin: '20px 0' }}>
+        {!isMobile && ads.length > 0 ? (
+          <div style={{ position: 'absolute', inset: 0 }}>
             <AdCarousel ads={ads} />
           </div>
-        )}
+        ) : (
+          <>
+            {/* decorative glow */}
+            <div style={{ position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.35), transparent 70%)' }} />
+            <div style={{ position: 'absolute', bottom: -140, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(36,75,131,0.2), transparent 70%)' }} />
 
-        {!isMobile && (
-          <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
-            YooNai HR System · Powered by WH Group
-          </div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
+            </div>
+
+            {!isMobile && (
+              <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+                YooNai HR System · Powered by WH Group
+              </div>
+            )}
+          </>
         )}
       </div>
 
