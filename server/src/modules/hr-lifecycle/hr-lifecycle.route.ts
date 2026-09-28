@@ -13,6 +13,17 @@ import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push
 const ADMIN_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'] as const
 const READ_ROLES   = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] as const
 
+// endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
+// tenantMiddleware) เสมอ ห้ามเชื่อ employee_id ที่ client ส่งมาตรงๆ — ไม่งั้น
+// พนักงานคนหนึ่งจะดู/รับทราบหนังสือเตือน หรือยื่นลาออก/ขอเอกสารแทนคนอื่นได้
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 export async function hrLifecycleRoutes(app: FastifyInstance) {
 
   // ═══ เอกสารพนักงาน (feature: employee_documents) ═══════════════════════════
@@ -146,13 +157,17 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
   app.get('/employee/disciplinary', {
     preHandler: [tenantMiddleware, requireFeature('disciplinary')],
     schema: { tags: ['Employee'], summary: 'หนังสือเตือนของฉัน (LIFF)', security: [{ oauth2: [] }], querystring: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } } },
-  }, async (req: any) => ok(await svc.listOwnDisciplinary(req.tenantId, req.query.employee_id)))
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await svc.listOwnDisciplinary(req.tenantId, req.employeeId))
+  })
 
   app.post('/employee/disciplinary/:recId/acknowledge', {
     preHandler: [tenantMiddleware, requireFeature('disciplinary')],
     schema: { tags: ['Employee'], summary: 'รับทราบหนังสือเตือน (LIFF)', security: [{ oauth2: [] }], params: { type: 'object', properties: { recId: { type: 'string' } } }, body: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } } },
   }, async (req: any, reply) => {
-    const done = await svc.acknowledgeDisciplinary(req.tenantId, req.params.recId, req.body.employee_id)
+    if (!requireOwnEmployeeId(req, reply)) return
+    const done = await svc.acknowledgeDisciplinary(req.tenantId, req.params.recId, req.employeeId)
     return done ? ok(null, 'รับทราบแล้ว') : reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ หรือรับทราบไปแล้ว'))
   })
 
@@ -184,7 +199,10 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
   app.get('/employee/resignation', {
     preHandler: [tenantMiddleware, requireFeature('resignation')],
     schema: { tags: ['Employee'], summary: 'คำขอลาออกล่าสุดของฉัน (LIFF)', security: [{ oauth2: [] }], querystring: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } } },
-  }, async (req: any) => ok(await svc.getOwnResignation(req.tenantId, req.query.employee_id)))
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await svc.getOwnResignation(req.tenantId, req.employeeId))
+  })
 
   app.post('/employee/resignation', {
     preHandler: [tenantMiddleware, requireFeature('resignation')],
@@ -193,8 +211,10 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
       body: { type: 'object', required: ['employee_id', 'last_working_date'], properties: { employee_id: { type: 'string' }, last_working_date: { type: 'string' }, reason: { type: 'string', nullable: true } } },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
     try {
-      const { employee_id, last_working_date, reason } = req.body
+      const { last_working_date, reason } = req.body
+      const employee_id = req.employeeId
       const r = await svc.createResignation(req.tenantId, { employee_id, last_working_date, reason })
       notifyAdminsLine(req.tenantId, employee_id, {
         type: 'resignation',
@@ -332,7 +352,10 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
   app.get('/employee/document-requests', {
     preHandler: [tenantMiddleware, requireFeature('document_request')],
     schema: { tags: ['Employee'], summary: 'ประวัติคำขอเอกสารของฉัน (LIFF)', security: [{ oauth2: [] }], querystring: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } } },
-  }, async (req: any) => ok(await svc.listOwnDocumentRequests(req.tenantId, req.query.employee_id)))
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await svc.listOwnDocumentRequests(req.tenantId, req.employeeId))
+  })
 
   app.post('/employee/document-requests', {
     preHandler: [tenantMiddleware, requireFeature('document_request')],
@@ -350,7 +373,9 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const { employee_id, type, custom_type, period, note } = req.body
+    if (!requireOwnEmployeeId(req, reply)) return
+    const { type, custom_type, period, note } = req.body
+    const employee_id = req.employeeId
     const r = await svc.createDocumentRequest(req.tenantId, { employee_id, type, custom_type, period, note })
     const label = DOC_REQUEST_LABEL_TH[type] ?? type
     notifyAdminsLine(req.tenantId, employee_id, {

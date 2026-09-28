@@ -9,6 +9,31 @@ import { isFeatureEnabled } from '../../common/utils/features'
 // URL เว็บแอดมิน — สำหรับพนักงานที่ได้สิทธิ์แอดมิน กด "สลับไปเว็บแอดมิน" ใน LIFF
 const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://timeline-admin.vercel.app'
 
+// กันเดา employee_code (feedback 2026-09-28 "verify code นี่เอามาจากไหน" —
+// พบว่า employee_code เป็นแค่รหัสพนักงานที่โชว์ทั่วแอดมิน ไม่ใช่ความลับจริง
+// รูปแบบ {ปี พ.ศ. 2 หลัก}-{แผนก 2 ตัว}-{เลขรัน 3 หลัก} เดาง่ายมาก) — lock
+// ตาม line_user_id ที่ verify กับ LINE จริงแล้ว (ยืนยันตัวตนจริงก่อนถึงจุดนี้
+// เสมอ กันสร้างบัญชี LINE ใหม่ไล่เดาได้ง่ายเกินไป) ไม่ใช้ library ใหม่ เพราะรัน
+// instance เดียว (single container) in-memory พอ
+const CODE_ATTEMPT_MAX   = 5
+const CODE_LOCKOUT_MS    = 15 * 60 * 1000
+const codeAttempts       = new Map<string, { count: number; lockedUntil?: number }>()
+
+function checkCodeLockout(key: string): number | null {
+  const rec = codeAttempts.get(key)
+  if (rec?.lockedUntil && rec.lockedUntil > Date.now()) return Math.ceil((rec.lockedUntil - Date.now()) / 1000)
+  return null
+}
+function recordCodeFailure(key: string) {
+  const rec = codeAttempts.get(key) ?? { count: 0 }
+  rec.count++
+  if (rec.count >= CODE_ATTEMPT_MAX) { rec.lockedUntil = Date.now() + CODE_LOCKOUT_MS; rec.count = 0 }
+  codeAttempts.set(key, rec)
+}
+function recordCodeSuccess(key: string) {
+  codeAttempts.delete(key)
+}
+
 export async function employeeAuthRoutes(app: FastifyInstance) {
 
   // POST /api/v1/employee/auth/liff
@@ -126,20 +151,21 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
   app.post('/employee/link', {
     schema: {
       tags: ['Employee'],
-      summary: 'ผูก Line UID กับพนักงานที่เลือก',
+      summary: 'ผูก Line UID กับพนักงานที่เลือก — ต้องกรอกรหัสพนักงานยืนยันด้วย (กันเลือกชื่อคนอื่นจากลิสต์แล้วผูกสวมรอย)',
       body: {
         type: 'object',
-        required: ['liff_token', 'line_user_id', 'line_channel_id', 'employee_id'],
+        required: ['liff_token', 'line_user_id', 'line_channel_id', 'employee_id', 'employee_code'],
         properties: {
           liff_token:      { type: 'string' },
           line_user_id:    { type: 'string' },
           line_channel_id: { type: 'string' },
           employee_id:     { type: 'string' },
+          employee_code:   { type: 'string' },
         },
       },
     },
   }, async (req: any, reply) => {
-    const { liff_token, line_user_id, line_channel_id, employee_id } = req.body
+    const { liff_token, line_user_id, line_channel_id, employee_id, employee_code } = req.body
 
     const config = await getTenantByChannelId(line_channel_id)
     if (!config) return reply.code(401).send(fail('INVALID_CHANNEL', 'ไม่พบ tenant'))
@@ -149,10 +175,20 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       return reply.code(401).send(fail('INVALID_TOKEN', 'LIFF token ไม่ถูกต้อง'))
     }
 
+    const retryAfterSec = checkCodeLockout(line_user_id)
+    if (retryAfterSec) {
+      return reply.code(429).send(fail('TOO_MANY_ATTEMPTS', `กรอกรหัสพนักงานผิดหลายครั้งเกินไป กรุณาลองใหม่ใน ${Math.ceil(retryAfterSec / 60)} นาที`))
+    }
+
     const employee = await prisma.employee.findFirst({
       where: { id: employee_id, tenant_id: config.tenant.id, deleted_at: null, is_active: true },
     })
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+
+    if (employee.employee_code.trim().toLowerCase() !== String(employee_code).trim().toLowerCase()) {
+      recordCodeFailure(line_user_id)
+      return reply.code(401).send(fail('INVALID_CODE', 'รหัสพนักงานไม่ถูกต้อง'))
+    }
 
     if (employee.line_user_id && employee.line_user_id !== line_user_id) {
       return reply.code(409).send(fail('ALREADY_LINKED', 'พนักงานนี้ผูก Line อื่นไปแล้ว'))
@@ -167,6 +203,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       throw e
     }
 
+    recordCodeSuccess(line_user_id)
     const token = await (app as any).jwt.sign({
       id: employee.id, tenant_id: config.tenant.id, role: 'EMPLOYEE', employee_id: employee.id,
     }, { expiresIn: '12h' })
@@ -202,11 +239,19 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       return reply.code(401).send(fail('INVALID_TOKEN', 'LIFF token ไม่ถูกต้อง'))
     }
 
+    const retryAfterSec = checkCodeLockout(line_user_id)
+    if (retryAfterSec) {
+      return reply.code(429).send(fail('TOO_MANY_ATTEMPTS', `กรอกรหัสพนักงานผิดหลายครั้งเกินไป กรุณาลองใหม่ใน ${Math.ceil(retryAfterSec / 60)} นาที`))
+    }
+
     // หาพนักงานจากรหัส
     const employee = await prisma.employee.findFirst({
       where: { employee_code, tenant_id: config.tenant.id, deleted_at: null },
     })
-    if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงานที่มีรหัสนี้'))
+    if (!employee) {
+      recordCodeFailure(line_user_id)
+      return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงานที่มีรหัสนี้'))
+    }
 
     // เช็คว่า line_user_id ถูกใช้แล้วหรือยัง
     if (employee.line_user_id && employee.line_user_id !== line_user_id) {
@@ -224,6 +269,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       throw e
     }
 
+    recordCodeSuccess(line_user_id)
     // ออก JWT
     const token = await (app as any).jwt.sign({
       id: employee.id, tenant_id: config.tenant.id, role: 'EMPLOYEE', employee_id: employee.id,

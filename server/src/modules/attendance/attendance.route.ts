@@ -14,6 +14,22 @@ import {
 import { verifyBranchQrPayload } from '../shift/shift.service'
 import { notifyAdminsLine } from '../notifications/line-push.service'
 
+// ช่องโหว่จริงที่เจอ (feedback 2026-09-28 "มีช่องโหว่ของ usecase อะไรอีกไหม") —
+// endpoint ฝั่งพนักงาน (LIFF) ทั้งหมดด้านล่างเดิมเชื่อ employee_id ที่ client
+// ส่งมาตรงๆ (body/query) โดยไม่เช็คกับ req.employeeId (ตัวตนจริงจาก LIFF token
+// ที่ verify แล้วใน tenantMiddleware) — พนักงานคนหนึ่งเลยเช็คอิน/เช็คเอาต์แทน
+// เพื่อนร่วมงานคนอื่นได้แค่เดา/รู้ employee_id ของเขา ไม่ใช่แค่ปัญหาข้อมูลหลุด
+// แต่กระทบความถูกต้องของบันทึกเวลาทำงานซึ่งเป็นแกนหลักของระบบเลย — แก้ด้วยการ
+// override ค่าที่ client ส่งมาทิ้งเสมอ ใช้ req.employeeId แทนทุกจุด (เหมือน
+// pattern ที่ employee-me.route.ts ทำถูกอยู่แล้วก่อนหน้านี้)
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Admin: รายงานเช็คชื่อ ─────────────────────────────────────────
@@ -201,6 +217,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const record = await checkIn(req.tenantId, req.body)
       return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
@@ -230,6 +248,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     // ประกาศไว้นอก try หลัก เพราะ catch block ด้านล่างต้องใช้ payload.bid ด้วย
     // (ตอนแจ้งแอดมินกรณี NOT_IN_BRANCH) — ไม่งั้นจะพ้น scope ของ try แรก
     let payload: any
@@ -311,6 +331,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await checkInAuto(req.tenantId, req.body)
       return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
@@ -343,6 +365,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const record = await checkInQR(req.tenantId, req.body)
       return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
@@ -371,6 +395,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       let payload: any
       try { payload = JSON.parse(req.body.qr_payload) } catch {
@@ -407,8 +433,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
       security: [{ oauth2: [] }],
       querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
     },
-  }, async (req: any) => {
-    const records = await getTodayAttendance(req.tenantId, req.query.employeeId)
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const records = await getTodayAttendance(req.tenantId, req.employeeId)
     return ok(records)
   })
 
@@ -422,8 +449,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
       body: { type: 'object', required: ['employee_id'], properties: { employee_id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
     try {
-      const result = await checkOutAuto(req.tenantId, req.body.employee_id)
+      const result = await checkOutAuto(req.tenantId, req.employeeId)
       return ok(result, 'เช็คเอาต์สำเร็จ')
     } catch (e: any) {
       if (e.message === 'NOT_CHECKED_IN')      return reply.code(400).send(fail('NOT_CHECKED_IN', 'ยังไม่ได้เช็คอินวันนี้'))
@@ -453,6 +481,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const record = await checkOut(req.tenantId, req.body)
       return ok(record, 'เช็คเอาต์สำเร็จ')
@@ -495,6 +525,8 @@ export async function attendanceRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await checkInOffsite(req.tenantId, req.body)
       return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
@@ -523,8 +555,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
         },
       },
     },
-  }, async (req: any) => {
-    const history = await getEmployeeHistory(req.tenantId, req.query.employeeId, req.query.month)
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const history = await getEmployeeHistory(req.tenantId, req.employeeId, req.query.month)
     return ok(history)
   })
 }

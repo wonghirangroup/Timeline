@@ -16,6 +16,17 @@ import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push
 
 const DOW_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์']
 
+// endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
+// tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
+// ไม่งั้นพนักงานคนหนึ่งจะจอง/ยกเลิก/ตอบรับสลับวันหยุดแทนคนอื่นได้
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 export async function weeklyOffRoutes(app: FastifyInstance) {
 
   // ── Admin: ดูรายการ weekly off ──────────────────────────────────────
@@ -338,6 +349,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await createWeeklyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
@@ -374,8 +387,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         properties: { employeeId: { type: 'string' } },
       },
     },
-  }, async (req: any) => {
-    const list = await listWeeklyOff(req.tenantId, { employeeId: req.query.employeeId })
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const list = await listWeeklyOff(req.tenantId, { employeeId: req.employeeId })
     return ok(list)
   })
 
@@ -396,6 +410,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await createMonthlyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
@@ -432,6 +448,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await createMonthlyBatchOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
@@ -473,9 +491,10 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         },
       },
     },
-  }, async (req: any) => {
-    const { employeeId, month } = req.query
-    const result = await getMonthView(req.tenantId, employeeId, month)
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const { month } = req.query
+    const result = await getMonthView(req.tenantId, req.employeeId, month)
     return ok(result)
   })
 
@@ -492,8 +511,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
     try {
-      const deleted = await deleteMonthlyOff(req.tenantId, req.params.id, req.query.employeeId)
+      const deleted = await deleteMonthlyOff(req.tenantId, req.params.id, req.employeeId)
       if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
       return ok(null, 'ยกเลิกคำขอแล้ว')
     } catch (e: any) {
@@ -523,6 +543,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const result = await requestWeeklyOffSwap(req.tenantId, req.body.employee_id, {
         requesterOffId: req.body.requester_off_id, targetOffId: req.body.target_off_id,
@@ -560,8 +582,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       security: [{ oauth2: [] }],
       querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
     },
-  }, async (req: any) => {
-    return ok(await listMyWeeklyOffSwapRequests(req.tenantId, req.query.employeeId))
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await listMyWeeklyOffSwapRequests(req.tenantId, req.employeeId))
   })
 
   // ── Employee (LIFF): ตอบรับ/ปฏิเสธคำขอสลับ ───────────────────────────────
@@ -579,6 +602,8 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const { swapReq, swapped } = await respondWeeklyOffSwap(req.tenantId, req.params.id, req.body.employee_id, req.body.accept)
       const requesterName = swapReq.requester.nickname ? `${swapReq.requester.first_name} (${swapReq.requester.nickname})` : `${swapReq.requester.first_name} ${swapReq.requester.last_name}`

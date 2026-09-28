@@ -8,6 +8,17 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listOffsiteCheckins, createOffsiteCheckin, checkOutOffsiteCheckin, createOffsiteCheckinByAdmin, updateOffsiteCheckin, deleteOffsiteCheckin } from './offsite.service'
 
+// endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
+// tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
+// ไม่งั้นพนักงานคนหนึ่งจะเช็คอิน/เช็คเอาต์นอกสถานที่แทนคนอื่นได้
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 export async function offsiteRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: ดูรายการเช็คอินนอกสถานที่ ─────────────
@@ -131,6 +142,8 @@ export async function offsiteRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     try {
       const record = await createOffsiteCheckin(req.tenantId, req.body)
       return reply.code(201).send(ok(record, 'เช็คอินนอกสถานที่สำเร็จ'))
@@ -164,7 +177,8 @@ export async function offsiteRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const record = await checkOutOffsiteCheckin(req.tenantId, req.params.id, req.body.employee_id, req.body)
+    if (!requireOwnEmployeeId(req, reply)) return
+    const record = await checkOutOffsiteCheckin(req.tenantId, req.params.id, req.employeeId, req.body)
     if (!record) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ หรือเช็คเอาต์ไปแล้ว'))
     return ok(record, 'เช็คเอาต์นอกสถานที่สำเร็จ')
   })
@@ -182,8 +196,9 @@ export async function offsiteRoutes(app: FastifyInstance) {
         properties: { employeeId: { type: 'string' } },
       },
     },
-  }, async (req: any) => {
-    const list = await listOffsiteCheckins(req.tenantId, { employeeId: req.query.employeeId })
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const list = await listOffsiteCheckins(req.tenantId, { employeeId: req.employeeId })
     return ok(list)
   })
 }

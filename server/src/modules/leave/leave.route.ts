@@ -14,6 +14,17 @@ const LEAVE_LABEL_TH: Record<string, string> = {
   SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
 
+// endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
+// tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
+// ไม่งั้นพนักงานคนหนึ่งจะยื่น/ดูวันลาแทนคนอื่นได้
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 // แจ้งพนักงานกลับทาง LINE ตอนใบลาถูกอนุมัติ/ปฏิเสธ — เดิมไม่มีเลย (มีแค่แจ้งแอดมิน
 // ตอนยื่นคำขอ) พนักงานเลยไม่รู้ผลจนกว่าจะเปิดแอปมาเช็คเอง (feedback 2026-09-14)
 function notifyLeaveResult(tenantId: string, req: { employee_id: string; leave_type: string; start_date: Date | string; end_date: Date | string; days: number; reject_note?: string | null }, approved: boolean) {
@@ -262,9 +273,11 @@ export async function leaveRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
     try {
       // พนักงานยื่นเอง — บังคับ force/autoApprove = false เสมอ (กันส่ง flag ตรงๆ ผ่าน body)
-      const { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
+      const employee_id = req.employeeId
+      const { leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
       const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
       const dateRange = start_date === end_date ? start_date : `${start_date} – ${end_date}`
       notifyAdminsLine(req.tenantId, employee_id, {
@@ -302,7 +315,10 @@ export async function leaveRoutes(app: FastifyInstance) {
         properties: { employeeId: { type: 'string' }, month: { type: 'string', description: 'YYYY-MM' } },
       },
     },
-  }, async (req: any) => ok(await getMonthColleagueLeaves(req.tenantId, req.query.employeeId, req.query.month)))
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await getMonthColleagueLeaves(req.tenantId, req.employeeId, req.query.month))
+  })
 
   // ── Employee (LIFF): ดูประวัติวันลาตัวเอง ─────────────────────────
   app.get('/employee/leave-requests', {
@@ -316,8 +332,9 @@ export async function leaveRoutes(app: FastifyInstance) {
         properties: { employeeId: { type: 'string' } },
       },
     },
-  }, async (req: any) => {
-    const requests = await listLeaveRequests(req.tenantId, { employeeId: req.query.employeeId })
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const requests = await listLeaveRequests(req.tenantId, { employeeId: req.employeeId })
     return ok(requests)
   })
 
@@ -438,9 +455,10 @@ export async function leaveRoutes(app: FastifyInstance) {
         },
       },
     },
-  }, async (req: any) => {
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
     const balances = await listLeaveBalances(req.tenantId, {
-      employeeId: req.query.employeeId,
+      employeeId: req.employeeId,
       year:       req.query.year ? Number(req.query.year) : undefined,
     })
     return ok(balances)

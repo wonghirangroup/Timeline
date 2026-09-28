@@ -32,6 +32,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   const [selected,  setSelected] = useState<EmpItem | null>(null)
   const [linking,   setLinking]  = useState(false)
   const [errMsg,    setErrMsg]   = useState('')
+  const [empCode,   setEmpCode]  = useState('')
 
   const apiUrl    = import.meta.env.VITE_API_URL as string
   const channelId = getChannelId()
@@ -62,7 +63,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   }, [])
 
   async function handleLink() {
-    if (!selected || !profile) return
+    if (!selected || !profile || !empCode.trim()) return
     setLinking(true)
     try {
       const res = await axios.post(`${apiUrl}/employee/link`, {
@@ -70,6 +71,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
         line_user_id:    profile.lineUserId,
         line_channel_id: channelId,
         employee_id:     selected.id,
+        employee_code:   empCode.trim(),
       }, { headers })
 
       setJwt(res.data.data.token)
@@ -81,6 +83,8 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
     } catch (e: any) {
       const code = e?.response?.data?.error?.code
       if (code === 'ALREADY_LINKED') setErrMsg('พนักงานนี้ผูก Line อื่นไปแล้ว กรุณาติดต่อ HR')
+      else if (code === 'INVALID_CODE') setErrMsg('รหัสพนักงานไม่ถูกต้อง กรุณาตรวจสอบกับ HR แล้วลองใหม่')
+      else if (code === 'TOO_MANY_ATTEMPTS') setErrMsg(e?.response?.data?.error?.message ?? 'กรอกรหัสผิดหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง')
       else setErrMsg(e?.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด')
       setStep('error')
     } finally { setLinking(false) }
@@ -98,7 +102,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: '0 24px', textAlign: 'center' }}>
       <div style={{ fontSize: '3rem' }}>⚠️</div>
       <div style={{ fontWeight: 700, color: 'var(--error)', marginBottom: 16 }}>{errMsg}</div>
-      <button onClick={() => { setErrMsg(''); setStep('select') }}
+      <button onClick={() => { setErrMsg(''); setEmpCode(''); setStep('select') }}
         style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: 'var(--accent-primary)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
         ลองใหม่
       </button>
@@ -122,7 +126,7 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
     const idx = employees.findIndex(e => e.id === selected.id)
     return (
       <div style={{ maxWidth: 430, margin: '0 auto', padding: '24px 16px', minHeight: '100dvh', background: 'var(--bg-page)' }}>
-        <button onClick={() => setStep('select')}
+        <button onClick={() => { setEmpCode(''); setStep('select') }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.9rem', marginBottom: 28 }}>
           ← เลือกใหม่
         </button>
@@ -154,8 +158,23 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
           </div>
         )}
 
-        <button onClick={handleLink} disabled={linking}
-          style={{ width: '100%', padding: '18px', borderRadius: 16, border: 'none', cursor: linking ? 'not-allowed' : 'pointer', background: linking ? 'rgba(0,0,0,0.08)' : 'var(--accent-primary)', color: linking ? 'var(--text-muted)' : '#fff', fontSize: '1.05rem', fontWeight: 700, boxShadow: linking ? 'none' : '0 2px 8px rgba(0,0,0,0.1)' }}>
+        {/* กรอกรหัสพนักงานยืนยัน — กันเลือกชื่อคนอื่นจากลิสต์แล้วผูกสวมรอย
+            (feedback 2026-09-28: verify เดิมแค่คลิกชื่อ ไม่มีอะไรยืนยันเลย) */}
+        <div className="glass-card animate-slide-up" style={{ padding: '16px', marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            กรอกรหัสพนักงานของคุณเพื่อยืนยัน
+          </label>
+          <input type="text" value={empCode} onChange={e => setEmpCode(e.target.value)}
+            placeholder="เช่น 69-01-003"
+            style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #e5e7eb', fontSize: '0.95rem', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6 }}>
+            ไม่ทราบรหัสพนักงาน ติดต่อ HR ของคุณ
+          </div>
+        </div>
+
+        <button onClick={handleLink} disabled={linking || !empCode.trim()}
+          style={{ width: '100%', padding: '18px', borderRadius: 16, border: 'none', cursor: (linking || !empCode.trim()) ? 'not-allowed' : 'pointer', background: (linking || !empCode.trim()) ? 'rgba(0,0,0,0.08)' : 'var(--accent-primary)', color: (linking || !empCode.trim()) ? 'var(--text-muted)' : '#fff', fontSize: '1.05rem', fontWeight: 700, boxShadow: (linking || !empCode.trim()) ? 'none' : '0 2px 8px rgba(0,0,0,0.1)' }}>
           {linking ? '⏳ กำลังผูกบัญชี…' : '✅ ใช่ นี่คือฉัน — ผูกบัญชี'}
         </button>
       </div>

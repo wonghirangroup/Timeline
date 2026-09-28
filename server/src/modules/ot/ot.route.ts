@@ -9,6 +9,17 @@ import { ok, fail }         from '../../common/utils/response'
 import { listOtRequests, createOtRequest, approveOtRequest, rejectOtRequest } from './ot.service'
 import { notifyAdminsLine } from '../notifications/line-push.service'
 
+// endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
+// tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
+// ไม่งั้นพนักงานคนหนึ่งจะยื่น/ดู OT แทนคนอื่นได้
+function requireOwnEmployeeId(req: any, reply: any): boolean {
+  if (!req.employeeId) {
+    reply.code(401).send(fail('UNAUTHORIZED', 'ไม่พบตัวตนพนักงานจาก session'))
+    return false
+  }
+  return true
+}
+
 export async function otRoutes(app: FastifyInstance) {
 
   // ── Admin/Manager/DEPT_HEAD: ดู OT ─────────────────────────────────
@@ -123,6 +134,8 @@ export async function otRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    req.body.employee_id = req.employeeId
     const request = await createOtRequest(req.tenantId, req.body)
     const { employee_id, date, start_time, end_time, hours } = req.body
     notifyAdminsLine(req.tenantId, employee_id, {
@@ -148,8 +161,9 @@ export async function otRoutes(app: FastifyInstance) {
         properties: { employeeId: { type: 'string' } },
       },
     },
-  }, async (req: any) => {
-    const list = await listOtRequests(req.tenantId, { employeeId: req.query.employeeId })
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    const list = await listOtRequests(req.tenantId, { employeeId: req.employeeId })
     return ok(list)
   })
 }
