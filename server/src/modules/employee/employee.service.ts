@@ -5,6 +5,7 @@ import { prisma } from '../../common/utils/prisma'
 import { assertPlanCapacity } from '../tenant/tenant.service'
 import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
 import { seedPermissionsFromTemplate } from '../permissions/permission.service'
+import { encryptField, decryptField } from '../../common/utils/encryption'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
 const POLICY_FIELDS = { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } as const
@@ -83,8 +84,14 @@ async function generateEmployeeCode(
 
 // scopedEmployeeIds: undefined = ไม่ scope (role ปกติ), array = จำกัดเฉพาะ id เหล่านี้
 // (DEPT_HEAD ผ่าน resolveDeptScope middleware — ดู employee.route.ts)
+// ถอดรหัส id_card (เก็บเข้ารหัสไว้ใน DB จริงตั้งแต่ feedback 2026-09-28) ก่อนคืน
+// ค่าออกไปให้ route/frontend — ทำเป็น helper กลางจุดเดียวใช้ร่วมกันทั้ง list/get
+function withDecryptedIdCard<T extends { id_card: string | null }>(emp: T): T {
+  return { ...emp, id_card: decryptField(emp.id_card) }
+}
+
 export async function listEmployees(tenantId: string, branchId?: string, includeInactive?: boolean, scopedEmployeeIds?: string[]) {
-  return prisma.employee.findMany({
+  const rows = await prisma.employee.findMany({
     where: {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
@@ -101,6 +108,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
     },
     orderBy: { created_at: 'asc' },
   })
+  return rows.map(withDecryptedIdCard)
 }
 
 const ADMIN_USER_INCLUDE = {
@@ -111,7 +119,7 @@ const ADMIN_USER_INCLUDE = {
 } as const
 
 export async function getEmployee(tenantId: string, id: string) {
-  return prisma.employee.findFirst({
+  const row = await prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
     include: {
       branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
@@ -121,6 +129,7 @@ export async function getEmployee(tenantId: string, id: string) {
       extra_branches: { select: { branch: { select: { id: true, name: true } } } },
     },
   })
+  return row ? withDecryptedIdCard(row) : row
 }
 
 // ── สิทธิ์เข้าเว็บแอดมิน (ผูก Employee ↔ User) ──────────────────────────────
@@ -265,7 +274,7 @@ export async function createEmployee(
       employee_status_type_id: data.employee_status_type_id,
       prefix: data.prefix,
       email: data.email,
-      id_card: data.id_card,
+      id_card: data.id_card ? encryptField(data.id_card) : data.id_card,
       birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
       blood_type: data.blood_type,
       phone_alt: data.phone_alt,
@@ -280,7 +289,7 @@ export async function createEmployee(
     },
   })
   if (data.extra_branch_ids?.length) await syncExtraBranches(tenantId, employee.id, data.extra_branch_ids)
-  return employee
+  return withDecryptedIdCard(employee)
 }
 
 export async function updateEmployee(
@@ -323,11 +332,12 @@ export async function updateEmployee(
     notes?: string | null
   },
 ) {
-  const { hired_at, birthdate, extra_branch_ids, emergency_contacts, address_id, address_current, educations, skills, ...rest } = data
+  const { hired_at, birthdate, extra_branch_ids, emergency_contacts, address_id, address_current, educations, skills, id_card, ...rest } = data
   const count = await prisma.employee.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
     data: {
       ...rest,
+      ...(id_card !== undefined ? { id_card: id_card ? encryptField(id_card) : id_card } : {}),
       ...(hired_at !== undefined ? { hired_at: hired_at ? new Date(hired_at) : null } : {}),
       ...(birthdate !== undefined ? { birthdate: birthdate ? new Date(birthdate) : null } : {}),
       ...(emergency_contacts !== undefined ? { emergency_contacts: toJsonInput(emergency_contacts) } : {}),
@@ -339,7 +349,8 @@ export async function updateEmployee(
   })
   if (count.count === 0) return null
   await syncExtraBranches(tenantId, id, extra_branch_ids)
-  return prisma.employee.findFirst({ where: { id }, include: { extra_branches: { select: { branch: { select: { id: true, name: true } } } } } })
+  const updated = await prisma.employee.findFirst({ where: { id }, include: { extra_branches: { select: { branch: { select: { id: true, name: true } } } } } })
+  return updated ? withDecryptedIdCard(updated) : updated
 }
 
 export async function bulkSetWeeklyOffMode(
