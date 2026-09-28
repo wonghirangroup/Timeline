@@ -39,7 +39,7 @@ import { hrDocumentRoutes } from './modules/hr-document/hr-document.route'
 import { leaveTypesRoutes } from './modules/leave-types/leave-types.route'
 import { vacationPolicyRoutes } from './modules/leave/vacation-policy.route'
 import { permissionRoutes } from './modules/permissions/permission.route'
-import { packagePlanRoutes } from './modules/package-plan/package-plan.route'
+import { packagePlanRoutes, packagePlanPublicRoutes } from './modules/package-plan/package-plan.route'
 import { systemAnnouncementRoutes } from './modules/system-announcement/system-announcement.route'
 import { platformSettingsRoutes, platformSettingsPublicRoutes } from './modules/platform-settings/platform-settings.route'
 import { loginAdsRoutes, loginAdsPublicRoutes } from './modules/login-ads/login-ads.route'
@@ -161,6 +161,7 @@ app.register(permissionRoutes,   { prefix: '/api/v1/admin' })        // ADMIN: �
 app.register(lineRoutes,         { prefix: '/api/v1/line' })         // Line webhook
 app.register(firebaseSyncRoutes, { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: ซิงค์ระบบเก่า (Firebase) — bespoke, ดู modules/firebase-sync
 app.register(packagePlanRoutes,  { prefix: '/api/v1/super-admin' })  // SUPER_ADMIN: เทมเพลตแพ็กเกจจริงต่อ plan (feedback 2026-09-24)
+app.register(packagePlanPublicRoutes, { prefix: '/api/v1' })         // public: ราคา/ลิมิตแพ็กเกจ — เว็บไซต์แนะนำระบบ (โปรเจกต์แยก)
 app.register(systemAnnouncementRoutes, { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ประกาศถึงแอดมิน tenant ข้ามบริษัท (LINE push จริง)
 app.register(platformSettingsRoutes,       { prefix: '/api/v1/super-admin' }) // SUPER_ADMIN: ช่องทางชำระเงิน/ติดต่อระดับแพลตฟอร์ม (feedback 2026-09-24)
 app.register(platformSettingsPublicRoutes, { prefix: '/api/v1/admin' })       // แอดมิน tenant: อ่านช่องทางชำระเงิน/ติดต่อ (read-only)

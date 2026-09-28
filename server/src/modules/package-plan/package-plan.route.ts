@@ -64,3 +64,22 @@ export async function packagePlanRoutes(app: FastifyInstance) {
     }
   })
 }
+
+// Public — เว็บไซต์ขาย/แนะนำระบบ (โปรเจกต์แยกต่างหาก) ดึงราคา/ลิมิต/ฟีเจอร์จริง
+// มาโชว์หน้า pricing ไม่ต้อง login (เหมือน login-ads.route.ts) — ส่ง
+// enabled_features ไปด้วย (เป็นแค่ boolean flag ต่อ feature key ไม่ใช่ข้อมูล
+// ละเอียดอ่อน) กันหน้า pricing ต้อง hardcode รายการฟีเจอร์ต่อแพ็กเกจเอง ซึ่งจะ
+// เพี้ยนทันทีที่ Super Admin แก้เทมเพลตในนี้
+export async function packagePlanPublicRoutes(app: FastifyInstance) {
+  app.get('/packages', {
+    schema: { tags: ['Admin'], summary: 'ราคา/ลิมิต/ฟีเจอร์ของแพ็กเกจ (public, ไม่ต้อง login) — สำหรับเว็บไซต์แนะนำระบบ' },
+  }, async () => {
+    const rows = await svc.listPackagePlans()
+    return ok(rows.map(r => ({
+      plan: r.plan, label: r.label, price_monthly: r.price_monthly,
+      color: r.color, bg: r.bg,
+      max_employees: r.max_employees, max_branches: r.max_branches, max_groups: r.max_groups,
+      enabled_features: r.enabled_features,
+    })))
+  })
+}
