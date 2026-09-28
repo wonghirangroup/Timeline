@@ -1443,7 +1443,9 @@ model PlatformSettings {
 // ─────────────────────────────────────────────
 model LoginAd {
   id         String   @id @default(uuid())
-  image_url  String   @db.Text
+  media_type String   @default("IMAGE") // IMAGE | VIDEO (feedback 2026-09-28 "อยากทำเป็นวิดิโอด้วย")
+  image_url  String   @db.Text // IMAGE: รูปแบนเนอร์เอง / VIDEO: ใช้เป็น poster (โชว์ระหว่างโหลด/เล่นไม่ได้) + thumbnail ในหน้าจัดการ
+  video_url  String?  @db.Text // มีค่าเฉพาะ media_type=VIDEO — เล่นแบบ autoplay+muted+loop บนหน้า login
   link_url   String?  @db.Text // เปิดแท็บใหม่เมื่อกด — ไม่ใส่ = ไม่มีลิงก์
   title      String? // ป้ายกำกับภายในให้ SuperAdmin ดูในลิสต์เฉยๆ ไม่ได้โชว์บนหน้า login
   sort_order Int      @default(0)

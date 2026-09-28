@@ -33,3 +33,22 @@ export async function uploadLoginAdImage(file: File): Promise<string> {
   const json = await res.json()
   return json.secure_url as string
 }
+
+// อัปโหลดวิดีโอแบนเนอร์ (feedback 2026-09-28 "อยากทำเป็นวิดิโอด้วย") — ไม่ย่อ
+// ฝั่ง client (ย่อวิดีโอด้วย canvas ทำไม่ได้เหมือนรูป) ส่งไฟล์ดิบตรงเข้า
+// Cloudinary resource_type=video เลย — คืน video_url + poster_url (เฟรมแรก
+// ของวิดีโอ, Cloudinary generate ให้อัตโนมัติจาก public_id เดียวกัน) กัน
+// SuperAdmin ต้องอัปโหลดรูป poster แยกเองอีกรอบ
+export async function uploadLoginAdVideo(file: File): Promise<{ videoUrl: string; posterUrl: string }> {
+  const fd = new FormData()
+  fd.append('file', file, `ad_${Date.now()}_${file.name}`)
+  fd.append('upload_preset', UPLOAD_PRESET)
+  fd.append('folder', FOLDER)
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd })
+  if (!res.ok) throw new Error('UPLOAD_FAILED')
+  const json = await res.json()
+  return {
+    videoUrl: json.secure_url as string,
+    posterUrl: `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${json.public_id}.jpg`,
+  }
+}

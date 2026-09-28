@@ -9,12 +9,14 @@ export async function listLoginAds(activeOnly: boolean) {
   })
 }
 
-export async function createLoginAd(data: { image_url: string; link_url?: string | null; title?: string | null; sort_order?: number }) {
+export async function createLoginAd(data: { media_type?: string; image_url: string; video_url?: string | null; link_url?: string | null; title?: string | null; sort_order?: number }) {
   // ค่าเริ่มต้น sort_order = ต่อท้ายลิสต์ปัจจุบัน (มากสุด + 1) กันชนกับของเดิม
   const max = await prisma.loginAd.aggregate({ _max: { sort_order: true } })
   return prisma.loginAd.create({
     data: {
+      media_type: data.media_type ?? 'IMAGE',
       image_url: data.image_url,
+      video_url: data.video_url ?? null,
       link_url: data.link_url ?? null,
       title: data.title ?? null,
       sort_order: data.sort_order ?? (max._max.sort_order ?? 0) + 1,
@@ -22,7 +24,7 @@ export async function createLoginAd(data: { image_url: string; link_url?: string
   })
 }
 
-export async function updateLoginAd(id: string, data: { image_url?: string; link_url?: string | null; title?: string | null; sort_order?: number; is_active?: boolean }) {
+export async function updateLoginAd(id: string, data: { media_type?: string; image_url?: string; video_url?: string | null; link_url?: string | null; title?: string | null; sort_order?: number; is_active?: boolean }) {
   try {
     return await prisma.loginAd.update({ where: { id }, data })
   } catch {

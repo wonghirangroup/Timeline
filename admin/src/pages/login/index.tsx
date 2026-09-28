@@ -48,20 +48,26 @@ function IntroSplash({ exiting }: { exiting: boolean }) {
   )
 }
 
-interface LoginAd { id: string; image_url: string; link_url: string | null }
+interface LoginAd { id: string; media_type?: 'IMAGE' | 'VIDEO'; image_url: string; video_url?: string | null; link_url: string | null }
 
 // ── Ad carousel — SuperAdmin จัดการที่ superadmin/pages/login-ads ── แทนที่
 // เนื้อหาแนะนำฟีเจอร์เดิมทั้งหมดถ้ามีแบนเนอร์ตั้งไว้ (ไม่มี = โชว์เนื้อหาเดิม
-// เป็น fallback กันพาเนลว่างเปล่า)
+// เป็น fallback กันพาเนลว่างเปล่า) — รูปหมุนทุก 5 วิ ส่วนวิดีโอ (feedback
+// 2026-09-28 "อยากทำเป็นวิดิโอด้วย") ปล่อยเล่นจนจบแล้วค่อยเลื่อนต่อเอง (ไม่งั้น
+// วิดีโอ ~15 วิ จะโดนตัดที่ 5 วิเหมือนรูปเสมอ ดูไม่ทันจบ)
 function AdCarousel({ ads }: { ads: LoginAd[] }) {
   const [idx, setIdx] = useState(0)
-  useEffect(() => {
-    if (ads.length < 2) return
-    const t = setInterval(() => setIdx(i => (i + 1) % ads.length), 5000)
-    return () => clearInterval(t)
-  }, [ads.length])
-
   const ad = ads[idx]
+
+  function next() { setIdx(i => (i + 1) % ads.length) }
+
+  useEffect(() => {
+    if (ads.length < 2 || ad?.media_type === 'VIDEO') return // วิดีโอเลื่อนเองผ่าน onEnded
+    const t = setTimeout(next, 5000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, ads.length])
+
   if (!ad) return null
 
   function openAd() {
@@ -70,12 +76,22 @@ function AdCarousel({ ads }: { ads: LoginAd[] }) {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <img
-        key={ad.id} src={ad.image_url} alt=""
-        onClick={ad.link_url ? openAd : undefined}
-        className="animate-fade-in"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
-      />
+      {ad.media_type === 'VIDEO' && ad.video_url ? (
+        <video
+          key={ad.id} src={ad.video_url} poster={ad.image_url}
+          autoPlay muted playsInline onEnded={ads.length > 1 ? next : undefined} loop={ads.length === 1}
+          onClick={ad.link_url ? openAd : undefined}
+          className="animate-fade-in"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
+        />
+      ) : (
+        <img
+          key={ad.id} src={ad.image_url} alt=""
+          onClick={ad.link_url ? openAd : undefined}
+          className="animate-fade-in"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
+        />
+      )}
       {ads.length > 1 && (
         <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
           {ads.map((a, i) => (

@@ -1,16 +1,21 @@
 // superadmin/src/pages/login-ads/index.tsx
 // จัดการแบนเนอร์ฝั่งซ้ายของหน้า login แอดมิน (feedback 2026-09-28 "พื้นที่ฝั่ง
-// ซ้ายของฟอร์ม superadmin จัดการเพิ่มเหมือนโฆษณาได้") — หมุนสลับได้หลายรูป,
-// มีลิงก์เปิดแท็บใหม่ได้ (ดู admin/src/pages/login/index.tsx ฝั่งที่แสดงผลจริง)
+// ซ้ายของฟอร์ม superadmin จัดการเพิ่มเหมือนโฆษณาได้") — หมุนสลับได้หลายรูป/
+// วิดีโอ, มีลิงก์เปิดแท็บใหม่ได้ (ดู admin/src/pages/login/index.tsx ฝั่งที่
+// แสดงผลจริง) — รองรับวิดีโอเพิ่มทีหลัง (feedback 2026-09-28 "อยากทำเป็น
+// วิดิโอด้วย")
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Image, Plus, Pencil, Trash2, ArrowUp, ArrowDown, X, Link as LinkIcon, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Image, Plus, Pencil, Trash2, ArrowUp, ArrowDown, X, Link as LinkIcon, Eye, EyeOff, Loader2, Video, Play } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
-import { uploadLoginAdImage } from '../../lib/upload'
+import { uploadLoginAdImage, uploadLoginAdVideo } from '../../lib/upload'
+
+type MediaType = 'IMAGE' | 'VIDEO'
 
 interface LoginAd {
-  id: string; image_url: string; link_url: string | null; title: string | null
+  id: string; media_type: MediaType; image_url: string; video_url: string | null
+  link_url: string | null; title: string | null
   sort_order: number; is_active: boolean
 }
 
@@ -55,7 +60,7 @@ export default function SALoginAdsPage() {
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>แบนเนอร์หน้า Login</h1>
           <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b', maxWidth: 560 }}>
-            รูปที่หมุนสลับกันฝั่งซ้ายของหน้า login แอดมิน (แทนที่ข้อความแนะนำฟีเจอร์เดิมทั้งหมด) — กดรูปแล้วเปิดลิงก์แท็บใหม่ได้ถ้าตั้งไว้
+            รูปหรือวิดีโอที่หมุนสลับกันฝั่งซ้ายของหน้า login แอดมิน (แทนที่ข้อความแนะนำฟีเจอร์เดิมทั้งหมด) — กดแล้วเปิดลิงก์แท็บใหม่ได้ถ้าตั้งไว้
           </p>
         </div>
         <button onClick={() => setEditing('new')}
@@ -70,15 +75,27 @@ export default function SALoginAdsPage() {
         <div style={{ ...card, padding: '50px 20px', textAlign: 'center', color: '#94a3b8' }}>
           <Image size={26} style={{ marginBottom: 8 }} />
           <div style={{ fontWeight: 600 }}>ยังไม่มีแบนเนอร์</div>
-          <div style={{ fontSize: '0.8rem', marginTop: 4 }}>ตอนนี้หน้า login แอดมินจะโชว์ข้อความแนะนำฟีเจอร์เดิมแทน จนกว่าจะเพิ่มอย่างน้อย 1 รูป</div>
+          <div style={{ fontSize: '0.8rem', marginTop: 4 }}>ตอนนี้หน้า login แอดมินจะโชว์ข้อความแนะนำฟีเจอร์เดิมแทน จนกว่าจะเพิ่มอย่างน้อย 1 รูป/วิดีโอ</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 720 }}>
           {ads.map((ad, idx) => (
             <div key={ad.id} style={{ ...card, padding: 12, display: 'flex', alignItems: 'center', gap: 12, opacity: ad.is_active ? 1 : 0.55 }}>
-              <img src={ad.image_url} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', flexShrink: 0, background: '#f1f5f9' }} />
+              <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                <img src={ad.image_url} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', background: '#f1f5f9' }} />
+                {ad.media_type === 'VIDEO' && (
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: 10, background: 'rgba(15,23,42,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Play size={20} color="#fff" fill="#fff" />
+                  </div>
+                )}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827' }}>{ad.title || '(ไม่มีชื่อภายใน)'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827' }}>{ad.title || '(ไม่มีชื่อภายใน)'}</div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.65rem', fontWeight: 700, color: ad.media_type === 'VIDEO' ? '#7c3aed' : '#0891b2', background: ad.media_type === 'VIDEO' ? '#ede9fe' : '#ecfeff', borderRadius: 99, padding: '2px 7px', flexShrink: 0 }}>
+                    {ad.media_type === 'VIDEO' ? <><Video size={9} /> วิดีโอ</> : <><Image size={9} /> รูปภาพ</>}
+                  </span>
+                </div>
                 {ad.link_url ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#64748b', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <LinkIcon size={11} style={{ flexShrink: 0 }} /> {ad.link_url}
@@ -118,15 +135,18 @@ function EditModal({ ad, onClose }: { ad: LoginAd | null; onClose: () => void })
   const qc = useQueryClient()
   const { showToast } = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [mediaType, setMediaType] = useState<MediaType>(ad?.media_type ?? 'IMAGE')
   const [imageUrl, setImageUrl] = useState(ad?.image_url ?? '')
+  const [videoUrl, setVideoUrl] = useState(ad?.video_url ?? '')
   const [linkUrl, setLinkUrl] = useState(ad?.link_url ?? '')
   const [title, setTitle] = useState(ad?.title ?? '')
   const [uploading, setUploading] = useState(false)
 
   const saveMut = useMutation({
-    mutationFn: () => ad
-      ? api.patch(`/api/v1/super-admin/login-ads/${ad.id}`, { image_url: imageUrl, link_url: linkUrl || null, title: title || null })
-      : api.post('/api/v1/super-admin/login-ads', { image_url: imageUrl, link_url: linkUrl || null, title: title || null }),
+    mutationFn: () => {
+      const body = { media_type: mediaType, image_url: imageUrl, video_url: mediaType === 'VIDEO' ? videoUrl : null, link_url: linkUrl || null, title: title || null }
+      return ad ? api.patch(`/api/v1/super-admin/login-ads/${ad.id}`, body) : api.post('/api/v1/super-admin/login-ads', body)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sa', 'login-ads'] })
       showToast('success', ad ? 'บันทึกแล้ว' : 'เพิ่มแบนเนอร์แล้ว')
@@ -135,7 +155,7 @@ function EditModal({ ad, onClose }: { ad: LoginAd | null; onClose: () => void })
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
   })
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
@@ -149,6 +169,26 @@ function EditModal({ ad, onClose }: { ad: LoginAd | null; onClose: () => void })
     }
   }
 
+  async function handleVideoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      // poster ได้จาก Cloudinary อัตโนมัติ (เฟรมแรกของวิดีโอ) ไม่ต้องอัปโหลด
+      // รูปแยก — เก็บใน image_url เหมือนเดิม (ใช้เป็น thumbnail ในลิสต์นี้ด้วย)
+      const { videoUrl: vUrl, posterUrl } = await uploadLoginAdVideo(file)
+      setVideoUrl(vUrl)
+      setImageUrl(posterUrl)
+    } catch {
+      showToast('error', 'อัปโหลดวิดีโอไม่สำเร็จ')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const canSave = mediaType === 'VIDEO' ? !!videoUrl : !!imageUrl
+
   return (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }} onClick={onClose}>
       <div style={{ background: '#fff', borderRadius: 16, width: 440, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
@@ -159,12 +199,39 @@ function EditModal({ ad, onClose }: { ad: LoginAd | null; onClose: () => void })
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelSt}>รูปแบนเนอร์</label>
-            {imageUrl && <img src={imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10, marginBottom: 8, background: '#f1f5f9' }} />}
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} disabled={uploading}
-              style={{ fontSize: '0.8rem' }} />
-            {uploading && <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#64748b', marginTop: 6 }}><Loader2 size={13} className="animate-spin" /> กำลังอัปโหลด...</div>}
+            <label style={labelSt}>ประเภท</label>
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 9, padding: 3, gap: 3 }}>
+              {(['IMAGE', 'VIDEO'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setMediaType(t)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, background: mediaType === t ? '#fff' : 'transparent', color: mediaType === t ? 'var(--sa-accent)' : '#64748b', boxShadow: mediaType === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+                  {t === 'IMAGE' ? <><Image size={14} /> รูปภาพ</> : <><Video size={14} /> วิดีโอ</>}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {mediaType === 'IMAGE' ? (
+            <div>
+              <label style={labelSt}>รูปแบนเนอร์</label>
+              {imageUrl && <img src={imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10, marginBottom: 8, background: '#f1f5f9' }} />}
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} disabled={uploading}
+                style={{ fontSize: '0.8rem' }} />
+              {uploading && <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#64748b', marginTop: 6 }}><Loader2 size={13} className="animate-spin" /> กำลังอัปโหลด...</div>}
+            </div>
+          ) : (
+            <div>
+              <label style={labelSt}>วิดีโอแบนเนอร์ (เล่นวนอัตโนมัติแบบปิดเสียงบนหน้า login)</label>
+              {videoUrl && !uploading && (
+                <video src={videoUrl} poster={imageUrl} muted loop autoPlay playsInline
+                  style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, marginBottom: 8, background: '#f1f5f9' }} />
+              )}
+              <input ref={fileRef} type="file" accept="video/*" onChange={handleVideoFile} disabled={uploading}
+                style={{ fontSize: '0.8rem' }} />
+              {uploading && <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#64748b', marginTop: 6 }}><Loader2 size={13} className="animate-spin" /> กำลังอัปโหลดวิดีโอ (อาจใช้เวลาสักครู่)...</div>}
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 6 }}>แนะนำวิดีโอสั้น (~15 วิ) แนวตั้ง ไฟล์ไม่ใหญ่เกินไปเพื่อความลื่นไหลตอนโหลดหน้า login</div>
+            </div>
+          )}
+
           <div>
             <label style={labelSt}>ลิงก์เมื่อกด (ไม่บังคับ — เปิดแท็บใหม่)</label>
             <input style={inputSt} value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." />
@@ -177,8 +244,8 @@ function EditModal({ ad, onClose }: { ad: LoginAd | null; onClose: () => void })
 
         <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
-          <button onClick={() => saveMut.mutate()} disabled={!imageUrl || uploading || saveMut.isPending}
-            style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: (!imageUrl || uploading) ? '#cbd5e1' : 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: (!imageUrl || uploading) ? 'not-allowed' : 'pointer' }}>
+          <button onClick={() => saveMut.mutate()} disabled={!canSave || uploading || saveMut.isPending}
+            style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: (!canSave || uploading) ? '#cbd5e1' : 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: (!canSave || uploading) ? 'not-allowed' : 'pointer' }}>
             {saveMut.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
           </button>
         </div>

@@ -17,11 +17,13 @@ export async function loginAdsRoutes(app: FastifyInstance) {
   app.post('/login-ads', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
     schema: {
-      tags: [TAG], summary: 'เพิ่มแบนเนอร์หน้า login', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'เพิ่มแบนเนอร์หน้า login (รูปหรือวิดีโอ)', security: [{ oauth2: [] }],
       body: {
         type: 'object', required: ['image_url'],
         properties: {
-          image_url: { type: 'string' },
+          media_type: { type: 'string', enum: ['IMAGE', 'VIDEO'] },
+          image_url: { type: 'string', description: 'IMAGE: รูปแบนเนอร์ / VIDEO: poster ที่โชว์ระหว่างโหลด' },
+          video_url: { type: 'string', nullable: true, description: 'เฉพาะ media_type=VIDEO' },
           link_url:  { type: 'string', nullable: true },
           title:     { type: 'string', nullable: true },
         },
@@ -32,12 +34,14 @@ export async function loginAdsRoutes(app: FastifyInstance) {
   app.patch('/login-ads/:id', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
     schema: {
-      tags: [TAG], summary: 'แก้ไขแบนเนอร์ (รูป/ลิงก์/เปิดปิดใช้งาน)', security: [{ oauth2: [] }],
+      tags: [TAG], summary: 'แก้ไขแบนเนอร์ (รูป/วิดีโอ/ลิงก์/เปิดปิดใช้งาน)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: {
         type: 'object',
         properties: {
+          media_type: { type: 'string', enum: ['IMAGE', 'VIDEO'] },
           image_url: { type: 'string' },
+          video_url: { type: 'string', nullable: true },
           link_url:  { type: 'string', nullable: true },
           title:     { type: 'string', nullable: true },
           is_active: { type: 'boolean' },
