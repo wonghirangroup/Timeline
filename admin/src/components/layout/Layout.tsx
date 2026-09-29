@@ -111,7 +111,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         }} className="animate-fade-in-up admin-print-main">
           {children}
         </main>
-        <div className="no-print"><Footer /></div>
+        {/* ซ่อน Footer บนมือถือ (feedback 2026-09-29) — กินพื้นที่จอแคบเกินไป
+            เทียบกับประโยชน์ (แค่โลโก้/ลิขสิทธิ์/ลิงก์ PDPA) */}
+        {!isMobile && <div className="no-print"><Footer /></div>}
       </div>
 
       {mustChangePassword && <ForcedPasswordChange />}

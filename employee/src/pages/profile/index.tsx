@@ -3,9 +3,10 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera, CalendarDays, FileText } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
+import { PhotoCropModal } from '../../components/ui/PhotoCropModal'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/axios'
-import { uploadImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
+import { uploadCroppedImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -14,8 +15,12 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [switchingToAdmin, setSwitchingToAdmin] = useState(false)
+  // รูปที่เพิ่งเลือกแต่ยังไม่ครอป — เปิด PhotoCropModal ให้ปรับกรอบเองก่อน
+  // อัปโหลดจริง (feedback 2026-09-29 "ปรับขนาดที่ต้องการให้แสดงเป็นหน้าโปรไฟล์ได้"
+  // — เดิมอัปโหลดตรงแล้วให้ Cloudinary auto-crop ด้วย face-detection เลือกกรอบเองไม่ได้)
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
 
-  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
@@ -26,16 +31,28 @@ export default function ProfilePage() {
     // accept="image/*" กรองที่ตัวเลือกไฟล์ของ OS อยู่แล้ว เช็ค MIME ซ้ำแค่กันไฟล์ที่
     // ระบุ type ชัดเจนว่าไม่ใช่รูปจริงๆ (เช่น .pdf) ปล่อยผ่านกรณี type ว่าง/ไม่ทราบ
     if (file.type && !file.type.startsWith('image/')) { alert('กรุณาเลือกไฟล์รูปภาพ'); return }
+    setPendingPhoto(URL.createObjectURL(file))
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    const objectUrl = pendingPhoto
+    setPendingPhoto(null)
     setUploading(true)
     try {
-      const url = await uploadImage(file)
+      const url = await uploadCroppedImage(blob)
       await api.patch('/employee/photo', { photo_url: url })
       patchEmployee({ photo_url: url })
     } catch {
       alert('อัปโหลดรูปไม่สำเร็จ')
     } finally {
       setUploading(false)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
+  }
+
+  function handleCropCancel() {
+    if (pendingPhoto) URL.revokeObjectURL(pendingPhoto)
+    setPendingPhoto(null)
   }
 
   const showSwitchToAdmin = !!employee?.admin_access
@@ -179,6 +196,10 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {pendingPhoto && (
+        <PhotoCropModal imageSrc={pendingPhoto} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+      )}
     </div>
   )
 }

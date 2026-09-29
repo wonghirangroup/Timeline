@@ -20,8 +20,7 @@ export async function resizeImage(file: File, maxDim = 640, quality = 0.85): Pro
   })
 }
 
-export async function uploadImage(file: File): Promise<string> {
-  const blob = await resizeImage(file).catch(() => file)
+async function uploadBlob(blob: Blob): Promise<string> {
   const fd = new FormData()
   // ต้องตั้งชื่อไฟล์เองตอน append — resizeImage คืน Blob เปล่าๆ ไม่มี .name ถ้าไม่ใส่
   // browser จะส่งชื่อ multipart เป็น "blob" ตายตัวเสมอ ทำให้ Cloudinary มองว่าทุกการ
@@ -36,6 +35,17 @@ export async function uploadImage(file: File): Promise<string> {
   if (!res.ok) throw new Error('UPLOAD_FAILED')
   const json = await res.json()
   return json.secure_url as string
+}
+
+export async function uploadImage(file: File): Promise<string> {
+  const blob = await resizeImage(file).catch(() => file)
+  return uploadBlob(blob)
+}
+
+// อัปโหลดรูปที่ครอปมาจาก PhotoCropModal แล้ว — ขนาด/สัดส่วนถูกกำหนดไว้แล้ว
+// ตอน crop (getCroppedImageBlob) ไม่ต้อง resize ซ้ำอีกรอบ
+export async function uploadCroppedImage(blob: Blob): Promise<string> {
+  return uploadBlob(blob)
 }
 
 export function avatarUrl(url: string | null | undefined, size = 160): string | null {
