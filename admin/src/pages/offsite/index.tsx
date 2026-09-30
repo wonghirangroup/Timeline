@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button'
 import { useIsReadOnly } from '../../stores/authStore'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
@@ -404,12 +405,13 @@ export default function OffsitePage() {
               {modal === 'add' ? (
                 <div>
                   <label style={label}>พนักงาน</label>
-                  <select value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} style={input}>
-                    <option value="">เลือกพนักงาน</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''} — {e.employee_code}</option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    value={form.employee_id}
+                    onChange={v => setForm(f => ({ ...f, employee_id: v }))}
+                    options={employees.map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} — ${e.employee_code}` }))}
+                    placeholder="เลือกพนักงาน"
+                    style={input}
+                  />
                 </div>
               ) : (
                 <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: '9px 14px', fontSize: '13px', color: '#1e293b' }}>

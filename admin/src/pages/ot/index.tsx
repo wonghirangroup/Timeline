@@ -15,6 +15,7 @@ import { api } from '../../lib/axios'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 interface ApiOt {
   id: string; employee_id: string; date: string; start_time: string; end_time: string
@@ -786,16 +787,13 @@ export default function OtPage() {
             {/* Employee select */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>พนักงาน *</label>
-              <select
+              <SearchSelect
                 value={addForm.employee_id}
-                onChange={e => setAddForm(f => ({ ...f, employee_id: e.target.value }))}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${!addForm.employee_id ? '#fca5a5' : '#e5e7eb'}`, fontSize: '13px', background: '#fff', boxSizing: 'border-box' }}
-              >
-                <option value="">-- เลือกพนักงาน --</option>
-                {employees.map(e => (
-                  <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname})</option>
-                ))}
-              </select>
+                onChange={v => setAddForm(f => ({ ...f, employee_id: v }))}
+                options={employees.map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}` }))}
+                placeholder="-- เลือกพนักงาน --"
+                style={{ padding: '9px 12px', borderRadius: 8, border: `1px solid ${!addForm.employee_id ? '#fca5a5' : '#e5e7eb'}`, fontSize: '13px' }}
+              />
             </div>
 
             {/* Date */}
@@ -931,21 +929,20 @@ export default function OtPage() {
             {/* Employee select */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>เลือกพนักงาน</label>
-              <select
+              {/* แสดงเฉพาะคนที่มี APPROVED อยู่ */}
+              <SearchSelect
                 value={bulkEmpId}
-                onChange={e => { setBulkEmpId(e.target.value); setBulkDailyRate('') }}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px', background: '#fff', boxSizing: 'border-box' }}
-              >
-                <option value="">-- เลือกพนักงาน --</option>
-                {/* แสดงเฉพาะคนที่มี APPROVED อยู่ */}
-                {employees
+                onChange={v => { setBulkEmpId(v); setBulkDailyRate('') }}
+                options={employees
                   .filter(e => rows.some(r => r.employee_id === e.id && r.status === 'APPROVED'))
                   .map(e => {
                     const cnt = rows.filter(r => r.employee_id === e.id && r.status === 'APPROVED').length
-                    return <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.nickname}) — {cnt} รายการรอจ่าย</option>
-                  })
-                }
-              </select>
+                    return { value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} — ${cnt} รายการรอจ่าย` }
+                  })}
+                placeholder="-- เลือกพนักงาน --"
+                emptyText="ไม่มีพนักงานที่มี OT รอจ่าย"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '13px' }}
+              />
             </div>
 
             {/* รายการ OT ที่จะจ่าย */}

@@ -13,6 +13,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { deptName } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiEmployee {
@@ -949,14 +950,12 @@ export default function WeeklyOffPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>พนักงาน *</label>
-              <select value={addForm.employee_id}
-                onChange={e => { setAddForm(f => ({ ...f, employee_id: e.target.value, date: '' })); setShowCalendar(false) }}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', fontFamily: 'inherit' }}>
-                <option value="">— เลือกพนักงาน —</option>
-                {employees.map(e => (
-                  <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''} · {e.branch.name}</option>
-                ))}
-              </select>
+              <SearchSelect
+                value={addForm.employee_id}
+                onChange={v => { setAddForm(f => ({ ...f, employee_id: v, date: '' })); setShowCalendar(false) }}
+                options={employees.map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} · ${e.branch.name}` }))}
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+              />
             </div>
 
             {addForm.employee_id && (

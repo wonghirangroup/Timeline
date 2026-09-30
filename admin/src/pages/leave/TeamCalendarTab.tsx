@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Search, Table2, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -9,6 +9,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { avatarUrl } from '../../lib/upload'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
@@ -344,10 +345,7 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
   const [leaveType, setLeaveType] = useState<QuickLeaveType>('SICK')
   const [period, setPeriod] = useState<QuickPeriod>('FULL')
   const [otherReason, setOtherReason] = useState('')
-  const [q, setQ] = useState('')
   const [employeeId, setEmployeeId] = useState('')
-  const query = q.trim().toLowerCase()
-  const filtered = query.length === 0 ? employees : employees.filter(e => `${e.first_name} ${e.last_name} ${e.nickname ?? ''}`.toLowerCase().includes(query))
   // "อื่นๆ" ไม่มี enum ตรงตัว — เก็บเป็นลากิจ (PERSONAL) ไว้ แต่ใส่ reason ที่พิมพ์เอง
   // ไปแทน label ให้แสดงผลถูกต้อง (ตาม convention reason="[label]" ที่ใช้ทั้งระบบอยู่แล้ว
   // เช่น หน้ารายงาน/requests.tsx ดึง label ละเอียดจาก reason ก่อน enum เสมอ)
@@ -394,16 +392,12 @@ function QuickAddForm({ date, employees, onAddDayOff, onAddLeave, onDone }: {
           </div>
         </>
       )}
-      <div style={{ position: 'relative' }}>
-        <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหาพนักงาน..."
-          style={{ width: '100%', padding: '6px 8px 6px 26px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-      </div>
-      <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} size={q ? 4 : undefined}
-        style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.76rem', fontFamily: 'inherit', boxSizing: 'border-box' }}>
-        <option value="">— เลือกพนักงาน —</option>
-        {filtered.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''}</option>)}
-      </select>
+      <SearchSelect
+        value={employeeId}
+        onChange={setEmployeeId}
+        options={employees.map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`, keywords: `${e.employee_code ?? ''} ${e.branch?.name ?? ''}` }))}
+        style={{ padding: '6px 8px', borderRadius: 7, fontSize: '0.76rem' }}
+      />
       <button onClick={submit} disabled={!employeeId || !canSubmitOther}
         style={{ padding: '7px', borderRadius: 7, border: 'none', background: (!employeeId || !canSubmitOther) ? '#d1d5db' : '#374151', color: '#fff', fontWeight: 700, fontSize: '0.76rem', cursor: (!employeeId || !canSubmitOther) ? 'not-allowed' : 'pointer' }}>
         + เพิ่มให้วันที่นี้

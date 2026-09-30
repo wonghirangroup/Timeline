@@ -15,6 +15,7 @@ import Button from '../../components/ui/Button'
 import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
@@ -494,12 +495,12 @@ export default function LeaveRequestsTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>พนักงาน *</label>
-              <select value={addForm.employee_id} onChange={e => setAddForm(f => ({ ...f, employee_id: e.target.value }))} style={inp}>
-                <option value="">— เลือกพนักงาน —</option>
-                {employees.map(e => (
-                  <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.employee_code}) · {e.branch.name}</option>
-                ))}
-              </select>
+              <SearchSelect
+                value={addForm.employee_id}
+                onChange={v => setAddForm(f => ({ ...f, employee_id: v }))}
+                options={employees.map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name} (${e.employee_code}) · ${e.branch.name}`, keywords: e.nickname ?? '' }))}
+                style={inp}
+              />
             </div>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ประเภทการลา *</label>

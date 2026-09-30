@@ -19,6 +19,7 @@ import { SkeletonRows } from '../../components/ui/Skeleton'
 import HrDocumentGenerateModal from '../hr-documents/generate'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 const TYPE_LABEL: Record<string, string> = {
   PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'อื่นๆ',
@@ -320,12 +321,13 @@ export default function DocumentRequestsPage() {
             {reqModal === 'add' && (
               <div style={{ marginBottom: 12 }}>
                 <label style={reqLabel}>พนักงาน</label>
-                <select value={reqForm.employee_id} onChange={e => setReqForm(f => ({ ...f, employee_id: e.target.value }))} style={reqInput}>
-                  <option value="">เลือกพนักงาน</option>
-                  {employees.map((e: any) => (
-                    <option key={e.id} value={e.id}>{e.first_name} {e.last_name}{e.nickname ? ` (${e.nickname})` : ''} — {e.employee_code}</option>
-                  ))}
-                </select>
+                <SearchSelect
+                  value={reqForm.employee_id}
+                  onChange={v => setReqForm(f => ({ ...f, employee_id: v }))}
+                  options={employees.map((e: any) => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} — ${e.employee_code}`, keywords: e.branch?.name }))}
+                  placeholder="เลือกพนักงาน"
+                  style={reqInput}
+                />
               </div>
             )}
 

@@ -7,6 +7,7 @@ export const Z = {
   sticky:        500,
   modalBackdrop: 1000,
   modal:         1000,
+  popover:       1050,  // dropdown ที่เปิดจากใน modal (SearchSelect) ต้องลอยเหนือ modal
   toast:         1100,
   tooltip:       1200,
 } as const

@@ -7,6 +7,7 @@ import { useToast } from '../../components/ui/Toast'
 import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
 interface ApiBranch { id: string; name: string }
@@ -105,7 +106,6 @@ export default function AnnouncementPage() {
 
   // Direct form
   const [dEmployee, setDEmployee] = useState('')
-  const [dSearch, setDSearch] = useState('')
   const [dMsg, setDMsg] = useState('')
   const [dTemplateId, setDTemplateId] = useState('')
 
@@ -336,19 +336,13 @@ export default function AnnouncementPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={labelStyle}>พนักงานที่ต้องการส่งถึง</label>
-                <div style={{ position: 'relative', marginBottom: 6 }}>
-                  <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input value={dSearch} onChange={e => setDSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
-                    style={{ ...inputStyle, padding: '9px 12px 9px 30px' }} />
-                </div>
-                <select value={dEmployee} onChange={e => setDEmployee(e.target.value)} style={inputStyle} size={dSearch ? 6 : undefined}>
-                  <option value="">เลือกพนักงาน...</option>
-                  {employees
-                    .filter(e => !dSearch.trim() || empDisplayName(e).toLowerCase().includes(dSearch.trim().toLowerCase()))
-                    .map(e => (
-                      <option key={e.id} value={e.id}>{empDisplayName(e)}</option>
-                    ))}
-                </select>
+                <SearchSelect
+                  value={dEmployee}
+                  onChange={setDEmployee}
+                  options={employees.map(e => ({ value: e.id, label: empDisplayName(e) }))}
+                  placeholder="เลือกพนักงาน..."
+                  style={inputStyle}
+                />
               </div>
               {templates.length > 0 && (
                 <div>
