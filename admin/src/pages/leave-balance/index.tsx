@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon, Sparkles, ExternalLink } from 'lucide-react'
+import { Pencil, Trash2, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon, Sparkles, ExternalLink } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
@@ -137,6 +137,25 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
     onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'เพิ่มไม่สำเร็จ'),
   })
 
+  // แก้ไข/ลบวันลาย้อนหลังที่มีอยู่แล้ว — feedback 2026-09-30: "เพิ่มลบแก้ไขได้"
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editDays, setEditDays] = useState(1)
+  const invalidateAfterChange = () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'leave-requests', 'employee', balance.employee_id] })
+    qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
+  }
+  const editMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/v1/admin/leave-requests/${id}`, { start_date: editDate, end_date: editDate, days: editDays }),
+    onSuccess: () => { invalidateAfterChange(); showToast('success', 'แก้ไขวันลาแล้ว'); setEditingId(null) },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'แก้ไขไม่สำเร็จ'),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/leave-requests/${id}`),
+    onSuccess: () => { invalidateAfterChange(); showToast('success', 'ลบวันลาแล้ว') },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'ลบไม่สำเร็จ'),
+  })
+
   useEffect(() => {
     function h(e: MouseEvent) { if (overlayRef.current === e.target) onClose() }
     document.addEventListener('mousedown', h)
@@ -234,10 +253,36 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
                 {isOpen && dates.length > 0 && (
                   <div style={{ padding: '0 14px 12px 46px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {dates.map(d => (
-                      <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569', background: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '5px 10px' }}>
-                        <span>{d.start_date === d.end_date ? fmtShortDate(d.start_date) : `${fmtShortDate(d.start_date)} – ${fmtShortDate(d.end_date)}`}</span>
-                        <span style={{ fontWeight: 700 }}>{d.days} วัน</span>
-                      </div>
+                      editingId === d.id ? (
+                        <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'rgba(255,255,255,0.8)', borderRadius: 8, padding: '5px 10px' }}>
+                          <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                            style={{ padding: '5px 7px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.72rem', fontFamily: 'inherit', background: '#fff' }} />
+                          <input type="number" min={0.5} step={0.5} value={editDays} onChange={e => setEditDays(Math.max(0.5, parseFloat(e.target.value) || 1))}
+                            style={{ width: 46, padding: '5px 7px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.72rem', fontFamily: 'inherit', textAlign: 'center', background: '#fff' }} />
+                          <button onClick={() => editMutation.mutate(d.id)} disabled={!editDate || editMutation.isPending}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: !editDate || editMutation.isPending ? '#cbd5e1' : lt.color, color: '#fff', fontSize: '0.7rem', fontWeight: 700, cursor: !editDate ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                            บันทึก
+                          </button>
+                          <button onClick={() => setEditingId(null)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            ยกเลิก
+                          </button>
+                        </div>
+                      ) : (
+                        <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569', background: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '5px 10px' }}>
+                          <span>{d.start_date === d.end_date ? fmtShortDate(d.start_date) : `${fmtShortDate(d.start_date)} – ${fmtShortDate(d.end_date)}`}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontWeight: 700 }}>{d.days} วัน</span>
+                            <button onClick={() => { setEditingId(d.id); setEditDate(d.start_date.slice(0, 10)); setEditDays(d.days) }}
+                              aria-label="แก้ไข" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#64748b', display: 'flex' }}>
+                              <Pencil size={12} />
+                            </button>
+                            <button onClick={() => { if (confirm('ลบวันลานี้?')) deleteMutation.mutate(d.id) }} disabled={deleteMutation.isPending}
+                              aria-label="ลบ" style={{ background: 'none', border: 'none', cursor: deleteMutation.isPending ? 'default' : 'pointer', padding: 2, color: '#dc2626', display: 'flex' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )
                     ))}
                   </div>
                 )}
