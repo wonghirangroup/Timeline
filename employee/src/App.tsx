@@ -290,6 +290,22 @@ export default function App() {
         setTimeout(() => boot(attempt + 1), AUTO_RETRY_DELAYS[attempt])
         return // ยังอยู่หน้า loading เดิม ไม่โชว์ error ให้ผู้ใช้เห็นเลยถ้าลองซ้ำแล้วผ่าน
       }
+      // ลองซ้ำปกติครบแล้วยังไม่ผ่าน (มักเกิดในขั้น initLiff()/getLiffProfile() เอง
+      // ก่อนถึง backend เราด้วยซ้ำ — ไม่มี err.response เลยถูกนับเป็น network glitch)
+      // ยืนยันแล้ว 2026-09-30 ว่าสาเหตุจริงบางเคสคือ session ของ LIFF SDK ที่ค้าง
+      // อยู่ในแอป LINE เอง (ไม่ใช่เน็ตหลุดจริง) — ผู้ใช้บังคับปิดแอป LINE สนิทแล้ว
+      // เปิดใหม่ถึงจะหาย เท่ากับ logout+login LIFF ใหม่ทั้งหมด — ลอง forceRelogin()
+      // อัตโนมัติให้ก่อนสักครั้งเดียว (กัน loop ด้วย sessionStorage flag) แทนที่จะ
+      // โชว์หน้า error ให้ผู้ใช้ต้องไปทำเองด้วยมือ
+      if (isNetworkGlitch(err) && !import.meta.env.DEV) {
+        const FLAG = 'tl_force_relogin_tried'
+        if (!sessionStorage.getItem(FLAG)) {
+          sessionStorage.setItem(FLAG, '1')
+          await forceRelogin() // redirect ออกไปเลย ไม่ return กลับมาที่นี่
+          return
+        }
+        sessionStorage.removeItem(FLAG) // ลองแล้วก็ยังไม่ผ่าน เคลียร์ไว้ให้ลองใหม่ได้รอบหน้า
+      }
       setRetrying(null)
       setErrMsg(err?.response?.data?.error?.message ?? err?.message ?? 'เกิดข้อผิดพลาด')
       setBootState('error')
