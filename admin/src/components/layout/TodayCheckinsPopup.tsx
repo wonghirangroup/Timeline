@@ -11,13 +11,13 @@
 // แล้วจัดเข้าสาขาตามกะที่เช็คอินจริง (shift.branch) ไม่ใช่สาขาหลักของพนักงาน
 // (เผื่อเช็คอินที่สาขารอง) ส่วนคนที่ยังไม่เช็คอินเลย ใช้สาขาหลักไปก่อน (ยังไม่รู้
 // ว่าจะมาเช็คอินที่ไหน) — มือถือยังคงเป็นลิสต์เดียวเหมือนเดิม (จอเล็กเกินจะแบ่ง grid)
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarCheck2, Search, Building2, X } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { avatarUrl } from '../../lib/upload'
-import { fmtThaiDate } from '../../lib/format'
+import { fmtThaiDate, deptName } from '../../lib/format'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import Modal from '../ui/Modal'
 import { SkeletonRows } from '../ui/Skeleton'
@@ -31,7 +31,7 @@ interface ApiRecord {
 }
 interface ApiEmployee {
   id: string; first_name: string; last_name: string; nickname: string | null
-  photo_url?: string | null; branch: { id: string; name: string }
+  photo_url?: string | null; branch: { id: string; name: string }; department?: string | null
 }
 interface ApiBranch { id: string; name: string }
 
@@ -68,7 +68,7 @@ function todayStr() {
 
 interface Row {
   id: string; name: string; nickname: string | null; photo_url?: string | null
-  branchId: string; branchName: string; shiftName: string | null
+  branchId: string; branchName: string; shiftName: string | null; dept: string
   checkInAt: string | null; status: Status
 }
 
@@ -98,6 +98,7 @@ function useRows() {
       return {
         id: e.id, name: `${e.first_name} ${e.last_name}`, nickname: e.nickname,
         photo_url: e.photo_url, branchId, branchName, shiftName: r?.shift.name ?? null,
+        dept: deptName(e.department),
         checkInAt: r?.check_in_at ?? null, status: deriveStatus(r),
       }
     })
@@ -138,10 +139,28 @@ function EmployeeRow({ row, i, onClick }: { row: Row; i: number; onClick: () => 
   )
 }
 
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'ทุกสถานะ' },
+  { value: 'ON_TIME', label: 'มาปกติ' },
+  { value: 'LATE', label: 'มาสาย' },
+  { value: 'PENDING', label: 'ยังไม่เช็ค' },
+  { value: 'ABSENT', label: 'ขาด' },
+]
+
+const selectStyle: CSSProperties = {
+  padding: '7px 10px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '12.5px',
+  fontFamily: 'inherit', background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
+}
+
 // ─── Header ใช้ร่วมกันทั้ง 2 โหมด ──────────────────────────────────────────
-function Header({ today, checkedIn, total, lateCount, search, setSearch, onClose }: {
+function Header({ today, checkedIn, total, lateCount, search, setSearch, onClose,
+  statusFilter, setStatusFilter, branchFilter, setBranchFilter, deptFilter, setDeptFilter, branches, depts }: {
   today: string; checkedIn: number; total: number; lateCount: number
   search: string; setSearch: (v: string) => void; onClose: () => void
+  statusFilter: string; setStatusFilter: (v: string) => void
+  branchFilter: string; setBranchFilter: (v: string) => void
+  deptFilter: string; setDeptFilter: (v: string) => void
+  branches: ApiBranch[]; depts: string[]
 }) {
   return (
     <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #E6ECF4', flexShrink: 0 }}>
@@ -160,10 +179,23 @@ function Header({ today, checkedIn, total, lateCount, search, setSearch, onClose
         {lateCount > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '4px 10px', borderRadius: 99 }}>มาสาย {lateCount} คน</span>}
       </div>
 
-      <div style={{ position: 'relative', maxWidth: 360 }}>
-        <Search size={14} color="#9CA3AF" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)' }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ, สาขา..."
-          style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 360 }}>
+          <Search size={14} color="#9CA3AF" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ, สาขา..."
+            style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }} />
+        </div>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
+          {STATUS_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} style={selectStyle}>
+          <option value="ALL">ทุกสาขา</option>
+          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={selectStyle}>
+          <option value="ALL">ทุกแผนก</option>
+          {depts.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
       </div>
     </div>
   )
@@ -174,12 +206,25 @@ export default function TodayCheckinsPopup({ onClose }: { onClose: () => void })
   const isMobile = useIsMobile()
   const { rows, branches, today, loading } = useRows()
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [branchFilter, setBranchFilter] = useState('ALL')
+  const [deptFilter, setDeptFilter] = useState('ALL')
+
+  const depts = useMemo(() => [...new Set(rows.map(r => r.dept))].sort((a, b) => a.localeCompare(b, 'th')), [rows])
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows
-    const q = search.trim().toLowerCase()
-    return rows.filter(r => `${r.name} ${r.nickname ?? ''} ${r.branchName}`.toLowerCase().includes(q))
-  }, [rows, search])
+    let out = rows
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      out = out.filter(r => `${r.name} ${r.nickname ?? ''} ${r.branchName}`.toLowerCase().includes(q))
+    }
+    if (statusFilter !== 'ALL') {
+      out = out.filter(r => statusFilter === 'LATE' ? (r.status === 'LATE_1' || r.status === 'LATE_2') : r.status === statusFilter)
+    }
+    if (branchFilter !== 'ALL') out = out.filter(r => r.branchId === branchFilter)
+    if (deptFilter !== 'ALL') out = out.filter(r => r.dept === deptFilter)
+    return out
+  }, [rows, search, statusFilter, branchFilter, deptFilter])
 
   const checkedIn = rows.filter(r => r.checkInAt).length
   const lateCount = rows.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length
@@ -208,16 +253,19 @@ export default function TodayCheckinsPopup({ onClose }: { onClose: () => void })
       map.get(r.branchId)!.rows.push(r)
     }
     const groups = [...map.entries()].map(([id, v]) => ({ id, ...v }))
-    if (search.trim()) return groups.filter(g => g.rows.length > 0)
+    const anyFilterActive = !!search.trim() || statusFilter !== 'ALL' || branchFilter !== 'ALL' || deptFilter !== 'ALL'
+    if (anyFilterActive) return groups.filter(g => g.rows.length > 0)
     return groups.sort((a, b) => b.rows.length - a.rows.length)
-  }, [branches, filtered, search])
+  }, [branches, filtered, search, statusFilter, branchFilter, deptFilter])
 
   // ── มือถือ: ลิสต์เดียวเหมือนเดิม (จอเล็กเกินจะแบ่ง grid หลายสาขา) ──────────
   if (isMobile) {
     return (
       <Modal onClose={onClose} width={480} dismissable labelledBy="today-checkins-title">
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
-          <Header today={today} checkedIn={checkedIn} total={rows.length} lateCount={lateCount} search={search} setSearch={setSearch} onClose={onClose} />
+          <Header today={today} checkedIn={checkedIn} total={rows.length} lateCount={lateCount} search={search} setSearch={setSearch} onClose={onClose}
+            statusFilter={statusFilter} setStatusFilter={setStatusFilter} branchFilter={branchFilter} setBranchFilter={setBranchFilter}
+            deptFilter={deptFilter} setDeptFilter={setDeptFilter} branches={branches} depts={depts} />
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {loading ? (
               <div style={{ padding: '8px 20px' }}><SkeletonRows rows={6} /></div>
@@ -240,7 +288,9 @@ export default function TodayCheckinsPopup({ onClose }: { onClose: () => void })
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 500, display: 'flex', flexDirection: 'column' }}
       role="dialog" aria-modal="true" aria-labelledby="today-checkins-title">
-      <Header today={today} checkedIn={checkedIn} total={rows.length} lateCount={lateCount} search={search} setSearch={setSearch} onClose={onClose} />
+      <Header today={today} checkedIn={checkedIn} total={rows.length} lateCount={lateCount} search={search} setSearch={setSearch} onClose={onClose}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter} branchFilter={branchFilter} setBranchFilter={setBranchFilter}
+        deptFilter={deptFilter} setDeptFilter={setDeptFilter} branches={branches} depts={depts} />
       <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
         {loading ? (
           <SkeletonRows rows={8} />
