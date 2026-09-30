@@ -440,6 +440,29 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     if (other) swapNameByOffId.set(mine, other.nickname || `${other.first_name} ${other.last_name}`)
   }
 
+  // เพื่อนร่วมสาขาลา (แยกจากวันหยุดประจำด้านบน) — ปฏิทินฝั่งพนักงาน feedback
+  // 2026-09-30: "ให้เห็นวันหยุดวันลาของแต่ละคนเลย ทำสีแยกไว้ว่าอันไหนเป็นของ
+  // เพื่อน อันของเรา" (ก่อนหน้านี้เคยตัดออกไปตาม feedback 2026-09-15 ที่ขอให้
+  // เหลือแค่ของตัวเอง — ตอนนี้กลับมาเปิดอีกครั้งตามที่ขอใหม่) — เอาเฉพาะ
+  // APPROVED เท่านั้น (ไม่โชว์ PENDING ของคนอื่น กันสับสน) และไม่ส่ง reason
+  // กลับไปด้วย (เป็นเรื่องส่วนตัวของเพื่อนร่วมงาน ไม่ใช่ของเรา)
+  const monthStart = new Date(Date.UTC(y, m - 1, 1))
+  const monthEnd   = new Date(Date.UTC(y, m, 0))
+  const colleagueLeavesRaw = await prisma.leaveRequest.findMany({
+    where: {
+      tenant_id: tenantId,
+      status: 'APPROVED',
+      employee_id: { not: employeeId },
+      employee: employeeWhere,
+      start_date: { lte: monthEnd },
+      end_date: { gte: monthStart },
+    },
+    select: {
+      id: true, leave_type: true, start_date: true, end_date: true,
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+    },
+  })
+
   // same_position: คนตำแหน่งเดียวกับตัวเอง — ใช้กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน (ยังจองซ้ำได้ แต่ให้เห็น flag)
   return {
     own: ownRecords.map(r => ({ ...r, swapped_with: swapNameByOffId.get(r.id) ?? null })),
@@ -447,6 +470,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       ...r,
       same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,
     })),
+    colleagueLeaves: colleagueLeavesRaw,
   }
 }
 

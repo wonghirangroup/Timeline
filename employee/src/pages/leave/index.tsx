@@ -30,6 +30,10 @@ interface ColleagueOff {
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
   same_position?: boolean   // true = เพื่อนร่วมตำแหน่งเดียวกัน (กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน)
 }
+interface ColleagueLeave {
+  id: string; leave_type: string; start_date: string; end_date: string
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null }
+}
 interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
@@ -80,11 +84,11 @@ function fmtDate(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
-// เหมือน fmtDate แต่เติมชื่อวันนำหน้า — ใช้เฉพาะจุดที่ยังไม่มีชื่อวันโชว์แยกอยู่แล้ว
-// (feedback: การ์ดวันหยุดที่จองไว้บอกแค่วันที่ เดาไม่ออกว่าวันอะไร)
+// รูปแบบเต็ม "จันทร์ที่ 21 ตุลาคม 2569" — ใช้เฉพาะจุดที่ยังไม่มีชื่อวันโชว์แยกอยู่แล้ว
+// (feedback: วันที่สั้นแบบ "1 ก.ย. 2569" เดาไม่ออกว่าวันอะไร อยากได้เต็มแบบนี้)
 function fmtDateFull(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
-  return `${DAYS_MED[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
+  return `${DAYS_MED[d.getDay()]}ที่ ${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 function fmtDateShort(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
@@ -148,26 +152,32 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
   // แล้ว (queryKey ตรงกัน ไม่ fetch ซ้ำถ้าเปิดแท็บอื่นมาก่อน) feedback
   // 2026-09-14: "ปฏิทิน รวมเฉพาะของตัวเอง ว่าตัวเองมีหยุดวันไหนบ้าง รวมหยุด
   // ประจำเดือน + ลา"
-  const offQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+  const offQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[]; colleagueLeaves: ColleagueLeave[] }>({
     queryKey: ['employee', 'weekly-off-view', employeeId, month],
     queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
   })
-  // เดิมเคยดึง colleagues มาโชว์จุดสี/รายชื่อเพื่อนร่วมงานในแท็บนี้ด้วย — feedback
-  // 2026-09-15: "Tab ปฏิทินให้ขึ้นแค่ข้อมูลการหยุดของเราก็พอ" ตัดออก ข้อมูล
-  // เพื่อนร่วมงานย้ายไปอยู่ที่แท็บ "จองหยุด" อย่างเดียว (แตะวันดูได้ที่นั่น)
-  const own        = offQ.data?.own ?? []
+  const own = offQ.data?.own ?? []
+  // เพื่อนร่วมสาขา (วันหยุดประจำ + วันลาอนุมัติแล้ว) — เคยตัดออกตาม feedback
+  // 2026-09-15 ("ให้ขึ้นแค่ของเราก็พอ") ตอนนี้กลับมาเปิดอีกครั้งตามที่ขอใหม่
+  // 2026-09-30: "ให้เห็นวันหยุดวันลาของแต่ละคนเลย แยกสีเพื่อน/เรา"
+  const colleaguesOff    = offQ.data?.colleagues ?? []
+  const colleagueLeaves  = offQ.data?.colleagueLeaves ?? []
 
   const getMyOff    = (d: string) => own.find(o => o.status !== 'REJECTED' && resolveDate(o.week_start, o.day_of_week) === d) ?? null
   const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
   const getHoliday  = (d: string) => holidays.find(h => h.date === d) ?? null
+  const getColleaguesOff   = (d: string) => colleaguesOff.filter(o => o.status === 'APPROVED' && resolveDate(o.week_start, o.day_of_week) === d)
+  const getColleagueLeaves = (d: string) => colleagueLeaves.filter(l => l.start_date <= d && l.end_date >= d)
 
   const myOffThisMonth = own.filter(o => o.status === 'APPROVED').length
 
-  const selMyOff  = selDay ? getMyOff(selDay)    : null
-  const selLeaves = selDay ? getMyLeaves(selDay)  : []
-  const selHol    = selDay ? getHoliday(selDay)   : null
-  const selEmpty  = !selMyOff && !selLeaves.length && !selHol
+  const selMyOff   = selDay ? getMyOff(selDay)    : null
+  const selLeaves  = selDay ? getMyLeaves(selDay)  : []
+  const selHol     = selDay ? getHoliday(selDay)   : null
+  const selColOff  = selDay ? getColleaguesOff(selDay)   : []
+  const selColLeaves = selDay ? getColleagueLeaves(selDay) : []
+  const selEmpty   = !selMyOff && !selLeaves.length && !selHol && !selColOff.length && !selColLeaves.length
 
   return (
     <div>
@@ -211,6 +221,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             const myOff     = getMyOff(dateStr)
             const myLeaves  = getMyLeaves(dateStr)
             const holiday   = getHoliday(dateStr)
+            const colCount  = getColleaguesOff(dateStr).length + getColleagueLeaves(dateStr).length
             const isToday   = dateStr === today
             const isSel     = selDay === dateStr
             const isApprOff = myOff?.status === 'APPROVED'
@@ -236,6 +247,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             return (
               <button key={i} onClick={() => setSelDay(p => p === dateStr ? null : dateStr)}
                 style={{
+                  position: 'relative',
                   height: 72, borderRadius: 12, border: isSel ? '2px solid #244B83'
                     : isApprOff ? '1.5px solid #B2C0D4'
                     : isPendOff ? '1.5px dashed #FCD34D'
@@ -274,6 +286,15 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                 {firstLeave && lCfg && (
                   <div style={{ width: '75%', height: 5, borderRadius: 99, background: lCfg.color, opacity: firstLeave.status === 'PENDING' ? 0.55 : 1 }} />
                 )}
+
+                {/* เพื่อนร่วมงานหยุด/ลา — คนละสีกับของเรา (เตา/teal) กันสับสนว่าใครหยุด
+                    (feedback 2026-09-30: "แยกสีไว้ว่าอันไหนเป็นของเพื่อน อันของเรา") */}
+                {colCount > 0 && (
+                  <div style={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', alignItems: 'center', gap: 2, background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: 99, padding: '1px 5px' }}>
+                    <Users size={8} color="#0D9488" />
+                    <span style={{ fontSize: '0.55rem', fontWeight: 800, color: '#0D9488', lineHeight: 1.3 }}>{colCount}</span>
+                  </div>
+                )}
               </button>
             )
           })}
@@ -286,6 +307,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
+            { bg: '#F0FDFA', border: '1.5px solid #99F6E4', label: 'เพื่อนร่วมงานหยุด/ลา' },
             ...(statusType ? [
               { bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดประจำ (ตามสถานะ)' },
               { bg: '#FAF5FF', border: '1.5px solid #E9D5FF', label: 'ทำงานนอกสถานที่ (ตามสถานะ)' },
@@ -365,6 +387,33 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               </div>
             )
           })}
+
+          {/* เพื่อนร่วมงาน — สีเตา (teal) แยกจากโทนน้ำเงิน/สีประเภทลาของเราด้านบน
+              ไม่โชว์เหตุผลการลาของเพื่อน (เรื่องส่วนตัวของแต่ละคน) */}
+          {(selColOff.length > 0 || selColLeaves.length > 0) && (
+            <div style={{ marginTop: selMyOff || selLeaves.length ? 12 : 0 }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0D9488', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Users size={13} /> เพื่อนร่วมงานหยุด/ลาวันนี้
+              </div>
+              {selColOff.map(o => (
+                <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+                  <Palmtree size={16} color="#0D9488" />
+                  <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{o.employee.nickname || `${o.employee.first_name} ${o.employee.last_name}`}</span>
+                  <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>วันหยุดประจำ</span>
+                </div>
+              ))}
+              {selColLeaves.map(l => {
+                const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)
+                return (
+                  <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+                    <CalendarDays size={16} color="#0D9488" />
+                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>{cfg?.label ?? l.leave_type}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -390,7 +439,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C' }}>{cfg?.label ?? r.leave_type}</div>
                     <div style={{ fontSize: '0.73rem', color: '#6B7280', marginTop: 2 }}>
-                      {r.start_date === r.end_date ? fmtDate(r.start_date) : `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`}
+                      {r.start_date === r.end_date ? fmtDateFull(r.start_date) : `${fmtDateFull(r.start_date)} – ${fmtDateFull(r.end_date)}`}
                       {leavePeriodBadge(r) ? ` · ${leavePeriodBadge(r)}` : ''} · {r.days} วัน
                     </div>
                   </div>
@@ -534,7 +583,7 @@ function SwapPickerSheet({ employeeId, month, requesterOffId, onClose }: {
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>{c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`}</div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{fmtDate(resolveDate(c.week_start, c.day_of_week))}</div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{fmtDateFull(resolveDate(c.week_start, c.day_of_week))}</div>
               </div>
               <button onClick={() => swapMutation.mutate(c.id)} disabled={swapMutation.isPending}
                 style={{ padding: '6px 14px', borderRadius: 10, border: 'none', background: COLOR.primary, color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
@@ -607,7 +656,7 @@ function SwapRequestsPanel({ employeeId }: { employeeId: string }) {
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#5B21B6' }}>คำขอสลับวันหยุด</span>
             </div>
             <div style={{ fontSize: '0.82rem', color: '#374151', marginBottom: 10 }}>
-              <b>{name}</b> ขอสลับวันหยุด <b>{r.target_date ? fmtDate(r.target_date) : '—'}</b> ของคุณ กับวันหยุด <b>{r.requester_date ? fmtDate(r.requester_date) : '—'}</b> ของเขา
+              <b>{name}</b> ขอสลับวันหยุด <b>{r.target_date ? fmtDateFull(r.target_date) : '—'}</b> ของคุณ กับวันหยุด <b>{r.requester_date ? fmtDateFull(r.requester_date) : '—'}</b> ของเขา
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setBusyId(r.id); setErrorById(m => ({ ...m, [r.id]: '' })); respondMutation.mutate({ id: r.id, accept: true }) }} disabled={busyId === r.id}
@@ -1844,7 +1893,13 @@ export default function LeavePage() {
               <div style={{ display: 'grid', gridTemplateColumns: form.period === 'FULL' ? '1fr 1fr' : '1fr', gap: 10, marginBottom: 16 }}>
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6B7D90', marginBottom: 6 }}>{form.period === 'FULL' ? 'วันที่เริ่มลา' : 'วันที่ลา'}</div>
-                  <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({ ...f, startDate: v }))} min={minLeaveDate} />
+                  <ThaiDatePicker value={form.startDate} onChange={v => setForm(f => ({
+                    ...f, startDate: v,
+                    // ลาวันเดียว (กรณีส่วนใหญ่) ไม่อยากให้ต้องกดวันที่สิ้นสุดซ้ำอีกรอบ — auto
+                    // เติมให้ตรงกับวันเริ่มไปก่อน ถ้าจะลาหลายวันค่อยไปแก้ "วันที่สิ้นสุด" เอง
+                    // (ไม่ทับถ้าเคยเลือกช่วงหลายวันไว้แล้วและยังไม่ขัดกับวันเริ่มใหม่)
+                    endDate: (!f.endDate || f.endDate < v) ? v : f.endDate,
+                  }))} min={minLeaveDate} />
                 </div>
                 {form.period === 'FULL' && (
                   <div>

@@ -17,10 +17,10 @@ const DOW_TH   = ['อาทิตย์', 'จันทร์', 'อังค�
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
 
 // แจ้งทาง LINE เดิมใช้วันที่ดิบ "2026-10-01" อ่านไม่รู้ว่าวันอะไร (feedback:
-// "เพิ่มวันด้วยว่าเป็นวันไหน") — แปลงเป็น "พฤหัส 1 ตุลาคม 2569" แทน
+// "เพิ่มวันด้วยว่าเป็นวันไหน") — แปลงเป็น "พฤหัสที่ 1 ตุลาคม 2569" แทน
 function formatThaiDate(dateStr: string): string {
   const d = new Date(dateStr.slice(0, 10) + 'T00:00:00')
-  return `${DOW_TH[d.getDay()]} ${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear() + 543}`
+  return `${DOW_TH[d.getDay()]}ที่ ${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 
 // endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
