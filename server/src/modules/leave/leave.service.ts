@@ -64,12 +64,16 @@ export async function listLeaveRequests(tenantId: string, filters: {
         : { employee_id: { in: filters.scopedEmployeeIds } })
     : (filters.employeeId ? { employee_id: filters.employeeId } : {})
 
+  // เดิมไม่กรอง employee.deleted_at เลย — พนักงานที่ถูกลบไปแล้ว (soft-delete)
+  // แต่มีวันลาเก่าติดอยู่ ยังโผล่ในปฏิทินรวม/รายงานอยู่ ดูเหมือนคนซ้ำกับ record
+  // ใหม่ที่ใช้ชื่อเดียวกัน (feedback 2026-09-30: "ใน 1 วันมันมีซ้ำกันด้วย" —
+  // เจอ "เน็ต" ขึ้น 2 ครั้งเพราะมี record เก่าที่ลบไปแล้วติดค้างอยู่)
   return prisma.leaveRequest.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...employeeFilter,
       ...(filters.status ? { status: filters.status as any } : {}),
-      ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
+      employee: { deleted_at: null, ...(filters.branchId ? employeeBranchWhere(filters.branchId) : {}) },
     },
     include: {
       employee: {

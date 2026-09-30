@@ -93,6 +93,10 @@ export async function listWeeklyOff(tenantId: string, filters: {
   } else if (filters.branchId) {
     where.employee = employeeBranchWhere(filters.branchId)
   }
+  // เดิมไม่กรอง employee.deleted_at เลย — พนักงานที่ถูกลบไปแล้วแต่มีวันหยุด
+  // ประจำเก่าติดอยู่ ยังโผล่ในปฏิทินรวมอยู่ (บั๊กเดียวกับที่เจอใน listLeaveRequests
+  // — feedback 2026-09-30 "ใน 1 วันมันมีซ้ำกันด้วย")
+  where.employee = { deleted_at: null, ...(where.employee ?? {}) }
 
   const results = await prisma.weeklyOffRequest.findMany({
     where,
