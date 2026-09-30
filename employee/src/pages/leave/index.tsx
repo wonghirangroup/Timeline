@@ -769,7 +769,12 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     ;(conflictsByDate[d] ??= []).push(c)
   }
   const pickedCount = Object.keys(picks).length
-  const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= quota) : (pickedCount === requiredWeeks.length)
+  // จองเพิ่มได้เรื่อยๆ ไม่ต้องยกเลิกของเดิมที่อนุมัติแล้วก่อน (feedback 2026-09-30:
+  // "จองไป 3 วันอนุมัติแล้ว จะจองต่ออีก 2 วันโดยไม่แก้อันเดิม") — โควต้าที่เหลือ
+  // ให้จองใหม่ = โควต้ารวม ลบจำนวนที่จองไปแล้ว (ไม่ว่าจะ PENDING หรือ APPROVED)
+  const remainingQuota = Math.max(0, quota - ownThisMonth.length)
+  const bookedDateSet  = new Set(ownThisMonth.map(r => resolveDate(r.week_start, r.day_of_week)))
+  const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= remainingQuota) : (pickedCount === requiredWeeks.length)
 
   const submitMutation = useMutation({
     mutationFn: () => api.post('/employee/weekly-off/monthly-batch', { employee_id: employeeId, month, dates: Object.values(picks) }),
@@ -917,12 +922,15 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
         </div>
       )}
 
-      {/* ── Month grid picker ───────────────────────────────────── */}
-      {isOpen && ownThisMonth.length === 0 && !noDaysLeft && (
+      {/* ── Month grid picker — โชว์ต่อได้แม้จองไปแล้วบางวัน ถ้าโควต้ายังเหลือ
+          (ไม่ต้องกด "ยกเลิกคำขอทั้งเดือน" ก่อนถึงจะจองเพิ่มได้) ───────────── */}
+      {isOpen && !noDaysLeft && (hasQuota ? remainingQuota > 0 : ownThisMonth.length === 0) && (
         <>
           <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
             {hasQuota
-              ? `เลือกวันหยุดได้สูงสุด ${quota} วัน/เดือน (${pickedCount}/${quota})`
+              ? (ownThisMonth.length > 0
+                  ? `จองไปแล้ว ${ownThisMonth.length} วัน — จองเพิ่มได้อีก ${remainingQuota} วัน (${pickedCount}/${remainingQuota})`
+                  : `เลือกวันหยุดได้สูงสุด ${quota} วัน/เดือน (${pickedCount}/${quota})`)
               : `เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ (${pickedCount}/${requiredWeeks.length})`}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
@@ -941,16 +949,18 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
               const isPast     = dateStr < todayStr
               const key        = hasQuota ? dateStr : monday
               const isSel      = picks[key] === dateStr
-              const quotaFull  = hasQuota && !isSel && pickedCount >= quota
-              const isPickable = hasQuota ? (inMonth && !isPast && !quotaFull) : (isRequiredWeek && !isPast)
+              const isBooked   = bookedDateSet.has(dateStr)   // จองไปแล้ว (PENDING/APPROVED) — เลือกซ้ำไม่ได้
+              const quotaFull  = hasQuota && !isSel && pickedCount >= remainingQuota
+              const isPickable = hasQuota ? (inMonth && !isPast && !quotaFull && !isBooked) : (isRequiredWeek && !isPast)
               const samePosition  = colleagues.some(c => c.same_position && resolveDate(c.week_start, c.day_of_week) === dateStr)
               const otherColleague = !samePosition && colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
               return (
-                <button key={i} disabled={!isPickable && !isSel} onClick={() => toggleDay(dateStr)} style={{
-                  aspectRatio: '1', borderRadius: 10, border: isSel ? `2px solid ${COLOR.primary}` : '1px solid #E5E7EB',
-                  background: isSel ? COLOR.primary : (!isPickable && !isSel) ? '#F9FAFB' : '#fff',
-                  color: isSel ? '#fff' : !inMonth ? '#E5E7EB' : (!isPickable && !isSel) ? '#D1D5DB' : '#1A2B3C',
-                  fontSize: '0.78rem', fontWeight: isSel ? 800 : 500, cursor: (isPickable || isSel) ? 'pointer' : 'not-allowed',
+                <button key={i} disabled={(!isPickable && !isSel) || isBooked} onClick={() => toggleDay(dateStr)} title={isBooked ? 'จองไปแล้ว' : undefined} style={{
+                  aspectRatio: '1', borderRadius: 10,
+                  border: isSel ? `2px solid ${COLOR.primary}` : isBooked ? `1.5px solid ${COLOR.primary}55` : '1px solid #E5E7EB',
+                  background: isSel ? COLOR.primary : isBooked ? `${COLOR.primary}14` : (!isPickable && !isSel) ? '#F9FAFB' : '#fff',
+                  color: isSel ? '#fff' : isBooked ? COLOR.primary : !inMonth ? '#E5E7EB' : (!isPickable && !isSel) ? '#D1D5DB' : '#1A2B3C',
+                  fontSize: '0.78rem', fontWeight: isSel || isBooked ? 800 : 500, cursor: isBooked ? 'default' : (isPickable || isSel) ? 'pointer' : 'not-allowed',
                   fontFamily: 'inherit', position: 'relative', padding: 0,
                 }}>
                   {day >= 1 && day <= daysInMonth ? day : Number(dateStr.slice(8))}
@@ -995,7 +1005,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
             {submitMutation.isPending
               ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
               : complete ? <><CheckCircle2 size={17} /> ส่งคำขอหยุด {pickedCount} วัน</>
-              : hasQuota ? `เลือกอย่างน้อย 1 วัน (สูงสุด ${quota} วัน)`
+              : hasQuota ? `เลือกอย่างน้อย 1 วัน (เหลือโควต้า ${remainingQuota} วัน)`
               : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
           </button>
         </>
