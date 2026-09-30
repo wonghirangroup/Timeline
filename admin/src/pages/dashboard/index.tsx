@@ -323,43 +323,26 @@ export default function DashboardPage() {
   const { activeOffsite } = useActiveOffsite()
 
   // ── Merge employees + records into rows ───────────────────────────────────
+  // scope ด้วยรายชื่อพนักงานที่ยังใช้งานอยู่ (employees, มาจาก /admin/employees
+  // ซึ่ง default กรอง status=ACTIVE อยู่แล้ว) เป็นหลักเสมอ — เดิมวนจาก records
+  // ก่อน (เช็คอินของวันนี้ทั้งหมด ไม่กรองสถานะพนักงาน) ทำให้คนที่ลาออกไปแล้วแต่
+  // ยังมีข้อมูลเช็คอินของวันนี้ค้างอยู่ (พบ 3 คน) โผล่มานับรวมเป็น "ทั้งหมด" ด้วย
+  // ตัวเลขเลยไม่ตรงกับหน้าอื่นๆ ที่กรองเฉพาะพนักงาน active (feedback 2026-09-30:
+  // "ทำไม Dashboard มี 30" ในขณะที่หน้าโควต้าวันลาแสดง 28)
   const allRows = useMemo(() => {
-    const byEmpId: Record<string, ApiRecord[]> = {}
-    for (const r of records) {
-      if (!byEmpId[r.employee_id]) byEmpId[r.employee_id] = []
-      byEmpId[r.employee_id].push(r)
-    }
+    const byEmpId = new Map(records.map(r => [r.employee_id, r]))
 
-    const rows: { key: string; empId: string; name: string; nickname: string | null; photo_url?: string | null; branch: { id: string; name: string }; record: ApiRecord | null; status: DashStatus }[] = []
-
-    // employees with records
-    for (const r of records) {
-      rows.push({
-        key: r.id, empId: r.employee_id,
-        name: `${r.employee.first_name} ${r.employee.last_name}`,
-        nickname: r.employee.nickname,
-        photo_url: r.employee.photo_url,
-        branch: r.employee.branch,
+    return employees.map(e => {
+      const r = byEmpId.get(e.id) ?? null
+      return {
+        key: e.id, empId: e.id,
+        name: (e as any).first_name ? `${(e as any).first_name} ${(e as any).last_name}` : e.id,
+        nickname: (e as any).nickname ?? null,
+        photo_url: e.photo_url,
+        branch: e.branch,
         record: r, status: deriveStatus(r),
-      })
-    }
-
-    // employees without records → PENDING
-    const seenIds = new Set(records.map(r => r.employee_id))
-    for (const e of employees) {
-      if (!seenIds.has(e.id)) {
-        rows.push({
-          key: `no-${e.id}`, empId: e.id,
-          name: (e as any).first_name ? `${(e as any).first_name} ${(e as any).last_name}` : e.id,
-          nickname: (e as any).nickname ?? null,
-          photo_url: e.photo_url,
-          branch: e.branch,
-          record: null, status: 'PENDING',
-        })
       }
-    }
-
-    return rows
+    })
   }, [records, employees])
 
   const filtered = useMemo(() =>
