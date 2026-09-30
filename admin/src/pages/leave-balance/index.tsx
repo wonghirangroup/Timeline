@@ -70,11 +70,21 @@ function MiniBar({ used, quota, color }: { used: number; quota: number; color: s
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 interface EditModalProps {
   balance: LeaveBalance
+  year: number
   onSave: (id: string, quotas: Quotas) => Promise<void>
   onClose: () => void
 }
 
-function EditModal({ balance, onSave, onClose }: EditModalProps) {
+interface ApiLeaveRequest {
+  id: string; leave_type: string; start_date: string; end_date: string; days: number; status: string
+}
+const LEAVE_KEY_TO_TYPE: Record<LeaveKey, string> = { sick: 'SICK', personal: 'PERSONAL', vacation: 'VACATION', compensate: 'COMPENSATE' }
+function fmtShortDate(s: string): string {
+  const d = new Date(s.slice(0, 10) + 'T00:00:00')
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+}
+
+function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
   const [quotas, setQuotas] = useState<Quotas>({
     sick:       balance.sick?.total ?? 0,
     personal:   balance.personal?.total ?? 0,
@@ -82,6 +92,23 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
     compensate: balance.compensate?.total ?? 0,
   })
   const overlayRef = useRef<HTMLDivElement>(null)
+  // วันที่ใช้ไปจริงต่อประเภท — feedback 2026-09-30: "ไม่รู้ว่าพนักงานหยุดวัน
+  // ไหนไปบ้าง" เดิมมีแค่ตัวเลขรวม กดดูรายละเอียดวันที่ได้ต่อประเภท
+  const [expanded, setExpanded] = useState<Set<LeaveKey>>(new Set())
+  const { data: leaveReqs = [] } = useQuery<ApiLeaveRequest[]>({
+    queryKey: ['admin', 'leave-requests', 'employee', balance.employee_id, 'APPROVED'],
+    queryFn: () => api.get('/api/v1/admin/leave-requests', { params: { employeeId: balance.employee_id, status: 'APPROVED' } }).then(r => r.data.data),
+  })
+  const datesByType = useMemo(() => {
+    const out: Record<LeaveKey, ApiLeaveRequest[]> = { sick: [], personal: [], vacation: [], compensate: [] }
+    for (const r of leaveReqs) {
+      if (new Date(r.start_date).getFullYear() !== year) continue
+      const key = (Object.keys(LEAVE_KEY_TO_TYPE) as LeaveKey[]).find(k => LEAVE_KEY_TO_TYPE[k] === r.leave_type)
+      if (key) out[key].push(r)
+    }
+    for (const k of Object.keys(out) as LeaveKey[]) out[k].sort((a, b) => a.start_date < b.start_date ? -1 : 1)
+    return out
+  }, [leaveReqs, year])
 
   useEffect(() => {
     function h(e: MouseEvent) { if (overlayRef.current === e.target) onClose() }
@@ -119,35 +146,55 @@ function EditModal({ balance, onSave, onClose }: EditModalProps) {
             const used = usedOf(balance, lt.key)
             const q = quotas[lt.key]
             const overUsed = used > q
+            const dates = datesByType[lt.key]
+            const isOpen = expanded.has(lt.key)
             return (
-              <div key={lt.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 12, background: lt.bg, border: `1.5px solid ${lt.border}` }}>
-                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{lt.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: lt.color }}>{lt.label}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>
-                    ใช้ไปแล้ว {used} วัน
-                    {overUsed && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#dc2626', fontWeight: 700, marginLeft: 6 }}><AlertTriangle size={11} /> เกินโควต้า!</span>}
+              <div key={lt.key} style={{ borderRadius: 12, background: lt.bg, border: `1.5px solid ${lt.border}`, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px' }}>
+                  <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{lt.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: lt.color }}>{lt.label}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <span>ใช้ไปแล้ว {used} วัน</span>
+                      {overUsed && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#dc2626', fontWeight: 700 }}><AlertTriangle size={11} /> เกินโควต้า!</span>}
+                      {dates.length > 0 && (
+                        <button onClick={() => setExpanded(s => { const n = new Set(s); n.has(lt.key) ? n.delete(lt.key) : n.add(lt.key); return n })}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.72rem', fontWeight: 700, color: lt.color, textDecoration: 'underline' }}>
+                          {isOpen ? 'ซ่อนวันที่' : `ดูวันที่ (${dates.length})`}
+                        </button>
+                      )}
+                    </div>
+                    <MiniBar used={used} quota={q} color={lt.color} />
                   </div>
-                  <MiniBar used={used} quota={q} color={lt.color} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, p[lt.key] - 1) }))}
+                      style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, color: '#374151', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >−</button>
+                    <input
+                      type="number"
+                      min={0}
+                      value={q}
+                      onChange={e => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: `1.5px solid ${overUsed ? '#fca5a5' : '#e2e8f0'}`, fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', color: overUsed ? '#dc2626' : '#0f172a' }}
+                    />
+                    <button
+                      onClick={() => setQuotas(p => ({ ...p, [lt.key]: p[lt.key] + 1 }))}
+                      style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, color: '#374151', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >+</button>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', width: 24 }}>วัน</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                  <button
-                    onClick={() => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, p[lt.key] - 1) }))}
-                    style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, color: '#374151', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >−</button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={q}
-                    onChange={e => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                    style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: `1.5px solid ${overUsed ? '#fca5a5' : '#e2e8f0'}`, fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', color: overUsed ? '#dc2626' : '#0f172a' }}
-                  />
-                  <button
-                    onClick={() => setQuotas(p => ({ ...p, [lt.key]: p[lt.key] + 1 }))}
-                    style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, color: '#374151', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >+</button>
-                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', width: 24 }}>วัน</span>
-                </div>
+                {isOpen && dates.length > 0 && (
+                  <div style={{ padding: '0 14px 12px 46px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {dates.map(d => (
+                      <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569', background: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '5px 10px' }}>
+                        <span>{d.start_date === d.end_date ? fmtShortDate(d.start_date) : `${fmtShortDate(d.start_date)} – ${fmtShortDate(d.end_date)}`}</span>
+                        <span style={{ fontWeight: 700 }}>{d.days} วัน</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -733,6 +780,7 @@ export default function LeaveBalancePage() {
       {editTarget && (
         <EditModal
           balance={editTarget}
+          year={year}
           onSave={handleSave}
           onClose={() => setEditTarget(null)}
         />
