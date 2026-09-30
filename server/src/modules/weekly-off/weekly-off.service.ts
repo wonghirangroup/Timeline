@@ -414,7 +414,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       employee:   employeeWhere,
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true, photo_url: true } },
     },
     orderBy: { week_start: 'asc' },
   })
@@ -463,7 +463,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     },
     select: {
       id: true, leave_type: true, start_date: true, end_date: true,
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, photo_url: true } },
     },
   })
 

@@ -9,6 +9,7 @@ import { COLOR } from '../../components/ui/tokens'
 import { ThaiDatePicker, BottomSheet } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
+import { avatarUrl } from '../../lib/upload'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface LeaveBalance { leave_type: string; total_days: number; used_days: number }
@@ -27,12 +28,12 @@ function leavePeriodBadge(r: { leave_period?: string; start_time?: string | null
 }
 interface ColleagueOff {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  employee: { id: string; first_name: string; last_name: string; nickname: string | null }
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null }
   same_position?: boolean   // true = เพื่อนร่วมตำแหน่งเดียวกัน (กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน)
 }
 interface ColleagueLeave {
   id: string; leave_type: string; start_date: string; end_date: string
-  employee: { id: string; first_name: string; last_name: string; nickname: string | null }
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null }
 }
 interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -126,6 +127,24 @@ function cellDateStr(ym: string, day: number): string {
 type Tab = 'calendar' | 'booking' | 'request'
 
 interface Holiday { date: string; name: string }
+
+// รูปโปรไฟล์เพื่อนร่วมงานในลิสต์ "เพื่อนร่วมงานหยุด/ลาวันนี้" — feedback
+// 2026-09-30: "เพิ่มโปรไฟล์ของพนักงานแต่ละคนใน เมนูลา tab ปฏิทิน" (เดิมมีแค่
+// ไอคอนวันหยุด/วันลา ไม่รู้หน้าตาว่าเป็นใคร) ไม่มีรูปก็ fallback เป็นตัวอักษร
+// แรกของชื่อบนพื้นสีไล่เฉด เหมือนหน้าโปรไฟล์ตัวเอง
+function ColleagueAvatar({ name, photoUrl, seed }: { name: string; photoUrl?: string | null; seed: number }) {
+  return (
+    <div style={{
+      width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+      background: photoUrl ? '#e2e8f0' : `linear-gradient(135deg, hsl(${(seed * 47) % 360},60%,60%), hsl(${(seed * 47 + 30) % 360},70%,45%))`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 800, color: '#fff',
+    }}>
+      {photoUrl
+        ? <img src={avatarUrl(photoUrl, 56) ?? photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : name.charAt(0)}
+    </div>
+  )
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Personal Calendar Tab
@@ -395,18 +414,18 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0D9488', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
                 <Users size={13} /> เพื่อนร่วมงานหยุด/ลาวันนี้
               </div>
-              {selColOff.map(o => (
+              {selColOff.map((o, i) => (
                 <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
-                  <Palmtree size={16} color="#0D9488" />
+                  <ColleagueAvatar name={o.employee.nickname || o.employee.first_name} photoUrl={o.employee.photo_url} seed={i} />
                   <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{o.employee.nickname || `${o.employee.first_name} ${o.employee.last_name}`}</span>
                   <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>วันหยุดประจำ</span>
                 </div>
               ))}
-              {selColLeaves.map(l => {
+              {selColLeaves.map((l, i) => {
                 const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)
                 return (
                   <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
-                    <CalendarDays size={16} color="#0D9488" />
+                    <ColleagueAvatar name={l.employee.nickname || l.employee.first_name} photoUrl={l.employee.photo_url} seed={selColOff.length + i} />
                     <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}</span>
                     <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>{cfg?.label ?? l.leave_type}</span>
                   </div>
