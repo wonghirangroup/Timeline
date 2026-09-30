@@ -80,10 +80,24 @@ export async function updateBranch(
   return prisma.branch.findFirst({ where: { id } })
 }
 
-export async function deleteBranch(tenantId: string, id: string) {
+// feedback 2026-09-30: เดิม deleteBranch ลบตรงๆ ไม่เช็คเลยว่ามีพนักงาน/กะทำงาน
+// ยังผูกอยู่ — Employee.branch_id และ Shift.branch_id เป็นฟิลด์บังคับ (ไม่มี
+// null ให้ fallback) พอสาขาโดน soft-delete พนักงาน/กะที่เหลือจะ "ลอย" อยู่กับ
+// branch_id ที่ชี้ไปสาขาที่ลบไปแล้ว — ทุกจุดที่ดึงรายชื่อสาขามาทำ dropdown/
+// filter (listBranches กรอง deleted_at:null) จะไม่เห็นสาขานั้นอีกเลย ทำให้
+// พนักงาน/กะกลุ่มนี้หายไปจากรายงาน/ตัวกรองที่อิงสาขาทั้งหมด ทั้งที่ยังอยู่จริง
+// ในฐานข้อมูล — บล็อกการลบไว้ก่อนแทนที่จะเดาย้ายพนักงานให้อัตโนมัติ ให้แอดมิน
+// ย้ายคนออกเองก่อนชัดเจนกว่า
+export async function deleteBranch(tenantId: string, id: string): Promise<{ ok: boolean; employeeCount?: number; shiftCount?: number }> {
+  const [employeeCount, shiftCount] = await Promise.all([
+    prisma.employee.count({ where: { tenant_id: tenantId, branch_id: id, deleted_at: null } }),
+    prisma.shift.count({ where: { tenant_id: tenantId, branch_id: id } }),
+  ])
+  if (employeeCount > 0 || shiftCount > 0) return { ok: false, employeeCount, shiftCount }
+
   const count = await prisma.branch.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
     data: { deleted_at: new Date() },
   })
-  return count.count > 0
+  return { ok: count.count > 0 }
 }

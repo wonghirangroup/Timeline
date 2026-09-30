@@ -340,7 +340,10 @@ export default function BranchPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/admin/branches/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `ลบสาขา "${deleteTarget?.name}" เรียบร้อยแล้ว`); setDeleteTarget(null) },
-    onError: () => showToast('error', 'ลบสาขาไม่สำเร็จ'),
+    // เดิมโชว์ข้อความเดียว "ลบสาขาไม่สำเร็จ" เสมอ ทิ้งข้อความจริงจาก backend
+    // (เช่น "ยังมีพนักงาน N คนสังกัดสาขานี้อยู่") ทิ้งไปเลย — แก้ให้โชว์ข้อความ
+    // จริงถ้ามี ไม่งั้นแอดมินไม่รู้ว่าต้องย้ายพนักงานออกก่อนถึงจะลบได้
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'ลบสาขาไม่สำเร็จ'),
   })
 
   const [modal, setModal]         = useState<ModalMode>(null)

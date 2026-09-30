@@ -138,8 +138,15 @@ export async function branchRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
-    const deleted = await deleteBranch(req.tenantId, req.params.id)
-    if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
+    const result = await deleteBranch(req.tenantId, req.params.id)
+    if (result.employeeCount !== undefined) {
+      // มีพนักงาน/กะทำงานผูกอยู่ — ไม่ลบ ให้แอดมินย้ายออกก่อน (ดู comment ที่ deleteBranch)
+      const parts: string[] = []
+      if (result.employeeCount > 0) parts.push(`พนักงาน ${result.employeeCount} คน`)
+      if (result.shiftCount! > 0) parts.push(`กะทำงาน ${result.shiftCount} กะ`)
+      return reply.code(409).send(fail('HAS_DEPENDENTS', `ลบไม่ได้ — ยังมี${parts.join(' และ ')}สังกัดสาขานี้อยู่ ย้ายออกก่อนแล้วค่อยลบ`))
+    }
+    if (!result.ok) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
     return ok(null, 'ลบสาขาสำเร็จ')
   })
 }
