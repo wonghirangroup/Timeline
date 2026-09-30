@@ -85,7 +85,7 @@ async function syncLeave(db: Firestore, tenantId: string): Promise<LeaveSyncResu
   const snap = await db.collection('employee_leave').get()
   for (const doc of snap.docs) {
     const d = doc.data()
-    const employeeId = empMap.get(d.employeeId)
+    const employeeId = empMap.get(FIREBASE_CODE_ALIAS[d.employeeId] ?? d.employeeId)
     const leaveType = LEAVE_TYPE_MAP[d.type]
     if (!employeeId || !leaveType) { skippedUnknown++; continue }
 
@@ -228,10 +228,17 @@ export interface CheckinSyncResult { created: number; skippedExisting: number; s
 // แต่ไม่เข้า TimeLine เลย (ดู diagnose-firebase-checkins.ts v099) — เพิ่ม alias
 //   หมายเหตุ: ก่อน 19 ส.ค. (วันเข้างานแจ็ค) code 69-04-004 ใน Firebase เคยเป็น "สถาพร เปลื้องมณี"
 //   ~3 รายการ จะพลอย map เข้า 69-04-002 ด้วย — สถาพรไม่มีใน TimeLine อยู่แล้ว ถือเป็น noise ที่รับได้
+// สุกานดา สารกอง (ฟิวส์) / อภิวัฒน์ ทองสันเทียะ (ต้า): รหัส Firebase 69-03-014 /
+// 69-04-005 ดันชนกับรหัสที่ TimeLine เคย auto-gen ให้พนักงานคนอื่นไปแล้วก่อนหน้า
+// (สุวรรณา เชิดบารมี / เผด็จ เปลี่ยนกลาง) ทำให้ syncLeave ผูกวันลาผิดคนทุกคืนมา
+// เป็นเดือน (เจอ+ล้างข้อมูลที่หลุดไปแล้ว 2026-09-30) — สร้างพนักงานใหม่ให้ฟิวส์/ต้า
+// จริงๆ ที่รหัส 69-03-015 / 69-04-006 แทน แล้ว alias รหัสเดิมมาที่นี่
 const FIREBASE_CODE_ALIAS: Record<string, string> = {
   '68-02-004': '68-02-005',
   '69-02-002': '69-02-004',
   '69-04-004': '69-04-002',
+  '69-03-014': '69-03-015',
+  '69-04-005': '69-04-006',
 }
 
 async function syncCheckins(db: Firestore, tenantId: string): Promise<CheckinSyncResult> {
