@@ -337,7 +337,7 @@ export default function ReportPage() {
         if (status === 'ok') ok++
         else if (status === 'late' || status === 'late2') late++
         else if (status === 'absent') absent++
-        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday' || status === 'offsite') leave += (ci as any).leaveFraction ?? 1
+        else if (status === 'leave' || status === 'sick' || status === 'vacation' || status === 'holiday' || status === 'offsite' || status === 'personal') leave += (ci as any).leaveFraction ?? 1
         for (const r of recs ?? []) fine += Number(r.fine) + Number(r.carried_fine)
       }
       return { info, byDate, ok, late, absent, leave, fine }
@@ -367,7 +367,7 @@ export default function ReportPage() {
       if (leaveType === 'VACATION' || leaveType === 'พักร้อน' || leaveType === 'ลาพักร้อน')
         return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน' + halfSuffix, status: 'vacation', leaveFraction: lf }
       if (leaveType === 'PERSONAL' || leaveType === 'ลากิจ')
-        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุด/ลากิจ' + halfSuffix, status: 'leave', leaveFraction: lf }
+        return { bg: '#ede9fe', label: <ClipboardList size={13} />, color: '#7c3aed', tip: 'ลากิจ' + halfSuffix, status: 'personal', leaveFraction: lf }
       if (leaveType === 'MATERNITY')
         return { bg: '#fce7f3', label: <Baby size={13} />, color: '#be185d', tip: 'ลาคลอด' + halfSuffix, status: 'leave', leaveFraction: lf }
       return { bg: '#e0f2fe', label: <ClipboardList size={13} />, color: '#0369a1', tip: leaveType + halfSuffix, status: 'leave', leaveFraction: lf }
@@ -394,7 +394,7 @@ export default function ReportPage() {
     const note = recs.map(r => r.note ?? '').join(' ')
     if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
     if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
-    if (note.includes('ลากิจ'))   return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'ลากิจ', status: 'leave' }
+    if (note.includes('ลากิจ'))   return { bg: '#ede9fe', label: <ClipboardList size={13} />, color: '#7c3aed', tip: 'ลากิจ', status: 'personal' }
     if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
     if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: <AlertOctagon size={13} />, color: '#131C45', tip: 'มาสาย ระดับ 2', status: 'late2' }
     if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: <AlertTriangle size={13} />, color: '#92400e', tip: 'มาสาย', status: 'late' }
@@ -486,6 +486,7 @@ export default function ReportPage() {
     if (status === 'leave' || status === 'holiday') return '#38bdf8'
     if (status === 'sick')     return '#f87171'
     if (status === 'vacation') return '#fde047'
+    if (status === 'personal') return '#a78bfa'
     return '#e5e7eb'
   }
 
@@ -908,8 +909,11 @@ export default function ReportPage() {
               { bg: '#fde8d8', sym: <AlertOctagon size={11} />,  label: 'มาสาย 2' },
               { bg: '#fee2e2', sym: <X size={11} />,             label: 'ขาด' },
               { bg: '#e0f2fe', sym: <CalendarOff size={11} />,   label: 'หยุด' },
+              { bg: '#ede9fe', sym: <ClipboardList size={11} />, label: 'ลากิจ' },
               { bg: '#fef9c3', sym: <Palmtree size={11} />,      label: 'พักร้อน' },
               { bg: '#fee2e2', sym: <Thermometer size={11} />,   label: 'ป่วย' },
+              { bg: '#fce7f3', sym: <Baby size={11} />,          label: 'ลาคลอด' },
+              { bg: '#f3e8ff', sym: <MapPin size={11} />,        label: 'นอกสถานที่' },
               { bg: '#f3f4f6', sym: null,                        label: 'เสาร์/อา' },
             ].map(({ bg, sym, label }) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
