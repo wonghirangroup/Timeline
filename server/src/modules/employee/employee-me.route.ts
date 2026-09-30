@@ -33,11 +33,15 @@ export async function employeeMeRoutes(app: FastifyInstance) {
     })
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
 
-    // ดึงกะของสาขาที่พนักงานสังกัด
+    // ดึงกะของสาขาที่พนักงานสังกัด — รวมสาขาหลัก + สาขาเสริมที่แอดมินเพิ่มให้ (feedback
+    // 2026-09-30: เพิ่มพนักงานเป็นสาขารองแล้วเช็คอินที่สาขานั้นไม่ได้ เพราะหน้านี้เดิม
+    // ดึงกะจากสาขาหลักอย่างเดียว — จุดอื่น (OT, weekly-off, shift-assignment) ใช้
+    // employeeBranchWhere() รวมสาขาเสริมอยู่แล้ว มีแค่จุดนี้ที่ตกหล่น)
+    const branchIds = [employee.branch_id, ...employee.extra_branches.map((eb: any) => eb.branch.id)]
     const shifts = await prisma.shift.findMany({
-      where: { branch_id: employee.branch_id, tenant_id: req.tenantId, deleted_at: null, is_active: true },
+      where: { branch_id: { in: branchIds }, tenant_id: req.tenantId, deleted_at: null, is_active: true },
       orderBy: { start_time: 'asc' },
-      select: { id: true, name: true, start_time: true, end_time: true, late_threshold_1: true, late_threshold_2: true },
+      select: { id: true, name: true, start_time: true, end_time: true, late_threshold_1: true, late_threshold_2: true, branch_id: true },
     })
 
     // สิทธิ์จอง/ลา — cascade 6 ชั้น กลุ่ม→สาขา→ฝ่าย→แผนก→ตำแหน่ง→บุคคล (ดู group.service.ts)
