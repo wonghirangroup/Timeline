@@ -64,6 +64,7 @@ interface ApiEmployee {
   department: string | null
   branch_id: string
   branch: { id: string; name: string }
+  extra_branches?: { branch: { id: string; name: string } }[]
   default_shift_id: string | null
 }
 
@@ -1626,7 +1627,10 @@ export default function BranchPage() {
         const st       = getShiftStatus(s)
         const cfg      = STATUS_CFG[st]
         const isSpec   = s.shift_type === 'SPECIAL'
-        const branchEmps = allEmployees.filter(e => e.branch_id === s.branch_id)
+        // รวมพนักงานสาขารอง (extra_branches) ด้วย ไม่ใช่แค่สาขาหลัก — feedback
+        // 2026-09-30: เพิ่มพนักงานเป็นสาขารองแล้วหาไม่เจอตอนจะใส่เข้ากะ
+        const branchEmps = allEmployees.filter(e =>
+          e.branch_id === s.branch_id || e.extra_branches?.some(eb => eb.branch.id === s.branch_id))
         const COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
         const avatarColor = (i: number) => COLORS[i % COLORS.length]
         const headerGrad = isSpec
