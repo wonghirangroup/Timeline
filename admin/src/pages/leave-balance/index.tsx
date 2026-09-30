@@ -109,6 +109,33 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
     for (const k of Object.keys(out) as LeaveKey[]) out[k].sort((a, b) => a.start_date < b.start_date ? -1 : 1)
     return out
   }, [leaveReqs, year])
+  // "ใช้ไปแล้ว" คำนวณสดจากรายการวันที่จริง (ไม่ใช่ snapshot ที่ parent ส่งมาตอน
+  // เปิด modal) กันตัวเลขค้างเก่าทันทีหลังเพิ่ม/ลบวันย้อนหลังในหน้านี้เอง
+  const liveUsedOf = (key: LeaveKey) => datesByType[key].reduce((sum, d) => sum + d.days, 0)
+
+  // เพิ่มวันลาย้อนหลังแทนพนักงาน — feedback 2026-09-30: "สามารถเพิ่มวันย้อนหลัง
+  // ได้เลยที่พักวันหยุดต่างๆ" ใช้ endpoint เดิมที่มีอยู่แล้ว (admin สร้างวันลาแทน
+  // พนักงาน อนุมัติอัตโนมัติ) force:true เพราะเป็นการบันทึกย้อนหลังของแอดมิน
+  // ไม่ใช่คำขอที่ต้องผ่าน cascade สิทธิ์ตอนจอง
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const [addFormFor, setAddFormFor] = useState<LeaveKey | null>(null)
+  const [addDate, setAddDate] = useState('')
+  const [addDays, setAddDays] = useState(1)
+  const addMutation = useMutation({
+    mutationFn: (key: LeaveKey) => api.post('/api/v1/admin/leave-requests', {
+      employee_id: balance.employee_id, leave_type: LEAVE_KEY_TO_TYPE[key],
+      start_date: addDate, end_date: addDate, days: addDays, leave_period: 'FULL',
+      reason: 'เพิ่มย้อนหลังโดยแอดมิน', force: true,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'leave-requests', 'employee', balance.employee_id] })
+      qc.invalidateQueries({ queryKey: ['admin', 'leave-balances'] })
+      showToast('success', 'เพิ่มวันลาย้อนหลังแล้ว')
+      setAddFormFor(null); setAddDate(''); setAddDays(1)
+    },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'เพิ่มไม่สำเร็จ'),
+  })
 
   useEffect(() => {
     function h(e: MouseEvent) { if (overlayRef.current === e.target) onClose() }
@@ -143,7 +170,7 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
         {/* Quota inputs */}
         <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {LEAVE_TYPES.map(lt => {
-            const used = usedOf(balance, lt.key)
+            const used = liveUsedOf(lt.key)
             const q = quotas[lt.key]
             const overUsed = used > q
             const dates = datesByType[lt.key]
@@ -163,6 +190,10 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
                           {isOpen ? 'ซ่อนวันที่' : `ดูวันที่ (${dates.length})`}
                         </button>
                       )}
+                      <button onClick={() => { setAddFormFor(f => f === lt.key ? null : lt.key); setAddDate(''); setAddDays(1) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.72rem', fontWeight: 700, color: lt.color, textDecoration: 'underline' }}>
+                        {addFormFor === lt.key ? 'ยกเลิกเพิ่ม' : '+ เพิ่มวันย้อนหลัง'}
+                      </button>
                     </div>
                     <MiniBar used={used} quota={q} color={lt.color} />
                   </div>
@@ -185,6 +216,21 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
                     <span style={{ fontSize: '0.72rem', color: '#94a3b8', width: 24 }}>วัน</span>
                   </div>
                 </div>
+                {addFormFor === lt.key && (
+                  <div style={{ padding: '0 14px 12px 46px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <input type="date" value={addDate} onChange={e => setAddDate(e.target.value)}
+                      style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.78rem', fontFamily: 'inherit', background: '#fff' }} />
+                    <input type="number" min={0.5} step={0.5} value={addDays} onChange={e => setAddDays(Math.max(0.5, parseFloat(e.target.value) || 1))}
+                      style={{ width: 52, padding: '6px 8px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.78rem', fontFamily: 'inherit', textAlign: 'center', background: '#fff' }} />
+                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>วัน</span>
+                    <button
+                      onClick={() => addMutation.mutate(lt.key)}
+                      disabled={!addDate || addMutation.isPending}
+                      style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: !addDate || addMutation.isPending ? '#cbd5e1' : lt.color, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: !addDate || addMutation.isPending ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      {addMutation.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
+                    </button>
+                  </div>
+                )}
                 {isOpen && dates.length > 0 && (
                   <div style={{ padding: '0 14px 12px 46px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {dates.map(d => (
