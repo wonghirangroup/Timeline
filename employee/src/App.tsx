@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import './index.css'
 import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
-import { useAuthStore } from './stores/authStore'
+import { useAuthStore, getLastKnownEmployeeName } from './stores/authStore'
 import { devLogin, liffLogin, reportIssue } from './lib/axios'
 import { initLiff, getLiffProfile, getChannelId, forceRelogin } from './lib/liff'
 
@@ -42,10 +42,15 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
   async function handleReport() {
     setReportState('sending')
     try {
+      // ล้มเหลวตั้งแต่ก่อน LIFF profile จะโหลดเสร็จ (เช่น initLiff() เองก็ fetch
+      // ไม่ได้) จะไม่มี lineUserId/displayName จาก LINE ให้แนบเลย — ใช้ชื่อคนล่าสุด
+      // ที่เคยล็อกอินสำเร็จบนเครื่องนี้แทน (เดา ไม่ใช่ตัวตนที่ยืนยันแล้ว จึงระบุกำกับ
+      // ให้ชัดในข้อความ กันแอดมินเข้าใจผิดว่าเป็นข้อมูลจริง 100%)
+      const fallbackName = !reportCtx.displayName ? getLastKnownEmployeeName() : null
       await reportIssue({
         line_channel_id: getChannelId(),
         line_user_id:    reportCtx.lineUserId,
-        display_name:    reportCtx.displayName,
+        display_name:    reportCtx.displayName ?? (fallbackName ? `${fallbackName} (เดาจากครั้งล่าสุด ไม่ยืนยัน)` : undefined),
         message:         extra.trim() || 'พนักงานกดปุ่ม "แจ้งปัญหา" จากหน้า error (ไม่ได้พิมพ์รายละเอียดเพิ่ม)',
         context:         message,
       })
@@ -77,7 +82,11 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
           <textarea
             value={extra}
             onChange={e => setExtra(e.target.value.slice(0, 300))}
-            placeholder="อธิบายเพิ่มเติมได้ (ไม่บังคับ) เช่น ทำอะไรอยู่ตอนเจอปัญหา"
+            placeholder={
+              reportCtx.displayName || getLastKnownEmployeeName()
+                ? 'อธิบายเพิ่มเติมได้ (ไม่บังคับ) เช่น ทำอะไรอยู่ตอนเจอปัญหา'
+                : 'ช่วยพิมพ์ชื่อตัวเองด้วย (ระบบดึงชื่ออัตโนมัติไม่ได้) เช่น ปิ๋ว แผนกขาย'
+            }
             rows={2}
             style={{
               width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #E5E7EB',

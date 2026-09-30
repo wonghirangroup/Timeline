@@ -47,12 +47,34 @@ interface AuthStore {
   logout: () => void
 }
 
+// จำชื่อพนักงานคนล่าสุดที่ล็อกอินสำเร็จไว้ใน localStorage (แค่ชื่อ ไม่ใช่ token/
+// ข้อมูลอ่อนไหว) — ใช้ตอนบูตแอปครั้งถัดไปแล้วเจอ "Failed to fetch" ตั้งแต่ก่อน
+// login เสร็จเลย (ไม่มี lineUserId/displayName จาก LIFF มาแนบตอนกดแจ้งปัญหา)
+// จะได้เดาได้ว่าน่าจะเป็นใคร แทนที่จะขึ้น "ไม่ทราบตัวตน" เฉยๆ (feedback: "ตอนแจ้ง
+// ปัญหาขึ้นให้หน่อยว่าใครเป็นคนแจ้ง")
+const LAST_EMPLOYEE_KEY = 'tl_last_employee'
+export function getLastKnownEmployeeName(): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_EMPLOYEE_KEY)
+    return raw || null
+  } catch { return null }
+}
+function rememberEmployeeName(employee: EmployeeProfile) {
+  try {
+    const name = employee.nickname
+      ? `${employee.first_name} ${employee.last_name} (${employee.nickname})`
+      : `${employee.first_name} ${employee.last_name}`
+    localStorage.setItem(LAST_EMPLOYEE_KEY, name)
+  } catch { /* private mode/blocked storage — เฉยๆ ไปเลย ไม่ critical */ }
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
   employee: null,
   isAuthenticated: false,
   isVerifying: false,
   setAuth: (employee, token) => {
     setJwt(token)
+    rememberEmployeeName(employee)
     set({ employee, isAuthenticated: true, isVerifying: false })
   },
   patchEmployee: (patch) => set(s => ({ employee: s.employee ? { ...s.employee, ...patch } : s.employee })),
