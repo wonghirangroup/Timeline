@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown } from 'lucide-react'
+import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown, CalendarCheck2 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
 import { api } from '../../lib/axios'
 import NotificationBell from './NotificationBell'
+import TodayCheckinsPopup from './TodayCheckinsPopup'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':    'ภาพรวมระบบ',
@@ -80,6 +81,11 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน', bg: '#F4F6F9', color: '#131C45' }
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
+
+  // Popup "เช็คอินวันนี้" — เข้าถึงได้จากทุกหน้า ไม่ต้องไปหน้า Dashboard ก่อน
+  // (feedback 2026-09-30: "อยากเปิดเป็น popup รายชื่อคนที่เช็คอินวันนี้...
+  // เพื่อให้ HR ไว้ดูตอนเช้า")
+  const [checkinsOpen, setCheckinsOpen] = useState(false)
 
   // Profile panel state
   const [panelOpen, setPanelOpen] = useState(false)
@@ -419,6 +425,17 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--accent-primary)', color: '#fff' }}>{roleLabel}</span>
           )}
 
+          <button
+            onClick={() => setCheckinsOpen(true)}
+            aria-label="เช็คอินวันนี้"
+            title="เช็คอินวันนี้"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            onMouseEnter={e => !isMobile && (e.currentTarget.style.background = '#E6ECF4')}
+            onMouseLeave={e => !isMobile && (e.currentTarget.style.background = 'none')}
+          >
+            <CalendarCheck2 size={18} />
+          </button>
+
           <NotificationBell isMobile={isMobile} />
 
           {/* role chip บนมือถือ — ย้ายไปในเมนูโปรไฟล์แทนเพื่อเว้นที่ให้กระดิ่ง */}
@@ -481,6 +498,8 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           </div>
         </div>
       )}
+
+      {checkinsOpen && <TodayCheckinsPopup onClose={() => setCheckinsOpen(false)} />}
     </>
   )
 }
