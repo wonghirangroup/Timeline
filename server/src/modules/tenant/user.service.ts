@@ -23,7 +23,10 @@ export async function listUsers(tenantId: string) {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
     },
-    select: { id: true, email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true },
+    select: {
+      id: true, email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true,
+      linked_employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, line_user_id: true } },
+    },
     orderBy: { created_at: 'desc' },
   })
 }
@@ -37,11 +40,25 @@ export async function createUser(
     last_name: string
     role: 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
     department_ids?: string[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
+    // ดึงจากพนักงาน — ผูก Employee.user_id กับบัญชีใหม่ พนักงานคนนั้นจะเห็นปุ่ม
+    // "สลับไปเว็บแอดมิน" ในแอป LINE (LIFF) แล้วเข้าเว็บได้เลยไม่ต้องล็อกอินซ้ำ
+    employee_id?: string
   },
   opts?: { mustChangePassword?: boolean },
 ) {
+  if (data.employee_id) {
+    const emp = await prisma.employee.findFirst({
+      where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null },
+      select: { admin_user: { select: { is_active: true } } },
+    })
+    if (!emp) throw new Error('EMPLOYEE_NOT_FOUND')
+    // บัญชีเดิมที่ถูกลบ/ปิดไปแล้วผูกใหม่ได้ (Employee.user_id ย้ายมาที่บัญชีใหม่)
+    if (emp.admin_user?.is_active) throw new Error('EMPLOYEE_ALREADY_LINKED')
+  }
+
   const hashed = await bcrypt.hash(data.password, 10)
-  const user = await prisma.user.create({
+  const user = await prisma.$transaction(async tx => {
+    const created = await tx.user.create({
     data: {
       tenant_id:  tenantId || null,
       email:      data.email,
@@ -53,6 +70,9 @@ export async function createUser(
       must_change_password: opts?.mustChangePassword ?? false,
     },
     select: { id: true, email: true, first_name: true, last_name: true, role: true, tenant_id: true },
+    })
+    if (data.employee_id) await tx.employee.update({ where: { id: data.employee_id }, data: { user_id: created.id } })
+    return created
   })
 
   if (data.role === 'DEPT_HEAD' && data.department_ids?.length) {

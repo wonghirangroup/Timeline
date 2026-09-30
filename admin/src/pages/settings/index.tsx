@@ -23,6 +23,7 @@ import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
+import SearchSelect from '../../components/shared/SearchSelect'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -46,9 +47,11 @@ const ROLE_BADGE: Record<string, { bg: string; color: string }> = {
   ADMIN: { bg: '#F4F6F9', color: '#131C45' }, MANAGER: { bg: '#dcfce7', color: '#15803d' },
   EXECUTIVE: { bg: '#eef2ff', color: '#4338ca' }, DEPT_HEAD: { bg: '#ecfeff', color: '#0e7490' },
 }
-interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string }
+interface LinkedEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null }
+interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string; linked_employee?: LinkedEmployee | null }
 interface Dept { id: string; name: string; division: { id: string; name: string } | null }
-const EMPTY_USER_FORM = { email: '', password: '', first_name: '', last_name: '', role: 'ADMIN', department_ids: [] as string[] }
+interface EmpOption { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null; email?: string | null; branch?: { name: string } | null; admin_user?: { is_active: boolean } | null }
+const EMPTY_USER_FORM = { email: '', password: '', first_name: '', last_name: '', role: 'ADMIN', department_ids: [] as string[], employee_id: '' }
 
 function UserManagementSettings() {
   const qc = useQueryClient()
@@ -64,13 +67,36 @@ function UserManagementSettings() {
   const { data: departments = [] } = useQuery<Dept[]>({
     queryKey: ['departments'], queryFn: () => api.get('/api/v1/admin/departments').then((r: any) => r.data.data),
   })
+  // รายชื่อพนักงานสำหรับ "ดึงจากพนักงาน" — โหลดเฉพาะตอนเปิดหน้าต่างเพิ่มผู้ใช้งาน
+  const { data: employees = [] } = useQuery<EmpOption[]>({
+    queryKey: ['employees', 'active'], queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
+    enabled: !!modal && !modal.edit,
+  })
+  // คนที่มีบัญชีเข้าเว็บที่ใช้งานอยู่แล้วไม่ต้องให้เลือกซ้ำ
+  const linkableEmployees = employees.filter(e => !e.admin_user?.is_active)
+  const pickedEmployee = linkableEmployees.find(e => e.id === form.employee_id)
+  const pickEmployee = (id: string) => {
+    const e = linkableEmployees.find(x => x.id === id)
+    setForm(f => ({
+      ...f, employee_id: id,
+      first_name: e ? e.first_name : f.first_name,
+      last_name: e ? e.last_name : f.last_name,
+      // ใช้อีเมลพนักงานเป็น username ให้ก่อน (ถ้ามีและช่องยังว่าง) แก้เองได้
+      email: e?.email && !f.email.trim() ? e.email : f.email,
+    }))
+  }
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['settings', 'users'] })
 
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/super-admin/users', body),
     onSuccess: () => { invalidate(); showToast('success', 'สร้างผู้ใช้งานสำเร็จ'); setModal(null) },
-    onError: (err: any) => showToast('error', err.response?.data?.error?.code === 'DUPLICATE_EMAIL' ? 'อีเมลนี้มีอยู่แล้ว' : 'สร้างไม่สำเร็จ'),
+    onError: (err: any) => {
+      const code = err.response?.data?.error?.code
+      showToast('error', code === 'DUPLICATE_EMAIL' ? 'อีเมลนี้มีอยู่แล้ว'
+        : code === 'EMPLOYEE_ALREADY_LINKED' ? 'พนักงานคนนี้มีบัญชีเข้าเว็บอยู่แล้ว'
+        : code === 'EMPLOYEE_NOT_FOUND' ? 'ไม่พบพนักงานคนนี้' : 'สร้างไม่สำเร็จ')
+    },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/super-admin/users/${id}`, body),
@@ -93,7 +119,7 @@ function UserManagementSettings() {
       const res = await api.get(`/api/v1/super-admin/users/${u.id}/departments`)
       department_ids = res.data.data.map((d: any) => d.department_id)
     }
-    setForm({ email: u.email, password: '', first_name: u.first_name, last_name: u.last_name, role: u.role, department_ids })
+    setForm({ email: u.email, password: '', first_name: u.first_name, last_name: u.last_name, role: u.role, department_ids, employee_id: '' })
     setModal({ edit: u })
   }
   const handleSave = async () => {
@@ -105,7 +131,8 @@ function UserManagementSettings() {
       if (modal.edit.role === 'DEPT_HEAD') await setDeptsMutation.mutateAsync({ id: modal.edit.id, department_ids: form.department_ids })
     } else {
       if (!form.email.trim() || !form.password.trim()) return
-      createMutation.mutate(form)
+      const { employee_id, ...rest } = form
+      createMutation.mutate(employee_id ? { ...rest, employee_id } : rest)
     }
   }
 
@@ -142,6 +169,12 @@ function UserManagementSettings() {
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#111827' }}>{u.first_name} {u.last_name}{!u.is_active && ' (ปิดใช้งาน)'}</p>
                   <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{u.email}</p>
+                  {u.linked_employee && (
+                    <p style={{ margin: '3px 0 0', fontSize: '11px', color: u.linked_employee.line_user_id ? '#15803d' : '#b45309' }}>
+                      ผูกกับพนักงาน {u.linked_employee.employee_code}
+                      {u.linked_employee.line_user_id ? ' · เข้าเว็บจากแอป LINE ได้' : ' · พนักงานยังไม่ได้ผูก LINE'}
+                    </p>
+                  )}
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '3px 9px', borderRadius: 99 }}>{ROLE_LABEL[u.role] ?? u.role}</span>
                 <Button variant="secondary" size="sm" icon={<ShieldCheck size={13}/>} onClick={() => setPermTarget(u)} aria-label="สิทธิ์" />
@@ -160,6 +193,28 @@ function UserManagementSettings() {
 
             {!modal.edit && (
               <>
+                <label style={fieldLabel}>ดึงจากพนักงาน (ไม่บังคับ)</label>
+                <SearchSelect
+                  value={form.employee_id}
+                  onChange={pickEmployee}
+                  options={[
+                    { value: '', label: '— ไม่ผูกกับพนักงาน —' },
+                    ...linkableEmployees.map(e => ({
+                      value: e.id,
+                      label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} — ${e.employee_code}`,
+                      keywords: e.branch?.name ?? '',
+                    })),
+                  ]}
+                  placeholder="— ไม่ผูกกับพนักงาน —"
+                  style={inputStyle}
+                />
+                <p style={{ margin: '4px 0 10px', fontSize: '11.5px', lineHeight: 1.5, color: pickedEmployee && !pickedEmployee.line_user_id ? '#b45309' : 'var(--text-muted)' }}>
+                  {!pickedEmployee
+                    ? 'เลือกพนักงานเพื่อให้กดปุ่ม "สลับไปเว็บแอดมิน" ในแอป LINE เข้าเว็บนี้ได้โดยไม่ต้องล็อกอินซ้ำ'
+                    : pickedEmployee.line_user_id
+                      ? 'พนักงานคนนี้จะเห็นปุ่ม "สลับไปเว็บแอดมิน" ในหน้าโปรไฟล์ของแอป LINE'
+                      : 'พนักงานคนนี้ยังไม่ได้ผูก LINE — ใช้ Username/รหัสผ่านเข้าเว็บได้ และปุ่มในแอป LINE จะขึ้นหลังพนักงานผูก LINE แล้ว'}
+                </p>
                 <label style={fieldLabel}>อีเมลหรือ Username</label>
                 <input autoFocus style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@company.com หรือ username" />
                 <label style={{ ...fieldLabel, margin: '10px 0 4px' }}>รหัสผ่านเริ่มต้น</label>

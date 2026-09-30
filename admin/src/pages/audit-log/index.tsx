@@ -6,7 +6,7 @@
 // OrgFilterBar
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileClock, UserPlus, UserCog, UserX, Bell } from 'lucide-react'
+import { FileClock, UserPlus, UserCog, UserX, Bell, ShieldPlus, ShieldCheck, ShieldX } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 
@@ -25,6 +25,9 @@ const ACTION_CFG: Record<string, { color: string; bg: string; icon: JSX.Element 
   EMPLOYEE_UPDATED:   { color: '#D97706', bg: '#FEF3C7', icon: <UserCog size={14} /> },
   EMPLOYEE_DELETED:   { color: '#DC2626', bg: '#FEE2E2', icon: <UserX size={14} /> },
   NOTIFICATION_SENT:  { color: '#244B83', bg: '#F4F6F9', icon: <Bell size={14} /> },
+  WEB_USER_CREATED:   { color: '#4338CA', bg: '#EEF2FF', icon: <ShieldPlus size={14} /> },
+  WEB_USER_UPDATED:   { color: '#7C3AED', bg: '#F5F3FF', icon: <ShieldCheck size={14} /> },
+  WEB_USER_DELETED:   { color: '#BE123C', bg: '#FFE4E6', icon: <ShieldX size={14} /> },
 }
 const DEFAULT_CFG = { color: '#6b7280', bg: '#f3f4f6', icon: <FileClock size={14} /> }
 
@@ -47,7 +50,7 @@ export default function AuditLogPage() {
       <div className="page-header">
         <div>
           <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>บันทึกกิจกรรมพนักงาน</h1>
-          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>การเพิ่ม/แก้ไข/ลบข้อมูลพนักงาน และการแจ้งเตือนที่ส่งถึงพนักงาน</p>
+          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>การเพิ่ม/แก้ไข/ลบข้อมูลพนักงาน ผู้ใช้งานเว็บ และการแจ้งเตือนที่ส่งถึงพนักงาน</p>
         </div>
         <div className="page-header-actions">
           <select value={branchId} onChange={e => setBranchId(e.target.value)}

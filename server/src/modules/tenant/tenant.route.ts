@@ -10,6 +10,7 @@ import { listUsers, createUser, updateUser, deleteUser, generateTempPassword, se
 import { listHolidays, createHoliday, updateHoliday, deleteHoliday, batchCreateHolidays, listHolidayWorkedAlerts } from './holiday.service'
 import { upsertLineConfig } from '../line/line.service'
 import { logActivity }      from '../../common/utils/activityLog'
+import { logAudit, resolveActorName, webUserLogInfo } from '../../common/utils/auditLog'
 import { prisma }           from '../../common/utils/prisma'
 
 const TAG = 'Super Admin'
@@ -262,14 +263,25 @@ export async function tenantRoutes(app: FastifyInstance) {
           role:       { type: 'string', enum: ['ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] },
           // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
           department_ids: { type: 'array', items: { type: 'string' } },
+          // ดึงจากพนักงาน — ผูกบัญชีนี้กับพนักงาน เพื่อให้สลับจากแอป LINE เข้าเว็บแอดมินได้
+          employee_id: { type: 'string' },
         },
       },
     },
   }, async (req: any, reply) => {
     try {
       const user = await createUser(req.tenantId, req.body)
+      const [actorName, info] = await Promise.all([resolveActorName(req.userId), webUserLogInfo(user.id)])
+      if (info) logAudit({
+        tenantId: req.tenantId, branchId: info.branchId, actorName,
+        action: 'WEB_USER_CREATED', entityName: info.name,
+        message: `${actorName} เพิ่มผู้ใช้งานเว็บ ${info.name} (${info.email}) บทบาท${info.role}`
+          + (info.employeeCode ? ` — ผูกกับพนักงาน ${info.employeeCode} (เข้าเว็บจากแอป LINE ได้)` : ''),
+      })
       return reply.code(201).send(ok(user, 'สร้าง User สำเร็จ'))
     } catch (e: any) {
+      if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบพนักงานคนนี้'))
+      if (e.message === 'EMPLOYEE_ALREADY_LINKED') return reply.code(409).send(fail('EMPLOYEE_ALREADY_LINKED', 'พนักงานคนนี้มีบัญชีเข้าเว็บอยู่แล้ว'))
       if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีอยู่แล้ว'))
       throw e
     }
@@ -323,6 +335,21 @@ export async function tenantRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const ok_ = await updateUser(req.tenantId, req.params.id, req.body)
     if (!ok_) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
+    const [actorName, info] = await Promise.all([resolveActorName(req.userId), webUserLogInfo(req.params.id)])
+    if (info) {
+      // ไม่บันทึกค่ารหัสผ่าน บอกแค่ว่ามีการเปลี่ยน
+      const changes = [
+        (req.body.first_name !== undefined || req.body.last_name !== undefined) && 'แก้ชื่อ',
+        req.body.password && 'เปลี่ยนรหัสผ่าน',
+        req.body.is_active === false && 'ปิดใช้งาน',
+        req.body.is_active === true && 'เปิดใช้งาน',
+      ].filter(Boolean)
+      logAudit({
+        tenantId: req.tenantId, branchId: info.branchId, actorName,
+        action: 'WEB_USER_UPDATED', entityName: info.name,
+        message: `${actorName} แก้ไขผู้ใช้งานเว็บ ${info.name} (${info.email})${changes.length ? ` — ${changes.join(', ')}` : ''}`,
+      })
+    }
     return ok(null, 'อัปเดต User สำเร็จ')
   })
 
@@ -336,8 +363,18 @@ export async function tenantRoutes(app: FastifyInstance) {
       params: { type: 'object', properties: { id: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
+    const info = await webUserLogInfo(req.params.id)
     const deleted = await deleteUser(req.tenantId, req.params.id)
     if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
+    if (info) {
+      const actorName = await resolveActorName(req.userId)
+      logAudit({
+        tenantId: req.tenantId, branchId: info.branchId, actorName,
+        action: 'WEB_USER_DELETED', entityName: info.name,
+        message: `${actorName} ลบผู้ใช้งานเว็บ ${info.name} (${info.email})`
+          + (info.employeeCode ? ` — พนักงาน ${info.employeeCode} จะไม่เห็นปุ่มเข้าเว็บในแอป LINE อีก` : ''),
+      })
+    }
     return ok(null, 'ลบ User สำเร็จ')
   })
 

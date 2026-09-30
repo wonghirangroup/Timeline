@@ -6,7 +6,8 @@ import { requirePermission, requirePermissionAny, requireRootAdmin } from '../..
 import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import { listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, bulkSetWeeklyOffMode, changeEmployeeStatus, getEmployeeStatusHistory, setEmployeeAdminAccess } from './employee.service'
-import { logAudit, resolveActorName } from '../../common/utils/auditLog'
+import { logAudit, resolveActorName, WEB_ROLE_LABEL } from '../../common/utils/auditLog'
+import { prisma } from '../../common/utils/prisma'
 
 const TAG = 'Admin'
 
@@ -253,6 +254,23 @@ export async function employeeRoutes(app: FastifyInstance) {
     if ('notFound' in r)       return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
     if ('needEmail' in r)      return reply.code(400).send(fail('EMAIL_REQUIRED', 'ต้องกรอกอีเมลเพื่อสร้างบัญชีแอดมิน'))
     if ('duplicateEmail' in r) return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีบัญชีอยู่แล้ว'))
+    const emp = await prisma.employee.findFirst({
+      where: { id: req.params.id, tenant_id: req.tenantId },
+      select: { first_name: true, last_name: true, employee_code: true, branch_id: true },
+    })
+    if (emp) {
+      const actorName = await resolveActorName(req.userId)
+      const fullName = `${emp.first_name} ${emp.last_name}`
+      const role = req.body.role ?? null
+      logAudit({
+        tenantId: req.tenantId, branchId: emp.branch_id, actorName,
+        action: role === null ? 'WEB_USER_DELETED' : r.temp_password ? 'WEB_USER_CREATED' : 'WEB_USER_UPDATED',
+        entityName: fullName,
+        message: role === null
+          ? `${actorName} ถอนสิทธิ์เข้าเว็บแอดมินของ ${fullName} (${emp.employee_code})`
+          : `${actorName} ${r.temp_password ? 'ให้สิทธิ์เข้าเว็บแอดมิน' : 'เปลี่ยนสิทธิ์เข้าเว็บแอดมิน'}ของ ${fullName} (${emp.employee_code}) เป็น${WEB_ROLE_LABEL[role] ?? role}`,
+      })
+    }
     return ok(r, r.temp_password ? 'สร้างบัญชีแอดมินให้พนักงานแล้ว' : 'อัปเดตสิทธิ์แล้ว')
   })
 
