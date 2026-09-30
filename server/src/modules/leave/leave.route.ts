@@ -13,6 +13,15 @@ import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push
 const LEAVE_LABEL_TH: Record<string, string> = {
   SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
+const DOW_TH   = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์']
+const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
+
+// แจ้งทาง LINE เดิมใช้วันที่ดิบ "2026-10-01" อ่านไม่รู้ว่าวันอะไร (feedback:
+// "เพิ่มวันด้วยว่าเป็นวันไหน") — แปลงเป็น "พฤหัส 1 ตุลาคม 2569" แทน
+function formatThaiDate(dateStr: string): string {
+  const d = new Date(dateStr.slice(0, 10) + 'T00:00:00')
+  return `${DOW_TH[d.getDay()]} ${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear() + 543}`
+}
 
 // endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
 // tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
@@ -30,7 +39,7 @@ function requireOwnEmployeeId(req: any, reply: any): boolean {
 function notifyLeaveResult(tenantId: string, req: { employee_id: string; leave_type: string; start_date: Date | string; end_date: Date | string; days: number; reject_note?: string | null }, approved: boolean) {
   const start = new Date(req.start_date).toISOString().slice(0, 10)
   const end   = new Date(req.end_date).toISOString().slice(0, 10)
-  const dateRange = start === end ? start : `${start} – ${end}`
+  const dateRange = start === end ? formatThaiDate(start) : `${formatThaiDate(start)} – ${formatThaiDate(end)}`
   const label = LEAVE_LABEL_TH[req.leave_type] ?? 'ลา'
   notifyEmployeeLine(tenantId, req.employee_id, 'ฝ่ายบุคคล', approved ? {
     title: 'ใบลาอนุมัติแล้ว',
@@ -279,7 +288,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       const employee_id = req.employeeId
       const { leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time } = req.body
       const request = await createLeaveRequest(req.tenantId, { employee_id, leave_type, custom_type_id, start_date, end_date, days, reason, leave_period, start_time, end_time })
-      const dateRange = start_date === end_date ? start_date : `${start_date} – ${end_date}`
+      const dateRange = start_date === end_date ? formatThaiDate(start_date) : `${formatThaiDate(start_date)} – ${formatThaiDate(end_date)}`
       notifyAdminsLine(req.tenantId, employee_id, {
         type: 'leave',
         title: 'ใบลารออนุมัติ',

@@ -73,11 +73,18 @@ const DISPLAY_LEAVE_TYPES = LEAVE_TYPES
 const MONTHS_TH   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
+const DAYS_MED    = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
+}
+// เหมือน fmtDate แต่เติมชื่อวันนำหน้า — ใช้เฉพาะจุดที่ยังไม่มีชื่อวันโชว์แยกอยู่แล้ว
+// (feedback: การ์ดวันหยุดที่จองไว้บอกแค่วันที่ เดาไม่ออกว่าวันอะไร)
+function fmtDateFull(s: string) {
+  const d = new Date(s.slice(0, 10) + 'T00:00:00')
+  return `${DAYS_MED[d.getDay()]} ${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`
 }
 function fmtDateShort(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
@@ -296,7 +303,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
       {selDay && (
         <div style={{ marginBottom: 20, background: '#fff', borderRadius: 18, padding: '16px', border: '1px solid #E6ECF4', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A2B3C', marginBottom: 12 }}>
-            {fmtDate(selDay)}
+            {fmtDateFull(selDay)}
           </div>
 
           {selEmpty && (
@@ -805,7 +812,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
                 <Palmtree size={22} color={cfg.color} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1A2B3C', fontSize: '0.85rem' }}>
-                    {fmtDate(resolveDate(r.week_start, r.day_of_week))}
+                    {fmtDateFull(resolveDate(r.week_start, r.day_of_week))}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: cfg.color, fontWeight: 700 }}>{cfg.label}</div>
                 </div>
