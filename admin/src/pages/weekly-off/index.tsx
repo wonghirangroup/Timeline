@@ -293,7 +293,11 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
   // อนุมัติหลายรายการพร้อมกัน (ทั้งหมด/เฉพาะที่เลือกใน modal ดูรายการจองของสาขา) — ยิง
   // per-item endpoint เดิมพร้อมกันแทนการเพิ่ม endpoint bulk ใหม่ (จำนวนต่อสาขาไม่เยอะ)
   const approveManyMutation = useMutation({
-    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`))),
+    // ต้องส่ง body เป็น {} เสมอ (ไม่ใช่ไม่ส่งเลย) — schema ฝั่ง backend ประกาศ
+    // body: {type:'object', ...} ไว้ ถ้าไม่ส่ง body/Content-Type มาด้วยเลย
+    // Fastify จะได้ req.body = undefined ซึ่งไม่ผ่าน validate ว่าเป็น object
+    // เลยตอบ 400 กลับมา (feedback 2026-09-30 "กดอนุมัติทั้งหมดแล้วขึ้น 400")
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`, {}))),
     onSuccess: (_data, ids) => {
       qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
       showToast('success', `อนุมัติ ${ids.length} รายการสำเร็จ`)
@@ -826,7 +830,11 @@ export default function WeeklyOffPage() {
   // ทีเดียวจากการ์ดเดียว ไม่ต้องกดทีละวัน) — ยิง per-item endpoint เดิมพร้อมกันผ่าน
   // Promise.all แทนเพิ่ม endpoint bulk ใหม่ (pattern เดียวกับ PeriodManager)
   const approveManyMutation = useMutation({
-    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`))),
+    // ต้องส่ง body เป็น {} เสมอ (ไม่ใช่ไม่ส่งเลย) — schema ฝั่ง backend ประกาศ
+    // body: {type:'object', ...} ไว้ ถ้าไม่ส่ง body/Content-Type มาด้วยเลย
+    // Fastify จะได้ req.body = undefined ซึ่งไม่ผ่าน validate ว่าเป็น object
+    // เลยตอบ 400 กลับมา (feedback 2026-09-30 "กดอนุมัติทั้งหมดแล้วขึ้น 400")
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/approve`, {}))),
     onSuccess: (_data, ids) => { invalidate(); showToast('success', `อนุมัติ ${ids.length} รายการสำเร็จ`) },
     onError:   () => showToast('error', 'อนุมัติบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
   })
