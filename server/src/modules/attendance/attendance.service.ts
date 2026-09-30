@@ -145,6 +145,7 @@ export async function getAttendanceReport(tenantId: string, filters: {
         late_threshold_1: true, late_threshold_2: true, absent_threshold: true,
         late_fine_1: true, late_fine_2: true,
         fine_mode: true, late_grace_minutes: true, late_fine_per_minute: true, late_fine_max: true,
+        branch: { select: { id: true, name: true } },
       } },
     },
     orderBy: [{ date: 'asc' }, { check_in_at: 'asc' }],
