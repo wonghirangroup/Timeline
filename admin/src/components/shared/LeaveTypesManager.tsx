@@ -1,5 +1,5 @@
 // admin/src/components/shared/LeaveTypesManager.tsx
-// ประเภทการลาที่กำหนดเอง + กติกาสะสมวันลา — โผล่ในหน้า การตั้งค่า → นโยบายการลา
+// ประเภทการลาที่กำหนดเอง + กติกาสะสมวันลา — โผล่ในหน้า การตั้งค่า → ประเภทการลา
 // ตาม feature: custom_leave_types / leave_accrual
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

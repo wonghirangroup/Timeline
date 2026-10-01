@@ -13,14 +13,13 @@
 // employee/src/components/ui/index.tsx PageLoader)
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, CalendarClock, Lock, Bell, ShieldCheck } from 'lucide-react'
+import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, Lock, Bell, ShieldCheck } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
 import InfoTooltip from '../../components/ui/InfoTooltip'
-import Toggle from '../../components/ui/Toggle'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
@@ -410,82 +409,6 @@ function CompanyProfileTab() {
   )
 }
 
-// ── นโยบายการลา ────────────────────────────────────────────────────────────
-function LeavePolicyTab() {
-  const qc = useQueryClient()
-  const { showToast } = useToast()
-  const readOnly = useIsReadOnly()
-  const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
-  const [unlimited, setUnlimited] = useState(true)
-  const [days, setDays] = useState(3)
-  const [selfResign, setSelfResign] = useState(true)
-  const [countWorkedOffDays, setCountWorkedOffDays] = useState(true)
-  useEffect(() => {
-    if (!data) return
-    setUnlimited(data.leave_backdate_days == null)
-    setDays(data.leave_backdate_days ?? 3)
-    setSelfResign(data.self_resignation_enabled !== false)
-    setCountWorkedOffDays(data.vacation_count_worked_off_days !== false)
-  }, [data])
-
-  const mut = useMutation({
-    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
-      leave_backdate_days: unlimited ? null : Math.max(0, days),
-      self_resignation_enabled: selfResign,
-      vacation_count_worked_off_days: countWorkedOffDays,
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
-    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
-  })
-
-  return (
-    <div style={{ ...card, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#ecfeff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0e7490', flexShrink: 0 }}><CalendarClock size={18} /></div>
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>การยื่นลาย้อนหลัง</p>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
-            จำกัดว่าพนักงานยื่นลาผ่าน LINE ย้อนหลังได้ไม่เกินกี่วัน — <strong>แอดมินลงวันลาแทนพนักงานได้ไม่จำกัด</strong> (ลาป่วย/ลาคลอดก็ไม่ติดข้อจำกัดนี้ทางฝั่งพนักงานถ้าตั้งไว้)
-          </p>
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: '13px', color: '#374151' }}>ไม่จำกัด (ยื่นย้อนหลังได้เท่าไหร่ก็ได้)</span>
-        <Toggle checked={unlimited} disabled={readOnly} onChange={setUnlimited} aria-label="ไม่จำกัดการยื่นลาย้อนหลัง" />
-      </div>
-      {!unlimited && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151' }}>
-          ย้อนหลังได้ไม่เกิน
-          <input type="number" min={0} max={90} value={days} disabled={readOnly} onChange={e => setDays(Math.max(0, parseInt(e.target.value) || 0))}
-            style={{ ...inputStyle, width: 72, textAlign: 'center' }} />
-          วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
-        </div>
-      )}
-      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
-          <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
-        </span>
-        <Toggle checked={selfResign} disabled={readOnly} onChange={setSelfResign} aria-label="ให้พนักงานยื่นลาออกเองผ่าน LINE ได้" />
-      </div>
-      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-          <span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็น "ไม่ได้พักจริง" ในโบนัสพักร้อนรายเดือน</span>
-            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
-              โบนัสพักร้อนตามส่วนต่างจริงตอนหยุดไม่ครบโควต้า/เดือน (ดูที่ "การลา → นโยบายพักร้อน") — เปิดไว้จะนับวันที่จองหยุดแล้วแต่ดันเช็คอินมาทำงานจริง ว่าเป็นวันที่ไม่ได้พักด้วย ไม่ใช่แค่จำนวนที่จองอนุมัติเฉยๆ (ยกเว้นวันที่ HR ให้วันชดเชยแยกไปแล้ว) ปิด = นับแค่จำนวนวันที่จองอนุมัติเหมือนเดิม — ไม่ใช่ทุกบริษัทมีเคสนี้ เลือกได้ตามจริง
-            </span>
-          </span>
-          <Toggle checked={countWorkedOffDays} disabled={readOnly} onChange={setCountWorkedOffDays} aria-label="นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็นไม่ได้พักจริง" />
-        </div>
-      </div>
-      {!readOnly && (
-        <Button variant="primary" loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
-      )}
-    </div>
-  )
-}
-
 // ── การแจ้งเตือน LINE ไปแอดมิน ────────────────────────────────────────────────
 // ตรงกับ NOTIFICATION_TYPES ฝั่ง backend (server/src/common/utils/notificationPrefs.ts)
 // key ที่ไม่มี/ไม่เคยตั้งไว้ = เปิดอยู่ (ค่าเริ่มต้น backward-compatible)
@@ -805,7 +728,7 @@ type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'features' 
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'general',       label: 'ทั่วไป' },
   { key: 'users',         label: 'ผู้ใช้งาน' },
-  { key: 'leave',         label: 'นโยบายการลา' },
+  { key: 'leave',         label: 'ประเภทการลา' },
   { key: 'notifications', label: 'การแจ้งเตือน' },
   { key: 'features',      label: 'ฟีเจอร์' },
   { key: 'plan',          label: 'แพ็กเกจ' },
@@ -828,7 +751,7 @@ export default function SettingsPage() {
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li><b>ทั่วไป</b> — ข้อมูลบริษัท/แบรนด์ และทางลัดไปตั้งค่าเกณฑ์สาย/ค่าปรับ (อยู่ที่หน้ากะ) และสถานะพนักงาน (อยู่ที่ผังองค์กร)</li>
               <li><b>ผู้ใช้งาน</b> — จัดการบัญชีที่ล็อกอินเข้าเว็บนี้ได้ (เฉพาะผู้ดูแลระบบจัดการคนอื่นได้) และสิทธิ์รายเมนู</li>
-              <li><b>นโยบายการลา</b> — จำกัดการยื่นลาย้อนหลังผ่าน LINE และเปิด/ปิดการยื่นลาออกเอง</li>
+              <li><b>ประเภทการลา</b> — ประเภทการลาที่กำหนดเอง และกติกาสะสมวันลา (นโยบายยื่นลาย้อนหลัง/ลาออกเอง ย้ายไปอยู่ที่หน้า "การลา → นโยบายพักร้อน" แล้ว)</li>
               <li><b>การแจ้งเตือน</b> — เลือกประเภทคำขอที่จะส่งเตือนเข้า LINE แอดมิน</li>
               <li><b>ฟีเจอร์</b> — เปิด/ปิดโมดูลต่างๆ ของระบบทั้งบริษัท</li>
             </ul>
@@ -861,7 +784,7 @@ export default function SettingsPage() {
           )}
         </>
       )}
-      {tab === 'leave' && <><LeavePolicyTab /><LeaveTypesManager /></>}
+      {tab === 'leave' && <LeaveTypesManager />}
       {tab === 'notifications' && <NotificationPrefsTab />}
       {tab === 'features' && <FeatureTogglesTab />}
       {tab === 'plan' && (

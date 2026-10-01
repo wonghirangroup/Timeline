@@ -4,14 +4,19 @@
 // จนผู้ใช้บอกว่างง — หน้านี้เป็น "จุดเริ่มต้น" ที่มีสรุป+เครื่องมือครบ ส่วนการแก้ไข
 // เต็มรูปแบบ (เช่น ตั้งค่าตำแหน่งอื่นๆ, วันหยุดครบทุก field) ยังอยู่ที่หน้าเดิม —
 // ฟอร์มย่อยในนี้เขียนไปที่ endpoint เดียวกัน ไม่ได้สร้างข้อมูลซ้ำ
-import { useState } from 'react'
+// feedback 2026-10-01: ย้าย "นโยบายการลา" (ยื่นลาย้อนหลัง/ลาออกเอง/นับวันทำงาน
+// วันหยุดเป็นไม่ได้พักจริง) มาจาก ตั้งค่า → นโยบายการลา มารวมไว้ที่นี่ทั้งหมดด้วย
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Sliders, Gift, RefreshCw, Users, Info, ExternalLink } from 'lucide-react'
+import { Sliders, Gift, RefreshCw, Users, Info, ExternalLink, CalendarClock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import Toggle from '../../components/ui/Toggle'
+import Button from '../../components/ui/Button'
+import { useIsReadOnly } from '../../stores/authStore'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ApiPosition {
@@ -31,6 +36,11 @@ interface RemainingRow {
   branch_name: string | null; position_name: string | null
   total_days: number; used_days: number; remaining: number; sellable: number
 }
+interface TenantSettings {
+  leave_backdate_days: number | null
+  self_resignation_enabled: boolean
+  vacation_count_worked_off_days: boolean
+}
 
 const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#92400e', background: '#fef3c7' }
 const td: React.CSSProperties = { padding: '7px 10px', fontSize: '0.82rem', borderBottom: '1px solid #f3f4f6' }
@@ -43,6 +53,87 @@ function previewText(base: number | null | undefined, incDays: number | null | u
     const steps = y > 0 ? Math.floor((years - 1) / y) : 0
     return `${years}ปี=${base + d * steps}วัน`
   }).join(' · ')
+}
+
+const cardBox: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 18px' }
+const inputStyle: React.CSSProperties = { padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box' }
+
+// ── นโยบายการลา (ย้ายมาจาก ตั้งค่า → นโยบายการลา ให้รวมอยู่หน้าเดียวกับพักร้อน) ──
+function LeavePolicyCard() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
+  const [unlimited, setUnlimited] = useState(true)
+  const [days, setDays] = useState(3)
+  const [selfResign, setSelfResign] = useState(true)
+  const [countWorkedOffDays, setCountWorkedOffDays] = useState(true)
+  useEffect(() => {
+    if (!data) return
+    setUnlimited(data.leave_backdate_days == null)
+    setDays(data.leave_backdate_days ?? 3)
+    setSelfResign(data.self_resignation_enabled !== false)
+    setCountWorkedOffDays(data.vacation_count_worked_off_days !== false)
+  }, [data])
+
+  const mut = useMutation({
+    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
+      leave_backdate_days: unlimited ? null : Math.max(0, days),
+      self_resignation_enabled: selfResign,
+      vacation_count_worked_off_days: countWorkedOffDays,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  return (
+    <div style={cardBox}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: '#ecfeff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0e7490' }}><CalendarClock size={15} /></div>
+        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>นโยบายการลา</div>
+      </div>
+      <div style={{ marginLeft: 42, marginBottom: 12 }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+          จำกัดว่าพนักงานยื่นลาผ่าน LINE ย้อนหลังได้ไม่เกินกี่วัน — <strong>แอดมินลงวันลาแทนพนักงานได้ไม่จำกัด</strong> (ลาป่วย/ลาคลอดก็ไม่ติดข้อจำกัดนี้ทางฝั่งพนักงานถ้าตั้งไว้)
+        </p>
+      </div>
+      <div style={{ marginLeft: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: '13px', color: '#374151' }}>ไม่จำกัด (ยื่นย้อนหลังได้เท่าไหร่ก็ได้)</span>
+        <Toggle checked={unlimited} disabled={readOnly} onChange={setUnlimited} aria-label="ไม่จำกัดการยื่นลาย้อนหลัง" />
+      </div>
+      {!unlimited && (
+        <div style={{ marginLeft: 42, display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151' }}>
+          ย้อนหลังได้ไม่เกิน
+          <input type="number" min={0} max={90} value={days} disabled={readOnly} onChange={e => setDays(Math.max(0, parseInt(e.target.value) || 0))}
+            style={{ ...inputStyle, width: 72, textAlign: 'center' }} />
+          วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
+        </div>
+      )}
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, marginLeft: 42, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
+          <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
+        </span>
+        <Toggle checked={selfResign} disabled={readOnly} onChange={setSelfResign} aria-label="ให้พนักงานยื่นลาออกเองผ่าน LINE ได้" />
+      </div>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, marginLeft: 42 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็น "ไม่ได้พักจริง" ในโบนัสพักร้อนรายเดือน</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
+              โบนัสพักร้อนตามส่วนต่างจริงตอนหยุดไม่ครบโควต้า/เดือน (ดูด้านล่าง) — เปิดไว้จะนับวันที่จองหยุดแล้วแต่ดันเช็คอินมาทำงานจริง ว่าเป็นวันที่ไม่ได้พักด้วย ไม่ใช่แค่จำนวนที่จองอนุมัติเฉยๆ (ยกเว้นวันที่ HR ให้วันชดเชยแยกไปแล้ว) ปิด = นับแค่จำนวนวันที่จองอนุมัติเหมือนเดิม — ไม่ใช่ทุกบริษัทมีเคสนี้ เลือกได้ตามจริง
+            </span>
+          </span>
+          <Toggle checked={countWorkedOffDays} disabled={readOnly} onChange={setCountWorkedOffDays} aria-label="นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็นไม่ได้พักจริง" />
+        </div>
+      </div>
+      {!readOnly && (
+        <div style={{ marginLeft: 42 }}>
+          <Button variant="primary" loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function VacationPolicyTab() {
@@ -118,10 +209,12 @@ export default function VacationPolicyTab() {
         <Info size={16} color="#2563eb" style={{ flexShrink: 0, marginTop: 1 }} />
         <div style={{ fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.6 }}>
           รวมนโยบายพักร้อนตามอายุงานทุกส่วนไว้ที่นี่ — พนักงานที่มีสิทธิ์ (ประจำ + ผ่านโปร + ตำแหน่งตั้งค่าไว้) จะได้พักร้อนเพิ่มอัตโนมัติทุก 1 ม.ค., ได้โบนัสพักร้อน<strong>ตามส่วนต่างจริง</strong>ถ้า "หยุดได้จริง" ไม่ครบโควต้า/เดือน (เช่น โควต้า 5 หยุดได้จริงแค่ 2 = ได้ +3)
-          (นับทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาเช็คอินทำงานในวันที่จองหยุดไว้ — ยกเว้นวันที่ HR resolve alert ให้วันชดเชยแยกไปแล้ว จะไม่หักซ้ำ — เปิด/ปิดนับกรณีหลังได้ที่ <strong>ตั้งค่า → นโยบายการลา</strong>),
+          (นับทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาเช็คอินทำงานในวันที่จองหยุดไว้ — ยกเว้นวันที่ HR resolve alert ให้วันชดเชยแยกไปแล้ว จะไม่หักซ้ำ — เปิด/ปิดนับกรณีหลังได้ที่การ์ด <strong>"นโยบายการลา"</strong> ด้านล่าง),
           และรวมวันหยุดที่จอง+วันพักร้อนที่ใช้ต้องไม่เกิน <strong>10 วัน/เดือน</strong> ต่อคน (บล็อกอัตโนมัติ แอดมิน force ข้ามได้)
         </div>
       </div>
+
+      <LeavePolicyCard />
 
       {/* ── สูตรพักร้อนตามอายุงาน ── */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 18px' }}>
