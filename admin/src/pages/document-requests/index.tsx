@@ -159,6 +159,14 @@ export default function DocumentRequestsPage() {
           <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
           <InfoTooltip width={290} content="สรุปเอกสารที่ออกแล้วจริง (ไม่ใช่รายการคำขอด้านล่าง) — ใช้ดู/กรอง/Export ยอดสลิปเงินเดือนและหนังสือรับรองเงินเดือนที่สร้างในระบบทั้งหมด แยกตามกลุ่ม/สาขา/แผนก" />
           {!isReadOnly && (
+            <select defaultValue="" onChange={e => { if (e.target.value) navigate(`/hr-documents/templates/${e.target.value}`) }}
+              style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.8rem', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <option value="">ออกแบบเทมเพลต...</option>
+              <option value="SALARY_CERT">หนังสือรับรองเงินเดือน</option>
+              <option value="WORK_CERT">หนังสือรับรองการทำงาน</option>
+            </select>
+          )}
+          {!isReadOnly && (
             <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAddReq}>เพิ่มคำขอ</Button>
           )}
         </div>
@@ -223,7 +231,7 @@ export default function DocumentRequestsPage() {
               </div>
               {r.status === 'PENDING' && !isReadOnly && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  {(r.type === 'PAYSLIP' || r.type === 'SALARY_CERT') && (
+                  {(r.type === 'PAYSLIP' || r.type === 'SALARY_CERT' || r.type === 'WORK_CERT') && (
                     <Button variant="secondary" size="sm" icon={<Sparkles size={13} />} onClick={() => setGenTarget(r)}>สร้างในระบบ</Button>
                   )}
                   <Button variant="success" size="sm" icon={<Upload size={13} />} onClick={() => { setCompleteTarget(r); setPickedFile(null) }}>แนบไฟล์ + เสร็จ</Button>
@@ -283,7 +291,7 @@ export default function DocumentRequestsPage() {
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       {r.status === 'PENDING' && !isReadOnly ? (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          {(r.type === 'PAYSLIP' || r.type === 'SALARY_CERT') && (
+                          {(r.type === 'PAYSLIP' || r.type === 'SALARY_CERT' || r.type === 'WORK_CERT') && (
                             <button onClick={() => setGenTarget(r)} title="สร้างในระบบ"
                               style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                               <Sparkles size={13} />

@@ -27,6 +27,7 @@ import MasterDataPage       from './pages/master-data'
 import ResignationsPage     from './pages/resignations'
 import DocumentRequestsPage from './pages/document-requests'
 import HrDocumentPrintPage  from './pages/hr-documents/print'
+import HrDocumentTemplateEditorPage from './pages/hr-documents/TemplateEditor'
 import MagicLoginPage       from './pages/magic-login'
 import UiKitPage            from './pages/ui-kit'
 import PdpaPage              from './pages/pdpa'
@@ -70,6 +71,7 @@ function AdminRoutes() {
         <Route path="/master-data"   element={<MasterDataPage />} />
         <Route path="/resignations"  element={<ResignationsPage />} />
         <Route path="/document-requests" element={<DocumentRequestsPage />} />
+        <Route path="/hr-documents/templates/:docType" element={<HrDocumentTemplateEditorPage />} />
         <Route path="/settings"      element={<SettingsPage />} />
         <Route path="/audit-log"     element={<AuditLogPage />} />
         <Route path="/ui-kit"        element={<UiKitPage />} />

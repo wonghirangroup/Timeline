@@ -1,7 +1,13 @@
 // admin/src/pages/hr-documents/templates.tsx
-// เทมเพลตเอกสาร HR 3 แบบ — render จาก snapshot data ล้วนๆ (ไม่ fetch ข้อมูลสดเพิ่ม)
-// ตาม reference ที่ user ส่งมา (feedback 2026-09-15): ใบลาออก / หนังสือรับรองเงินเดือน /
-// สลิปเงินเดือน — สไตล์เอกสารราชการ/บริษัททั่วไป ตัวหนังสือ Sarabun, ขอบเขียนกระดาษ A4
+// เทมเพลตเอกสาร HR — render จาก snapshot data ล้วนๆ (ไม่ fetch ข้อมูลสดเพิ่ม) ตาม reference
+// ที่ user ส่งมา (feedback 2026-09-15): ใบลาออก / สลิปเงินเดือน — layout hardcode คงเดิม
+// ส่วนหนังสือรับรองเงินเดือน/การทำงาน (SALARY_CERT/WORK_CERT) ย้ายไปใช้ CertView ด้านล่าง
+// ซึ่ง render จากเทมเพลตที่แอดมินออกแบบเอง (ลาก-วาง) แทน — feedback 2026-10-01
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../lib/axios'
+import CertCanvas from './CertCanvas'
+import { DEFAULT_ELEMENTS, type CertData, type CertDocType, type TemplateElement } from './certTemplate'
+
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 
 export function thaiFullDate(iso?: string | null) {
@@ -33,11 +39,6 @@ export interface PayslipData {
   income: { salary: string; commission: string; attendance_bonus: string; transport: string; position_allowance: string; experience_allowance: string; day_off_buyback: string; kpi: string; birthday_bonus: string }
   deduction: { social_security: string; other: string }
 }
-export interface SalaryCertData {
-  company: CompanySnap; signer: SignerSnap
-  full_name: string; position_name: string | null
-  start_date: string | null; monthly_wage: string; issue_date: string | null
-}
 export interface ResignationData {
   company: CompanySnap
   full_name: string; position_name: string | null
@@ -51,19 +52,6 @@ const page: React.CSSProperties = {
 }
 const dotted = { borderBottom: '1px dotted #9ca3af', display: 'inline-block', minWidth: 24 }
 function Blank({ w = 160 }: { w?: number }) { return <span style={{ ...dotted, width: w }}>&nbsp;</span> }
-
-function Letterhead({ company, title }: { company: CompanySnap; title?: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #244B83', paddingBottom: 12, marginBottom: 22 }}>
-      {company.logo_url && <img src={company.logo_url} alt="" style={{ height: 52, objectFit: 'contain' }} />}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 800, fontSize: '17px' }}>{company.name}</div>
-        {company.address && <div style={{ fontSize: '12px', color: '#475569' }}>{company.address}</div>}
-        {company.tax_id && <div style={{ fontSize: '11px', color: '#94a3b8' }}>เลขประจำตัวผู้เสียภาษี {company.tax_id}</div>}
-      </div>
-    </div>
-  )
-}
 
 // ── 1. ใบลาออก ────────────────────────────────────────────────────────────────
 export function ResignationLetterView({ data }: { data: ResignationData }) {
@@ -99,28 +87,17 @@ export function ResignationLetterView({ data }: { data: ResignationData }) {
   )
 }
 
-// ── 2. หนังสือรับรองเงินเดือน ───────────────────────────────────────────────
-export function SalaryCertView({ data, docNumber }: { data: SalaryCertData; docNumber: string | null }) {
-  return (
-    <div style={page}>
-      <Letterhead company={data.company} />
-      {docNumber && <div style={{ marginBottom: 10, fontSize: '13px' }}>เอกสารเลขที่ {docNumber}</div>}
-      <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '19px', marginBottom: 26 }}>หนังสือรับรองเงินเดือน</div>
-      <div style={{ textIndent: '2em', marginBottom: 14 }}>
-        หนังสือรับรองฉบับนี้ออกให้ไว้เพื่อแสดงว่า {data.full_name} เป็นพนักงานตำแหน่ง {data.position_name || <Blank w={160} />} ของบริษัท {data.company.name} จำกัด
-        โดยได้เข้ามาปฏิบัติงานตั้งแต่วันที่ {data.start_date ? thaiFullDate(data.start_date) : <Blank w={140} />} ถึงปัจจุบัน
-        ได้รับอัตราค่าจ้างเดือนละ {money(data.monthly_wage)} บาท โดยไม่รวมเงินพิเศษอื่นๆ
-      </div>
-      <div style={{ marginBottom: 30 }}>จึงได้ออกหนังสือรับรองนี้ไว้เป็นหลักฐาน</div>
-      <div style={{ marginBottom: 40 }}>ออกให้ ณ วันที่ {data.issue_date ? thaiFullDate(data.issue_date) : <Blank w={140} />}</div>
-      <div style={{ textAlign: 'center', marginTop: 10 }}>
-        <div>ขอรับรองว่าข้อความข้างต้นเป็นความจริงทุกประการ</div>
-        <div style={{ marginTop: 46 }}>..............................................</div>
-        <div style={{ marginTop: 4 }}>({data.signer.signer_name || 'ผู้มีอำนาจลงนาม'})</div>
-        <div style={{ marginTop: 2, fontSize: '12.5px', color: '#475569' }}>{data.signer.signer_title || ''}</div>
-      </div>
-    </div>
-  )
+// ── 2. หนังสือรับรองเงินเดือน / หนังสือรับรองการทำงาน ──────────────────────────
+// render จากเทมเพลตที่แอดมินออกแบบเอง (ลาก-วาง) — fallback ไปใช้ DEFAULT_ELEMENTS
+// ถ้ายังไม่เคยปรับแต่ง (ยังไม่มีแถวในตาราง hr_document_templates)
+export function CertView({ docType, data, docNumber }: { docType: CertDocType; data: Omit<CertData, 'doc_number'>; docNumber: string | null }) {
+  const { data: tpl, isLoading } = useQuery<{ elements: TemplateElement[] } | null>({
+    queryKey: ['hr-document-template', docType],
+    queryFn: () => api.get(`/api/v1/admin/hr-document-templates/${docType}`).then(r => r.data.data),
+  })
+  if (isLoading) return <div style={page} />
+  const elements = tpl?.elements ?? DEFAULT_ELEMENTS[docType]
+  return <CertCanvas elements={elements} data={{ ...data, doc_number: docNumber }} editable={false} />
 }
 
 // ── 3. สลิปเงินเดือน ──────────────────────────────────────────────────────────

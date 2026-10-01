@@ -5,8 +5,13 @@
 // บันทึกเป็น snapshot ถาวร (เก็บไว้จริง มีเลขที่เอกสาร + ประวัติย้อนหลัง — ตามที่ยืนยัน)
 import { prisma } from '../../common/utils/prisma'
 
-export const HR_DOC_TYPES = ['PAYSLIP', 'SALARY_CERT', 'RESIGNATION_LETTER'] as const
+export const HR_DOC_TYPES = ['PAYSLIP', 'SALARY_CERT', 'RESIGNATION_LETTER', 'WORK_CERT'] as const
 export type HrDocType = (typeof HR_DOC_TYPES)[number]
+
+// เอกสารที่รองรับ "ออกแบบเทมเพลตเอง" (ลาก-วาง) — เฉพาะหนังสือรับรอง 2 แบบ
+// PAYSLIP/RESIGNATION_LETTER ยังเป็น layout hardcode เหมือนเดิม (feedback 2026-10-01)
+export const TEMPLATE_DOC_TYPES = ['SALARY_CERT', 'WORK_CERT'] as const
+export type TemplateDocType = (typeof TEMPLATE_DOC_TYPES)[number]
 
 // ข้อมูลตั้งต้นให้ฟอร์มสร้างเอกสาร — ส่วนที่ระบบมีอยู่แล้ว (เติมอัตโนมัติ) แยกจาก
 // ส่วนที่ไม่มี (แอดมินกรอกเอง) ชัดเจนที่ฝั่ง frontend
@@ -27,7 +32,7 @@ export async function getDocData(tenantId: string, employeeId: string, type: HrD
     select: { name: true, address: true, tax_id: true, logo_url: true, signer_name: true, signer_title: true },
   })
 
-  const suggested_doc_number = (type === 'PAYSLIP' || type === 'SALARY_CERT')
+  const suggested_doc_number = (type === 'PAYSLIP' || type === 'SALARY_CERT' || type === 'WORK_CERT')
     ? await nextDocNumber(tenantId, type)
     : null
 
@@ -124,4 +129,23 @@ export async function getHrDocument(tenantId: string, id: string, scoped?: strin
   if (!row) return null
   if (scoped && !scoped.includes(row.employee_id)) throw new Error('OUT_OF_SCOPE')
   return row
+}
+
+// ── เทมเพลตเอกสาร HR ที่แอดมินออกแบบเอง (ลาก-วาง) ──────────────────────────────
+// 1 แถวต่อ tenant ต่อ doc_type — ไม่มีแถว = ยังไม่เคยปรับแต่ง ฝั่ง frontend fallback
+// ไปใช้ layout เริ่มต้นที่ฝังในโค้ดเอง ไม่ต้อง seed ล่วงหน้า
+export async function getHrDocumentTemplate(tenantId: string, docType: TemplateDocType) {
+  return prisma.hrDocumentTemplate.findUnique({ where: { tenant_id_doc_type: { tenant_id: tenantId, doc_type: docType } } })
+}
+
+export async function saveHrDocumentTemplate(tenantId: string, docType: TemplateDocType, elements: unknown[], userId: string) {
+  return prisma.hrDocumentTemplate.upsert({
+    where: { tenant_id_doc_type: { tenant_id: tenantId, doc_type: docType } },
+    create: { tenant_id: tenantId, doc_type: docType, elements: elements as any, updated_by: userId },
+    update: { elements: elements as any, updated_by: userId },
+  })
+}
+
+export async function resetHrDocumentTemplate(tenantId: string, docType: TemplateDocType) {
+  await prisma.hrDocumentTemplate.deleteMany({ where: { tenant_id: tenantId, doc_type: docType } })
 }

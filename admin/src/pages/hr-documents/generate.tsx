@@ -10,9 +10,9 @@ import { useToast } from '../../components/ui/Toast'
 import Modal from '../../components/ui/Modal'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 
-type DocType = 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER'
+type DocType = 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER' | 'WORK_CERT'
 
-const TYPE_LABEL: Record<DocType, string> = { PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', RESIGNATION_LETTER: 'ใบลาออก' }
+const TYPE_LABEL: Record<DocType, string> = { PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', RESIGNATION_LETTER: 'ใบลาออก', WORK_CERT: 'หนังสือรับรองการทำงาน' }
 
 interface DocData {
   employee: { id: string; employee_code: string; full_name: string; nickname: string | null; position_name: string | null; branch_name: string | null; hired_at: string | null }
@@ -57,9 +57,15 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
   const [reason, setReason] = useState('')
   const [effectiveDate, setEffectiveDate] = useState('')
 
+  // Work cert fields
+  const [workDocNumber, setWorkDocNumber] = useState('')
+  const [workIssueDate, setWorkIssueDate] = useState(todayISO())
+  const [purpose, setPurpose] = useState('')
+
   useEffect(() => {
     if (!data) return
     setDocNumber(data.suggested_doc_number ?? '')
+    setWorkDocNumber(data.suggested_doc_number ?? '')
     setStartDate(data.employee.hired_at ? data.employee.hired_at.slice(0, 10) : '')
   }, [data])
 
@@ -77,7 +83,20 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
       } else if (type === 'SALARY_CERT') {
         payload = {
           employee_id: employeeId, type, doc_number: docNumber || null, document_request_id: documentRequestId ?? null,
-          data: { company, signer, full_name: data.employee.full_name, position_name: data.employee.position_name, start_date: startDate || null, monthly_wage: monthlyWage, issue_date: issueDate || null },
+          data: {
+            company, signer, full_name: data.employee.full_name, position_name: data.employee.position_name,
+            employee_code: data.employee.employee_code, branch_name: data.employee.branch_name, hired_at: data.employee.hired_at,
+            start_date: startDate || null, monthly_wage: monthlyWage, issue_date: issueDate || null,
+          },
+        }
+      } else if (type === 'WORK_CERT') {
+        payload = {
+          employee_id: employeeId, type, doc_number: workDocNumber || null, document_request_id: documentRequestId ?? null,
+          data: {
+            company, signer, full_name: data.employee.full_name, position_name: data.employee.position_name,
+            employee_code: data.employee.employee_code, branch_name: data.employee.branch_name, hired_at: data.employee.hired_at,
+            issue_date: workIssueDate || null, purpose: purpose || null,
+          },
         }
       } else {
         payload = {
@@ -164,6 +183,14 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
                 </div>
                 <div><label style={label}>เหตุผล</label><textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={reason} onChange={e => setReason(e.target.value)} /></div>
                 <div><label style={label}>วันที่มีผล (วันสุดท้ายที่ทำงาน)</label><input type="date" style={inputStyle} value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(effectiveDate)}</span></div>
+              </div>
+            )}
+
+            {type === 'WORK_CERT' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div><label style={label}>เลขที่เอกสาร</label><input style={inputStyle} value={workDocNumber} onChange={e => setWorkDocNumber(e.target.value)} /></div>
+                <div><label style={label}>ออกให้ ณ วันที่</label><input type="date" style={inputStyle} value={workIssueDate} onChange={e => setWorkIssueDate(e.target.value)} /><span style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', marginTop: 3 }}>{fmtThaiDate(workIssueDate)}</span></div>
+                <div><label style={label}>วัตถุประสงค์ (ไม่บังคับ)</label><input style={inputStyle} value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="เช่น เพื่อใช้ประกอบการขอวีซ่า" /></div>
               </div>
             )}
 

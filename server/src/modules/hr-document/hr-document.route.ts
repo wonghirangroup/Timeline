@@ -66,6 +66,32 @@ export async function hrDocumentRoutes(app: FastifyInstance) {
     }
   })
 
+  // ── เทมเพลตเอกสาร HR ที่แอดมินออกแบบเอง (ลาก-วาง) — เฉพาะหนังสือรับรอง 2 แบบ ──
+  app.get('/admin/hr-document-templates/:docType', {
+    preHandler: [tenantMiddleware, requireRole(...READ_ROLES)],
+    schema: {
+      tags: ['Admin'], summary: 'เทมเพลตเอกสาร HR ที่ออกแบบไว้ (null = ยังไม่เคยปรับแต่ง)', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { docType: { type: 'string', enum: svc.TEMPLATE_DOC_TYPES as unknown as string[] } } },
+    },
+  }, async (req: any) => ok(await svc.getHrDocumentTemplate(req.tenantId, req.params.docType)))
+
+  app.put('/admin/hr-document-templates/:docType', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    schema: {
+      tags: ['Admin'], summary: 'บันทึกเทมเพลตเอกสาร HR', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { docType: { type: 'string', enum: svc.TEMPLATE_DOC_TYPES as unknown as string[] } } },
+      body: { type: 'object', required: ['elements'], properties: { elements: { type: 'array' } } },
+    },
+  }, async (req: any) => ok(await svc.saveHrDocumentTemplate(req.tenantId, req.params.docType, req.body.elements, req.userId), 'บันทึกเทมเพลตสำเร็จ'))
+
+  app.post('/admin/hr-document-templates/:docType/reset', {
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES)],
+    schema: {
+      tags: ['Admin'], summary: 'รีเซ็ตเทมเพลตเอกสาร HR กลับเป็นค่าเริ่มต้น', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { docType: { type: 'string', enum: svc.TEMPLATE_DOC_TYPES as unknown as string[] } } },
+    },
+  }, async (req: any) => { await svc.resetHrDocumentTemplate(req.tenantId, req.params.docType); return ok(null, 'รีเซ็ตเทมเพลตแล้ว') })
+
   // พิมพ์ซ้ำ — render จาก snapshot เดิมเป๊ะ (หน้า print แยก ไม่มี Layout)
   app.get('/admin/hr-documents/:id', {
     preHandler: [tenantMiddleware, requireRole(...READ_ROLES), resolveDeptScope],

@@ -7,9 +7,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Printer, Loader2 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
-import { PayslipView, SalaryCertView, ResignationLetterView } from './templates'
+import { PayslipView, CertView, ResignationLetterView } from './templates'
 
-interface HrDocRow { id: string; type: 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER'; doc_number: string | null; data: any }
+interface HrDocRow { id: string; type: 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER' | 'WORK_CERT'; doc_number: string | null; data: any }
 
 export default function HrDocumentPrintPage() {
   const { id } = useParams<{ id: string }>()
@@ -44,7 +44,7 @@ export default function HrDocumentPrintPage() {
         {isLoading && <div style={{ textAlign: 'center', color: '#6b7280', padding: 60 }}><Loader2 className="animate-spin" size={22} /></div>}
         {isError && <div style={{ textAlign: 'center', color: '#dc2626', padding: 60 }}>ไม่พบเอกสาร หรือไม่มีสิทธิ์เข้าถึง</div>}
         {row && row.type === 'PAYSLIP' && <PayslipView data={row.data} />}
-        {row && row.type === 'SALARY_CERT' && <SalaryCertView data={row.data} docNumber={row.doc_number} />}
+        {row && (row.type === 'SALARY_CERT' || row.type === 'WORK_CERT') && <CertView docType={row.type} data={row.data} docNumber={row.doc_number} />}
         {row && row.type === 'RESIGNATION_LETTER' && <ResignationLetterView data={row.data} />}
       </div>
     </div>
