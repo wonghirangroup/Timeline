@@ -48,7 +48,7 @@ const ROLE_BADGE: Record<string, { bg: string; color: string }> = {
   EXECUTIVE: { bg: '#eef2ff', color: '#4338ca' }, DEPT_HEAD: { bg: '#ecfeff', color: '#0e7490' },
 }
 interface LinkedEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null }
-interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string; linked_employee?: LinkedEmployee | null }
+interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string; is_root_admin?: boolean; linked_employee?: LinkedEmployee | null }
 interface Dept { id: string; name: string; division: { id: string; name: string } | null }
 interface EmpOption { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null; email?: string | null; branch?: { name: string } | null; admin_user?: { is_active: boolean } | null }
 const EMPTY_USER_FORM = { email: '', password: '', first_name: '', last_name: '', role: 'ADMIN', department_ids: [] as string[], employee_id: '' }
@@ -163,7 +163,11 @@ function UserManagementSettings() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {users.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>ยังไม่มีผู้ใช้งาน</p>}
           {users.map(u => {
-            const badge = ROLE_BADGE[u.role] ?? { bg: '#f3f4f6', color: '#374151' }
+            // ลำดับขั้น: ผู้ดูแลระบบ > แอดมิน > ผู้บริหาร > ผู้จัดการ > หัวหน้าแผนก
+            // > พนักงาน (feedback 2026-10-01) — root admin สิทธิ์เหมือน ADMIN ทุก
+            // อย่าง เปลี่ยนแค่ป้ายที่โชว์ให้แยกจากแอดมินทั่วไป
+            const badge = u.is_root_admin ? { bg: '#FEF3C7', color: '#92400E' } : (ROLE_BADGE[u.role] ?? { bg: '#f3f4f6', color: '#374151' })
+            const roleLabel = u.is_root_admin ? 'ผู้ดูแลระบบ' : (ROLE_LABEL[u.role] ?? u.role)
             return (
               <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: '#f9fafb', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 160 }}>
@@ -176,7 +180,7 @@ function UserManagementSettings() {
                     </p>
                   )}
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '3px 9px', borderRadius: 99 }}>{ROLE_LABEL[u.role] ?? u.role}</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '3px 9px', borderRadius: 99 }}>{roleLabel}</span>
                 <Button variant="secondary" size="sm" icon={<ShieldCheck size={13}/>} onClick={() => setPermTarget(u)} aria-label="สิทธิ์" />
                 <Button variant="secondary" size="sm" icon={<Pencil size={13}/>} onClick={() => openEdit(u)} aria-label="แก้ไข" />
                 <Button variant="danger-soft" size="sm" icon={<Trash2 size={13}/>} onClick={() => setDeleteTarget(u)} aria-label="ลบ" />
@@ -284,7 +288,7 @@ function UserManagementSettings() {
       {permTarget && (
         <PermissionMatrixEditor
           userId={permTarget.id}
-          userLabel={`${permTarget.first_name} ${permTarget.last_name} · ${ROLE_LABEL[permTarget.role] ?? permTarget.role}`}
+          userLabel={`${permTarget.first_name} ${permTarget.last_name} · ${permTarget.is_root_admin ? 'ผู้ดูแลระบบ' : (ROLE_LABEL[permTarget.role] ?? permTarget.role)}`}
           onClose={() => setPermTarget(null)}
         />
       )}

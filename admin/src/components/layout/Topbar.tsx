@@ -72,13 +72,19 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
     if (full && full !== name) setName(full)
   }, [me, name, setName])
 
+  // ลำดับขั้น: ผู้ดูแลระบบ > แอดมิน > ผู้บริหาร > ผู้จัดการ > หัวหน้าแผนก > พนักงาน
+  // (feedback 2026-10-01) — "ผู้ดูแลระบบ" ไม่ใช่ role แยกในฐานข้อมูล แค่ label
+  // พิเศษของบัญชีที่ is_root_admin=true (บัญชีแรกที่ตั้งบริษัท มีสิทธิ์ยกระดับ
+  // คนอื่นได้) สิทธิ์จริงเหมือน ADMIN ทุกอย่าง เปลี่ยนแค่ป้ายที่โชว์
   const ROLE_CFG: Record<string, { label: string; bg: string; color: string }> = {
     ADMIN:     { label: 'แอดมิน',                    bg: '#F4F6F9', color: '#131C45' },
     MANAGER:   { label: 'ผู้จัดการ',                bg: '#dcfce7', color: '#15803d' },
     EXECUTIVE: { label: 'ผู้บริหาร (ดูอย่างเดียว)', bg: '#eef2ff', color: '#4338ca' },
     DEPT_HEAD: { label: 'หัวหน้าแผนก',             bg: '#ecfeff', color: '#0e7490' },
   }
-  const roleCfg = ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน', bg: '#F4F6F9', color: '#131C45' }
+  const roleCfg = me?.is_root_admin
+    ? { label: 'ผู้ดูแลระบบ', bg: '#FEF3C7', color: '#92400E' }
+    : (ROLE_CFG[role ?? ''] ?? { label: 'แอดมิน', bg: '#F4F6F9', color: '#131C45' })
   const roleLabel = roleCfg.label
   const roleColor = roleCfg
 

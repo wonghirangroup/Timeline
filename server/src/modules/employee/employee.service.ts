@@ -113,7 +113,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
 
 const ADMIN_USER_INCLUDE = {
   select: {
-    id: true, email: true, role: true, is_active: true,
+    id: true, email: true, role: true, is_active: true, is_root_admin: true,
     managed_departments: { select: { department_id: true } },
   },
 } as const

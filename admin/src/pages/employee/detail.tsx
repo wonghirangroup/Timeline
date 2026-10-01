@@ -671,7 +671,7 @@ function AdminAccessCard({ emp }: { emp: any }) {
   const isRootAdmin = useAuthStore(s => s.isRootAdmin)
   const myRole = useAuthStore(s => s.role)
   const canManage = isRootAdmin || myRole === 'SUPER_ADMIN'
-  const current = emp.admin_user as { id: string; email: string; role: string; is_active: boolean } | null | undefined
+  const current = emp.admin_user as { id: string; email: string; role: string; is_active: boolean; is_root_admin?: boolean } | null | undefined
   const active = !!current?.is_active
 
   const [role, setRole]   = useState<string>(active ? current!.role : '')
@@ -737,7 +737,7 @@ function AdminAccessCard({ emp }: { emp: any }) {
             </>
           ) : (
             <>
-              <span style={{ color: '#475569' }}>· {current.email} · {ADMIN_ROLE_LABEL[current.role] ?? current.role}</span>
+              <span style={{ color: '#475569' }}>· {current.email} · {current.is_root_admin ? 'ผู้ดูแลระบบ' : (ADMIN_ROLE_LABEL[current.role] ?? current.role)}</span>
               {canManage && (
                 <button onClick={() => { setNewEmail(current.email); setEditingEmail(true) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: '0.7rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>

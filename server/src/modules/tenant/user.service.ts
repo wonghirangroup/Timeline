@@ -24,7 +24,7 @@ export async function listUsers(tenantId: string) {
       ...(tenantId ? { tenant_id: tenantId } : {}),
     },
     select: {
-      id: true, email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true,
+      id: true, email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true, is_root_admin: true,
       linked_employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, line_user_id: true } },
     },
     orderBy: { created_at: 'desc' },
