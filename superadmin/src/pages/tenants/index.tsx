@@ -132,9 +132,28 @@ export default function TenantsPage() {
   }, [])
   const [lineForm, setLineForm]     = useState({ line_channel_id: '', line_channel_secret: '', liff_id: '' })
   const [showSecret, setShowSecret] = useState(false)
-  const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle')
+  // ทดสอบเชื่อมต่อ LINE จริง — ไม่ใช่แค่เช็คว่ากรอกไม่ว่าง (feedback 2026-10-01
+  // "เชื่อมต่อได้จริงไหม") ยิง POST /line-config/test ซึ่งแลก token จริงจาก LINE
+  // แล้วดึงชื่อบอทมายืนยัน
+  const [testResult, setTestResult] = useState<{ state: 'idle' | 'testing' | 'ok' | 'fail'; message?: string }>({ state: 'idle' })
   const [lineSaving, setLineSaving] = useState(false)
   const [lineSaveErr, setLineSaveErr] = useState<string | null>(null)
+
+  async function handleTestLineConnection() {
+    setTestResult({ state: 'testing' })
+    try {
+      const r = await api.post('/api/v1/super-admin/line-config/test', {
+        line_channel_id: lineForm.line_channel_id,
+        line_channel_secret: lineForm.line_channel_secret,
+      })
+      const data = r.data.data
+      setTestResult(data.ok
+        ? { state: 'ok', message: `เชื่อมต่อสำเร็จ — บอท "${data.displayName}" (${data.basicId})` }
+        : { state: 'fail', message: data.error })
+    } catch (e: any) {
+      setTestResult({ state: 'fail', message: e.response?.data?.error?.message ?? 'เชื่อมต่อไม่สำเร็จ' })
+    }
+  }
 
   async function loadTenants() {
     try {
@@ -339,7 +358,7 @@ export default function TenantsPage() {
                         ? <span style={{ color: 'var(--success-text)', fontSize: '0.78rem', fontWeight: 700 }}>✓ ตั้งค่าแล้ว</span>
                         : <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>— ยังไม่ตั้งค่า</span>}
                       <br />
-                      <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult('idle'); setLineSaveErr(null); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
+                      <button onClick={() => { setLineModal(t); setShowSecret(false); setTestResult({ state: 'idle' }); setLineSaveErr(null); setLineForm({ line_channel_id: t.line_config?.line_channel_id ?? '', line_channel_secret: '', liff_id: t.line_config?.line_liff_id ?? '' }) }}
                         style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontSize: '0.72rem', fontWeight: 600, marginTop: 4 }}>
                         {t.line_config ? '⚙ แก้ไข' : '+ ตั้งค่า'}
                       </button>
@@ -589,11 +608,13 @@ export default function TenantsPage() {
               </ol>
             </div>
 
-            {/* Webhook URL */}
+            {/* Webhook URL — เดิมชี้ไป timeline-52hp.onrender.com ซึ่งเป็นโดเมน Render
+                เก่าก่อนย้ายไป VPS (เลิกใช้แล้ว) ใส่ผิดจะทำให้ LINE ส่ง event มาไม่ถึง
+                เซิร์ฟเวอร์จริงเลย (feedback 2026-10-01 "เชื่อมต่อได้จริงไหม") */}
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.7 }}>
               <strong>Webhook URL</strong> — ใส่ใน LINE Developers → Messaging API → Webhook settings<br />
               <code style={{ fontSize: '0.73rem', background: '#dcfce7', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginTop: 4, wordBreak: 'break-all' }}>
-                {`https://timeline-52hp.onrender.com/api/v1/line/webhook`}
+                {`${import.meta.env.VITE_API_URL || 'https://timeline-api.wonghiran.com'}/api/v1/line/webhook`}
               </code>
             </div>
 
@@ -630,9 +651,9 @@ export default function TenantsPage() {
                 </p>
               </div>
 
-              {testResult !== 'idle' && (
-                <div style={{ background: testResult === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)' }}>
-                  {testResult === 'ok' ? '✓ เชื่อมต่อสำเร็จ' : '✕ เชื่อมต่อไม่ได้ — ตรวจสอบ Channel ID และ Secret'}
+              {(testResult.state === 'ok' || testResult.state === 'fail') && (
+                <div style={{ background: testResult.state === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${testResult.state === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: testResult.state === 'ok' ? '#15803d' : 'var(--error-text)' }}>
+                  {testResult.state === 'ok' ? `✓ ${testResult.message}` : `✕ เชื่อมต่อไม่ได้ — ${testResult.message}`}
                 </div>
               )}
               {lineSaveErr && (
@@ -643,8 +664,10 @@ export default function TenantsPage() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 22 }}>
-              <button onClick={() => { setTestResult('idle'); setTimeout(() => setTestResult(lineForm.line_channel_id && lineForm.line_channel_secret ? 'ok' : 'fail'), 1200) }}
-                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600 }}>🔌 Test</button>
+              <button onClick={handleTestLineConnection} disabled={testResult.state === 'testing' || !lineForm.line_channel_id || !lineForm.line_channel_secret}
+                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: testResult.state === 'testing' ? 'default' : 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600, opacity: (!lineForm.line_channel_id || !lineForm.line_channel_secret) ? 0.5 : 1 }}>
+                {testResult.state === 'testing' ? '🔌 กำลังทดสอบ...' : '🔌 Test'}
+              </button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setLineModal(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff' }}>ปิด</button>
                 <button onClick={handleSaveLineConfig} disabled={lineSaving}

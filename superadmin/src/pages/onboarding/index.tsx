@@ -1,6 +1,6 @@
 // superadmin/src/pages/onboarding/index.tsx
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Copy, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { TenantPlan } from '../../types'
@@ -99,6 +99,122 @@ function thDate(d: string) {
   return `${day}/${m}/${y + 543}`
 }
 
+// ── ฟอร์มตั้งค่า LINE OA แบบฝังในหน้า — ไม่ต้องกดออกไปหน้าอื่น (feedback
+// 2026-10-01: "ทำเป็น step by step ให้ฉันในระบบฉันได้รู้ว่าฉันทำอะไรไปแล้ว ...
+// เชื่อมต่อได้จริงไหม") ปุ่ม Test ยิงทดสอบจริงกับ LINE Platform ไม่ใช่แค่เช็ค
+// ว่ากรอกไม่ว่างเหมือนของเดิม
+interface LineFormState { line_channel_id: string; line_channel_secret: string; line_channel_access_token: string; line_liff_id: string }
+const WEBHOOK_URL = `${import.meta.env.VITE_API_URL || 'https://timeline-api.wonghiran.com'}/api/v1/line/webhook`
+
+function TenantLineForm({ tenant, onDone }: { tenant: ApiTenant; onDone: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState<LineFormState>({
+    line_channel_id: tenant.line_config?.line_channel_id ?? '',
+    line_channel_secret: '',
+    line_channel_access_token: '',
+    line_liff_id: tenant.line_config?.line_liff_id ?? '',
+  })
+  const [showSecret, setShowSecret] = useState(false)
+  const [test, setTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'fail'; message?: string }>({ state: 'idle' })
+  const [webhookCopied, setWebhookCopied] = useState(false)
+
+  async function runTest() {
+    setTest({ state: 'testing' })
+    try {
+      const r = await api.post('/api/v1/super-admin/line-config/test', {
+        line_channel_id: form.line_channel_id,
+        line_channel_secret: form.line_channel_secret,
+        line_channel_access_token: form.line_channel_access_token,
+      })
+      const data = r.data.data
+      setTest(data.ok
+        ? { state: 'ok', message: `เชื่อมต่อสำเร็จ — บอท "${data.displayName}" (${data.basicId})` }
+        : { state: 'fail', message: data.error })
+    } catch (e: any) {
+      setTest({ state: 'fail', message: e.response?.data?.error?.message ?? 'เชื่อมต่อไม่สำเร็จ' })
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.put(`/api/v1/super-admin/tenants/${tenant.id}/line-config`, {
+      line_channel_id: form.line_channel_id,
+      line_channel_secret: form.line_channel_secret || undefined,
+      line_channel_access_token: form.line_channel_access_token || undefined,
+      line_liff_id: form.line_liff_id,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sa', 'tenants'] }); onDone() },
+  })
+
+  const canTest = !!form.line_channel_id && (!!form.line_channel_secret || !!form.line_channel_access_token)
+  const canSave = !!form.line_channel_id && !!form.line_liff_id
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 12 }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 12px', fontSize: '0.78rem', color: '#15803d', lineHeight: 1.6 }}>
+        <strong>Webhook URL</strong> — วางใน LINE Developers → Messaging API → Webhook settings<br />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <code style={{ fontSize: '0.72rem', background: '#dcfce7', padding: '2px 6px', borderRadius: 4, wordBreak: 'break-all', flex: 1 }}>{WEBHOOK_URL}</code>
+          <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_URL); setWebhookCopied(true); setTimeout(() => setWebhookCopied(false), 2000) }}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #bbf7d0', background: '#fff', cursor: 'pointer', fontSize: '0.7rem', color: '#15803d', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            {webhookCopied ? <><Check size={11} /> คัดลอกแล้ว</> : <><Copy size={11} /> คัดลอก</>}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+        <div>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Channel ID *</label>
+          <input value={form.line_channel_id} onChange={e => setForm(f => ({ ...f, line_channel_id: e.target.value }))} placeholder="เช่น 2010057364"
+            style={{ width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>LIFF ID *</label>
+          <input value={form.line_liff_id} onChange={e => setForm(f => ({ ...f, line_liff_id: e.target.value }))} placeholder="เช่น 2010057364-BtB7eW1f"
+            style={{ width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Channel Secret</label>
+          <div style={{ position: 'relative' }}>
+            <input type={showSecret ? 'text' : 'password'} value={form.line_channel_secret} onChange={e => setForm(f => ({ ...f, line_channel_secret: e.target.value }))}
+              placeholder={tenant.line_config ? '(มีอยู่แล้ว — กรอกใหม่เพื่อเปลี่ยน)' : 'ตัวอักษร 32 หลัก'}
+              style={{ width: '100%', padding: '7px 32px 7px 9px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <button type="button" onClick={() => setShowSecret(s => !s)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0 }}>{showSecret ? '🙈' : '👁'}</button>
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Channel Access Token (ไม่บังคับ)</label>
+          <input value={form.line_channel_access_token} onChange={e => setForm(f => ({ ...f, line_channel_access_token: e.target.value }))}
+            placeholder={tenant.line_config ? '(มีอยู่แล้ว — กรอกใหม่เพื่อเปลี่ยน)' : 'long-lived token'}
+            style={{ width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.8rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      {(test.state === 'ok' || test.state === 'fail') && (
+        <div style={{ background: test.state === 'ok' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${test.state === 'ok' ? '#86efac' : '#fca5a5'}`, borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: test.state === 'ok' ? '#15803d' : '#dc2626' }}>
+          {test.state === 'ok' ? `✓ ${test.message}` : `✕ ${test.message}`}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <button onClick={runTest} disabled={!canTest || test.state === 'testing'}
+          style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--sa-accent)', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600, fontSize: '0.78rem', cursor: canTest ? 'pointer' : 'default', opacity: canTest ? 1 : 0.5 }}>
+          {test.state === 'testing' ? '🔌 กำลังทดสอบ...' : '🔌 ทดสอบเชื่อมต่อจริง'}
+        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onDone} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.78rem', cursor: 'pointer', color: '#64748b' }}>ยกเลิก</button>
+          <button onClick={() => saveMutation.mutate()} disabled={!canSave || saveMutation.isPending}
+            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--sa-accent)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: canSave ? 'pointer' : 'default', opacity: canSave ? 1 : 0.6 }}>
+            {saveMutation.isPending ? 'กำลังบันทึก...' : '💾 บันทึก'}
+          </button>
+        </div>
+      </div>
+      {saveMutation.isError && (
+        <div style={{ fontSize: '0.75rem', color: '#dc2626' }}>บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง</div>
+      )}
+    </div>
+  )
+}
+
 function ProgressBar({ pct, color = 'var(--sa-accent)' }: { pct: number; color?: string }) {
   return (
     <div style={{ height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
@@ -121,6 +237,8 @@ export default function OnboardingPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [reminded, setReminded] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState<string | null>(null)
+  // เปิดฟอร์ม LINE OA ฝังในหน้าได้ทีละ tenant (feedback 2026-10-01)
+  const [lineFormTenantId, setLineFormTenantId] = useState<string | null>(null)
 
   const { data: apiTenants = [], isLoading } = useQuery<ApiTenant[]>({
     queryKey: ['sa', 'tenants'],
@@ -152,7 +270,7 @@ export default function OnboardingPage() {
 
   async function handleAction(actionKey: string, tenantId: string, stepId: string) {
     if (actionKey === 'billing')  navigate(`/billing`)
-    if (actionKey === 'line')     navigate(`/tenants/${tenantId}`)
+    if (actionKey === 'line')     setLineFormTenantId(id => id === tenantId ? null : tenantId)
     if (actionKey === 'detail')   navigate(`/tenants/${tenantId}`)
     if (actionKey === 'reminder') {
       try {
@@ -473,8 +591,8 @@ export default function OnboardingPage() {
                               )}
                             </div>
 
-                            {/* Action button */}
-                            {!done && step.actionLabel && step.actionKey && (
+                            {/* Action button — "line" เปิดได้ซ้ำแม้เสร็จแล้ว เผื่ออยากแก้/ทดสอบใหม่ */}
+                            {(!done || step.actionKey === 'line') && step.actionLabel && step.actionKey && (
                               <button
                                 onClick={e => { e.stopPropagation(); handleAction(step.actionKey!, c.tenant.id, step.id) }}
                                 style={{
@@ -491,7 +609,7 @@ export default function OnboardingPage() {
                                     : 'var(--sa-accent)',
                                 }}
                               >
-                                {step.actionKey === 'reminder' && wasReminded ? '✓ ส่งแล้ว' : step.actionLabel}
+                                {step.actionKey === 'reminder' && wasReminded ? '✓ ส่งแล้ว' : (done && step.actionKey === 'line') ? 'แก้ไข/ทดสอบอีกครั้ง' : step.actionLabel}
                               </button>
                             )}
                           </div>
@@ -499,6 +617,11 @@ export default function OnboardingPage() {
                       )
                     })}
                   </div>
+
+                  {/* ฟอร์มตั้งค่า LINE OA ฝังในหน้า — เปิดจากปุ่ม "ตั้งค่า Line OA" ของ step นี้ */}
+                  {lineFormTenantId === c.tenant.id && (
+                    <TenantLineForm tenant={c.tenant} onDone={() => setLineFormTenantId(null)} />
+                  )}
                 </div>
               )}
             </div>

@@ -104,6 +104,8 @@ export default function TenantDetailPage() {
   const [showSecret, setShowSecret]       = useState(false)
   const [showToken,  setShowToken]        = useState(false)
   const [testResult, setTestResult]       = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [testMessage, setTestMessage]     = useState('')
+  const [testing, setTesting]             = useState(false)
   const [lineForm, setLineForm]           = useState<LineForm>({
     line_channel_id:           '',
     line_channel_secret:       '',
@@ -264,11 +266,30 @@ export default function TenantDetailPage() {
   }
   const lineConfigured = !!tenant.line_config?.line_channel_id
 
-  const webhookUrl = `https://api.timeline.app/api/v1/line/webhook/${id}`
+  // webhook เดียวกันทุก tenant (ไม่มี /:id — backend แยก tenant จาก channel ที่ผูก
+  // ไว้ตอนตั้งค่า ไม่ใช่จาก path) — เดิมคัดลอกมาจาก mock data เก่า
+  // (admin/src/lib/mock.ts) เลยเป็นโดเมนสมมติ "api.timeline.app" ที่ไม่มีจริง
+  // (feedback 2026-10-01 "เชื่อมต่อได้จริงไหม") ใช้ฐานเดียวกับที่ api client จริง
+  // เรียกอยู่แล้ว กันหลุด sync กับโดเมน production ที่ใช้จริงอีกในอนาคต
+  const webhookUrl = `${import.meta.env.VITE_API_URL || 'https://timeline-api.wonghiran.com'}/api/v1/line/webhook`
 
-  function testConnection() {
+  async function testConnection() {
     setTestResult('idle')
-    setTimeout(() => setTestResult(lineForm.line_channel_id && lineForm.line_channel_secret ? 'ok' : 'fail'), 800)
+    setTesting(true)
+    try {
+      const r = await api.post('/api/v1/super-admin/line-config/test', {
+        line_channel_id: lineForm.line_channel_id,
+        line_channel_secret: lineForm.line_channel_secret,
+        line_channel_access_token: lineForm.line_channel_access_token,
+      })
+      setTestResult(r.data.data.ok ? 'ok' : 'fail')
+      setTestMessage(r.data.data.ok ? `เชื่อมต่อสำเร็จ — บอท "${r.data.data.displayName}" (${r.data.data.basicId})` : r.data.data.error)
+    } catch (e: any) {
+      setTestResult('fail')
+      setTestMessage(e.response?.data?.error?.message ?? 'เชื่อมต่อไม่สำเร็จ')
+    } finally {
+      setTesting(false)
+    }
   }
 
   const TABS: { key: Tab; label: string }[] = [
@@ -664,9 +685,7 @@ export default function TenantDetailPage() {
                 fontSize: '0.82rem', color: testResult === 'ok' ? '#15803d' : 'var(--error-text)',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                {testResult === 'ok'
-                  ? '✓ Channel ID และ Secret ดูถูกต้อง'
-                  : '✕ กรุณากรอก Channel ID และ Channel Secret ก่อน'}
+                {testResult === 'ok' ? `✓ ${testMessage}` : `✕ ${testMessage || 'กรุณากรอก Channel ID และ Channel Secret ก่อน'}`}
               </div>
             )}
           </div>
@@ -674,10 +693,11 @@ export default function TenantDetailPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 10 }}>
             <button
               onClick={testConnection}
-              style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}
+              disabled={testing || !lineForm.line_channel_id || (!lineForm.line_channel_secret && !lineForm.line_channel_access_token)}
+              style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--sa-accent)', cursor: testing ? 'default' : 'pointer', background: '#fff', color: 'var(--sa-accent)', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6, opacity: testing ? 0.7 : 1 }}
             >
               <CheckCircle size={14} />
-              Test Connection
+              {testing ? 'กำลังทดสอบ...' : 'Test Connection'}
             </button>
             <button
               onClick={() => saveLineMutation.mutate(lineForm)}

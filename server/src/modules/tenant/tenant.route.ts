@@ -1,5 +1,6 @@
 // server/src/modules/tenant/tenant.route.ts
 import { FastifyInstance } from 'fastify'
+import axios from 'axios'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { requirePermission, requireRootAdmin } from '../../common/middleware/permission'
@@ -535,5 +536,55 @@ export async function tenantRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     const config = await upsertLineConfig(req.params.id, req.body)
     return ok(config, 'ตั้งค่า Line สำเร็จ')
+  })
+
+  // POST /api/v1/super-admin/line-config/test — ทดสอบเชื่อมต่อ LINE OA จริง (ไม่ใช่
+  // แค่เช็คว่ากรอกครบ) — แลก access token จาก channel id+secret ด้วย client_credentials
+  // grant ถ้ายังไม่มี token อยู่แล้ว แล้วยิง GET /v2/bot/info จริงกับ LINE เพื่อยืนยันว่า
+  // credential ใช้ได้จริง คืนชื่อ/รูปบอทให้เห็นเป็นหลักฐาน ไม่ผูกกับ tenant ไหนเป็นพิเศษ
+  // ใช้ทดสอบก่อนบันทึกก็ได้ (feedback 2026-10-01: "เชื่อมต่อได้จริงไหม" — ปุ่ม Test
+  // เดิมเป็นแค่ setTimeout เช็คว่ากรอกไม่ว่างเฉยๆ ไม่เคยยิงหา LINE จริง)
+  app.post('/line-config/test', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN')],
+    schema: {
+      tags: [TAG],
+      summary: 'ทดสอบเชื่อมต่อ LINE OA จริงกับ LINE Platform',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        properties: {
+          line_channel_id:           { type: 'string' },
+          line_channel_secret:       { type: 'string' },
+          line_channel_access_token: { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any) => {
+    try {
+      let token: string | undefined = req.body.line_channel_access_token || undefined
+      if (!token) {
+        if (!req.body.line_channel_id || !req.body.line_channel_secret) {
+          return ok({ ok: false, error: 'ต้องกรอก Channel ID + Channel Secret หรือ Access Token อย่างน้อยหนึ่งแบบ' })
+        }
+        const tokenRes = await axios.post(
+          'https://api.line.me/oauth2/v3/token',
+          new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: req.body.line_channel_id,
+            client_secret: req.body.line_channel_secret,
+          }),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 },
+        )
+        token = tokenRes.data.access_token
+      }
+      const botRes = await axios.get('https://api.line.me/v2/bot/info', {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      })
+      return ok({ ok: true, displayName: botRes.data.displayName, basicId: botRes.data.basicId, pictureUrl: botRes.data.pictureUrl })
+    } catch (e: any) {
+      const lineMsg = e?.response?.data?.error_description || e?.response?.data?.message || e.message || 'เชื่อมต่อ LINE ไม่สำเร็จ'
+      return ok({ ok: false, error: lineMsg })
+    }
   })
 }
