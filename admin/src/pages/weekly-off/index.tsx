@@ -1037,8 +1037,14 @@ export default function WeeklyOffPage() {
                 {/* Card header — ชื่อพนักงาน + ปุ่ม bulk (เฉพาะเมื่อมีรอพิจารณา >1 วัน) */}
                 <div style={{ padding: '12px 14px', background: '#F4F6F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {g.employee.first_name} {g.employee.last_name}{g.employee.nickname ? ` (${g.employee.nickname})` : ''}
+                      {g.items.some(i => i.status === 'APPROVED') && (
+                        <span title="มีวันที่อนุมัติแล้วอย่างน้อย 1 วัน"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '1px 7px', fontSize: '0.65rem', fontWeight: 700 }}>
+                          <Check size={10} /> อนุมัติแล้ว
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>
                       {g.employee.employee_code} · {g.employee.branch.name} · {g.items.length} วัน
