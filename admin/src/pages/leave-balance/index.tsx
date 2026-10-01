@@ -6,6 +6,7 @@ import { Pencil, Trash2, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, A
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -602,7 +603,18 @@ export default function LeaveBalancePage() {
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>โควต้าวันลาพนักงาน</h1>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              โควต้าวันลาพนักงาน
+              <InfoTooltip size="md" title="โควต้าวันลาพนักงาน" width={310} content={
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  <li>ตัวเลขที่เห็นในตาราง = <b>ใช้ไปแล้ว / โควต้ารวม</b> ต่อประเภทการลา ของปีที่เลือก</li>
+                  <li>แถบสี: <b style={{ color: '#059669' }}>เขียว</b> = ยังเหลือเยอะ, <b style={{ color: '#d97706' }}>เหลือง</b> = ใกล้หมด (≥80%), <b style={{ color: '#dc2626' }}>แดง</b> = เกินโควต้าแล้ว</li>
+                  <li>กดไอคอนดินสอท้ายแถวเพื่อแก้ไขทีละคน ดูวันที่ลาแต่ละประเภท หรือเพิ่ม/ลบวันย้อนหลังได้</li>
+                  <li><b>แก้ไขแบบตาราง</b> — เปิดตารางเต็มจอ พิมพ์แก้โควต้าได้ทุกคนพร้อมกันแบบ Excel</li>
+                  <li>ติ๊กเลือกหลายคน แล้วกด <b>แก้ไขพร้อมกัน</b> — ตั้งค่าเดียวกันให้ทุกคนที่เลือกรวดเดียว</li>
+                </ul>
+              } />
+            </h1>
             <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
               กำหนดจำนวนวันลาสูงสุดต่อปีของพนักงานแต่ละคน — พนักงานลาเกินโควต้าไม่ได้
             </p>

@@ -10,6 +10,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { deptName } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
@@ -883,6 +884,14 @@ export default function WeeklyOffPage() {
           <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
             <ChevronRight size={16} color="var(--text-muted)" />
           </button>
+          <InfoTooltip title="จองวันหยุดประจำเดือน" width={310} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li><b>เปิด/ปิดการจอง</b> — เปิด/ปิดสิทธิ์จองวันหยุดของแต่ละสาขา/กลุ่มต่อเดือน ตั้ง deadline ได้</li>
+              <li><b>รายการคำขอ</b> — คำขอวันหยุดของพนักงานทุกคน รวมเป็น 1 การ์ด/คน กดอนุมัติ/ปฏิเสธทีละวันหรือทั้งหมดพร้อมกันได้ ขอบการ์ดสีเหลือง = ยังมีรอพิจารณา, เขียว = อนุมัติครบแล้ว, แดง = ปฏิเสธครบ</li>
+              <li><b>ภาพรวม</b> — สรุปจำนวนวันหยุดที่ใช้ไปของแต่ละคนในเดือนนี้</li>
+              <li><b>แจ้งเตือน & สลับ</b> — คำขอสลับวันหยุดระหว่างพนักงาน และแจ้งเตือนกรณีมาทำงานในวันที่ขอหยุดไว้</li>
+            </ul>
+          } />
         </div>
 
         {/* Tabs */}

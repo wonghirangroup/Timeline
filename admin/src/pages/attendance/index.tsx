@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
@@ -668,8 +669,17 @@ export default function AttendancePage() {
     <div>
       {/* KPI bar */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
           สถานะวันนี้
+          <InfoTooltip title="เช็คอินวันนี้" width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>สรุปสถานะเช็คอินของพนักงานทุกคนในวันที่เลือก กดกรองสถานะ/สาขา/แผนกได้ที่แถบด้านล่าง</li>
+              <li><b>นอกเวลากะ</b> = เช็คอินนอกช่วงเวลาปกติของกะที่จับได้ (ไม่ใช่ผิดกะ)</li>
+              <li><b>ไม่ตรงกะตัวเอง</b> = กะที่บันทึกไว้ไม่ตรงกับกะประจำของพนักงานคนนั้น</li>
+              <li><b>ไม่มี GPS</b> = เช็คอินแล้วแต่ไม่ได้ส่งพิกัดมา ตรวจตำแหน่งจริงไม่ได้</li>
+              <li>กดไอคอนดินสอเพื่อแก้ไขเวลา/กะ หรือ "+ ลงบันทึก" สำหรับคนที่ยังไม่เช็คอิน</li>
+            </ul>
+          } />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {[
