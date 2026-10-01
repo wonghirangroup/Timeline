@@ -754,6 +754,13 @@ export default function WeeklyOffPage() {
     return groups
   }, [filtered])
 
+  // จำนวนคนที่มีคำขอรอพิจารณาอย่างน้อย 1 รายการ — ใช้ขึ้นเลขที่แท็บ "รายการคำขอ"
+  // (feedback 2026-10-01: "ถ้ามีคำขอ มาให้ขึ้นเลขไว้หน่อยว่ามีกี่คนส่งคำขอมา")
+  const pendingEmployeeCount = useMemo(
+    () => groupedByEmployee.filter(g => g.items.some(i => i.status === 'PENDING')).length,
+    [groupedByEmployee],
+  )
+
   const [reqPage, setReqPage] = useState(1)
   const REQ_PAGE_SIZE = 10   // การ์ด/หน้า (คนละหน่วยกับตารางเดิมที่นับเป็นแถว)
   const reqTotalPages = Math.max(1, Math.ceil(groupedByEmployee.length / REQ_PAGE_SIZE))
@@ -897,6 +904,9 @@ export default function WeeklyOffPage() {
               transition: 'all .15s',
             }}>
               <Icon size={13} /> {label}
+              {t === 'requests' && pendingEmployeeCount > 0 && (
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{pendingEmployeeCount}</span>
+              )}
               {t === 'exceptions' && workedAlerts.length > 0 && (
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{workedAlerts.length}</span>
               )}

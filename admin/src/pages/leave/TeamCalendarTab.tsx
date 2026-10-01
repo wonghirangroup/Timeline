@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical, EyeOff } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -85,7 +85,12 @@ function saveRosterColors(colors: Record<string, string>) {
 // จำไว้ในเครื่องนี้เหมือน rosterColors ไม่ต้องจัดใหม่ทุกครั้งที่ export
 const ROSTER_GROUP_OVERRIDE_KEY = 'tl_roster_group_overrides'
 const ROSTER_CUSTOM_GROUPS_KEY = 'tl_roster_custom_groups'
+const ROSTER_HIDDEN_KEY = 'tl_roster_hidden_employees'
 const ROSTER_DND_MIME = 'application/x-timeline-roster-employee'
+// ชื่อโซน "ไม่แสดง" — ลากคนมาลงตรงนี้เพื่อตัดออกจากตาราง export ไปเลย (feedback
+// 2026-10-01: "สามารถเลือกคนที่ไม่ต้องแสดงได้") ไม่ใช่ชื่อกลุ่มจริง ห้ามชนกับชื่อ
+// กลุ่มที่สร้างเอง/ชื่อกลุ่มจริงในผังองค์กร
+const ROSTER_HIDDEN_ZONE = '__hidden__'
 
 function loadRosterGroupOverrides(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(ROSTER_GROUP_OVERRIDE_KEY) ?? '{}') } catch { return {} }
@@ -98,6 +103,12 @@ function loadRosterCustomGroups(): string[] {
 }
 function saveRosterCustomGroups(v: string[]) {
   try { localStorage.setItem(ROSTER_CUSTOM_GROUPS_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
+}
+function loadRosterHidden(): string[] {
+  try { return JSON.parse(localStorage.getItem(ROSTER_HIDDEN_KEY) ?? '[]') } catch { return [] }
+}
+function saveRosterHidden(v: string[]) {
+  try { localStorage.setItem(ROSTER_HIDDEN_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
 }
 
 // week_start = Monday, day_of_week = 0 (Sun) – 6 (Sat) as JS getUTCDay()
@@ -655,6 +666,7 @@ export default function TeamCalendarTab() {
   const [rosterDeptId, setRosterDeptId] = useState('')
   const [rosterGroupOverrides, setRosterGroupOverrides] = useState<Record<string, string>>(() => loadRosterGroupOverrides())
   const [rosterCustomGroups, setRosterCustomGroups] = useState<string[]>(() => loadRosterCustomGroups())
+  const [rosterHidden, setRosterHidden] = useState<string[]>(() => loadRosterHidden())
   const [newGroupName, setNewGroupName] = useState('')
   const [dragOverGroupName, setDragOverGroupName] = useState<string | null>(null)
   const { departments: allDepartments } = useOrgFilterOptions()
@@ -671,6 +683,17 @@ export default function TeamCalendarTab() {
 
   function moveEmployeeToRosterGroup(employeeId: string, groupName: string) {
     setRosterGroupOverrides(prev => { const next = { ...prev, [employeeId]: groupName }; saveRosterGroupOverrides(next); return next })
+    // ลากกลับเข้ากลุ่มปกติ = เอาออกจากโซน "ไม่แสดง" โดยอัตโนมัติถ้าเคยซ่อนไว้
+    setRosterHidden(prev => {
+      if (!prev.includes(employeeId)) return prev
+      const next = prev.filter(id => id !== employeeId); saveRosterHidden(next); return next
+    })
+  }
+  function hideFromRosterExport(employeeId: string) {
+    setRosterHidden(prev => {
+      if (prev.includes(employeeId)) return prev
+      const next = [...prev, employeeId]; saveRosterHidden(next); return next
+    })
   }
   function addRosterCustomGroup(name: string) {
     const trimmed = name.trim()
@@ -946,15 +969,32 @@ export default function TeamCalendarTab() {
     return (gid && groups.find(g => g.id === gid)?.name) || 'ไม่มีกลุ่ม'
   }
 
-  function buildRosterGroups(): { groupName: string; employees: ApiEmployeeFull[] }[] {
-    // กรองคนที่จะโชว์ด้วย filter กลุ่ม/แผนกจริงก่อนเหมือนเดิม — ลากย้ายกลุ่ม export
-    // เป็นแค่เรื่องจัดหน้าตาตอน export เท่านั้น ไม่เกี่ยวกับว่าใครอยู่ในผังองค์กรไหนจริง
-    const candidates = employeesFull.filter(e => {
+  // กรองคนที่จะโชว์ด้วย filter กลุ่ม/แผนกจริงก่อน (ไม่รวมคนที่ลากไปโซน "ไม่แสดง" ไว้)
+  function rosterCandidates(): ApiEmployeeFull[] {
+    return employeesFull.filter(e => {
+      if (rosterHidden.includes(e.id)) return false
       if (rosterDeptId && employeeOrgMap[e.id]?.departmentId !== rosterDeptId) return false
       const gid = employeeGroupId[e.id]
       if (rosterGroupId && gid !== rosterGroupId) return false
       return true
     })
+  }
+
+  // คนที่ลากไปโซน "ไม่แสดง" ไว้ — ยังต้องโชว์ในมอดัลเพื่อลากกลับได้ (แค่ไม่โชว์ในตาราง/export)
+  function rosterHiddenEmployees(): ApiEmployeeFull[] {
+    return employeesFull.filter(e => {
+      if (!rosterHidden.includes(e.id)) return false
+      if (rosterDeptId && employeeOrgMap[e.id]?.departmentId !== rosterDeptId) return false
+      const gid = employeeGroupId[e.id]
+      if (rosterGroupId && gid !== rosterGroupId) return false
+      return true
+    })
+  }
+
+  function buildRosterGroups(): { groupName: string; employees: ApiEmployeeFull[] }[] {
+    // ลากย้ายกลุ่ม export เป็นแค่เรื่องจัดหน้าตาตอน export เท่านั้น ไม่เกี่ยวกับว่าใคร
+    // อยู่ในผังองค์กรไหนจริง — ส่วนคนที่ลากไปโซน "ไม่แสดง" ถูกตัดออกตั้งแต่ขั้น filter แล้ว
+    const candidates = rosterCandidates()
 
     const byName = new Map<string, ApiEmployeeFull[]>()
     for (const e of candidates) {
@@ -1391,7 +1431,7 @@ export default function TeamCalendarTab() {
                 {/* สีต่อคน — ตั้งเองได้ (manual) จำไว้ในเครื่องนี้ */}
                 <div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>สีประจำตัวแต่ละคน / จัดกลุ่ม export เอง</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>คลิกวงกลมสีเพื่อเปลี่ยนเอง — ลากคน (ไอคอน ⠿) ไปวางในกลุ่มอื่น หรือสร้างกลุ่มใหม่เพื่อจัดเฉพาะตอน export ได้เลย ระบบจำไว้ในเครื่องนี้ ไม่ต้องจัดใหม่ทุกครั้ง</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>คลิกวงกลมสีเพื่อเปลี่ยนเอง — ลากคน (ไอคอน ⠿) ไปวางในกลุ่มอื่น สร้างกลุ่มใหม่ หรือลากไปโซน "ไม่แสดง" ด้านล่างเพื่อตัดออกจากตาราง export ได้เลย ระบบจำไว้ในเครื่องนี้ ไม่ต้องจัดใหม่ทุกครั้ง</div>
 
                   {/* สร้างกลุ่ม export เอง */}
                   <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -1453,6 +1493,43 @@ export default function TeamCalendarTab() {
                       )
                     })}
                     {rosterGroups.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีพนักงานที่อยู่ในกลุ่ม</div>}
+
+                    {/* โซน "ไม่แสดง" — ลากคนมาตัดออกจากตาราง export ไปเลย (โซนตายตัว ลบไม่ได้ ต่างจากกลุ่มที่สร้างเอง) */}
+                    {(() => {
+                      const hiddenEmps = rosterHiddenEmployees()
+                      const isDragOver = dragOverGroupName === ROSTER_HIDDEN_ZONE
+                      return (
+                        <div
+                          onDragOver={e => { if (!e.dataTransfer.types.includes(ROSTER_DND_MIME)) return; e.preventDefault(); setDragOverGroupName(ROSTER_HIDDEN_ZONE) }}
+                          onDragLeave={() => setDragOverGroupName(prev => prev === ROSTER_HIDDEN_ZONE ? null : prev)}
+                          onDrop={e => {
+                            if (!e.dataTransfer.types.includes(ROSTER_DND_MIME)) return
+                            e.preventDefault()
+                            const employeeId = e.dataTransfer.getData(ROSTER_DND_MIME)
+                            if (employeeId) hideFromRosterExport(employeeId)
+                            setDragOverGroupName(null)
+                          }}
+                          style={{ borderRadius: 8, padding: 6, background: isDragOver ? '#fef2f2' : '#fafafa', outline: isDragOver ? '1.5px dashed #fca5a5' : '1px dashed #e5e7eb', transition: 'background .1s' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', marginBottom: 5 }}>
+                            <EyeOff size={12} /> ไม่แสดง (ตัดออกจากตาราง export)
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 28 }}>
+                            {hiddenEmps.map(e => (
+                              <div key={e.id} draggable
+                                onDragStart={ev => { ev.dataTransfer.setData(ROSTER_DND_MIME, e.id); ev.dataTransfer.effectAllowed = 'move' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 2px', borderRadius: 6, cursor: 'grab', opacity: 0.65 }}>
+                                <GripVertical size={13} color="#cbd5e1" style={{ flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280', textDecoration: 'line-through' }}>{e.nickname || `${e.first_name} ${e.last_name}`}</span>
+                                {e.employee_code && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{e.employee_code}</span>}
+                              </div>
+                            ))}
+                            {hiddenEmps.length === 0 && (
+                              <div style={{ fontSize: '0.72rem', color: '#cbd5e1', padding: '4px 2px' }}>ลากคนมาวางที่นี่เพื่อไม่ให้แสดงในตาราง</div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
