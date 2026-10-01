@@ -235,6 +235,7 @@ export default function AttendancePage() {
   // รับ branchId param) — กลุ่ม/แผนก/ตำแหน่งกรองฝั่ง client เพิ่มเติมจาก employeeOrgMap
   const branchFilter = orgFilter.branchId
   const [search, setSearch]       = useState('')
+  const [statusFilter, setStatusFilter] = useState<Status | ''>('')
   const [page, setPage]           = useState(1)
   const pageSize                  = 7
 
@@ -494,16 +495,17 @@ export default function AttendancePage() {
 
   const filtered = useMemo(() => rows.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false
+    if (statusFilter && r.status !== statusFilter) return false
     if (!search) return true
     const q = search.toLowerCase()
     const e = r.employee
     return `${e.first_name} ${e.last_name} ${e.nickname ?? ''} ${e.employee_code}`.toLowerCase().includes(q)
-  }), [rows, search, orgFilter, employeeOrgMap])
+  }), [rows, search, orgFilter, statusFilter, employeeOrgMap])
 
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
 
-  useEffect(() => { setPage(1) }, [orgFilter, search, date])
+  useEffect(() => { setPage(1) }, [orgFilter, statusFilter, search, date])
 
   // ── Summaries ────────────────────────────────────────────────────────
   const summary = useMemo(() => ({
@@ -693,8 +695,15 @@ export default function AttendancePage() {
       {/* Filters */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Org filter */}
-        <div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <OrgFilterBar value={orgFilter} onChange={v => { setOrgFilter(v); setPage(1) }} />
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as Status | '')}
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <option value="">ทุกสถานะ</option>
+            {(Object.keys(STATUS_CFG) as Status[]).map(s => (
+              <option key={s} value={s}>{STATUS_CFG[s].label}</option>
+            ))}
+          </select>
         </div>
         {/* Compact controls */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
