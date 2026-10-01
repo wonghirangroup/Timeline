@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, Trash2, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon, Sparkles, ExternalLink } from 'lucide-react'
+import { Pencil, Trash2, RefreshCw, Thermometer, ClipboardList, Sun, X, Users, AlertCircle, AlertTriangle, CheckCircle2, CalendarDays, Settings, Loader2, Search, AlertOctagon, Sparkles, ExternalLink, Table2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import Pagination from '../../components/ui/Pagination'
@@ -406,6 +406,13 @@ export default function LeaveBalancePage() {
   const [page,         setPage]        = useState(1)
   const PAGE_SIZE = 10
 
+  // ── แก้ไขแบบตาราง (Excel-style) — พิมพ์แก้ตัวเลขทีละช่องได้ตรงๆ ทุกคนพร้อมกัน
+  // ไม่ต้องติ๊กเลือกแบบ bulk edit เดิม (feedback 2026-10-01: "อยากให้เป็นหน้าตา
+  // แบบกรอกแบบ Excel เลย ... ไม่ต้องติ๊กกดแบบแก้ไขพร้อมกันหลายคน")
+  const [gridOpen,  setGridOpen]  = useState(false)
+  const [gridDraft, setGridDraft] = useState<Record<string, Quotas>>({})
+  const gridCellRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
   const navigate = useNavigate()
 
   const { data: balances = [], isLoading: loading, refetch } = useQuery<LeaveBalance[]>({
@@ -530,6 +537,61 @@ export default function LeaveBalancePage() {
     else setSelectedIds(new Set(filtered.map(b => b.employee_id)))
   }
 
+  // เปิดตาราง — เอาค่าปัจจุบัน (ตามตัวกรอง/ค้นหาที่เลือกอยู่บนจอ) มาตั้งเป็นค่าเริ่มต้น
+  function openGrid() {
+    const draft: Record<string, Quotas> = {}
+    for (const b of filtered) {
+      draft[b.employee_id] = { sick: b.sick.total, personal: b.personal.total, vacation: b.vacation.total, compensate: b.compensate.total }
+    }
+    setGridDraft(draft)
+    setGridOpen(true)
+  }
+  function setGridCell(employeeId: string, key: LeaveKey, value: number) {
+    setGridDraft(prev => ({ ...prev, [employeeId]: { ...prev[employeeId], [key]: value } }))
+  }
+  // Enter/ลูกศรขึ้น-ลง ย้ายไปช่องเดียวกันแถวถัดไป/ก่อนหน้า (ซ้าย-ขวาย้ายเฉพาะตอนเคอร์เซอร์
+  // ชนขอบตัวเลขแล้ว กันรบกวนการแก้ตัวเลขในช่องปกติ) — เลียนแบบความรู้สึกกรอก Excel
+  function handleGridKeyDown(e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) {
+    const input = e.currentTarget
+    let nextRow = rowIdx, nextCol = colIdx
+    if (e.key === 'Enter' || e.key === 'ArrowDown') nextRow = Math.min(filtered.length - 1, rowIdx + 1)
+    else if (e.key === 'ArrowUp') nextRow = Math.max(0, rowIdx - 1)
+    else if (e.key === 'ArrowRight' && input.selectionStart === input.value.length) nextCol = Math.min(LEAVE_TYPES.length - 1, colIdx + 1)
+    else if (e.key === 'ArrowLeft' && input.selectionStart === 0) nextCol = Math.max(0, colIdx - 1)
+    else return
+    if (nextRow === rowIdx && nextCol === colIdx) return
+    e.preventDefault()
+    const targetEmp = filtered[nextRow]
+    const targetKey = LEAVE_TYPES[nextCol].key
+    const el = gridCellRefs.current[`${targetEmp.employee_id}_${targetKey}`]
+    el?.focus(); el?.select()
+  }
+  const gridChangedCount = useMemo(() => {
+    let n = 0
+    for (const b of filtered) {
+      const draft = gridDraft[b.employee_id]
+      if (!draft) continue
+      for (const lt of LEAVE_TYPES) if (draft[lt.key] !== quotaOf(b, lt.key)) n++
+    }
+    return n
+  }, [filtered, gridDraft])
+  async function handleGridSave() {
+    const items: { employee_id: string; leave_type: string; total_days: number }[] = []
+    for (const b of filtered) {
+      const draft = gridDraft[b.employee_id]
+      if (!draft) continue
+      for (const lt of LEAVE_TYPES) {
+        if (draft[lt.key] !== quotaOf(b, lt.key)) items.push({ employee_id: b.employee_id, leave_type: LEAVE_KEY_TO_TYPE[lt.key], total_days: draft[lt.key] })
+      }
+    }
+    if (items.length === 0) { setGridOpen(false); return }
+    try {
+      await saveBatch(items)
+      showToast('success', `บันทึก ${items.length} ช่องที่แก้ไขแล้ว`)
+      setGridOpen(false)
+    } catch { showToast('error', 'บันทึกไม่สำเร็จ') }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {loading && <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
@@ -630,6 +692,11 @@ export default function LeaveBalancePage() {
         <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
 
         <div style={{ flex: 1 }} />
+
+        <button onClick={openGrid}
+          style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Table2 size={14}/> แก้ไขแบบตาราง
+        </button>
 
         {/* Bulk actions */}
         {selectedIds.size > 0 && (
@@ -906,6 +973,92 @@ export default function LeaveBalancePage() {
               <button onClick={() => setBulkEditOpen(false)} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
               <button onClick={handleBulkSave} style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#244B83', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>บันทึก {selectedIds.size} คน</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* แก้ไขแบบตาราง (Excel-style) — เต็มจอ พิมพ์แก้ตัวเลขทุกคนพร้อมกันตรงๆ */}
+      {gridOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 600, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>แก้ไขโควต้าแบบตาราง</div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 2 }}>
+                พิมพ์แก้ไขตัวเลขในช่องได้ตรงๆ — กด Enter/ลูกศรขึ้นลงเพื่อย้ายช่อง ({filtered.length} คน)
+                {gridChangedCount > 0 && <> · <span style={{ color: '#4f46e5', fontWeight: 700 }}>แก้ไขแล้ว {gridChangedCount} ช่อง</span></>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setGridOpen(false)} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.85rem', cursor: 'pointer', color: '#374151' }}>ยกเลิก</button>
+              <button onClick={handleGridSave} disabled={saving}
+                style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#244B83', color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'กำลังบันทึก...' : gridChangedCount > 0 ? `บันทึก ${gridChangedCount} ช่อง` : 'ปิด'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8', fontSize: '0.9rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</div>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640 }}>
+                <thead>
+                  <tr>
+                    <th style={{ position: 'sticky', top: 0, left: 0, zIndex: 3, background: '#f8fafc', padding: '10px 14px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e2e8f0', minWidth: 220 }}>พนักงาน</th>
+                    {LEAVE_TYPES.map(lt => (
+                      <th key={lt.key} style={{ position: 'sticky', top: 0, zIndex: 2, background: '#f8fafc', padding: '10px 8px', textAlign: 'center', fontSize: '0.78rem', fontWeight: 700, color: lt.color, borderBottom: '1px solid #e2e8f0', minWidth: 90 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>{lt.icon}{lt.short}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((b, rowIdx) => {
+                    const rowBg = rowIdx % 2 === 0 ? '#fff' : '#fafbff'
+                    return (
+                      <tr key={b.employee_id}>
+                        <td style={{ position: 'sticky', left: 0, zIndex: 1, background: rowBg, padding: '8px 14px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: b.photo_url ? '#e2e8f0' : '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800, color: '#4f46e5' }}>
+                              {b.photo_url
+                                ? <img src={avatarUrl(b.photo_url, 52) ?? b.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : b.nickname.slice(0, 2)}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>{b.nickname || b.full_name}</div>
+                              <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{b.branch_name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        {LEAVE_TYPES.map((lt, colIdx) => {
+                          const draftVal = gridDraft[b.employee_id]?.[lt.key] ?? quotaOf(b, lt.key)
+                          const dirty = draftVal !== quotaOf(b, lt.key)
+                          return (
+                            <td key={lt.key} style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9', background: rowBg, textAlign: 'center' }}>
+                              <input
+                                ref={el => { gridCellRefs.current[`${b.employee_id}_${lt.key}`] = el }}
+                                type="number" min={0}
+                                value={draftVal}
+                                onChange={e => setGridCell(b.employee_id, lt.key, Math.max(0, parseInt(e.target.value) || 0))}
+                                onKeyDown={e => handleGridKeyDown(e, rowIdx, colIdx)}
+                                onFocus={e => e.target.select()}
+                                style={{
+                                  width: 64, padding: '6px 4px', borderRadius: 7, textAlign: 'center',
+                                  border: `1.5px solid ${dirty ? '#818cf8' : '#e2e8f0'}`,
+                                  background: dirty ? '#eef2ff' : '#fff',
+                                  fontSize: '0.85rem', fontWeight: 700, color: dirty ? '#4338ca' : '#0f172a',
+                                  fontFamily: 'inherit',
+                                }}
+                              />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
