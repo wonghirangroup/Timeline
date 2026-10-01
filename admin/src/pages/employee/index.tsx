@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard, Table2, LayoutGrid } from 'lucide-react'
+import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard, Table2, LayoutGrid, Download } from 'lucide-react'
+import { downloadCsv } from '../../lib/exportCsv'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -275,6 +276,22 @@ export default function EmployeePage() {
 
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
+
+  // Export CSV รายชื่อพนักงาน (ตามตัวกรองที่ตั้งไว้) — เจาะจงไม่เอาข้อมูลอ่อนไหว
+  // (เลขบัตรประชาชน, เงินเดือน) ออกไปในไฟล์ ถึงจะมีสิทธิ์ดูในระบบก็ตาม กันหลุด
+  // ไปอยู่ในไฟล์ที่ส่งต่อกันง่ายๆ โดยไม่ตั้งใจ (feedback 2026-10-01 "มีอะไรที่ยัง
+  // จำเป็นต้อง Export อีกไหม" → รายชื่อพนักงานยังไม่มี export เลย)
+  function exportCsv() {
+    const header = ['รหัสพนักงาน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'สาขา', 'แผนก', 'ตำแหน่ง', 'สถานะพนักงาน', 'ประเภท', 'เบอร์โทร', 'อีเมล', 'วันที่เข้าทำงาน', 'สถานะบัญชี', 'ผูก Line']
+    const body = filtered.map(e => [
+      e.employee_code, e.prefix ?? '', e.first_name, e.last_name, e.nickname ?? '',
+      e.branch.name, deptName(e.department) ?? e.department ?? '', e.position?.name ?? '',
+      e.employee_status_type?.name ?? '', e.emp_type ?? '',
+      e.phone ?? '', e.email ?? '', e.hired_at ? e.hired_at.slice(0, 10) : '',
+      STATUS_CFG[e.status]?.label ?? e.status, e.line_user_id ? 'ผูกแล้ว' : 'ยังไม่ผูก',
+    ])
+    downloadCsv([header, ...body], `รายชื่อพนักงาน_${new Date().toISOString().slice(0, 10)}.csv`)
+  }
 
   function openAdd() {
     setAddStep(1)
@@ -609,12 +626,17 @@ export default function EmployeePage() {
                 </button>
               ))}
             </div>
+            <button onClick={exportCsv} disabled={filtered.length === 0} title="Export รายชื่อพนักงาน (ตามตัวกรองปัจจุบัน) เป็น CSV"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', opacity: filtered.length === 0 ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
+              <Download size={13} /> Export CSV
+            </button>
           </>)}
 
           {/* Mobile filter button */}
           {isMobile && (() => {
             const activeCount = [orgFilter.groupId, orgFilter.branchId, orgFilter.departmentId, orgFilter.positionId, statusFilter, lineFilter].filter(Boolean).length
             return (
+              <>
               <button onClick={() => setFilterSheetOpen(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${activeCount > 0 ? '#244B83' : '#e5e7eb'}`, background: activeCount > 0 ? '#F4F6F9' : '#fff', color: activeCount > 0 ? '#244B83' : '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
                 กรอง
@@ -622,6 +644,11 @@ export default function EmployeePage() {
                   <span style={{ background: '#244B83', color: '#fff', borderRadius: 99, width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{activeCount}</span>
                 )}
               </button>
+              <button onClick={exportCsv} disabled={filtered.length === 0} title="Export CSV" aria-label="Export รายชื่อพนักงานเป็น CSV"
+                style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#374151', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', opacity: filtered.length === 0 ? 0.6 : 1, flexShrink: 0 }}>
+                <Download size={15} />
+              </button>
+              </>
             )
           })()}
         </div>
