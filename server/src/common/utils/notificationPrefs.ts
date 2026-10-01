@@ -29,3 +29,17 @@ export function isNotificationEnabled(prefs: unknown, type: NotificationType): b
   const v = (prefs as Record<string, unknown>)[type]
   return v !== false
 }
+
+// ประเภทแจ้งเตือน → feature key ของ FeaturePermission (server/src/common/permissions/features.ts)
+// ใช้เช็คสิทธิ์ "แจ้งเตือนไลน์" รายบัญชีก่อนส่ง (feedback 2026-10-01: "จำกัดสิทธิ์การ
+// แจ้งเตือนไลน์ไปยังแอดมินไลน์ได้ด้วย") — weekly_off/weekly_off_swap รวมอยู่ใต้ "leave"
+// เพราะในหน้าสิทธิ์ละเอียดจัดเป็นเมนูเดียวกัน ("การลา และ วันหยุด")
+export const NOTIFICATION_TYPE_TO_FEATURE: Record<NotificationType, string> = {
+  leave:               'leave',
+  ot:                  'ot',
+  weekly_off:          'leave',
+  weekly_off_swap:     'leave',
+  resignation:         'resignation',
+  attendance_anomaly:  'shift',
+  document_request:    'document_request',
+}

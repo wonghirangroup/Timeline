@@ -9,13 +9,14 @@ import { useToast } from '../ui/Toast'
 import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 
-type PermissionAction = 'view' | 'add' | 'edit' | 'delete' | 'approve'
+type PermissionAction = 'view' | 'add' | 'edit' | 'delete' | 'approve' | 'notify'
 const ACTIONS: { key: PermissionAction; label: string }[] = [
   { key: 'view', label: 'ดู' },
   { key: 'add', label: 'เพิ่ม' },
   { key: 'edit', label: 'แก้ไข' },
   { key: 'delete', label: 'ลบ' },
   { key: 'approve', label: 'อนุมัติ' },
+  { key: 'notify', label: 'แจ้งเตือนไลน์' },
 ]
 interface FeatureDef { key: string; label: string; section: string }
 type PermissionRow = { feature: string } & Record<PermissionAction, boolean>

@@ -37,5 +37,5 @@ export const FEATURES: FeatureDef[] = [
 
 export const FEATURE_KEYS = FEATURES.map(f => f.key)
 
-export type PermissionAction = 'view' | 'add' | 'edit' | 'delete' | 'approve'
-export const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'add', 'edit', 'delete', 'approve']
+export type PermissionAction = 'view' | 'add' | 'edit' | 'delete' | 'approve' | 'notify'
+export const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'add', 'edit', 'delete', 'approve', 'notify']

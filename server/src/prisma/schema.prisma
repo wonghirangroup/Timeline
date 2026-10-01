@@ -138,6 +138,7 @@ model FeaturePermission {
   can_edit    Boolean  @default(false)
   can_delete  Boolean  @default(false)
   can_approve Boolean  @default(false)
+  can_notify  Boolean  @default(true) // ได้รับแจ้งเตือนไลน์ของฟีเจอร์นี้ไหม (ดีฟอลต์ true รักษาพฤติกรรมเดิมก่อนมีสิทธิ์นี้)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 

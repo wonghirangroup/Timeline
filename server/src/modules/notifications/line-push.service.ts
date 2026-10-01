@@ -8,7 +8,7 @@
 // best-effort เสมอ — พังยังไงก็ห้ามทำให้ flow หลัก (สร้างคำขอ) ล้มตาม จับ error ทั้งหมดในนี้
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast, linePush } from '../announcement/announcement.service'
-import { isNotificationEnabled, type NotificationType } from '../../common/utils/notificationPrefs'
+import { isNotificationEnabled, NOTIFICATION_TYPE_TO_FEATURE, type NotificationType } from '../../common/utils/notificationPrefs'
 import { createMagicLoginToken } from '../auth/auth.service'
 import { logLineSend } from './line-log.service'
 
@@ -98,7 +98,17 @@ export async function notifyAdminsLine(tenantId: string, employeeId: string, not
     }
 
     // กันซ้ำด้วย lineUserId (คนเดียวโดนแจ้งซ้ำจาก role ต่างกันไม่ได้ในทางปฏิบัติ แต่กันไว้)
-    const uniquePairs = [...new Map(pairs.map(p => [p.lineUserId, p])).values()]
+    const dedupedPairs = [...new Map(pairs.map(p => [p.lineUserId, p])).values()]
+
+    // เช็คสิทธิ์ "แจ้งเตือนไลน์" รายบัญชีต่อฟีเจอร์ (FeaturePermission.can_notify) — ไม่มี
+    // แถว = อนุญาตผ่าน (fail-open ตามพฤติกรรมเดิมก่อนมีสิทธิ์นี้ เหมือน getUserPermissions)
+    const notifyFeature = NOTIFICATION_TYPE_TO_FEATURE[notice.type]
+    const notifyPerms = await prisma.featurePermission.findMany({
+      where: { tenant_id: tenantId, feature: notifyFeature, user_id: { in: dedupedPairs.map(p => p.userId) } },
+      select: { user_id: true, can_notify: true },
+    })
+    const mutedUserIds = new Set(notifyPerms.filter(p => !p.can_notify).map(p => p.user_id))
+    const uniquePairs = dedupedPairs.filter(p => !mutedUserIds.has(p.userId))
     if (uniquePairs.length === 0) return
 
     const empName = emp.nickname ? `${emp.first_name} (${emp.nickname})` : `${emp.first_name} ${emp.last_name}`

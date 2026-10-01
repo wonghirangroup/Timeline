@@ -7,10 +7,10 @@ import { FEATURE_KEYS, type PermissionAction } from './features'
 export type PermissionSet = Record<PermissionAction, boolean>
 export type FeatureTemplate = Record<string, PermissionSet>
 
-const FULL: PermissionSet    = { view: true,  add: true,  edit: true,  delete: true,  approve: true }
-const VIEW_ONLY: PermissionSet = { view: true,  add: false, edit: false, delete: false, approve: false }
-const NONE: PermissionSet    = { view: false, add: false, edit: false, delete: false, approve: false }
-const APPROVE_ONLY: PermissionSet = { view: true, add: false, edit: false, delete: false, approve: true }
+const FULL: PermissionSet    = { view: true,  add: true,  edit: true,  delete: true,  approve: true,  notify: true }
+const VIEW_ONLY: PermissionSet = { view: true,  add: false, edit: false, delete: false, approve: false, notify: false }
+const NONE: PermissionSet    = { view: false, add: false, edit: false, delete: false, approve: false, notify: false }
+const APPROVE_ONLY: PermissionSet = { view: true, add: false, edit: false, delete: false, approve: true, notify: true }
 
 // ฟีเจอร์ที่เป็น "คำขอที่ต้องอนุมัติ" — หัวหน้าแผนก (DEPT_HEAD) เห็น+อนุมัติได้
 // เฉพาะกลุ่มนี้ (ขอบเขตพนักงานถูกจำกัดแยกอีกชั้นด้วย resolveDeptScope อยู่แล้ว

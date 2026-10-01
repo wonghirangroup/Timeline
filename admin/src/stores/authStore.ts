@@ -6,7 +6,7 @@ export type EnabledFeatures = Record<string, boolean> | null
 
 // สิทธิ์แบบละเอียดต่อบัญชี (ดู server/src/modules/permissions) — array ที่ได้จาก
 // /auth/me แปลงเป็น map ตาม feature key ไว้ lookup ง่ายฝั่ง UI (เช่น Sidebar)
-export interface PermissionRow { feature: string; view: boolean; add: boolean; edit: boolean; delete: boolean; approve: boolean }
+export interface PermissionRow { feature: string; view: boolean; add: boolean; edit: boolean; delete: boolean; approve: boolean; notify: boolean }
 export type PermissionsMap = Record<string, PermissionRow> | null
 
 interface AuthState {

@@ -27,6 +27,7 @@ export async function getUserPermissions(tenantId: string, userId: string): Prom
       edit: r?.can_edit ?? true,
       delete: r?.can_delete ?? true,
       approve: r?.can_approve ?? true,
+      notify: r?.can_notify ?? true,
     }
   })
 }
@@ -39,10 +40,10 @@ export async function setUserPermissions(tenantId: string, userId: string, permi
         where: { user_id_feature: { user_id: userId, feature: p.feature } },
         create: {
           tenant_id: tenantId, user_id: userId, feature: p.feature,
-          can_view: p.view, can_add: p.add, can_edit: p.edit, can_delete: p.delete, can_approve: p.approve,
+          can_view: p.view, can_add: p.add, can_edit: p.edit, can_delete: p.delete, can_approve: p.approve, can_notify: p.notify,
         },
         update: {
-          can_view: p.view, can_add: p.add, can_edit: p.edit, can_delete: p.delete, can_approve: p.approve,
+          can_view: p.view, can_add: p.add, can_edit: p.edit, can_delete: p.delete, can_approve: p.approve, can_notify: p.notify,
         },
       })),
   )
@@ -61,6 +62,7 @@ export async function seedPermissionsFromTemplate(tenantId: string, userId: stri
       can_edit: template[feature]?.edit ?? false,
       can_delete: template[feature]?.delete ?? false,
       can_approve: template[feature]?.approve ?? false,
+      can_notify: template[feature]?.notify ?? false,
     })),
     skipDuplicates: true,
   })
