@@ -373,7 +373,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
               </div>
               {/* Status badge */}
               <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
+                display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                 padding: '4px 12px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700,
                 background: effectiveOpen ? '#dcfce7' : '#f3f4f6',
                 color: effectiveOpen ? '#16a34a' : 'var(--text-muted)',
