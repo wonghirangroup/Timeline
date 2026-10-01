@@ -247,8 +247,10 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
   return bookedDates.length - notReallyOff.size
 }
 
-// ข้อ 2 — โบนัส +1 พักร้อน ถ้า "หยุดได้จริง" ไม่ครบโควต้า/เดือน (เรียกจาก cron
-// รายเดือน) ครอบคลุมทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาทำงานในวันที่จองไว้ (ดู
+// ข้อ 2 — โบนัสพักร้อนตาม "ส่วนต่างจริง" ถ้า "หยุดได้จริง" ไม่ครบโควต้า/เดือน
+// (เรียกจาก cron รายเดือน) — ให้ = quota - effectiveOff พอดี ไม่ใช่ +1 คงที่แบบเดิม
+// (feedback 2026-10-01: "มาทำ 3 วัน จาก limit 5 ก็ควรได้ +3 ไม่ใช่ +1 เดียว")
+// ครอบคลุมทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาทำงานในวันที่จองไว้ (ดู
 // countEffectiveOffDays ด้านบน) — เฉพาะคนที่ "อยู่ในโปรแกรมพักร้อนจริง"
 // (isVacationEligible) ไม่ให้คนที่ไม่มีสิทธิ์พักร้อนเลยจู่ๆมี balance โผล่มา
 export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
@@ -264,7 +266,7 @@ export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
     where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE' },
     select: { id: true, ...VACATION_EMPLOYEE_SELECT },
   })
-  let granted = 0, skipped = 0, ineligible = 0
+  let granted = 0, skipped = 0, ineligible = 0, totalDays = 0
   for (const e of employees) {
     const elig = isVacationEligible(e, asOf)
     if (!elig.eligible) { ineligible++; continue }
@@ -272,12 +274,14 @@ export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
     const effectiveOff = countWorkedDays
       ? await countEffectiveOffDays(tenantId, e.id, ym)
       : await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
-    if (effectiveOff < quota) {
-      await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: 1, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota})` })
+    const shortfall = quota - effectiveOff
+    if (shortfall > 0) {
+      await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: shortfall, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota}) ได้รับ +${shortfall} วัน` })
       granted++
+      totalDays += shortfall
     } else skipped++
   }
-  return { ym, granted, skipped, ineligible }
+  return { ym, granted, skipped, ineligible, totalDays }
 }
 
 // ข้อ 8 — reset ประจำปี 1 ม.ค.: ตั้ง total_days ใหม่ตามสูตรอายุงาน, used_days=0

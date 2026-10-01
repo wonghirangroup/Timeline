@@ -24,13 +24,13 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
   app.post('/admin/vacation-policy/run-bonus', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('vacation_policy')],
     schema: {
-      tags: ['Admin'], summary: 'รันโบนัส +1 พักร้อน (หยุดไม่ครบโควต้า) ของเดือนที่ระบุ', security: [{ oauth2: [] }],
+      tags: ['Admin'], summary: 'รันโบนัสพักร้อนตามส่วนต่างจริง (หยุดไม่ครบโควต้า) ของเดือนที่ระบุ', security: [{ oauth2: [] }],
       body: { type: 'object', properties: { ym: { type: 'string', description: 'YYYY-MM (default = เดือนที่แล้ว)' } } },
     },
   }, async (req: any) => {
     const ym = req.body?.ym ?? defaultPrevYm()
     const r = await grantUnderQuotaBonus(req.tenantId, ym)
-    return ok(r, `เดือน ${r.ym} — ให้โบนัส ${r.granted} คน (ข้าม ${r.skipped} คนที่หยุดครบแล้ว, ${r.ineligible} คนไม่อยู่ในโปรแกรมพักร้อน)`)
+    return ok(r, `เดือน ${r.ym} — ให้โบนัสรวม ${r.totalDays} วัน แก่ ${r.granted} คน (ข้าม ${r.skipped} คนที่หยุดครบแล้ว, ${r.ineligible} คนไม่อยู่ในโปรแกรมพักร้อน)`)
   })
 
   // รัน reset ประจำปี (default = ปีนี้) ด้วยมือ — ตั้ง total_days ใหม่ตามสูตรอายุงาน
