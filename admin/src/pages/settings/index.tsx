@@ -472,20 +472,67 @@ function LeavePolicyTab() {
 // ── การแจ้งเตือน LINE ไปแอดมิน ────────────────────────────────────────────────
 // ตรงกับ NOTIFICATION_TYPES ฝั่ง backend (server/src/common/utils/notificationPrefs.ts)
 // key ที่ไม่มี/ไม่เคยตั้งไว้ = เปิดอยู่ (ค่าเริ่มต้น backward-compatible)
-const NOTIF_TYPES: { key: string; label: string; desc: string }[] = [
-  { key: 'leave',              label: 'ใบลารออนุมัติ',           desc: 'พนักงานยื่นลาป่วย/ลากิจ/พักร้อน ฯลฯ' },
-  { key: 'ot',                 label: 'คำขอ OT รออนุมัติ',        desc: 'พนักงานขอทำ OT' },
-  { key: 'weekly_off',         label: 'จองวันหยุดรออนุมัติ',      desc: 'พนักงานจองวันหยุดประจำสัปดาห์/เดือน' },
-  { key: 'weekly_off_swap',    label: 'พนักงานสลับวันหยุดกันเอง', desc: 'แจ้งให้ทราบหลังตกลงสลับกันสำเร็จแล้ว — ไม่ต้องอนุมัติอะไร' },
-  { key: 'resignation',        label: 'คำขอลาออกรอพิจารณา',      desc: 'พนักงานยื่นลาออกผ่าน LINE' },
-  { key: 'attendance_anomaly', label: 'เช็คอินผิดปกติ',           desc: 'เช็คอินนอกเวลากะ หรือเช็คอินผิดสาขา (ถูกบล็อก)' },
-  { key: 'document_request',   label: 'ขอเอกสาร HR รอดำเนินการ',  desc: 'พนักงานขอสลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน' },
+// feature ที่ตรงกับ server NOTIFICATION_TYPE_TO_FEATURE — ชนิดที่ feature เดียวกัน
+// (leave/weekly_off/weekly_off_swap ใช้ 'leave' ร่วมกัน) ปิดรายคนของอันหนึ่งจะ
+// ปิดพร้อมกันหมดทั้งกลุ่ม ใส่ไว้ให้ UI โชว์หมายเหตุเตือน
+const NOTIF_TYPES: { key: string; label: string; desc: string; feature: string }[] = [
+  { key: 'leave',              label: 'ใบลารออนุมัติ',           desc: 'พนักงานยื่นลาป่วย/ลากิจ/พักร้อน ฯลฯ',  feature: 'leave' },
+  { key: 'ot',                 label: 'คำขอ OT รออนุมัติ',        desc: 'พนักงานขอทำ OT', feature: 'ot' },
+  { key: 'weekly_off',         label: 'จองวันหยุดรออนุมัติ',      desc: 'พนักงานจองวันหยุดประจำสัปดาห์/เดือน', feature: 'leave' },
+  { key: 'weekly_off_swap',    label: 'พนักงานสลับวันหยุดกันเอง', desc: 'แจ้งให้ทราบหลังตกลงสลับกันสำเร็จแล้ว — ไม่ต้องอนุมัติอะไร', feature: 'leave' },
+  { key: 'resignation',        label: 'คำขอลาออกรอพิจารณา',      desc: 'พนักงานยื่นลาออกผ่าน LINE', feature: 'resignation' },
+  { key: 'attendance_anomaly', label: 'เช็คอินผิดปกติ',           desc: 'เช็คอินนอกเวลากะ หรือเช็คอินผิดสาขา (ถูกบล็อก)', feature: 'shift' },
+  { key: 'document_request',   label: 'ขอเอกสาร HR รอดำเนินการ',  desc: 'พนักงานขอสลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน', feature: 'document_request' },
 ]
+
+interface NotifyRecipient { id: string; name: string; role: string; notify: boolean }
+const NOTIFY_ROLE_LABEL: Record<string, string> = { ADMIN: 'แอดมิน', MANAGER: 'ผู้จัดการ', DEPT_HEAD: 'หัวหน้าแผนก' }
+
+// รายชื่อ + สวิตช์รายคนของประเภทแจ้งเตือนหนึ่ง — ขยายออกมาตอนกด "จัดการรายคน"
+// (feedback 2026-10-01: "ผู้ดูแลระบบมีสิทธิจัดการว่าจะให้แอดมินหรือสิทธิกับคนไหน
+// ที่จะไม่ได้รับไลน์ notify") ผูกกับ FeaturePermission.can_notify รายคนจริง
+// ต่างจากสวิตช์ใหญ่ด้านบนที่เป็น on/off รวมทั้ง tenant
+function NotifyRecipientsPanel({ type }: { type: string }) {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const { data: recipients = [], isLoading } = useQuery<NotifyRecipient[]>({
+    queryKey: ['admin', 'notify-recipients', type],
+    queryFn: () => api.get('/api/v1/admin/permissions/notify-recipients', { params: { type } }).then(r => r.data.data),
+  })
+  const mut = useMutation({
+    mutationFn: ({ id, notify }: { id: string; notify: boolean }) => api.patch(`/api/v1/admin/users/${id}/notify`, { type, notify }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'notify-recipients', type] }),
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  if (isLoading) return <div style={{ padding: '10px 4px', fontSize: '12px', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+  if (recipients.length === 0) return <div style={{ padding: '10px 4px', fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่มีแอดมิน/หัวหน้าแผนกที่ผูกไลน์ไว้</div>
+
+  return (
+    <div style={{ padding: '6px 4px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {recipients.map(r => (
+        <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '7px 10px', borderRadius: 8, background: '#f9fafb' }}>
+          <span style={{ fontSize: '12.5px', color: '#374151' }}>
+            {r.name} <span style={{ color: '#94a3b8', fontSize: '11px' }}>· {NOTIFY_ROLE_LABEL[r.role] ?? r.role}</span>
+          </span>
+          <button onClick={() => mut.mutate({ id: r.id, notify: !r.notify })} disabled={mut.isPending}
+            aria-label={`แจ้งเตือน ${r.name}`} aria-pressed={r.notify}
+            style={{ width: 36, height: 20, borderRadius: 99, border: 'none', cursor: mut.isPending ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
+              background: r.notify ? '#244B83' : '#e5e7eb', transition: 'background 0.15s', opacity: mut.isPending ? 0.6 : 1 }}>
+            <span style={{ position: 'absolute', top: 2.5, left: r.notify ? 18 : 2.5, width: 15, height: 15, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function NotificationPrefsTab() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const readOnly = useIsReadOnly()
+  const isRootAdmin = useAuthStore(s => s.isRootAdmin)
+  const [expandedType, setExpandedType] = useState<string | null>(null)
   const { data } = useQuery<TenantSettings>({
     queryKey: ['tenant-settings'],
     queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data),
@@ -503,7 +550,16 @@ function NotificationPrefsTab() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', flexShrink: 0 }}><Bell size={18} /></div>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>การแจ้งเตือน LINE ไปแอดมิน</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            การแจ้งเตือน LINE ไปแอดมิน
+            <InfoTooltip title="การแจ้งเตือน LINE ไปแอดมิน" width={300} content={
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                <li>สวิตช์ใหญ่ด้านล่าง = เปิด/ปิดทั้ง tenant (ทุกคนได้รับหรือไม่ได้รับเลย)</li>
+                <li>กด <b>"จัดการรายคน"</b> เพื่อเลือกปิดเฉพาะบางคนโดยคนอื่นยังได้รับปกติ — เฉพาะผู้ดูแลระบบเท่านั้นที่ตั้งได้</li>
+                <li>ชนิดที่ใช้สิทธิ์ร่วมกัน (ใบลา/จองวันหยุด/สลับวันหยุด) ปิดรายคนของอันหนึ่ง จะปิดพร้อมกันทั้ง 3 อันนั้นให้คนนั้นเสมอ</li>
+              </ul>
+            } />
+          </p>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
             เลือกได้ว่าจะให้ส่งแจ้งเตือนประเภทไหนเข้า LINE ของแอดมิน/หัวหน้าแผนกบ้าง — ปิดแล้วยังเห็นคำขอในเว็บแอดมินตามปกติ แค่ไม่มี LINE เด้งมาเตือน (เปลี่ยนแล้วบันทึกทันที)
           </p>
@@ -513,18 +569,34 @@ function NotificationPrefsTab() {
         {NOTIF_TYPES.map(n => {
           const checked = prefs[n.key] !== false
           const disabled = readOnly || mut.isPending
+          const isExpanded = expandedType === n.key
+          const sharesFeature = NOTIF_TYPES.some(o => o.key !== n.key && o.feature === n.feature)
           return (
-            <div key={n.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 4px', borderBottom: '1px solid #f8fafc' }}>
-              <span>
-                <span style={{ fontWeight: 600, fontSize: '13px', color: '#374151' }}>{n.label}</span>
-                <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>{n.desc}</span>
-              </span>
-              <button onClick={() => mut.mutate({ [n.key]: !checked })} disabled={disabled}
-                aria-label={n.label} aria-pressed={checked}
-                style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
-                  background: checked ? '#244B83' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
-                <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-              </button>
+            <div key={n.key} style={{ borderBottom: '1px solid #f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 4px' }}>
+                <span>
+                  <span style={{ fontWeight: 600, fontSize: '13px', color: '#374151' }}>{n.label}</span>
+                  <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>{n.desc}</span>
+                  {sharesFeature && (
+                    <span style={{ display: 'block', color: '#a855f7', fontSize: '11px', marginTop: 2 }}>ใช้สิทธิ์รายคนร่วมกับ "ใบลา/จองวันหยุด/สลับวันหยุด"</span>
+                  )}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  {isRootAdmin && (
+                    <button onClick={() => setExpandedType(isExpanded ? null : n.key)}
+                      style={{ padding: '4px 9px', borderRadius: 7, border: '1px solid #e5e7eb', background: isExpanded ? '#F4F6F9' : '#fff', color: '#244B83', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                      จัดการรายคน {isExpanded ? '▲' : '▼'}
+                    </button>
+                  )}
+                  <button onClick={() => mut.mutate({ [n.key]: !checked })} disabled={disabled}
+                    aria-label={n.label} aria-pressed={checked}
+                    style={{ width: 42, height: 24, borderRadius: 99, border: 'none', cursor: disabled ? 'default' : 'pointer', position: 'relative', flexShrink: 0,
+                      background: checked ? '#244B83' : '#e5e7eb', transition: 'background 0.15s', opacity: disabled ? 0.6 : 1 }}>
+                    <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  </button>
+                </div>
+              </div>
+              {isExpanded && isRootAdmin && <NotifyRecipientsPanel type={n.key} />}
             </div>
           )
         })}

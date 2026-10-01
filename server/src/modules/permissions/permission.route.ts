@@ -7,7 +7,8 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { requireRootAdmin } from '../../common/middleware/permission'
 import { ok, fail }         from '../../common/utils/response'
 import { FEATURES, PERMISSION_ACTIONS } from '../../common/permissions/features'
-import { getUserPermissions, setUserPermissions, resetUserPermissions } from './permission.service'
+import { getUserPermissions, setUserPermissions, resetUserPermissions, getNotifyRecipients, setNotify } from './permission.service'
+import { NOTIFICATION_TYPES, type NotificationType } from '../../common/utils/notificationPrefs'
 import { prisma } from '../../common/utils/prisma'
 
 const permissionActionSchema = {
@@ -80,5 +81,41 @@ export async function permissionRoutes(app: FastifyInstance) {
     if (!target) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
     await resetUserPermissions(req.tenantId, req.params.id, target.role)
     return ok(await getUserPermissions(req.tenantId, req.params.id), 'รีเซ็ตสิทธิ์สำเร็จ')
+  })
+
+  // GET /api/v1/admin/permissions/notify-recipients?type=leave — รายชื่อแอดมิน/
+  // หัวหน้าแผนก + สถานะรับแจ้งเตือนไลน์ของประเภทนี้ — ใช้ในหน้าตั้งค่า →
+  // การแจ้งเตือน LINE ให้ผู้ดูแลระบบปิดเฉพาะบางคนได้ ไม่ใช่ปิดทั้ง tenant
+  // (feedback 2026-10-01) จำกัดเฉพาะ root admin เหมือนจุดอื่นที่จัดการสิทธิ์คนอื่น
+  app.get('/permissions/notify-recipients', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireRootAdmin()],
+    schema: {
+      tags: ['Admin'],
+      summary: 'รายชื่อแอดมิน/หัวหน้าแผนก + สถานะรับแจ้งเตือนไลน์ของประเภทที่ระบุ',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['type'], properties: { type: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    if (!NOTIFICATION_TYPES.includes(req.query.type)) return reply.code(400).send(fail('INVALID_TYPE', 'ประเภทแจ้งเตือนไม่ถูกต้อง'))
+    return ok(await getNotifyRecipients(req.tenantId, req.query.type as NotificationType))
+  })
+
+  // PATCH /api/v1/admin/users/:id/notify — เปิด/ปิดแจ้งเตือนไลน์ประเภทหนึ่งให้
+  // บัญชีนี้โดยเฉพาะ (คนละจุดกับ PUT permissions เต็มชุด — แก้แค่ can_notify)
+  app.patch('/users/:id/notify', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requireRootAdmin()],
+    schema: {
+      tags: ['Admin'],
+      summary: 'เปิด/ปิดการแจ้งเตือนไลน์ประเภทหนึ่งให้บัญชีนี้',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', required: ['type', 'notify'], properties: { type: { type: 'string' }, notify: { type: 'boolean' } } },
+    },
+  }, async (req: any, reply) => {
+    if (!NOTIFICATION_TYPES.includes(req.body.type)) return reply.code(400).send(fail('INVALID_TYPE', 'ประเภทแจ้งเตือนไม่ถูกต้อง'))
+    const target = await prisma.user.findFirst({ where: { id: req.params.id, tenant_id: req.tenantId, deleted_at: null } })
+    if (!target) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
+    await setNotify(req.tenantId, req.params.id, req.body.type as NotificationType, req.body.notify)
+    return ok(null, 'บันทึกแล้ว')
   })
 }
