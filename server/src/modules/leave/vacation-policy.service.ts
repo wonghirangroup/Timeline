@@ -209,13 +209,51 @@ export async function logHolidayWorkedVacationGrant(tenantId: string, employeeId
   }).catch(() => {})
 }
 
-// ข้อ 2 — โบนัส +1 พักร้อน ถ้าหยุดไม่ครบโควต้า/เดือน (เรียกจาก cron รายเดือน)
-// เฉพาะคนที่ "อยู่ในโปรแกรมพักร้อนจริง" (isVacationEligible) — ไม่ให้คนที่ไม่มีสิทธิ์
-// พักร้อนเลยจู่ๆมี balance โผล่มา
+// นับ "วันหยุดที่ได้พักจริง" ของเดือนนี้ — ต่างจาก countMonthOffRequests(['APPROVED'])
+// ตรงที่ตัดวันที่จองไว้แต่ดันมีเช็คอินจริง (แปลว่าไม่ได้พักจริง) ออก ยกเว้นวันที่ HR
+// resolve alert "เช็คอินวันที่จองหยุดเอง" ด้วย "ให้วันชดเชย" ไปแล้ว (ดู
+// resolveWorkedOnOwnDayOffAlert ใน weekly-off.service.ts) ถือว่าได้รับการชดเชยแยก
+// ต่างหากเป็น COMPENSATE ไปแล้ว ไม่หักซ้ำอีกชั้นตรงนี้ (feedback 2026-10-01: "จองไว้
+// 5 วัน มาทำงาน 1 วันก็เก็บเป็นพักร้อน" — ยืนยันแล้วว่าคนละกรณีกับ alert ที่ HR
+// resolve เอง ไม่ใช่มาแทนที่กัน แค่ใช้ fact เดียวกัน (เช็คอินจริงไหม) คำนวณแยก)
+async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: string): Promise<number> {
+  const { resolveActualDateStr } = await import('../weekly-off/weekly-off.service')
+  const [y, m] = ym.split('-').map(Number)
+  const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+  const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
+
+  const approvedRows = await prisma.weeklyOffRequest.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId, status: 'APPROVED', week_start: { gte: rangeStart, lte: rangeEnd } },
+    select: { week_start: true, day_of_week: true },
+  })
+  const bookedDates = approvedRows
+    .map(r => resolveActualDateStr(r.week_start, r.day_of_week))
+    .filter(d => d.slice(0, 7) === ym)
+  if (bookedDates.length === 0) return 0
+
+  const worked = await prisma.attendanceRecord.findMany({
+    where: {
+      tenant_id: tenantId, employee_id: employeeId,
+      date: { in: bookedDates.map(d => new Date(d + 'T00:00:00Z')) },
+      check_in_at: { not: null },
+    },
+    select: { date: true, weekly_off_resolved: true, weekly_off_resolution: true },
+  })
+  const notReallyOff = new Set(
+    worked
+      .filter(w => !(w.weekly_off_resolved && w.weekly_off_resolution === 'COMPENSATE'))
+      .map(w => w.date.toISOString().slice(0, 10)),
+  )
+  return bookedDates.length - notReallyOff.size
+}
+
+// ข้อ 2 — โบนัส +1 พักร้อน ถ้า "หยุดได้จริง" ไม่ครบโควต้า/เดือน (เรียกจาก cron
+// รายเดือน) ครอบคลุมทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาทำงานในวันที่จองไว้ (ดู
+// countEffectiveOffDays ด้านบน) — เฉพาะคนที่ "อยู่ในโปรแกรมพักร้อนจริง"
+// (isVacationEligible) ไม่ให้คนที่ไม่มีสิทธิ์พักร้อนเลยจู่ๆมี balance โผล่มา
 export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
   const [y] = ym.split('-').map(Number)
   const asOf = bangkokToday()
-  const { countMonthOffRequests } = await import('../weekly-off/weekly-off.service')
   const employees = await prisma.employee.findMany({
     where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE' },
     select: { id: true, ...VACATION_EMPLOYEE_SELECT },
@@ -225,10 +263,9 @@ export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
     const elig = isVacationEligible(e, asOf)
     if (!elig.eligible) { ineligible++; continue }
     const quota = await resolveBookingQuota(tenantId, e.id)
-    // เฉพาะที่ "อนุมัติแล้วจริง" (ไม่นับ PENDING ที่ยังค้าง) — เดือนปิดไปแล้วตอน cron รัน
-    const approved = await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
-    if (approved < quota) {
-      await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: 1, note: `หยุดไม่ครบโควต้า ${ym} (${approved}/${quota})` })
+    const effectiveOff = await countEffectiveOffDays(tenantId, e.id, ym)
+    if (effectiveOff < quota) {
+      await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: 1, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota})` })
       granted++
     } else skipped++
   }
