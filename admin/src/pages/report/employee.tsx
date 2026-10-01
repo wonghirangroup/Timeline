@@ -6,7 +6,7 @@
 // — ระบบยังไม่เก็บเงินเดือน/อัตรา OT เป็นตัวเลขจริง (HR คิดเองนอกระบบ) เลยโชว์
 // แค่ "ค่าที่โดนหัก" (ค่าปรับ ที่มีอยู่แล้ว) กับ "ชั่วโมง OT ที่อนุมัติ" ให้ครบ
 // ไม่ยัดเยียดคำนวณเงินสุทธิที่ไม่มีข้อมูลรองรับจริง
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
@@ -15,6 +15,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import Pagination from '../../components/ui/Pagination'
 import { downloadCsv } from '../../lib/exportCsv'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
@@ -35,6 +36,8 @@ export default function EmployeeReportPage() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'card' | 'table' | 'chart'>('table')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 15
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -91,6 +94,12 @@ export default function EmployeeReportPage() {
   const chartRows = useMemo(() =>
     [...rows].sort((a, b) => (b.lateCount + b.absentCount) - (a.lateCount + a.absentCount)).slice(0, 10),
     [rows])
+
+  // แบ่งหน้าการ์ด/ตาราง (feedback 2026-10-01 "หน้านี้ด้วย" ต่อจาก audit-log) —
+  // KPI/export/กราฟ ยังอิง rows ทั้งหมดเหมือนเดิม แบ่งหน้าแค่ตอนแสดงรายการ
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const paginated = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page])
+  useEffect(() => { setPage(1) }, [search, year, month])
 
   function exportCsv() {
     const header = ['รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'สาขา', 'เช็คอิน (วัน)', 'มาสาย', 'ขาด', 'ค่าปรับ (บาท)', 'ลา (วัน)', 'OT (ชม.)']
@@ -163,8 +172,9 @@ export default function EmployeeReportPage() {
       ) : rows.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>ไม่พบพนักงาน</div>
       ) : (isMobile || view === 'card') ? (
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {rows.map(r => (
+          {paginated.map(r => (
             <div key={r.employee.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
               <button onClick={() => navigate(`/employee/${r.employee.id}`)}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'block', marginBottom: 10 }}>
@@ -182,6 +192,8 @@ export default function EmployeeReportPage() {
             </div>
           ))}
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={rows.length} itemLabel="คน" />
+        </>
       ) : view === 'chart' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>แสดง Top 10 พนักงานที่มาสาย/ขาดรวมกันมากสุดในเดือนนี้</p>
@@ -195,6 +207,7 @@ export default function EmployeeReportPage() {
           />
         </div>
       ) : (
+        <>
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
           <div className="report-table-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
@@ -206,8 +219,8 @@ export default function EmployeeReportPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, idx) => (
-                <tr key={r.employee.id} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
+              {paginated.map((r, idx) => (
+                <tr key={r.employee.id} style={{ borderBottom: idx < paginated.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                   <td style={{ padding: '10px 12px' }}>
                     <button onClick={() => navigate(`/employee/${r.employee.id}`)}
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -228,6 +241,8 @@ export default function EmployeeReportPage() {
           </table>
           </div>
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={rows.length} itemLabel="คน" />
+        </>
       )}
     </div>
   )
