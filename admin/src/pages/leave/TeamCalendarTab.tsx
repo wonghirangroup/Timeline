@@ -1334,7 +1334,7 @@ export default function TeamCalendarTab() {
           <div onClick={() => setShowRosterSettings(false)}
             style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ background: '#fff', borderRadius: 14, width: 480, maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+              style={{ background: '#fff', borderRadius: 14, width: '90vw', maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #E6ECF4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>ตั้งค่า Export ตารางแยกกลุ่ม</div>
