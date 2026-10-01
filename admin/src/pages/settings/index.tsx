@@ -12,10 +12,11 @@
 // แมววิ่งตัวเดียวกันทุก tenant แทน ไม่ต้องอัปโหลดเองอีกต่อไป (ดู
 // employee/src/components/ui/index.tsx PageLoader)
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, Lock, Bell, ShieldCheck } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Clock, MapPin, Trash2, Users, Plus, Pencil, KeyRound, Building2, Lock, Bell, ShieldCheck, Upload, Loader2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
+import { uploadImage } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
@@ -345,9 +346,28 @@ function CompanyProfileTab() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const readOnly = useIsReadOnly()
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const { data } = useQuery<TenantSettings>({ queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data) })
   const [form, setForm] = useState({ name: '', address: '', tax_id: '', logo_url: '', primary_color: '', signer_name: '', signer_title: '' })
   useEffect(() => { if (data) setForm({ name: data.name ?? '', address: data.address ?? '', tax_id: data.tax_id ?? '', logo_url: data.logo_url ?? '', primary_color: data.primary_color ?? '', signer_name: data.signer_name ?? '', signer_title: data.signer_title ?? '' }) }, [data])
+
+  async function pickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) { showToast('error', 'ต้องเป็นไฟล์รูปภาพ'); return }
+    setUploadingLogo(true)
+    try {
+      const url = await uploadImage(file, 'timeline/branding')
+      setForm(f => ({ ...f, logo_url: url }))
+      showToast('success', 'อัปโหลดโลโก้แล้ว — กด "บันทึก" เพื่อใช้งานจริง')
+    } catch {
+      showToast('error', 'อัปโหลดไม่สำเร็จ')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
 
   const mut = useMutation({
     mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
@@ -376,7 +396,21 @@ function CompanyProfileTab() {
         <div><label style={fieldLabel}>ชื่อบริษัท</label><input style={inputStyle} value={form.name} disabled={readOnly} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
         <div><label style={fieldLabel}>เลขประจำตัวผู้เสียภาษี</label><input style={inputStyle} value={form.tax_id} disabled={readOnly} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} placeholder="0000000000000" /></div>
         <div style={{ gridColumn: '1 / -1' }}><label style={fieldLabel}>ที่อยู่</label><input style={inputStyle} value={form.address} disabled={readOnly} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด" /></div>
-        <div><label style={fieldLabel}>โลโก้ (URL รูปภาพ)</label><input style={inputStyle} value={form.logo_url} disabled={readOnly} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://..." /></div>
+        <div>
+          <label style={fieldLabel}>โลโก้</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input style={{ ...inputStyle, flex: 1 }} value={form.logo_url} disabled={readOnly} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://... หรือแนบไฟล์" />
+            {!readOnly && (
+              <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}
+                title="แนบไฟล์รูปภาพ"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12.5px', fontWeight: 600, cursor: uploadingLogo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                {uploadingLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                {uploadingLogo ? 'กำลังอัปโหลด...' : 'แนบไฟล์'}
+              </button>
+            )}
+            <input ref={logoInputRef} type="file" accept="image/*" onChange={pickLogo} hidden />
+          </div>
+        </div>
         <div>
           <label style={fieldLabel}>สีหลักของแบรนด์</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

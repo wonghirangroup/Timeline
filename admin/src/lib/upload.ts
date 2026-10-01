@@ -21,7 +21,7 @@ export async function resizeImage(file: File, maxDim = 640, quality = 0.85): Pro
   })
 }
 
-export async function uploadImage(file: File): Promise<string> {
+export async function uploadImage(file: File, folder = FOLDER): Promise<string> {
   const blob = await resizeImage(file).catch(() => file) // ย่อไม่ได้ก็ส่งไฟล์เดิม
   const fd = new FormData()
   // ต้องตั้งชื่อไฟล์เองตอน append — resizeImage คืน Blob เปล่าๆ ไม่มี .name
@@ -32,7 +32,7 @@ export async function uploadImage(file: File): Promise<string> {
   // (feedback 2026-09-15: "เปลี่ยนรูปโปรไฟล์แล้วกลับไปเป็นรูปแรกที่แอดมินตั้งให้")
   fd.append('file', blob, `photo_${Date.now()}.jpg`)
   fd.append('upload_preset', UPLOAD_PRESET)
-  fd.append('folder', FOLDER)
+  fd.append('folder', folder)
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd })
   if (!res.ok) throw new Error('UPLOAD_FAILED')
   const json = await res.json()
