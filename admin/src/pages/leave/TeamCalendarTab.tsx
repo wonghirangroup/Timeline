@@ -1044,6 +1044,10 @@ export default function TeamCalendarTab() {
             xlCell.value = cell.label
             xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${color}` } }
             xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FFFFFFFF' } }
+          } else {
+            // ช่องว่างใส่เลขวันที่จางๆ ไว้ด้วย (feedback 2026-10-01)
+            xlCell.value = i + 1
+            xlCell.font = { color: { argb: 'FFD1D5DB' } }
           }
         }
         row.eachCell({ includeEmpty: true }, c => { c.border = CELL_BORDER })
@@ -1073,7 +1077,10 @@ export default function TeamCalendarTab() {
         const empColor = colorForEmployee(e.id, orderedIds)
         const cells = Array.from({ length: daysInMonth }, (_, i) => {
           const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
-          if (!cell) return '<td></td>'
+          // ช่องว่าง (ไม่มีวันหยุด/วันลา) ใส่เลขวันที่จางๆ ไว้ด้วย — feedback
+          // 2026-10-01: "ตรงช่องๆว่างๆในตารางใส่วันที่เข้ามาได้เลย" (อ่านตรงแถวได้
+          // โดยไม่ต้องไล่กลับไปดูหัวตารางบนสุด)
+          if (!cell) return `<td class="daynum">${i + 1}</td>`
           return `<td class="mark${cell.pending ? ' pending' : ''}" style="background:${empColor};border-color:${empColor}">${cell.label}</td>`
         }).join('')
         const codeHtml   = rosterCols.code   && e.employee_code ? `<span class="code">${e.employee_code}</span>` : ''
@@ -1110,6 +1117,7 @@ export default function TeamCalendarTab() {
         td.name .branch{font-weight:400;color:#9ca3af;font-size:8px}
         td.mark{font-weight:700;border-width:1px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,0.35)}
         td.mark.pending{border-style:dashed;font-style:italic;opacity:0.75}
+        td.daynum{color:#d1d5db;font-weight:400}
         .legend{margin-top:16px;font-size:10px;color:#6b7280}
         .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:middle}
       </style></head><body>
