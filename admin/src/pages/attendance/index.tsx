@@ -58,6 +58,7 @@ interface ApiEmployee {
   department?: string | null
   employee_status_type?: WQNode | null
   position?: (WQNode & { department?: (WQNode & { division?: WQNode | null }) | null }) | null
+  default_shift_id?: string | null
 }
 
 // resolve เสาร์/อาทิตย์จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
@@ -438,6 +439,19 @@ export default function AttendancePage() {
 
   const saving = editMutation.isPending || manualMutation.isPending || deleteMutation.isPending || manualLeaveMut.isPending || manualOffMut.isPending
 
+  // ชื่อกะ ไว้โชว์ตอนเตือน "ไม่ตรงกะตัวเอง" (เทียบ record.shift_id กับ default_shift_id
+  // ของพนักงาน — feedback 2026-10-01: อยากให้แอดมินเห็นด้วยว่าใครเช็คอินข้ามกะตัวเองไป)
+  const shiftNameById = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const s of allShifts) m[s.id] = s.name
+    return m
+  }, [allShifts])
+  function ownShiftMismatchName(row: Row): string | null {
+    const ownId = row.employee.default_shift_id
+    if (!row.record || !ownId || ownId === row.record.shift_id) return null
+    return shiftNameById[ownId] ?? null
+  }
+
   // ── Merge employees + records ────────────────────────────────────────
   const rows = useMemo<Row[]>(() => {
     // records keyed by employee_id (one employee may have multiple shifts → multiple records)
@@ -763,6 +777,10 @@ export default function AttendancePage() {
                       {row.record?.is_outside_shift && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Clock size={10}/>นอกเวลากะ</span>
                       )}
+                      {ownShiftMismatchName(row) && (
+                        <span title={`กะของพนักงานคนนี้คือ ${ownShiftMismatchName(row)}`}
+                          style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#fce7f3', color: '#be185d', display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertCircle size={10}/>ไม่ตรงกะตัวเอง</span>
+                      )}
                       {isGpsMissing(row.record) && (
                         <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: '#E6ECF4', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPinOff size={10}/>ไม่มี GPS</span>
                       )}
@@ -827,6 +845,10 @@ export default function AttendancePage() {
                             )}
                             {row.record?.is_outside_shift && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', width: 'fit-content' }}><Clock size={9} /> นอกเวลากะ</span>
+                            )}
+                            {ownShiftMismatchName(row) && (
+                              <span title={`กะของพนักงานคนนี้คือ ${ownShiftMismatchName(row)}`}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#fce7f3', color: '#be185d', width: 'fit-content' }}><AlertCircle size={9} /> ไม่ตรงกะตัวเอง</span>
                             )}
                             {isGpsMissing(row.record) && (
                               <span title="ไม่ได้ส่งพิกัดมาตอนเช็คอิน — ตรวจสอบตำแหน่งจริงไม่ได้" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#E6ECF4', color: '#64748b', width: 'fit-content' }}><MapPinOff size={9} /> ไม่มี GPS</span>
