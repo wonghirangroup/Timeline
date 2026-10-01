@@ -1,8 +1,8 @@
 // admin/src/pages/announcement/index.tsx
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid } from 'lucide-react'
+import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid, Smile, Users } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -13,6 +13,56 @@ interface ApiAnnouncement { id: string; title: string; content: string; send_lin
 interface ApiBranch { id: string; name: string }
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null }
 interface ApiTemplate { id: string; name: string; title: string; content: string }
+
+// ── แทรกอีโมจิ ─────────────────────────────────────────────────────────────
+// ชุดที่คัดมาเฉพาะที่ใช้บ่อยกับประกาศ/ข้อความแจ้งเตือนในงาน HR (ไม่ทำ picker
+// เต็มรูปแบบ — เกินความจำเป็นของ use case นี้ feedback 2026-10-01)
+const EMOJI_PICK = ['📢','📣','🔔','📌','📅','🕐','✅','❌','⚠️','🚨','🎉','🎊','🎁','🏖️','💼','📝','💡','🙏','🙌','👏','👍','❤️','😊','⭐']
+
+function insertAtCursor(
+  ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement>,
+  value: string,
+  setValue: (v: string) => void,
+  emoji: string,
+) {
+  const el = ref.current
+  if (!el) { setValue(value + emoji); return }
+  const start = el.selectionStart ?? value.length
+  const end = el.selectionEnd ?? value.length
+  setValue(value.slice(0, start) + emoji + value.slice(end))
+  requestAnimationFrame(() => {
+    el.focus()
+    const pos = start + emoji.length
+    el.setSelectionRange(pos, pos)
+  })
+}
+
+function EmojiPickerButton({ onPick }: { onPick: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen(o => !o)} title="แทรกอีโมจิ"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, border: '1px solid #e5e7eb', background: open ? '#F4F6F9' : '#fff', color: open ? '#244B83' : '#9ca3af', cursor: 'pointer', flexShrink: 0 }}>
+        <Smile size={14} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 61, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, boxShadow: '0 12px 30px rgba(15,23,42,0.14)', padding: 8, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 2, width: 212 }}>
+            {EMOJI_PICK.map(em => (
+              <button key={em} type="button" onClick={() => { onPick(em); setOpen(false) }}
+                style={{ fontSize: '1.05rem', padding: '5px 0', border: 'none', background: 'none', cursor: 'pointer', borderRadius: 6, lineHeight: 1 }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F4F6F9' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none' }}>
+                {em}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 // ── ค้นหา + เลือกพนักงานหลายคน (ใช้ตอนเลือกส่งรายคนในโหมด broadcast) ───────────
 function empDisplayName(e: ApiEmployee) {
@@ -98,6 +148,8 @@ export default function AnnouncementPage() {
   // Broadcast form
   const [bTitle, setBTitle] = useState('')
   const [bBody, setBBody] = useState('')
+  const bTitleRef = useRef<HTMLInputElement>(null)
+  const bBodyRef = useRef<HTMLTextAreaElement>(null)
   const [bTargetMode, setBTargetMode] = useState<'all' | 'branch' | 'individual'>('all')
   const [bBranch, setBBranch] = useState('')
   const [bEmployeeIds, setBEmployeeIds] = useState<Set<string>>(new Set())
@@ -108,6 +160,7 @@ export default function AnnouncementPage() {
   const [dEmployee, setDEmployee] = useState('')
   const [dMsg, setDMsg] = useState('')
   const [dTemplateId, setDTemplateId] = useState('')
+  const dMsgRef = useRef<HTMLTextAreaElement>(null)
 
   const { data: templates = [] } = useQuery<ApiTemplate[]>({
     queryKey: ['admin', 'announcement-templates'],
@@ -178,6 +231,7 @@ export default function AnnouncementPage() {
 
   // ── Template CRUD ─────────────────────────────────────────────────────────
   const [tplForm, setTplForm] = useState<{ id: string | null; name: string; title: string; content: string }>({ id: null, name: '', title: '', content: '' })
+  const tplContentRef = useRef<HTMLTextAreaElement>(null)
 
   const saveTemplateMutation = useMutation({
     mutationFn: () => tplForm.id
@@ -268,16 +322,22 @@ export default function AnnouncementPage() {
                 </div>
               )}
               <div>
-                <label style={labelStyle}>หัวข้อประกาศ</label>
-                <input value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder="ระบุหัวข้อ..." style={inputStyle} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>หัวข้อประกาศ</label>
+                  <EmojiPickerButton onPick={em => insertAtCursor(bTitleRef, bTitle, setBTitle, em)} />
+                </div>
+                <input ref={bTitleRef} value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder="ระบุหัวข้อ..." style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>รายละเอียด</label>
-                <textarea value={bBody} onChange={e => setBBody(e.target.value)} rows={5} placeholder="เนื้อหาประกาศ..." style={{ ...inputStyle, resize: 'vertical' }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>รายละเอียด</label>
+                  <EmojiPickerButton onPick={em => insertAtCursor(bBodyRef, bBody, setBBody, em)} />
+                </div>
+                <textarea ref={bBodyRef} value={bBody} onChange={e => setBBody(e.target.value)} rows={5} placeholder="เนื้อหาประกาศ..." style={{ ...inputStyle, resize: 'vertical' }} />
                 <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{bBody.length} ตัวอักษร</div>
               </div>
-              <div>
-                <label style={labelStyle}>ส่งถึง</label>
+              <div style={{ background: '#fafbfc', border: '1px solid #f1f3f5', borderRadius: 10, padding: 12 }}>
+                <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6 }}><Users size={13} color="#64748b" />ส่งถึง</label>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                   {([['all', 'ทุกคน'], ['branch', 'ตามสาขา'], ['individual', 'เลือกรายคน']] as const).map(([mode, label]) => (
                     <button key={mode} type="button" onClick={() => setBTargetMode(mode)}
@@ -354,8 +414,11 @@ export default function AnnouncementPage() {
                 </div>
               )}
               <div>
-                <label style={labelStyle}>ข้อความ</label>
-                <textarea value={dMsg} onChange={e => setDMsg(e.target.value)} rows={5} placeholder="พิมพ์ข้อความ..." style={{ ...inputStyle, resize: 'vertical' }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>ข้อความ</label>
+                  <EmojiPickerButton onPick={em => insertAtCursor(dMsgRef, dMsg, setDMsg, em)} />
+                </div>
+                <textarea ref={dMsgRef} value={dMsg} onChange={e => setDMsg(e.target.value)} rows={5} placeholder="พิมพ์ข้อความ..." style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
               <div style={{ background: '#fefce8', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#854d0e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <AlertTriangle size={14} style={{ marginTop: 1, flexShrink: 0 }}/>พนักงานต้องผูก Line account กับระบบก่อน จึงจะรับข้อความได้
@@ -484,7 +547,12 @@ export default function AnnouncementPage() {
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>{tplForm.id ? 'แก้ไขเทมเพลต' : '+ เทมเพลตใหม่'}</div>
                 <input value={tplForm.name} onChange={e => setTplForm(f => ({ ...f, name: e.target.value }))} placeholder="ชื่อเทมเพลต เช่น แจ้งวันหยุดพิเศษ" style={inputStyle} />
                 <input value={tplForm.title} onChange={e => setTplForm(f => ({ ...f, title: e.target.value }))} placeholder="หัวข้อประกาศ (default)" style={inputStyle} />
-                <textarea value={tplForm.content} onChange={e => setTplForm(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="เนื้อหา (default)" style={{ ...inputStyle, resize: 'vertical' }} />
+                <div style={{ position: 'relative' }}>
+                  <textarea ref={tplContentRef} value={tplForm.content} onChange={e => setTplForm(f => ({ ...f, content: e.target.value }))} rows={4} placeholder="เนื้อหา (default)" style={{ ...inputStyle, resize: 'vertical', paddingRight: 36 }} />
+                  <div style={{ position: 'absolute', top: 6, right: 6 }}>
+                    <EmojiPickerButton onPick={em => insertAtCursor(tplContentRef, tplForm.content, v => setTplForm(f => ({ ...f, content: v })), em)} />
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {tplForm.id && (
                     <Button variant="ghost" size="sm" onClick={() => setTplForm({ id: null, name: '', title: '', content: '' })}>ยกเลิกแก้ไข</Button>
