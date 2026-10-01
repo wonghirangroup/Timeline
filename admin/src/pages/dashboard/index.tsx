@@ -6,6 +6,7 @@ import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Cloc
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SetupChecklist from '../../components/shared/SetupChecklist'
@@ -132,8 +133,15 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
           ภาพรวมตามช่วงเวลา
+          <InfoTooltip title="ภาพรวมแดชบอร์ด" width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>สรุปข้อมูลพนักงานทั้งบริษัท แบ่งเป็นการ์ด KPI ตามช่วงเวลาที่เลือกด้านนี้ (มาสาย/ลาออก/เข้าใหม่) และสถานะเช็คอินวันนี้แบบเรียลไทม์ด้านล่าง</li>
+              <li>กดการ์ดไหนก็ได้เพื่อดูรายชื่อแบบละเอียด</li>
+              <li>เลือกมุมมอง "ปีนี้" เพื่อดูเปอร์เซ็นต์อัตราลาออก/เข้าใหม่เทียบกับพนักงานทั้งหมดด้วย</li>
+            </ul>
+          } />
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {RANGE_PRESETS.map(p => (
@@ -480,6 +488,12 @@ export default function DashboardPage() {
         <div>
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
             เรียลไทม์วันนี้ · สถานะพนักงาน
+            <InfoTooltip width={290} content={
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                <li><b>สายมาก</b> = เช็คอินช้ากว่าเกณฑ์สายขั้นที่ 2 ของกะ (ต่างจาก "มาสาย" ที่ยังอยู่ในเกณฑ์สายขั้นแรก)</li>
+                <li>จุดสีด้านขวาของแต่ละคนในรายชื่อวันนี้ (คอลัมน์ขวา) บอกสถานะเดียวกับสีการ์ดพวกนี้</li>
+              </ul>
+            } />
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 12 }}>แตะการ์ดเพื่อดูรายชื่อในหมวดนั้น</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>

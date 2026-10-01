@@ -1,6 +1,7 @@
 // admin/src/pages/weekly-off/LiffPreview.tsx
 import { useState } from 'react'
 import { X, CalendarOff, CheckCircle2, Clock, XCircle, ChevronLeft, MessageCircle, AlertTriangle } from 'lucide-react'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_FULL  = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
@@ -70,6 +71,11 @@ export default function LiffPreview({ roundStatus, month, slots, myBookings, onB
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onClick={resetAndClose}>
+      {/* Caption — บอกว่านี่คือตัวอย่างหน้าจอ ไม่ใช่ของจริงที่แก้ไขได้ */}
+      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.75)', fontSize: '12px' }}>
+        ตัวอย่างหน้าจอพนักงานในแอป LINE
+        <InfoTooltip width={280} content="นี่คือตัวอย่างหน้าจอที่พนักงานจะเห็นในแอป LINE ตอนจองวันหยุดประจำเดือน ไม่ใช่หน้าจอใช้งานจริง — ใช้ดูเพื่อตรวจสอบว่ารอบจองและวันที่ที่เปิดให้จองถูกต้องก่อนประกาศให้พนักงานใช้งานจริง" />
+      </div>
       {/* Phone frame */}
       <div onClick={e => e.stopPropagation()} style={{
         width: 375, maxHeight: '90vh',

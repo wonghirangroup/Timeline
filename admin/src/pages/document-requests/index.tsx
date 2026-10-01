@@ -17,6 +17,7 @@ import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import HrDocumentGenerateModal from '../hr-documents/generate'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
@@ -144,9 +145,19 @@ export default function DocumentRequestsPage() {
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> ขอเอกสาร HR</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileText size={20} /> ขอเอกสาร HR
+          <InfoTooltip size="md" title="ขอเอกสาร HR" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>คำขอเอกสาร (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน) ที่พนักงานยื่นผ่าน LINE — แอดมินกด <b>"สร้างในระบบ"</b> เพื่อออกเอกสารแล้วแนบไฟล์ หรือจะอัปโหลดไฟล์ที่ทำเองก็ได้ ก่อนกด <b>"แนบไฟล์ + เสร็จ"</b> เพื่อปิดคำขอ</li>
+              <li>กด <b>"เพิ่มคำขอ"</b> ได้เองถ้าพนักงานแจ้งด้วยปากเปล่า/โทรมาโดยไม่ได้ยื่นผ่านแอป</li>
+              <li>สถานะ: <b>รอดำเนินการ</b> (เหลือง) · <b>เสร็จแล้ว</b> (เขียว) · <b>ปฏิเสธ</b> (แดง)</li>
+            </ul>
+          } />
+        </h1>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
+          <InfoTooltip width={290} content="สรุปเอกสารที่ออกแล้วจริง (ไม่ใช่รายการคำขอด้านล่าง) — ใช้ดู/กรอง/Export ยอดสลิปเงินเดือนและหนังสือรับรองเงินเดือนที่สร้างในระบบทั้งหมด แยกตามกลุ่ม/สาขา/แผนก" />
           {!isReadOnly && (
             <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAddReq}>เพิ่มคำขอ</Button>
           )}

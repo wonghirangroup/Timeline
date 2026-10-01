@@ -10,6 +10,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
@@ -222,11 +223,23 @@ export default function OffsitePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <Button variant="secondary" icon={<Download size={15} />} onClick={exportOffsite} disabled={filtered.length === 0}>Export</Button>
-        {!isReadOnly && (
-          <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MapPin size={20} /> เช็คอินนอกสถานที่
+          <InfoTooltip size="md" title="เช็คอินนอกสถานที่" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>รายการที่พนักงานเช็คอิน/เช็คเอาต์นอกสำนักงานผ่านแอป (พร้อมพิกัด GPS) และรายการที่แอดมินเพิ่ม/แก้ไขเองด้วยมือ</li>
+              <li><b>กำลังนอกสถานที่</b> (ฟ้า) = ยังไม่ได้เช็คเอาต์ · <b>เสร็จสิ้น</b> (เขียว) = เช็คเอาต์แล้ว</li>
+              <li>ไอคอนหมุดข้างเวลา กดเพื่อเปิด Google Maps นำทางไปจุดนั้น — ส่วนช่อง "ที่อยู่" ในฟอร์มแก้ไขเป็นข้อความที่พิมพ์เอง ไม่ใช่พิกัด GPS</li>
+            </ul>
+          } />
+        </h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="secondary" icon={<Download size={15} />} onClick={exportOffsite} disabled={filtered.length === 0}>Export</Button>
+          {!isReadOnly && (
+            <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>
+          )}
+        </div>
       </div>
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: isMobile ? 8 : 10 }}>

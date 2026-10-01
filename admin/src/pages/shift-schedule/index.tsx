@@ -12,6 +12,7 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { avatarUrl } from '../../lib/upload'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 // ── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee {
@@ -518,7 +519,17 @@ export default function ShiftSchedulePage() {
   return (
     <div style={{ maxWidth: viewMode==='month'?1400:1100, margin:'0 auto' }}>
 
-      {/* Header - Title removed */}
+      {/* Header - Title removed, but keep a small label to host the page-level help icon */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ตารางกะ</span>
+        <InfoTooltip size="md" title="ตารางกะ" width={320} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>รวมกะประจำของแต่ละคนกับการแก้ไขเฉพาะวัน (override) ไว้ในตารางเดียว คลิกที่ช่องวันที่ของพนักงานเพื่อเปลี่ยนกะหรือตั้งวันหยุดเฉพาะวันนั้น</li>
+            <li>ลำดับที่ระบบใช้ตัดสินแต่ละวัน: ตั้งเองเฉพาะวัน (override) &gt; วันลาที่อนุมัติแล้ว &gt; วันหยุดประจำสัปดาห์ที่อนุมัติแล้ว &gt; วันหยุดนักขัตฤกษ์ &gt; กะประจำของพนักงาน</li>
+            <li>ขอบเส้นประ = มาจากค่าอัตโนมัติ (ยังไม่ได้แก้เอง) ขอบเส้นทึบ+ไอคอนดินสอ = มีการแก้ไขเฉพาะวันนั้นแล้ว</li>
+          </ul>
+        } />
+      </div>
       <div style={{ display:'flex', alignItems: isMobile?'flex-start':'center', flexDirection: isMobile?'column':'row', gap:12, marginBottom:16 }}>
         <div style={{ position:'relative', width: isMobile ? '100%' : 220 }}>
           <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', pointerEvents:'none' }} />

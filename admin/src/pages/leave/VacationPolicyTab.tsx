@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ApiPosition {
@@ -126,6 +127,12 @@ export default function VacationPolicyTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}><Sliders size={15} /></div>
           <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>สูตรพักร้อนตามอายุงาน (ต่อตำแหน่ง)</div>
+          <InfoTooltip size="md" title="นโยบายพักร้อนตามอายุงาน" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>ตั้งสูตรพักร้อนที่เพิ่มอัตโนมัติตามอายุงานของแต่ละตำแหน่ง เลือกว่าวันหยุดบริษัทที่มาทำงานจะให้เป็นวันชดเชยหรือพักร้อน และรันโบนัส/reset ประจำปีด้วยมือได้ครบในหน้านี้</li>
+              <li>ตำแหน่งที่ไม่ตั้งค่า (เว้นว่างช่อง "ครบ 1 ปี") จะไม่มีสิทธิ์พักร้อนตามอายุงาน</li>
+            </ul>
+          } />
         </div>
         <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: 12, marginLeft: 42 }}>
           {configuredCount}/{positions.length} ตำแหน่งตั้งค่าแล้ว — ตำแหน่งที่ไม่ตั้งค่า (เว้นว่าง) จะไม่มีสิทธิ์พักร้อนตามอายุงาน
@@ -142,7 +149,12 @@ export default function VacationPolicyTab() {
                   <th style={th}>ครบ 1 ปี (วัน)</th>
                   <th style={th}>เพิ่มครั้งละ (วัน)</th>
                   <th style={th}>ทุกๆ (ปี)</th>
-                  <th style={th}>ตัวอย่าง</th>
+                  <th style={th}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      ตัวอย่าง
+                      <InfoTooltip width={260} content="คำนวณวันพักร้อนสะสม ณ ปีที่ 1 / 3 / 5 จากสูตรที่ตั้งไว้ ให้ดูตัวอย่างก่อนกดบันทึกจริง" />
+                    </span>
+                  </th>
                   <th style={th}></th>
                 </tr>
               </thead>
@@ -256,7 +268,12 @@ export default function VacationPolicyTab() {
                   <th style={{ ...th, textAlign: 'right' }}>โควต้า</th>
                   <th style={{ ...th, textAlign: 'right' }}>ใช้ไป</th>
                   <th style={{ ...th, textAlign: 'right' }}>คงเหลือ</th>
-                  <th style={{ ...th, textAlign: 'right' }}>ขายคืนได้</th>
+                  <th style={{ ...th, textAlign: 'right' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                      ขายคืนได้
+                      <InfoTooltip width={260} content="พักร้อนคงเหลือของปีก่อนที่ขายคืนบริษัทเป็นเงินได้ สูงสุด 10 วัน/คน — HR เป็นคนคิดจ่ายนอกระบบ" />
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

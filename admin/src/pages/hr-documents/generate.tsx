@@ -8,6 +8,7 @@ import { api } from '../../lib/axios'
 import { fmtThaiDate } from '../../lib/format'
 import { useToast } from '../../components/ui/Toast'
 import Modal from '../../components/ui/Modal'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 type DocType = 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER'
 
@@ -102,6 +103,12 @@ export default function HrDocumentGenerateModal({ employeeId, type, documentRequ
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <FileText size={17} color="#244B83" />
           <p style={{ fontWeight: 700, fontSize: '15px', margin: 0 }}>สร้าง{TYPE_LABEL[type]}</p>
+          <InfoTooltip title="สร้างเอกสาร HR" width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>ระบบเติมข้อมูลที่มีอยู่แล้วให้อัตโนมัติ (ชื่อ/ตำแหน่ง/บริษัท/เลขที่เอกสาร) ส่วนตัวเลขการเงิน (เงินเดือน/เบี้ยต่างๆ) ต้องกรอกเองทุกครั้ง เพราะระบบไม่ได้เก็บข้อมูลเงินเดือนไว้</li>
+              <li>กด "บันทึกและพิมพ์" แล้วค่าที่กรอกจะถูกเก็บเป็น snapshot ถาวร — พิมพ์ซ้ำกี่ครั้งก็ได้ค่าเดิมเป๊ะ แม้ข้อมูลพนักงานจะเปลี่ยนไปภายหลัง</li>
+            </ul>
+          } />
         </div>
 
         {isLoading || !data ? (

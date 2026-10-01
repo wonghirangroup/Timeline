@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileClock, UserPlus, UserCog, UserX, Bell, ShieldPlus, ShieldCheck, ShieldX } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 interface LogEntry {
   id: string
@@ -49,7 +50,15 @@ export default function AuditLogPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>บันทึกกิจกรรมพนักงาน</h1>
+          <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            บันทึกกิจกรรมพนักงาน
+            <InfoTooltip size="md" title="บันทึกกิจกรรมพนักงาน" width={300} content={
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                <li>รวม 2 แหล่ง: การเพิ่ม/แก้ไข/ลบข้อมูลพนักงานและผู้ใช้งานเว็บ กับประวัติการแจ้งเตือนที่ระบบส่งถึงพนักงานทาง LINE</li>
+                <li>กรองดูเฉพาะสาขาได้ที่ช่องด้านขวา</li>
+              </ul>
+            } />
+          </h1>
           <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>การเพิ่ม/แก้ไข/ลบข้อมูลพนักงาน ผู้ใช้งานเว็บ และการแจ้งเตือนที่ส่งถึงพนักงาน</p>
         </div>
         <div className="page-header-actions">

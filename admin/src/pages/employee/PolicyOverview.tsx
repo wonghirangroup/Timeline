@@ -10,6 +10,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -222,6 +223,17 @@ export default function PolicyOverview() {
 
   return (
     <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>สิทธิ์วันหยุด / การลาพนักงาน</h2>
+        <InfoTooltip size="md" title="สิทธิ์วันหยุด / การลาพนักงาน" width={320} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>สรุปสิทธิ์วันหยุด/การลาของพนักงานทุกคนในที่เดียว แก้ไขแบบ inline ได้ทันทีที่ตาราง ไม่ต้องเปิดแก้ทีละคน</li>
+            <li>คอลัมน์ <b>เสาร์ / อาทิตย์ / นักขัตฤกษ์ / โควต้า</b> เป็นค่า resolved จาก cascade 6 ชั้น (สถานะพนักงาน → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม) — ถ้าจะเปลี่ยนทีละกลุ่ม ให้แก้ที่ต้นทาง (ผังองค์กร/สถานะพนักงาน) ไม่ใช่แก้ทีละแถวที่นี่</li>
+            <li><b>การจองวันหยุด</b> เลือกได้ 3 แบบ: ปิดการจอง / รายสัปดาห์ / รวมทั้งเดือน</li>
+            <li><b>สิทธิ์ยื่นลา</b> เลือกได้ 3 แบบ: ตามลำดับชั้น (ค่าที่สืบทอดมา) / บังคับเปิด / บังคับปิด เฉพาะคนนี้</li>
+          </ul>
+        } />
+      </div>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
         แก้ inline ได้: <b>สถานะพนักงาน · โหมดจอง · สิทธิ์จอง/ลา</b> —
 เสาร์-อาทิตย์ &amp; โควต้า เป็นค่า <b>resolved</b> จาก cascade 6 ชั้น (สถานะพนักงาน → ตำแหน่ง → … → กลุ่ม) —
@@ -281,7 +293,12 @@ export default function PolicyOverview() {
             <thead>
               <tr style={{ background: '#F4F6F9' }}>
                 {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'การจองวันหยุด', 'สิทธิ์ยื่นลา', 'บทบาทแอดมิน'].map(h => (
-                  <th key={h} style={th}>{h}</th>
+                  <th key={h} style={th}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {h}
+                      {h === 'บทบาทแอดมิน' && <InfoTooltip content="สิทธิ์เข้าเว็บแอดมิน: แอดมิน/ผู้จัดการ (จัดการเต็มสิทธิ์เหมือนกัน ต่างแค่มอบสิทธิ์ให้คนอื่นไม่ได้), หัวหน้าแผนก (เฉพาะแผนกที่ดูแล), ผู้บริหาร (ดูอย่างเดียว) — ตั้งค่าได้ที่หน้ารายละเอียดพนักงาน" width={290} />}
+                    </span>
+                  </th>
                 ))}
               </tr>
             </thead>

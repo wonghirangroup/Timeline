@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical, EyeOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical, EyeOff, HelpCircle } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -10,6 +10,8 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, 
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { avatarUrl } from '../../lib/upload'
 import SearchSelect from '../../components/shared/SearchSelect'
+import InfoTooltip from '../../components/ui/InfoTooltip'
+import GuidedTour from '../../components/shared/GuidedTour'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
@@ -167,6 +169,16 @@ function toDisplayLeave(l: ApiLeave): LeaveReq {
                  : '',
   }
 }
+
+// ── ทัวร์แนะนำโมดัล "ตั้งค่า Export ตารางแยกกลุ่ม" — จุดที่งงสุดในหน้านี้คือการ
+// ลากคนสลับกลุ่ม/ลากไปโซน "ไม่แสดง" ซึ่งไม่มีอะไรบอกเป็นขั้นตอนมาก่อน
+const ROSTER_TOUR_STEPS = [
+  { selector: 'roster-filter',  title: '🔎 กรองกลุ่ม/แผนก', body: 'เลือกกรองเฉพาะกลุ่มหรือแผนกที่จะ export — ไม่เลือกเลยแปลว่าเอาทุกกลุ่ม ตัวกรองนี้แยกจากตัวกรองบนปฏิทินหลัก' },
+  { selector: 'roster-columns', title: '📋 คอลัมน์ที่ export', body: 'เลือกว่าจะโชว์รหัสพนักงานและ/หรือชื่อสาขาเพิ่มจากชื่อคนหรือไม่' },
+  { selector: 'roster-groups',  title: '🎨 สีและกลุ่มของแต่ละคน', body: 'คลิกวงกลมสีเพื่อเปลี่ยนสีประจำตัวคนนั้น หรือลากไอคอน ⠿ ของแต่ละคนไปวางในกลุ่มอื่น/กลุ่มที่สร้างเอง เพื่อจัดกลุ่มตารางใหม่โดยไม่กระทบผังองค์กรจริง' },
+  { selector: 'roster-hidden',  title: '🙈 ซ่อนบางคนออกจากตาราง', body: 'ลากคนที่ไม่ต้องการให้โผล่ในตาราง export มาวางที่โซนนี้ — ลากกลับไปกลุ่มปกติเมื่อไหร่ก็กลับมาแสดงเหมือนเดิม ระบบจำการตั้งค่าไว้ในเครื่องนี้' },
+  { selector: 'roster-export-buttons', title: '📤 Export', body: 'กดเพื่อดาวน์โหลดตารางตามกลุ่ม/สี/คอลัมน์ที่ตั้งไว้ เป็นไฟล์ Excel หรือ PDF' },
+]
 
 // ─── Get events for a specific date ───────────────────────────────────────────
 function getEventsForDate(date: string, branchFilter: string, dayOffs: DayOff[], leaves: LeaveReq[], holidays: Holiday[]) {
@@ -669,6 +681,7 @@ export default function TeamCalendarTab() {
   const [rosterHidden, setRosterHidden] = useState<string[]>(() => loadRosterHidden())
   const [newGroupName, setNewGroupName] = useState('')
   const [dragOverGroupName, setDragOverGroupName] = useState<string | null>(null)
+  const [rosterTourActive, setRosterTourActive] = useState(false)
   const { departments: allDepartments } = useOrgFilterOptions()
   const rosterDeptOptions = rosterGroupId ? allDepartments.filter(d => d.division?.group_id === rosterGroupId) : allDepartments
 
@@ -1210,6 +1223,12 @@ export default function TeamCalendarTab() {
           <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: '#E6ECF4', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
             <ChevronRight size={16} color="#374151" />
           </button>
+          <InfoTooltip size="md" title="ปฏิทินรวมทีม" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>ภาพรวมวันหยุดประจำ + วันลาของทุกคนในเดือนที่เลือก คลิกวันที่เพื่อดูรายละเอียดหรือเพิ่มวันหยุด/วันลาให้คนในวันนั้นได้เลย</li>
+              <li>ลากชื่อ (chip) ในแต่ละวันไปวางวันอื่นเพื่อย้ายวันหยุด/วันลาได้ทันที — กรอบเส้นประ = ยังรอพิจารณาอยู่</li>
+            </ul>
+          } />
         </div>
 
         {/* Export */}
@@ -1227,6 +1246,7 @@ export default function TeamCalendarTab() {
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#131C45', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Table2 size={14} /> ตารางแยกกลุ่ม
           </button>
+          <InfoTooltip width={280} content="ตารางรูปแบบ roster แยกเป็นกลุ่มเอง ปรับคอลัมน์ สีและกลุ่มของแต่ละคนได้อิสระ รวมถึงซ่อนบางคนออกจากตารางได้ — ต่างจาก Excel/PDF ด้านซ้ายที่ export ตามปฏิทินปกติ" />
         </div>
       </div>
 
@@ -1380,13 +1400,19 @@ export default function TeamCalendarTab() {
                   <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>ตั้งค่า Export ตารางแยกกลุ่ม</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{fmtMonthTH(month)}</div>
                 </div>
-                <button onClick={() => setShowRosterSettings(false)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button onClick={() => setRosterTourActive(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: '1.5px solid #e5e7eb', background: '#fff', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <HelpCircle size={13} /> วิธีใช้
+                  </button>
+                  <button onClick={() => setShowRosterSettings(false)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+                </div>
               </div>
 
               <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {/* เลือกกลุ่ม/แผนก — ค่าเริ่มต้น = ทุกกลุ่มทุกแผนก (ก้อนทุกกลุ่มเหมือนเดิม) */}
                 {(groups.length > 1 || allDepartments.length > 0) && (
-                  <div>
+                  <div data-tour="roster-filter">
                     <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>กรองเฉพาะกลุ่ม/แผนก (ไม่เลือก = ทุกกลุ่ม)</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {groups.length > 1 && (
@@ -1414,7 +1440,7 @@ export default function TeamCalendarTab() {
                 )}
 
                 {/* คอลัมน์ที่จะ export */}
-                <div>
+                <div data-tour="roster-columns">
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>คอลัมน์ที่จะ export (นอกจากชื่อ)</div>
                   <div style={{ display: 'flex', gap: 14 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -1445,7 +1471,7 @@ export default function TeamCalendarTab() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 280, overflowY: 'auto' }}>
+                  <div data-tour="roster-groups" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 280, overflowY: 'auto' }}>
                     {rosterGroups.map(grp => {
                       const isCustom = rosterCustomGroups.includes(grp.groupName)
                       const isDragOver = dragOverGroupName === grp.groupName
@@ -1500,6 +1526,7 @@ export default function TeamCalendarTab() {
                       const isDragOver = dragOverGroupName === ROSTER_HIDDEN_ZONE
                       return (
                         <div
+                          data-tour="roster-hidden"
                           onDragOver={e => { if (!e.dataTransfer.types.includes(ROSTER_DND_MIME)) return; e.preventDefault(); setDragOverGroupName(ROSTER_HIDDEN_ZONE) }}
                           onDragLeave={() => setDragOverGroupName(prev => prev === ROSTER_HIDDEN_ZONE ? null : prev)}
                           onDrop={e => {
@@ -1534,7 +1561,7 @@ export default function TeamCalendarTab() {
                 </div>
               </div>
 
-              <div style={{ padding: '14px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div data-tour="roster-export-buttons" style={{ padding: '14px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button onClick={exportRosterExcel} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#131C45', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <FileSpreadsheet size={14} /> Export Excel
                 </button>
@@ -1543,6 +1570,7 @@ export default function TeamCalendarTab() {
                 </button>
               </div>
             </div>
+            {rosterTourActive && <GuidedTour steps={ROSTER_TOUR_STEPS} onClose={() => setRosterTourActive(false)} />}
           </div>
         )
       })()}

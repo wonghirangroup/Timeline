@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { Users, Building2, ClipboardCheck, AlertTriangle, Wallet, CalendarDays, DoorOpen, FileText, FileClock, ChevronRight, LayoutDashboard, Palmtree, MessageCircle } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import ReportPieChart from '../../components/shared/ReportPieChart'
 import ReportBarChart from '../../components/shared/ReportBarChart'
@@ -218,6 +219,17 @@ export default function ExecutiveReportPage() {
             <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>กำลังโหลด...</div>
           ) : (
             <>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                สรุปภาพรวมเดือนนี้
+                <InfoTooltip title="ภาพรวมผู้บริหาร" width={320} content={
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    <li>การ์ดตัวเลขและกราฟด้านล่างสรุปข้อมูลทั้งองค์กรของเดือนที่เลือก (เปลี่ยนเดือนได้ที่ลูกศร ‹ › ด้านบน)</li>
+                    <li><b>โดนัทสัดส่วนเช็คอิน</b> — มาปกติ / สาย / ขาด ของเดือนนี้</li>
+                    <li><b>แท่งงานค้าง</b> — จำนวนคำขอที่รออนุมัติ แยกตามประเภท เป็นยอดคงเหลือ ณ ตอนนี้ ไม่ผูกกับเดือนที่เลือก</li>
+                    <li><b>เส้นแนวโน้ม</b> — จำนวนเช็คอิน/สาย/ขาด รายวันตลอดเดือนที่เลือก</li>
+                  </ul>
+                } />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
                 {kpis.map(k => (
                   <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>

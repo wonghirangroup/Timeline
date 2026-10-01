@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import SearchSelect from '../../components/shared/SearchSelect'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
 interface ApiBranch { id: string; name: string }
@@ -289,7 +290,17 @@ export default function AnnouncementPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Megaphone size={18} style={{ color: '#244B83' }}/>ประกาศ & ข้อความ</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Megaphone size={18} style={{ color: '#244B83' }}/>ประกาศ & ข้อความ
+          <InfoTooltip size="md" title="ประกาศ & ข้อความ" width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li><b>ส่งประกาศ (Broadcast)</b> — ส่งถึงทุกคน/ตามสาขา/เลือกรายคนพร้อมกันทีเดียว</li>
+              <li><b>ข้อความส่วนตัว</b> — ส่งถึงพนักงานคนเดียวแบบเจาะจง</li>
+              <li><b>Feedback</b> — ดูความคิดเห็นที่พนักงานส่งแบบไม่ระบุชื่อ</li>
+              <li>ทั้งประกาศและข้อความส่วนตัวส่งผ่าน <b>LINE OA</b> ไปหาพนักงานที่ผูก LINE กับระบบไว้แล้วเท่านั้น</li>
+            </ul>
+          } />
+        </h2>
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
       </div>
 

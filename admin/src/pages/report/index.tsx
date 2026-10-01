@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiDate } from '../../lib/format'
@@ -587,6 +588,14 @@ export default function ReportPage() {
         </div>
 
         <button onClick={() => refetch()} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.85rem' }}>↻</button>
+
+        <InfoTooltip title="รายงานการเข้างาน" width={320} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>ประวัติการมาทำงานรายวันของพนักงานแต่ละคน มีสองมุมมองเวลา: <b>ปฏิทิน</b> (ทั้งเดือน) และ <b>ช่วงเวลา</b> (กำหนดวันที่เองได้ ข้ามเดือนได้)</li>
+            <li>โหมดปฏิทินสลับได้ 3 แบบ: <b>ตาราง</b> (ตารางสีรายวัน) / <b>การ์ด</b> / <b>กราฟ</b> (แนวโน้มเช็คอิน/สาย/ขาดรายวัน)</li>
+            <li>สีในตาราง/จุด หมายถึงสถานะวันนั้น เช่น เขียว=มาปกติ เหลือง=สาย แดง=ขาด ฟ้า=ลา/หยุด ม่วง=นอกสถานที่ (ดูคำอธิบายเต็มที่แถบตำนานเหนือตาราง)</li>
+          </ul>
+        } />
       </div>
 
       {/* Stats row */}
@@ -597,10 +606,13 @@ export default function ReportPage() {
           {totalAbsent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}><X size={12} /> ขาด {totalAbsent}</span>}
           {totalFine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}><Wallet size={12} /> ค่าปรับรวม {totalFine} ฿</span>}
           {noDataByEmp.size > 0 && (
-            <button onClick={() => setOnlyNoData(v => !v)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: onlyNoData ? '#7c3aed' : '#ede9fe', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: onlyNoData ? '#fff' : '#6d28d9', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <AlertTriangle size={12} /> ไม่มีข้อมูล {noDataByEmp.size} คน{onlyNoData ? ' ✕' : ''}
-            </button>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button onClick={() => setOnlyNoData(v => !v)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: onlyNoData ? '#7c3aed' : '#ede9fe', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: onlyNoData ? '#fff' : '#6d28d9', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <AlertTriangle size={12} /> ไม่มีข้อมูล {noDataByEmp.size} คน{onlyNoData ? ' ✕' : ''}
+              </button>
+              <InfoTooltip width={300} content="นับเฉพาะวันที่ผ่านมาแล้ว ไม่รวมวันหยุดสุดสัปดาห์/ลา/นอกสถานที่ และนับตั้งแต่วันเช็คอินแรกสุดของแต่ละคนในระบบ (หรือวันที่เริ่มงานถ้ายังไม่เคยเช็คอิน) ไม่ใช่ตั้งแต่ต้นเดือนเสมอไป" />
+            </span>
           )}
           <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{filteredEmployees.length} คน</span>
           <ReportExportBar onExportCsv={exportAll} disabled={filteredEmployees.length === 0} mobile={isMobile} />

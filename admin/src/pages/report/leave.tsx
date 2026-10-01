@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportPieChart from '../../components/shared/ReportPieChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
@@ -114,6 +115,13 @@ export default function LeaveReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={monthLeaves.length === 0} mobile={isMobile} />
+        <InfoTooltip title="รายงานวันลา" width={300} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>สรุปคำขอลาตามประเภท (ลาป่วย/ลากิจ/พักร้อน ฯลฯ) พร้อมรายการคำขอทั้งหมดของเดือนที่เลือก</li>
+            <li>สถานะ: <b>อนุมัติ</b> (เขียว) / <b>รอพิจารณา</b> (ส้ม) / <b>ปฏิเสธ</b> (เทา)</li>
+            <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ — กราฟแสดงสัดส่วนวันลาที่อนุมัติแล้ว แยกตามประเภท</li>
+          </ul>
+        } />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

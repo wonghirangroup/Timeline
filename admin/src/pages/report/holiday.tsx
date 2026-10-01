@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Palmtree, Users, Clock, Check, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
@@ -111,6 +112,12 @@ export default function HolidayReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={isLoading} mobile={isMobile} />
+        <InfoTooltip title="รายงานวันหยุด" width={300} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>ส่วนบนคือวันหยุดบริษัทที่ประกาศไว้ในเดือนนี้ ส่วนล่างคือสรุปคำขอวันหยุดประจำสัปดาห์/เดือนที่พนักงานยื่นมา แยกตามสาขา</li>
+            <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ (เฉพาะส่วนสรุปคำขอ) — กราฟเทียบจำนวนอนุมัติ/รอพิจารณา/ปฏิเสธ เป็นรายสาขา</li>
+          </ul>
+        } />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
@@ -127,7 +134,10 @@ export default function HolidayReportPage() {
 
       {/* วันหยุดบริษัท */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E6ECF4', fontWeight: 700, fontSize: '0.85rem', color: '#111827' }}>วันหยุดบริษัทที่ประกาศ</div>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E6ECF4', fontWeight: 700, fontSize: '0.85rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
+          วันหยุดบริษัทที่ประกาศ
+          <InfoTooltip content="“ชดเชย X วัน” คือจำนวนวันหยุดชดเชยที่บริษัทให้พนักงาน กรณีวันหยุดนี้ตรงกับวันที่พนักงานต้องทำงานตามปกติ" />
+        </div>
         {monthHolidays.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่มีวันหยุดบริษัทประกาศไว้ในเดือนนี้</div>
         ) : (

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileText, Receipt, LogOut, Printer, Plus } from 'lucide-react'
 import { api } from '../../lib/axios'
 import HrDocumentGenerateModal from './generate'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 type DocType = 'PAYSLIP' | 'SALARY_CERT' | 'RESIGNATION_LETTER'
 const TYPE_CFG: Record<DocType, { label: string; icon: React.ReactNode; color: string }> = {
@@ -42,7 +43,10 @@ export default function EmployeeDocsTab({ employeeId }: { employeeId: string }) 
       </div>
 
       <div>
-        <p style={{ fontSize: '12.5px', fontWeight: 700, color: '#374151', margin: '0 0 8px' }}>ประวัติเอกสารที่ออกแล้ว</p>
+        <p style={{ fontSize: '12.5px', fontWeight: 700, color: '#374151', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ประวัติเอกสารที่ออกแล้ว
+          <InfoTooltip width={280} content="เอกสารทุกฉบับที่เคยสร้างให้พนักงานคนนี้ — กด &quot;พิมพ์ซ้ำ&quot; เพื่อเปิดดู/พิมพ์อีกครั้งได้ทุกเมื่อ ค่าจะตรงกับตอนออกจริงเสมอ เพราะเก็บเป็น snapshot ไว้" />
+        </p>
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E6ECF4', overflow: 'hidden' }}>
           {isLoading ? (
             <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>กำลังโหลด...</div>

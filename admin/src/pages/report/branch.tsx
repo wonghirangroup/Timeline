@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Building2, Users, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
@@ -129,6 +130,12 @@ export default function BranchReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
+        <InfoTooltip title="รายงานสาขา" width={300} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>สรุปจำนวนพนักงาน เช็คอิน มาสาย/ขาด ค่าปรับ และวันลา แยกตามสาขา ของเดือนที่เลือก</li>
+            <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ — กราฟเทียบเช็คอิน/มาสาย/ขาด เป็นรายสาขา</li>
+          </ul>
+        } />
       </div>
 
       {/* KPI row */}

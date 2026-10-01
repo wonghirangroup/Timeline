@@ -18,6 +18,7 @@ import { useAuthStore } from '../../stores/authStore'
 import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
 import EmployeeDocsTab from '../hr-documents/EmployeeDocsTab'
 import AvatarUpload from '../../components/ui/AvatarUpload'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -325,7 +326,10 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
         )
         return (
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>นโยบายวันหยุด / การลา <span style={{ fontWeight: 400, color: '#94a3b8' }}>(resolved จากกลุ่ม/ฝ่าย/แผนก/ตำแหน่ง/สถานะพนักงาน)</span></div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              นโยบายวันหยุด / การลา <span style={{ fontWeight: 400, color: '#94a3b8' }}>(resolved จากกลุ่ม/ฝ่าย/แผนก/ตำแหน่ง/สถานะพนักงาน)</span>
+              <InfoTooltip content="กรอบเขียว = ค่าที่ใช้งานอยู่เป็นปกติ (สิทธิ์เปิด/วันหยุด), กรอบแดง = ค่าตรงข้ามเกณฑ์ปกติ (สิทธิ์ปิด/ต้องมาทำงาน) — แก้ค่าตั้งต้นได้ที่ผังองค์กรหรือสถานะพนักงาน ไม่ใช่แก้ตรงนี้" width={290} />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
               {chip('สิทธิ์จองวันหยุด', p.booking ? 'เปิด' : 'ปิด', p.booking)}
               {chip('สิทธิ์การลา', p.leave ? 'เปิด' : 'ปิด', p.leave)}
@@ -529,7 +533,10 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '90px 80px 90px 90px 120px 1fr', minWidth: 620, background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
             {['วันที่','วัน','เวลาเข้า','เวลาออก','สถานะ','หมายเหตุ'].map(h => (
-              <div key={h} style={{ padding: '9px 12px', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</div>
+              <div key={h} style={{ padding: '9px 12px', fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {h}
+                {h === 'สถานะ' && <InfoTooltip content="สาย ระดับ 1/2 = ระดับความรุนแรงของการมาสาย มีผลต่อค่าปรับที่คิดต่างกัน — ขาดงาน คือวันทำงานที่ไม่มีการเช็คอินและไม่มีใบลา/วันหยุดรองรับ" width={280} />}
+              </div>
             ))}
           </div>
           {Array.from({ length: daysInMonth(year, month) }, (_, i) => {
@@ -1062,6 +1069,13 @@ export default function EmployeeDetailPage() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{fullName}</h1>
+              <InfoTooltip size="md" title="ข้อมูลพนักงาน" width={310} content={
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  <li>หน้ารวมข้อมูลพนักงานคนนี้ แบ่งเป็นแท็บ: ภาพรวม / ประวัติเช็คอิน / วันลา / เอกสาร &amp; วินัย / ออกเอกสาร / ข้อมูลส่วนตัว</li>
+                  <li><b style={{ color: '#059669' }}>● ปฏิบัติงาน</b> / <b style={{ color: '#dc2626' }}>○ ไม่ได้ปฏิบัติงาน</b> = สถานะใช้งานบัญชี แยกจาก "สถานะพนักงาน" (ลาออก/เลิกจ้างฯลฯ) ที่ตั้งในหน้ารายชื่อ</li>
+                  <li><b>ผูก Line แล้ว</b> = เชื่อมบัญชี LINE เช็คอินผ่าน LIFF ได้ — กด "Reset LINE" เพื่อให้พนักงานผูกบัญชีใหม่ (เช่น เปลี่ยนเครื่อง/ผูกผิดคน)</li>
+                </ul>
+              } />
               <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({nickname})</span>
               <span style={{
                 fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 99,

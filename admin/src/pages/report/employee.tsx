@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
@@ -123,6 +124,12 @@ export default function EmployeeReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
+        <InfoTooltip title="รายงานพนักงาน" width={300} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>สรุปเช็คอิน มาสาย ขาด ค่าปรับ และวันลา แยกรายพนักงาน ของเดือนที่เลือก ค้นหาชื่อ/รหัสพนักงานได้ที่ช่องค้นหา</li>
+            <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ — มุมมองกราฟแสดงเฉพาะ Top 10 คนที่มาสาย/ขาดรวมกันมากสุด ไม่ใช่พนักงานทั้งหมด</li>
+          </ul>
+        } />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

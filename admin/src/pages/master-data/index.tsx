@@ -10,6 +10,7 @@ import { api } from '../../lib/axios'
 import { deptName } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 import { useAuthStore } from '../../stores/authStore'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -292,6 +293,14 @@ export default function MasterDataPage() {
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Users size={20} color="#244B83" /> Master Data พนักงาน
+            <InfoTooltip size="md" title="Master Data พนักงาน" width={320} content={
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                <li>ตารางสรุปข้อมูลสำคัญของพนักงานทุกคนไว้ในที่เดียว สำหรับผู้บริหารดูภาพรวม — หน้านี้ดูอย่างเดียว แก้ไขข้อมูลได้ที่หน้า "พนักงาน"</li>
+                <li>คลิกที่แถวเพื่อเปิดดูรายละเอียดพนักงานคนนั้น</li>
+                <li><b>สิทธิ์จอง/ลา</b> สืบทอดมาจากผังองค์กร (สถานะพนักงาน → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม) ชั้นที่ใกล้พนักงานที่สุดที่ตั้งค่าไว้จะมีผลจริง</li>
+                <li><b>วันหยุดใช้ไป/โควต้า</b> นับเฉพาะวันหยุดที่อนุมัติแล้วในเดือนปัจจุบัน</li>
+              </ul>
+            } />
           </h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
             มุมมองรวมสำหรับผู้บริหาร — ดูอย่างเดียว แก้ไขข้อมูลได้ที่หน้า "พนักงาน"
@@ -349,8 +358,18 @@ export default function MasterDataPage() {
                   <th style={th}>LINE</th>
                   <th style={th}>กะหลัก</th>
                   <th style={th}>โหมดวันหยุด</th>
-                  <th style={th}>วันหยุดใช้ไป/โควต้า</th>
-                  <th style={th}>สิทธิ์จอง/ลา</th>
+                  <th style={th}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      วันหยุดใช้ไป/โควต้า
+                      <InfoTooltip width={260} content="นับเฉพาะวันหยุดที่อนุมัติแล้วในเดือนปัจจุบัน รีเซ็ตใหม่ทุกต้นเดือน" />
+                    </span>
+                  </th>
+                  <th style={th}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      สิทธิ์จอง/ลา
+                      <InfoTooltip width={260} content="เครื่องหมาย ✓ = เปิดใช้งาน ✕ = ปิด ค่านี้สืบทอดจากผังองค์กร (ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) ชั้นที่ใกล้พนักงานที่สุดที่ตั้งค่าไว้จะมีผลจริง" />
+                    </span>
+                  </th>
                   <th style={th}>ลาป่วย</th>
                   <th style={th}>ลากิจ</th>
                   <th style={th}>พักร้อน</th>

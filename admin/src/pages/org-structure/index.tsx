@@ -10,6 +10,7 @@ import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
 const card: React.CSSProperties = {
@@ -633,7 +634,12 @@ function NodeDetailModal({ level, row, tree, grp, employees, onClose }: {
             <tr style={{ color: '#9ca3af', textAlign: 'left' }}>
               <th style={{ padding: '5px 6px', fontWeight: 700 }}>รายการ</th>
               <th style={{ padding: '5px 6px', fontWeight: 700 }}>ตั้งที่นี่</th>
-              <th style={{ padding: '5px 6px', fontWeight: 700 }}>มีผลจริง</th>
+              <th style={{ padding: '5px 6px', fontWeight: 700 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  มีผลจริง
+                  <InfoTooltip width={260} content="ถ้า “ตั้งที่นี่” เป็น “—” แปลว่าไม่ได้ตั้งเอง ค่าที่มีผลจริงจะไล่หาจากชั้นบนขึ้นไปเรื่อยๆ จนถึงกลุ่ม (บริษัท)" />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -802,8 +808,19 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {!isMobile && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          ผังองค์กร
+          <InfoTooltip size="md" title="ผังองค์กร" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>โครงสร้างไล่ชั้นจากบนลงล่าง: <b>กลุ่ม (บริษัท) → ฝ่าย → แผนก → ตำแหน่ง → พนักงาน</b> — ทุกชั้นผูกกับชั้นบนเสมอ</li>
+              <li>ป้าย "จองได้/จองไม่ได้" และ "ลาได้/ลาไม่ได้" โชว์เฉพาะตอนที่ตั้งค่าตรงชั้นนั้นเอง ถ้าไม่มีป้าย = ใช้ค่าที่สืบทอดมาจากชั้นบน</li>
+              <li>ลากชื่อพนักงานจากแผงด้านขวามาวางบนการ์ดเพื่อย้ายเข้าตำแหน่ง/แผนก/ฝ่ายนั้น</li>
+              <li>กด "ดู" บนการ์ดเพื่อดูว่านโยบายแต่ละอย่างมีผลจริงเป็นอะไร และสืบทอดมาจากชั้นไหน</li>
+            </ul>
+          } />
+        </div>
+        {!isMobile && (
           <button onClick={() => setEmployeePanelOpen(v => !v)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 8,
@@ -813,8 +830,8 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
             }}>
             <UserSquare2 size={15} /> {employeePanelOpen ? 'ปิดแผงลาก-วางพนักงาน' : 'ลาก-วางจัดพนักงาน'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
       <div style={{ ...card, position: 'relative', overflow: 'hidden', flex: 1, minWidth: 0, height: 640, padding: 0 }}>

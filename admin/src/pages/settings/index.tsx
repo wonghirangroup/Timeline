@@ -19,6 +19,7 @@ import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
@@ -148,7 +149,15 @@ function UserManagementSettings() {
             <Users size={18} />
           </div>
           <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>ผู้ใช้งานเว็บ</p>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              ผู้ใช้งานเว็บ
+              <InfoTooltip width={300} content={
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  <li><b>ผู้ดูแลระบบ</b> (ป้ายสีทอง) คือบัญชีแรกที่ Super Admin สร้างให้บริษัทนี้ — เพิ่ม/แก้ไข/ลบผู้ใช้งานคนอื่นได้เฉพาะคนนี้เท่านั้น ส่วนสิทธิ์เข้าถึงข้อมูลเหมือนแอดมินทุกอย่าง</li>
+                  <li>กดไอคอนโล่ (<b>สิทธิ์</b>) ที่แต่ละคนเพื่อเปิดตัวจัดการสิทธิ์แบบละเอียดรายเมนู</li>
+                </ul>
+              } />
+            </p>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
               จัดการคนที่ล็อกอินเข้าเว็บนี้ได้ — ผู้บริหาร (ดูอย่างเดียว), แอดมิน/HR/ผู้จัดการ, หัวหน้าแผนก (เห็นแค่แผนกที่ดูแล)
             </p>
@@ -593,7 +602,15 @@ function FeatureTogglesTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ ...card, padding: 20 }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>บังคับใช้จริงแล้ว</p>
+        <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: '0 0 2px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          บังคับใช้จริงแล้ว
+          <InfoTooltip width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li><b>บังคับใช้จริงแล้ว</b> = ปิดแล้วเมนู/ปุ่มที่เกี่ยวข้องถูกบล็อกทันทีทั้งแอดมินและพนักงาน</li>
+              <li><b>บันทึกไว้ ยังไม่บังคับใช้จริง</b> (การ์ดถัดไป) = สลับและบันทึกค่าได้ตามปกติ แต่ระบบยังไม่เอาค่านี้ไปบล็อกการใช้งานจริง เผื่อไว้สำหรับฟีเจอร์ที่กำลังทยอยเปิดใช้งาน</li>
+            </ul>
+          } />
+        </p>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px' }}>ปิดแล้วเมนู/ปุ่มที่เกี่ยวข้องจะถูกบล็อกทันที ไม่ใช่แค่ซ่อน</p>
         <div>
           {enforced.map(f => (
@@ -716,7 +733,18 @@ export default function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>การตั้งค่า</h1>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          การตั้งค่า
+          <InfoTooltip size="md" title="การตั้งค่า" width={310} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li><b>ทั่วไป</b> — ข้อมูลบริษัท/แบรนด์ และทางลัดไปตั้งค่าเกณฑ์สาย/ค่าปรับ (อยู่ที่หน้ากะ) และสถานะพนักงาน (อยู่ที่ผังองค์กร)</li>
+              <li><b>ผู้ใช้งาน</b> — จัดการบัญชีที่ล็อกอินเข้าเว็บนี้ได้ (เฉพาะผู้ดูแลระบบจัดการคนอื่นได้) และสิทธิ์รายเมนู</li>
+              <li><b>นโยบายการลา</b> — จำกัดการยื่นลาย้อนหลังผ่าน LINE และเปิด/ปิดการยื่นลาออกเอง</li>
+              <li><b>การแจ้งเตือน</b> — เลือกประเภทคำขอที่จะส่งเตือนเข้า LINE แอดมิน</li>
+              <li><b>ฟีเจอร์</b> — เปิด/ปิดโมดูลต่างๆ ของระบบทั้งบริษัท</li>
+            </ul>
+          } />
+        </h1>
         <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>ข้อมูลบริษัท ผู้ใช้งานเว็บ และนโยบายที่ใช้ทั้งบริษัท</p>
       </div>
 

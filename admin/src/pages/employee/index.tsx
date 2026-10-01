@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import Button from '../../components/ui/Button'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
@@ -534,7 +535,17 @@ export default function EmployeePage() {
       {tabBar}
       {/* Header - Title removed */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <PlanMeter kind="employees" compact />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <PlanMeter kind="employees" compact />
+          <InfoTooltip size="md" title="รายชื่อพนักงาน" width={310} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>ภาพรวมพนักงานทั้งหมด ค้นหา/กรองตามกลุ่ม-สาขา-แผนก-ตำแหน่ง แล้วจัดการข้อมูลแต่ละคนได้จากหน้านี้</li>
+              <li><b>ป้ายสถานะ</b> (วงกลมสี): <b style={{ color: '#16a34a' }}>เขียว</b> = ใช้งาน, <b style={{ color: '#64748b' }}>เทา</b> = ไม่ใช้งาน, <b style={{ color: '#244B83' }}>น้ำเงิน</b> = ลาออก, <b style={{ color: '#dc2626' }}>แดง</b> = เลิกจ้าง — กดที่ป้ายเพื่อเปลี่ยนสถานะได้ทันที</li>
+              <li><b>นอกสถานที่</b> = พนักงานกำลังเช็คอินอยู่นอกสาขาในขณะนี้</li>
+              <li><b>ผูก Line แล้ว / ยังไม่ผูก</b> = เชื่อมบัญชี LINE สำหรับเช็คอินผ่าน LIFF หรือยัง</li>
+            </ul>
+          } />
+        </div>
         {!isReadOnly && (
           <Button variant="primary" size="lg" icon={<Plus size={16} />} onClick={openAdd} style={{ marginLeft: 'auto' }}>
             เพิ่มพนักงาน
@@ -673,7 +684,14 @@ export default function EmployeePage() {
             <thead>
               <tr style={{ background: '#F4F6F9' }}>
                 {['รหัส', 'ชื่อ-นามสกุล', 'แผนก', 'สาขา', 'เบอร์โทร', 'Line', 'สถานะ', 'จัดการ'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                    {h === 'สถานะ' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {h}
+                        <InfoTooltip content="กดที่ป้ายสถานะของพนักงานแต่ละคนเพื่อเปลี่ยนสถานะได้ทันที" />
+                      </span>
+                    ) : h}
+                  </th>
                 ))}
               </tr>
             </thead>

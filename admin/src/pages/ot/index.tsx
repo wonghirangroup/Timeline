@@ -16,6 +16,7 @@ import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 interface ApiOt {
   id: string; employee_id: string; date: string; start_time: string; end_time: string
@@ -364,7 +365,17 @@ export default function OtPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Clock size={20} /> คำขอ OT
+          <InfoTooltip size="md" title="คำขอ OT (ล่วงเวลา)" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>คำขอ OT ที่พนักงานยื่นผ่าน LINE มาให้อนุมัติ/ไม่อนุมัติ พร้อมเครื่องคิดเลขช่วยคำนวณยอดจ่ายแบบคร่าวๆ (ไม่บันทึกอัตโนมัติ)</li>
+              <li>แถบ <b>ขีดจำกัด OT รายสัปดาห์</b> (Cap {OT_WEEKLY_CAP} ชม./สัปดาห์) จะเตือนเมื่อพนักงานมี OT ที่อนุมัติแล้วสะสม ≥ 24 ชม. ในสัปดาห์นั้น: <b>ปกติ</b> (เขียว) → <b>ใกล้ถึง</b> (ส้ม, ≥24 ชม.) → <b>ใกล้เกิน</b> (น้ำเงิน, ≥30 ชม.) → <b>เกินขีดจำกัด!</b> (แดง, ≥{OT_WEEKLY_CAP} ชม.)</li>
+              <li>"จ่าย OT" / "รวมจ่าย OT" เป็นการคำนวณยอดโอนเท่านั้น ระบบยังไม่มีสถานะ "จ่ายแล้ว" จริงในฐานข้อมูล</li>
+            </ul>
+          } />
+        </h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={exportOt} disabled={filtered.length === 0}
             style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}

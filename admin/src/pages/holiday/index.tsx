@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast'
 import { api } from '../../lib/axios'
 import { deptName, fmtThaiDate } from '../../lib/format'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type HolidayType = 'NATIONAL' | 'COMPANY' | 'RELIGIOUS'
@@ -561,7 +562,16 @@ export default function HolidayPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>วันหยุดประจำปี</h1>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                วันหยุดประจำปี
+                <InfoTooltip size="md" title="วันหยุดประจำปี" width={310} content={
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    <li>ปฏิทินวันหยุดทั้งปี แยกสี นักขัตฤกษ์ / ศาสนา / บริษัท — คลิกวันในปฏิทินหรือรายการเพื่อดู/แก้ไขรายละเอียด</li>
+                    <li>แต่ละวันหยุดระบุให้ตรงเฉพาะบางสาขา/แผนกได้ และยังระบุรายบุคคลเพิ่ม (ได้หยุดเพิ่ม) หรือตัดออก (ไม่ได้หยุด) ทับกฎสาขา/แผนกได้อีกชั้น</li>
+                    <li>"นำเข้าวันหยุดไทย" จะเพิ่มวันหยุดนักขัตฤกษ์ปีนั้นให้อัตโนมัติ ไม่ซ้ำวันที่มีอยู่แล้ว</li>
+                  </ul>
+                } />
+              </h1>
               <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
                 จัดการวันหยุดนักขัตฤกษ์และวันหยุดบริษัท — กดแก้ไขวันหยุดเพื่อเลือกสาขา/แผนกที่จะให้หยุด
               </p>
@@ -667,7 +677,10 @@ export default function HolidayPage() {
                 <div style={{ background: '#fffbeb', borderRadius: 14, border: '1px solid #fde68a', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                   <div style={{ padding: '12px 14px', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <AlertTriangle size={15} color="#d97706" />
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', flex: 1 }}>มาทำงานในวันหยุด</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', flex: 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      มาทำงานในวันหยุด
+                      <InfoTooltip width={280} content="ระบบตรวจพบว่าพนักงานเช็คอินในวันที่ควรหยุดตามปฏิทินนี้ และให้วันหยุด/วันลาชดเชยอัตโนมัติตามที่ตั้งไว้ในวันหยุดนั้นๆ แล้ว" />
+                    </span>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 8px', borderRadius: 99, background: '#fef3c7', color: '#d97706' }}>{alerts.length}</span>
                   </div>
                   <div style={{ maxHeight: 220, overflowY: 'auto' }}>

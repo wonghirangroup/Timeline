@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
@@ -118,6 +119,13 @@ export default function LineMessagesReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={logs.length === 0} mobile={isMobile} />
+        <InfoTooltip title="รายงานข้อความไลน์" width={300} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>ประวัติการส่งข้อความไลน์อัตโนมัติของระบบ (แจ้งเตือนคำขอลา/OT/ลาออก ฯลฯ) ไปยังพนักงานหรือแอดมิน ของเดือนที่เลือก</li>
+            <li>ระบบเริ่มบันทึกประวัติตั้งแต่ 22 กันยายน 2569 เป็นต้นไป ย้อนหลังก่อนหน้านี้ไม่มีข้อมูลให้ดู</li>
+            <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ — กราฟเทียบจำนวนสำเร็จ/ล้มเหลว แยกตามประเภท</li>
+          </ul>
+        } />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>

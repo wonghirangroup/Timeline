@@ -9,6 +9,7 @@ import TeamCalendarTab   from './TeamCalendarTab'
 import HolidayPage       from '../holiday'
 import VacationPolicyTab from './VacationPolicyTab'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 type LeaveTab = 'requests' | 'time-off' | 'vacation-policy' | 'holiday' | 'balance' | 'calendar'
 
@@ -71,8 +72,18 @@ export default function LeavePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 24, overflowX: 'auto', paddingBottom: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 24, overflowX: 'auto', paddingBottom: 2 }}>
         {TABS.map(t => renderTab(t))}
+        <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', paddingRight: 4 }}>
+          <InfoTooltip title="จัดการวันลา & วันหยุด" width={300} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li><b>วันลา</b> — อนุมัติ/ปฏิเสธคำขอลาป่วย ลากิจ พักร้อน ฯลฯ ของพนักงาน</li>
+              <li><b>จองวันหยุดประจำเดือน</b> — วันหยุดที่พนักงานเลือกจองเอง เปิด/ปิดสิทธิ์ได้ต่อสาขา</li>
+              <li><b>นโยบายพักร้อน / วันหยุดนักขัตฤกษ์ / โควต้า</b> — ตั้งสูตรพักร้อนตามอายุงาน วันหยุดบริษัท และดูยอดคงเหลือ</li>
+              <li><b>ปฏิทินรวม</b> — ดูวันลา+วันหยุดของทั้งทีมพร้อมกันในปฏิทินเดียว</li>
+            </ul>
+          } />
+        </span>
       </div>
 
       {/* วันลา — preserve state with display:none */}

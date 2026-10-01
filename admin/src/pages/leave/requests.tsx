@@ -16,6 +16,7 @@ import { api } from '../../lib/axios'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
@@ -444,7 +445,17 @@ export default function LeaveRequestsTab() {
   return (
     <div>
       {/* Header / Action */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+          ภาพรวมคำขอวันลา
+          <InfoTooltip title="คำขอวันลา" width={320} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>อนุมัติ/ปฏิเสธคำขอวันลาของพนักงาน กรองตามเดือน สถานะ หรือสาขา/แผนกได้ที่แถบด้านล่าง</li>
+              <li><b>ชนตำแหน่ง</b> = มีพนักงานตำแหน่งเดียวกันลาทับวันเดียวกันไว้แล้ว — ตอนอนุมัติจะให้เลือกว่าจะหักวันลาออกจากโควต้าไหน</li>
+              <li>ติ๊กเลือกได้หลายรายการ แล้วใช้คีย์ลัด <b>A</b> = อนุมัติที่เลือก, <b>R</b> = ปฏิเสธที่เลือก, <b>Esc</b> = ยกเลิกการเลือก</li>
+            </ul>
+          } />
+        </div>
         <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
           style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
           {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}

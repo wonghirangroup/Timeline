@@ -14,6 +14,7 @@ import Button from '../../components/ui/Button'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
+import InfoTooltip from '../../components/ui/InfoTooltip'
 
 const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', c: '#d97706', bg: '#fef3c7' },
@@ -68,7 +69,16 @@ export default function ResignationsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><DoorOpen size={20} /> คำขอลาออก</h1>
+        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <DoorOpen size={20} /> คำขอลาออก
+          <InfoTooltip size="md" title="คำขอลาออก" width={310} content={
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              <li>คำขอที่พนักงานยื่นลาออกผ่าน LINE จะมาโผล่ที่นี่ให้พิจารณา</li>
+              <li><b>อนุมัติลาออก</b> = เปลี่ยนสถานะพนักงานเป็น "ลาออก" ทันที พนักงานจะเข้าใช้แอป/เช็คอินไม่ได้อีก — กดแล้วย้อนกลับไม่ได้ ควรเช็ควันทำงานสุดท้ายให้ถูกก่อน</li>
+              <li>สถานะ: <b>รอพิจารณา</b> (เหลือง) · <b>อนุมัติ</b> (เขียว) · <b>ไม่อนุมัติ</b> (แดง)</li>
+            </ul>
+          } />
+        </h1>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
