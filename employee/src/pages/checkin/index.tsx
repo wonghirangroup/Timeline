@@ -243,8 +243,13 @@ function OffsiteResultSheet({ record, mode, onClose }: {
 }
 
 // ─── Confirm Sheet ────────────────────────────────────────────────────────────
-function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
-  preview: ShiftPreview; onConfirm: () => void; onCancel: () => void; loading: boolean
+// shiftWarning: มีค่าเมื่อเวลาปัจจุบันจะโดน auto-detect เข้ากะอื่นที่ไม่ใช่กะของ
+// ตัวเอง และกะนั้นเริ่ม "ช้ากว่า" กะตัวเอง (feedback 2026-10-01) — ให้เลือกเองว่า
+// จะเช็คกะตัวเอง (เร็วกว่า) หรือกะที่ระบบตรวจจับได้ตามปกติ
+function ConfirmSheet({ preview, shiftWarning, onConfirm, onCancel, loading }: {
+  preview: ShiftPreview
+  shiftWarning: { detected: { name: string; start_time: string }; own: { id: string; name: string; start_time: string } } | null
+  onConfirm: (forceShiftId?: string) => void; onCancel: () => void; loading: boolean
 }) {
   const isCheckout = preview.action === 'checkout'
   return (
@@ -259,7 +264,7 @@ function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
         <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 4 }}>ข้อมูลจาก QR Code</div>
       </div>
 
-      <div style={{ background: '#f8fafc', borderRadius: 16, padding: '8px 16px', marginBottom: 24 }}>
+      <div style={{ background: '#f8fafc', borderRadius: 16, padding: '8px 16px', marginBottom: shiftWarning ? 16 : 24 }}>
         {[
           { label: 'สาขา', value: preview.branchName },
           { label: 'กะ',   value: isCheckout ? 'ตรวจจับจาก record วันนี้อัตโนมัติ' : 'ตรวจจับอัตโนมัติจากเวลา', icon: true },
@@ -275,19 +280,36 @@ function ConfirmSheet({ preview, onConfirm, onCancel, loading }: {
         ))}
       </div>
 
+      {shiftWarning && !isCheckout && (
+        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 16, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <AlertTriangle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ fontSize: '0.82rem', color: '#92400E', lineHeight: 1.5 }}>
+              ตอนนี้ตรงกับเวลา<b>{shiftWarning.detected.name}</b> ({shiftWarning.detected.start_time}) แต่กะของคุณคือ <b>{shiftWarning.own.name}</b> ({shiftWarning.own.start_time}) — จะเช็คกะไหน?
+            </div>
+          </div>
+          <button onClick={() => onConfirm(shiftWarning.own.id)} disabled={loading}
+            style={{ width: '100%', marginTop: 10, padding: '11px', borderRadius: 12, border: 'none', background: '#D97706', color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            เช็คอิน{shiftWarning.own.name}ของฉัน
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onCancel} disabled={loading}
           style={{ flex: 1, padding: '14px', borderRadius: 16, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           ยกเลิก
         </button>
-        <button onClick={onConfirm} disabled={loading}
+        <button onClick={() => onConfirm()} disabled={loading}
           style={{ flex: 2, padding: '14px', borderRadius: 16, border: 'none',
             background: loading ? '#d1d5db' : isCheckout ? '#2563EB' : COLOR.primary,
             color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {loading
             ? <><Loader2 size={16} className="animate-spin" /> กำลังบันทึก…</>
-            : isCheckout ? <><Flag size={16} /> ยืนยันเช็คเอาต์</> : <><CheckCircle2 size={16} /> ยืนยันเช็คอิน</>}
+            : isCheckout ? <><Flag size={16} /> ยืนยันเช็คเอาต์</>
+            : shiftWarning ? <><CheckCircle2 size={16} /> เช็คอิน{shiftWarning.detected.name}ตามปกติ</>
+            : <><CheckCircle2 size={16} /> ยืนยันเช็คอิน</>}
         </button>
       </div>
     </BottomSheet>
@@ -477,6 +499,7 @@ export default function CheckinPage() {
   const [showScanner,       setShowScanner]       = useState(false)
   const [scanAction,        setScanAction]        = useState<'checkin' | 'checkout'>('checkin')
   const [preview,           setPreview]           = useState<ShiftPreview | null>(null)
+  const [shiftWarning,      setShiftWarning]      = useState<{ detected: { name: string; start_time: string }; own: { id: string; name: string; start_time: string } } | null>(null)
   const [confirming,        setConfirming]        = useState(false)
   const [checkinResult,     setCheckinResult]     = useState<CheckInResult | null>(null)
   const [checkoutResult,    setCheckoutResult]    = useState<CheckOutResult | null>(null)
@@ -573,6 +596,16 @@ export default function CheckinPage() {
         } catch { /* เดี๋ยวรู้ชื่อจริงตอนเช็คเอาต์สำเร็จอยู่ดี ไม่ต้อง block การสแกน */ }
       }
       setPreview({ payload, branchName, action })
+      setShiftWarning(null)
+      // เช็คอินเท่านั้น (เช็คเอาต์ไม่เกี่ยว ต้องออกจากกะเดิมที่เข้าไว้) — ถามแค่
+      // ครั้งเดียวตอนนี้ ไม่ block การเปิดหน้ายืนยัน (feedback 2026-10-01)
+      if (action === 'checkin') {
+        try {
+          const r = await api.post('/employee/attendance/check-in-preview', { employee_id: employee?.id, qr_payload: raw })
+          const { detected, own, mismatch } = r.data.data
+          if (mismatch && detected && own) setShiftWarning({ detected, own })
+        } catch { /* พรีวิวพลาดก็ไม่เป็นไร ไปรู้ตอนเช็คอินจริงอยู่ดี */ }
+      }
     } catch {
       setError('QR Code ไม่ถูกต้อง — กรุณาสแกนใหม่')
     }
@@ -596,7 +629,9 @@ export default function CheckinPage() {
   }, [employee, preview, handleQrRaw])
 
   // ── Submit (check-in or check-out) ────────────────────────────────────────
-  const handleConfirm = useCallback(async () => {
+  // forceShiftId: มีค่าตอนผู้ใช้กดยืนยัน "เช็คกะของฉัน" จากคำเตือนใน ConfirmSheet
+  // (feedback 2026-10-01) — undefined = auto-detect ตามปกติ
+  const handleConfirm = useCallback(async (forceShiftId?: string) => {
     if (!preview || !employee) return
     setConfirming(true)
     try {
@@ -612,6 +647,7 @@ export default function CheckinPage() {
         const res = await api.post('/employee/attendance/check-in-scan', {
           employee_id: employee.id,
           qr_payload:  JSON.stringify(preview.payload),
+          ...(forceShiftId ? { shift_id: forceShiftId } : {}),
           ...gps,
         })
         setCheckinResult(res.data.data)
@@ -625,10 +661,12 @@ export default function CheckinPage() {
         await loadToday()
       }
       setPreview(null)
+      setShiftWarning(null)
     } catch (err: any) {
       const code = err.response?.data?.error?.code
       const msg  = err.response?.data?.error?.message
       setPreview(null)
+      setShiftWarning(null)
       if (code === 'ALREADY_CHECKED_IN')  setError('เช็คอินในกะนี้ไปแล้ว')
       else if (code === 'ALREADY_CHECKED_OUT') setError('เช็คเอาต์ไปแล้ว')
       else if (code === 'NOT_CHECKED_IN') setError('ยังไม่ได้เช็คอินวันนี้')
@@ -840,8 +878,9 @@ export default function CheckinPage() {
       {preview && (
         <ConfirmSheet
           preview={preview}
+          shiftWarning={shiftWarning}
           onConfirm={handleConfirm}
-          onCancel={() => setPreview(null)}
+          onCancel={() => { setPreview(null); setShiftWarning(null) }}
           loading={confirming}
         />
       )}

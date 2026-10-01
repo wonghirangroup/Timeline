@@ -448,11 +448,42 @@ async function autoDetectShift(tenantId: string, branchId: string, employeeId: s
   return { shift, isOutsideShift: picked.isOutsideShift, attendanceDate: picked.fromPreviousDay ? yesterday : today }
 }
 
+// เช็คก่อนเช็คอินจริง (ไม่เขียน DB) ว่าเวลาปัจจุบันจะตรวจจับเข้ากะไหน แล้ว
+// เทียบกับกะที่พนักงานสังกัดอยู่ (default_shift_id — informational เท่านั้น
+// ปกติไม่บังคับ) ถ้ากะที่ตรวจจับได้เป็นคนละกะ และเริ่ม "ช้ากว่า" กะของตัวเอง
+// ให้ frontend เตือนถามยืนยันก่อนว่าจะเช็คกะตัวเอง (เร็วกว่า) แทนไหม (feedback
+// 2026-10-01: "คนที่ไม่ได้อยู่ในกะที่ตั้งไว้เช็คอินได้ แต่ไม่มีอะไรแจ้ง... ให้ขึ้น
+// เตือนเพื่อยืนยันที่จะเช็คกะเช้า" — ตัวอย่าง: มีกะเช้า 08:00 กะสาย 09:00 เป็นกะ
+// ตัวเอง แต่เช็คอินตอน 09:05 จะโดน auto-detect ไปกะสายแทน) ไม่ได้บังคับห้ามเช็ค
+// กะอื่นเด็ดขาด (ยังมีกรณีไปช่วยกะอื่นจริงๆ) แค่เตือนให้เลือกเอง
+export async function previewShiftMismatch(tenantId: string, employeeId: string, branchId: string): Promise<{
+  detected: { id: string; name: string; start_time: string } | null
+  own: { id: string; name: string; start_time: string } | null
+  mismatch: boolean
+}> {
+  const [detected, employee] = await Promise.all([
+    autoDetectShift(tenantId, branchId, employeeId),
+    prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { default_shift_id: true } }),
+  ])
+  const ownShift = employee?.default_shift_id
+    ? await prisma.shift.findFirst({ where: { id: employee.default_shift_id, tenant_id: tenantId, branch_id: branchId, is_active: true, deleted_at: null } })
+    : null
+
+  const detectedOut = detected ? { id: detected.shift.id, name: detected.shift.name, start_time: detected.shift.start_time } : null
+  const ownOut = ownShift ? { id: ownShift.id, name: ownShift.name, start_time: ownShift.start_time } : null
+  const mismatch = !!(detected && ownShift && detected.shift.id !== ownShift.id && toMins(detected.shift.start_time) > toMins(ownShift.start_time))
+
+  return { detected: detectedOut, own: ownOut, mismatch }
+}
+
 export async function checkInAuto(tenantId: string, data: {
   employee_id: string
   branch_id: string
   gps_lat?: number
   gps_lng?: number
+  shift_id?: string   // บังคับเลือกกะเอง (ข้าม auto-detect) — ใช้ตอนพนักงานยืนยัน
+  // "เช็คกะของฉันแทน" หลังระบบเตือนว่าเวลาปัจจุบันตรงกับกะอื่นที่ไม่ใช่กะตัวเอง
+  // (feedback 2026-10-01 — ดู previewShiftMismatch())
 }) {
   const branch = await prisma.branch.findFirst({
     where: { id: data.branch_id, tenant_id: tenantId, deleted_at: null },
@@ -470,7 +501,18 @@ export async function checkInAuto(tenantId: string, data: {
 
   // ตรวจ GPS
   let is_outside_area = false
-  const detected = await autoDetectShift(tenantId, data.branch_id, data.employee_id)
+  let detected: { shift: NonNullable<Awaited<ReturnType<typeof autoDetectShift>>>['shift']; isOutsideShift: boolean; attendanceDate: Date } | null
+  if (data.shift_id) {
+    const forcedShift = await prisma.shift.findFirst({
+      where: { id: data.shift_id, tenant_id: tenantId, branch_id: data.branch_id, is_active: true, deleted_at: null },
+    })
+    if (!forcedShift) throw new Error('NO_SHIFT_AVAILABLE')
+    // บังคับเลือกเอง = เช็คอินนอกช่วงเวลาปกติของกะนั้นเสมอ (ไม่งั้น auto-detect
+    // จะเลือกให้เองไปแล้ว) — flag ให้แอดมินเห็นเหมือนเคสกะใกล้เคียงที่สุดทั่วไป
+    detected = { shift: forcedShift, isOutsideShift: true, attendanceDate: getTodayBangkok() }
+  } else {
+    detected = await autoDetectShift(tenantId, data.branch_id, data.employee_id)
+  }
   if (!detected) throw new Error('NO_SHIFT_AVAILABLE')
 
   // attendanceDate อาจเป็น "เมื่อวาน" ถ้าจับเป็นกะข้ามคืนที่เริ่มเมื่อวานแล้วยัง

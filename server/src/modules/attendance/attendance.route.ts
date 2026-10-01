@@ -9,7 +9,7 @@ import { prisma }           from '../../common/utils/prisma'
 import {
   getAttendanceReport, createManualAttendance, updateAttendanceTime, deleteAttendanceRecord,
   checkIn, checkInQR, checkInAuto, checkInScan, checkInOffsite, checkOut, checkOutAuto, checkOutScan,
-  getTodayAttendance, getEmployeeHistory, getOffsiteShifts, getFirstCheckinDates,
+  getTodayAttendance, getEmployeeHistory, getOffsiteShifts, getFirstCheckinDates, previewShiftMismatch,
 } from './attendance.service'
 import { verifyBranchQrPayload } from '../shift/shift.service'
 import { notifyAdminsLine } from '../notifications/line-push.service'
@@ -229,6 +229,37 @@ export async function attendanceRoutes(app: FastifyInstance) {
     }
   })
 
+  // ── Employee (LIFF): เช็คก่อนว่าสแกน QR นี้แล้วจะโดนจับเข้ากะไหน เทียบกับ
+  // กะที่ตัวเองสังกัด — ไม่เขียน DB แค่ดูเพื่อเตือนก่อนยืนยันจริง (feedback
+  // 2026-10-01 — ดู previewShiftMismatch() คอมเมนต์เต็มในนั้น)
+  app.post('/employee/attendance/check-in-preview', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'พรีวิวก่อนเช็คอิน — เทียบกะที่จะตรวจจับได้กับกะที่สังกัด',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['employee_id', 'qr_payload'],
+        properties: {
+          employee_id: { type: 'string' },
+          qr_payload:  { type: 'string' },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    let payload: any
+    try { payload = JSON.parse(req.body.qr_payload) } catch {
+      return reply.code(400).send(fail('INVALID_QR', 'QR Code ไม่ถูกต้อง'))
+    }
+    if (payload.tid !== req.tenantId || !verifyBranchQrPayload(payload)) {
+      return reply.code(400).send(fail('INVALID_QR_SIG', 'QR Code ไม่ถูกต้องหรือถูกดัดแปลง'))
+    }
+    const result = await previewShiftMismatch(req.tenantId, req.employeeId, payload.bid)
+    return ok(result)
+  })
+
   // ── Employee (LIFF): Check-in ด้วย QR Scan (signed payload) ────
   app.post('/employee/attendance/check-in-scan', {
     preHandler: [tenantMiddleware],
@@ -244,6 +275,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
           qr_payload:  { type: 'string', description: 'JSON string จาก QR Code' },
           gps_lat:     { type: 'number' },
           gps_lng:     { type: 'number' },
+          shift_id:    { type: 'string', description: 'บังคับเลือกกะเอง (ข้าม auto-detect) — ใช้ตอนยืนยัน "เช็คกะของฉันแทน" จากหน้าพรีวิว' },
         },
       },
     },
@@ -268,12 +300,14 @@ export async function attendanceRoutes(app: FastifyInstance) {
         return reply.code(400).send(fail('INVALID_QR_SIG', 'QR Code ไม่ถูกต้องหรือถูกดัดแปลง'))
       }
 
-      // Branch QR → auto-detect กะจากเวลา
+      // Branch QR → auto-detect กะจากเวลา (หรือบังคับใช้ shift_id ที่ยืนยันมา
+      // จากหน้าพรีวิว)
       const result = await checkInAuto(req.tenantId, {
         employee_id: req.body.employee_id,
         branch_id:   payload.bid,
         gps_lat:     req.body.gps_lat,
         gps_lng:     req.body.gps_lng,
+        shift_id:    req.body.shift_id,
       })
       // แจ้งแอดมิน (feedback 2026-09-14): เช็คอินสำเร็จแต่ไม่มีกะที่ตรงเวลาพอดี
       // ระบบเลยหากะที่ใกล้เคียงที่สุดมาให้แทน (ยังเช็คอินได้ปกติ แค่ผิดปกติ ให้แอดมินรู้)
