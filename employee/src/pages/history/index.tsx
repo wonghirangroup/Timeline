@@ -37,6 +37,7 @@ interface HolidayRec { date: string; name: string }
 
 const MONTHS   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const DAYS_TH_FULL = ['วันอาทิตย์','วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์']
+const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
 const LEAVE_TYPE_CFG: Record<string, { label: string; color: string }> = {
   SICK:       { label: 'ลาป่วย',       color: '#3B82F6' },
@@ -418,7 +419,7 @@ export default function HistoryPage() {
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontSize: '1.05rem', color: COLOR.textPrimary }}>
-                        {d.getDate()} {MONTHS[d.getMonth()]}
+                        {d.getDate()} {MONTHS[d.getMonth()]} {DAYS_TH[d.getDay()]}
                       </div>
                       {rec?.check_in_at ? (
                         <div style={{ fontSize: '0.88rem', color: COLOR.info, marginTop: 4, fontWeight: 500 }}>
