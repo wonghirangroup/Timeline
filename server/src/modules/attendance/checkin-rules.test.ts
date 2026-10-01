@@ -80,18 +80,35 @@ describe('pickShiftForCheckIn', () => {
     expect(pickShiftForCheckIn(shifts, toMins('12:30'), notCheckedIn)).toEqual({ shiftId: 'noon', isOutsideShift: false, fromPreviousDay: false })
   })
 
-  it('2 กะติดกันแน่น (08:00, 09:00 ไม่ตั้ง late/absent เลย) — หน้าต่างกะแรกถูกบีบแคบมาก เพราะห้ามล้ำเขต -1ชม.ก่อนกะถัดไป', () => {
+  it('2 กะติดกันแน่น (08:00, 09:00 ไม่ตั้ง late/absent เลย) — หน้าต่างกะแรกปิดได้ไม่เกินเวลาเริ่มกะถัดไป -1ชม. แต่ต้องไม่ตัดลึกกว่าเวลาเริ่มของตัวเอง', () => {
     const shifts: ShiftWindow[] = [
       { id: 'a', start_time: '08:00', end_time: '12:00', late_threshold_2: null, absent_threshold: null },
       { id: 'b', start_time: '09:00', end_time: '13:00', late_threshold_2: null, absent_threshold: null },
     ]
-    // ไม่ตั้ง late/absent เลย → latestBound = start_time ของกะ a เอง (08:00) ยืด +4ชม.=12:00
-    // แต่ถูก cap ด้วย "กะ b ล่วงหน้า 1 ชม." = 08:00 พอดี (09:00-60=08:00) เลยปิดที่ 07:59
-    // ผลคือกะ a เปิดรับแค่ 07:00–07:59 เท่านั้น (ไม่ใช่ทั้งวันเหมือนที่อาจคาดไว้ถ้าไม่มีกะถัดไปชนกัน)
+    // ไม่ตั้ง late/absent เลย → latestBound = start_time ของกะ a เอง (08:00) — เพดาน
+    // "กะ b ล่วงหน้า 1 ชม." (09:00-60=08:00) พอดีเท่ากับ latestBound เป๊ะ เลยปิดที่ 08:00
+    // (ไม่ใช่ 07:59 — ต้องไม่ตัดลึกกว่าเวลาเริ่มของกะ a เอง ไม่งั้นกะ a จะรับคนที่มา
+    // ตรงเวลาเป๊ะๆ ไม่ได้เลย — บั๊กที่เจอจริง feedback 2026-10-01 "เช็คอินตอน 8.00
+    // ทำไมถึงเป็นกะสาย")
     expect(pickShiftForCheckIn(shifts, toMins('07:30'), notCheckedIn)).toEqual({ shiftId: 'a', isOutsideShift: false, fromPreviousDay: false })
-    // 08:15 หลุดหน้าต่างกะ a (ปิดไปแล้วตั้งแต่ 07:59) แต่ตกเข้าหน้าต่างกะ b พอดี (เปิดล่วงหน้าตั้งแต่ 08:00)
-    // เท่ากับคนมาสาย 15 นาทีสำหรับกะ a กลับถูกจับเข้ากะ b แทน (ไม่ถือว่าสายเลยด้วยซ้ำ เพราะยังไม่ถึง 09:00)
+    expect(pickShiftForCheckIn(shifts, toMins('08:00'), notCheckedIn)).toEqual({ shiftId: 'a', isOutsideShift: false, fromPreviousDay: false })
+    // 08:15 หลุดหน้าต่างกะ a (ปิดที่ 08:00 พอดี เพราะไม่มี late/absent ให้ยืดออกไปอีก)
+    // แต่ตกเข้าหน้าต่างกะ b พอดี (เปิดล่วงหน้าตั้งแต่ 08:00) — เคสนี้ไม่มีอะไรแก้ได้แล้ว
+    // เพราะกะ a ไม่ได้ตั้ง late/absent เอาไว้ให้ยืดเลย (ต่างจากกะจริงที่ควรตั้งไว้เสมอ)
     expect(pickShiftForCheckIn(shifts, toMins('08:15'), notCheckedIn)).toEqual({ shiftId: 'b', isOutsideShift: false, fromPreviousDay: false })
+  })
+
+  it('2 กะติดกันแน่น + ตั้ง absent_threshold ของกะแรกไว้จริง (เคสจริงที่เจอ: กะเข้า 08:00 ขาด 08:31, กะสาย 09:00) — ต้องเปิดรับถึงเกณฑ์ขาดของตัวเอง ไม่ถูกตัดสั้นกว่านั้น', () => {
+    const shifts: ShiftWindow[] = [
+      { id: 'morning', start_time: '08:00', end_time: '17:55', late_threshold_2: '08:20', absent_threshold: '08:31' },
+      { id: 'late',    start_time: '09:00', end_time: '17:00', late_threshold_2: '09:20', absent_threshold: '09:30' },
+    ]
+    // เช็คอินตรงเวลาเป๊ะ 08:00 ต้องได้กะเช้า (ไม่ใช่กะสาย) — นี่คือบั๊กที่เจอจริง
+    expect(pickShiftForCheckIn(shifts, toMins('08:00'), notCheckedIn)).toEqual({ shiftId: 'morning', isOutsideShift: false, fromPreviousDay: false })
+    // มาสาย 20 นาที (08:20) ยังอยู่ในเกณฑ์ "สาย" ของกะเช้า ไม่ใช่กะสาย
+    expect(pickShiftForCheckIn(shifts, toMins('08:20'), notCheckedIn)).toEqual({ shiftId: 'morning', isOutsideShift: false, fromPreviousDay: false })
+    // 08:31 เท่ากับเกณฑ์ขาดของกะเช้าพอดี ยังนับเป็นกะเช้า (ขาด) ไม่ใช่กะสาย
+    expect(pickShiftForCheckIn(shifts, toMins('08:31'), notCheckedIn)).toEqual({ shiftId: 'morning', isOutsideShift: false, fromPreviousDay: false })
   })
 
   it('ไม่มีกะไหนตรงหน้าต่างเลย + มีหลายกะว่าง = fallback ไปกะที่เวลาเริ่มใกล้ตอนนี้ที่สุด', () => {

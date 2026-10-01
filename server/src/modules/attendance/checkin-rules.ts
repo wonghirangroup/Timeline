@@ -49,8 +49,13 @@ function computeShiftWindow(shift: ShiftWindow, nextShiftEarlyMins: number): { e
   // เกณฑ์ไกลสุดที่ยัง "เปิดรับ" เช็คอิน: ขาด > สายมาก > เวลาเริ่ม (ตามลำดับที่มี)
   const latestBoundMins = normalize(shift.absent_threshold) ?? normalize(shift.late_threshold_2) ?? startMins
   // ยืดได้อีก 4 ชม.หลังเกณฑ์นั้น (ให้เช็คอินได้แม้ "ขาด" แล้ว) แต่ห้ามล้ำเข้า
-  // เขต "-1 ชม.ก่อนกะถัดไป" กันจับกะผิดตอนกะติดกัน (เช่น 08:00/09:00/13:00)
-  const closeMins = Math.min(latestBoundMins + 4 * 60, nextShiftEarlyMins - 1)
+  // เขต "-1 ชม.ก่อนกะถัดไป" กันจับกะผิดตอนกะติดกัน (เช่น 08:00/09:00/13:00) —
+  // เพดานนี้ตัด "ส่วนต่อ 4 ชม." ได้เท่านั้น ห้ามตัดลึกลงไปจนต่ำกว่า latestBoundMins
+  // เอง (เกณฑ์ขาด/สายมากตามจริงของกะนี้) ไม่งั้นกะที่ติดกันห่างกัน ≤ 1 ชม. (เช่น
+  // 08:00/09:00) หน้าต่างจะถูกตัดจนปิดก่อนกะเริ่มด้วยซ้ำ (ปิดเวลา 07:59 ทั้งที่กะ
+  // เริ่ม 08:00) ทำให้คนเช็คอินตรงเวลาเป๊ะๆ โดนจับเข้ากะถัดไปแทน (feedback
+  // 2026-10-01: "ทำไมคนที่เช็คอินตอนเวลา 8.00 ถึงเป็นกะสาย")
+  const closeMins = Math.max(latestBoundMins, Math.min(latestBoundMins + 4 * 60, nextShiftEarlyMins - 1))
   return { earlyMins, closeMins }
 }
 
