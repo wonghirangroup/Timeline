@@ -25,6 +25,7 @@ model Tenant {
   signer_title             String? // ตำแหน่งผู้ลงนาม (เช่น "กรรมการผู้จัดการ") คู่กับ signer_name
   leave_backdate_days      Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
   self_resignation_enabled Boolean    @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
+  vacation_count_worked_off_days Boolean @default(true) // โบนัสพักร้อนรายเดือน ("หยุดไม่ครบโควต้า") นับวันที่จองหยุดไว้แต่ดันมาเช็คอินทำงานจริงเป็น "ไม่ได้พักจริง" ด้วยไหม — ปิด = นับแค่จำนวนที่จองอนุมัติเฉยๆเหมือนเดิม ไม่ใช่ทุกบริษัทมีเคสนี้ จึงให้ Admin เลือกเอง (feedback 2026-10-01)
   plan                     TenantPlan @default(FREE)
   max_employees            Int        @default(5)
   max_branches             Int        @default(1)

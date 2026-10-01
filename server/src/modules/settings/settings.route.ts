@@ -38,6 +38,7 @@ export async function settingsRoutes(app: FastifyInstance) {
           signer_title:  { type: ['string', 'null'], description: 'ตำแหน่งผู้ลงนาม เช่น "กรรมการผู้จัดการ"' },
           leave_backdate_days: { type: ['integer', 'null'], minimum: 0, description: 'null = ยื่นลาย้อนหลังได้ไม่จำกัด' },
           self_resignation_enabled: { type: 'boolean', description: 'เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF' },
+          vacation_count_worked_off_days: { type: 'boolean', description: 'โบนัสพักร้อนรายเดือนนับวันที่จองหยุดไว้แต่มาเช็คอินทำงานจริงเป็น "ไม่ได้พักจริง" ด้วยไหม' },
         },
       },
     },

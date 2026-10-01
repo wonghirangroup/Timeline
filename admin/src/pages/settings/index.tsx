@@ -340,7 +340,7 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; plan: string; notification_prefs: Record<string, boolean> | null; enabled_features: Record<string, boolean> | null }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; vacation_count_worked_off_days: boolean; plan: string; notification_prefs: Record<string, boolean> | null; enabled_features: Record<string, boolean> | null }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()
@@ -418,15 +418,21 @@ function LeavePolicyTab() {
   const [unlimited, setUnlimited] = useState(true)
   const [days, setDays] = useState(3)
   const [selfResign, setSelfResign] = useState(true)
+  const [countWorkedOffDays, setCountWorkedOffDays] = useState(true)
   useEffect(() => {
     if (!data) return
     setUnlimited(data.leave_backdate_days == null)
     setDays(data.leave_backdate_days ?? 3)
     setSelfResign(data.self_resignation_enabled !== false)
+    setCountWorkedOffDays(data.vacation_count_worked_off_days !== false)
   }, [data])
 
   const mut = useMutation({
-    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', { leave_backdate_days: unlimited ? null : Math.max(0, days), self_resignation_enabled: selfResign }),
+    mutationFn: () => api.patch('/api/v1/admin/tenant-settings', {
+      leave_backdate_days: unlimited ? null : Math.max(0, days),
+      self_resignation_enabled: selfResign,
+      vacation_count_worked_off_days: countWorkedOffDays,
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
   })
@@ -459,6 +465,17 @@ function LeavePolicyTab() {
           <span>
             <span style={{ fontWeight: 600 }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
             <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
+          </span>
+        </label>
+      </div>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer' }}>
+          <input type="checkbox" checked={countWorkedOffDays} disabled={readOnly} onChange={e => setCountWorkedOffDays(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            <span style={{ fontWeight: 600 }}>นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็น "ไม่ได้พักจริง" ในโบนัสพักร้อนรายเดือน</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
+              โบนัส +1 พักร้อนตอนหยุดไม่ครบโควต้า/เดือน (ดูที่ "การลา → นโยบายพักร้อน") — เปิดไว้จะนับวันที่จองหยุดแล้วแต่ดันเช็คอินมาทำงานจริง ว่าเป็นวันที่ไม่ได้พักด้วย ไม่ใช่แค่จำนวนที่จองอนุมัติเฉยๆ (ยกเว้นวันที่ HR ให้วันชดเชยแยกไปแล้ว) ปิด = นับแค่จำนวนวันที่จองอนุมัติเหมือนเดิม — ไม่ใช่ทุกบริษัทมีเคสนี้ เลือกได้ตามจริง
+            </span>
           </span>
         </label>
       </div>

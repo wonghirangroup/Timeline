@@ -254,6 +254,12 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
 export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
   const [y] = ym.split('-').map(Number)
   const asOf = bangkokToday()
+  // ไม่ใช่ทุกบริษัทอยากนับ "จองครบแต่มาทำงานจริง" เป็นไม่ได้พักจริง — ให้ Admin
+  // เลือกเองได้ที่ตั้งค่า → นโยบายการลา (feedback 2026-10-01) ปิด = กลับไปนับแค่
+  // จำนวนที่จองอนุมัติเฉยๆ เหมือนพฤติกรรมเดิมก่อนหน้านี้
+  const { countMonthOffRequests } = await import('../weekly-off/weekly-off.service')
+  const tenant = await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_count_worked_off_days: true } })
+  const countWorkedDays = tenant?.vacation_count_worked_off_days ?? true
   const employees = await prisma.employee.findMany({
     where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE' },
     select: { id: true, ...VACATION_EMPLOYEE_SELECT },
@@ -263,7 +269,9 @@ export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
     const elig = isVacationEligible(e, asOf)
     if (!elig.eligible) { ineligible++; continue }
     const quota = await resolveBookingQuota(tenantId, e.id)
-    const effectiveOff = await countEffectiveOffDays(tenantId, e.id, ym)
+    const effectiveOff = countWorkedDays
+      ? await countEffectiveOffDays(tenantId, e.id, ym)
+      : await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
     if (effectiveOff < quota) {
       await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: 1, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota})` })
       granted++
