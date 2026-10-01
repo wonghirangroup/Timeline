@@ -1,7 +1,7 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
@@ -77,6 +77,27 @@ function loadRosterColors(): Record<string, string> {
 }
 function saveRosterColors(colors: Record<string, string>) {
   try { localStorage.setItem(ROSTER_COLOR_KEY, JSON.stringify(colors)) } catch { /* ignore เช่น private mode */ }
+}
+
+// ── กลุ่ม Export เอง — ลากคนสลับกลุ่ม/สร้างกลุ่มใหม่ได้อิสระ แยกจากผังองค์กรจริง
+// (feedback 2026-10-01: "จัดกลุ่มเพื่อ export ได้ไหม แค่ export จากตรงนี้เฉยๆ") —
+// override เป็น employee_id → ชื่อกลุ่มที่ลากไปอยู่ (ไม่ตั้ง = ใช้กลุ่มจริงตามเดิม)
+// จำไว้ในเครื่องนี้เหมือน rosterColors ไม่ต้องจัดใหม่ทุกครั้งที่ export
+const ROSTER_GROUP_OVERRIDE_KEY = 'tl_roster_group_overrides'
+const ROSTER_CUSTOM_GROUPS_KEY = 'tl_roster_custom_groups'
+const ROSTER_DND_MIME = 'application/x-timeline-roster-employee'
+
+function loadRosterGroupOverrides(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(ROSTER_GROUP_OVERRIDE_KEY) ?? '{}') } catch { return {} }
+}
+function saveRosterGroupOverrides(v: Record<string, string>) {
+  try { localStorage.setItem(ROSTER_GROUP_OVERRIDE_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
+}
+function loadRosterCustomGroups(): string[] {
+  try { return JSON.parse(localStorage.getItem(ROSTER_CUSTOM_GROUPS_KEY) ?? '[]') } catch { return [] }
+}
+function saveRosterCustomGroups(v: string[]) {
+  try { localStorage.setItem(ROSTER_CUSTOM_GROUPS_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
 }
 
 // week_start = Monday, day_of_week = 0 (Sun) – 6 (Sat) as JS getUTCDay()
@@ -632,6 +653,10 @@ export default function TeamCalendarTab() {
   // export นี้จงใจไม่ผูกกับ filter บนจอ (ดูคอมเมนต์ buildRosterGroups ด้านล่าง)
   const [rosterGroupId, setRosterGroupId] = useState('')
   const [rosterDeptId, setRosterDeptId] = useState('')
+  const [rosterGroupOverrides, setRosterGroupOverrides] = useState<Record<string, string>>(() => loadRosterGroupOverrides())
+  const [rosterCustomGroups, setRosterCustomGroups] = useState<string[]>(() => loadRosterCustomGroups())
+  const [newGroupName, setNewGroupName] = useState('')
+  const [dragOverGroupName, setDragOverGroupName] = useState<string | null>(null)
   const { departments: allDepartments } = useOrgFilterOptions()
   const rosterDeptOptions = rosterGroupId ? allDepartments.filter(d => d.division?.group_id === rosterGroupId) : allDepartments
 
@@ -642,6 +667,28 @@ export default function TeamCalendarTab() {
   }
   function setEmployeeColor(id: string, color: string) {
     setRosterColors(prev => { const next = { ...prev, [id]: color }; saveRosterColors(next); return next })
+  }
+
+  function moveEmployeeToRosterGroup(employeeId: string, groupName: string) {
+    setRosterGroupOverrides(prev => { const next = { ...prev, [employeeId]: groupName }; saveRosterGroupOverrides(next); return next })
+  }
+  function addRosterCustomGroup(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setRosterCustomGroups(prev => {
+      if (prev.includes(trimmed)) return prev
+      const next = [...prev, trimmed]; saveRosterCustomGroups(next); return next
+    })
+    setNewGroupName('')
+  }
+  // ลบกลุ่มที่สร้างเอง — คนที่อยู่ในกลุ่มนี้คืนกลับไปใช้กลุ่มจริงของตัวเอง (เคลียร์ override)
+  function removeRosterCustomGroup(name: string) {
+    setRosterCustomGroups(prev => { const next = prev.filter(n => n !== name); saveRosterCustomGroups(next); return next })
+    setRosterGroupOverrides(prev => {
+      const next = Object.fromEntries(Object.entries(prev).filter(([, g]) => g !== name))
+      saveRosterGroupOverrides(next)
+      return next
+    })
   }
 
   const year = Number(month.slice(0, 4))
@@ -893,22 +940,45 @@ export default function TeamCalendarTab() {
   // ตั้งใจโชว์ "ทุกกลุ่ม" แยกก้อนเสมอไม่ว่าจอจะกรองอะไรอยู่ก็ตาม — แต่มี filter
   // ของตัวเองแยกต่างหาก (rosterGroupId/rosterDeptId, feedback 2026-09-24:
   // "เลือกกลุ่มแล้วกรองแผนกย่อยในกลุ่มนั้นได้อีกชั้น") ตั้งในมอดัล Export นี้เอง
+  // ชื่อกลุ่มจริง (ผังองค์กร) ของพนักงานคนหนึ่ง — ค่าเริ่มต้นก่อนลากย้าย
+  function realRosterGroupName(e: ApiEmployeeFull): string {
+    const gid = employeeGroupId[e.id]
+    return (gid && groups.find(g => g.id === gid)?.name) || 'ไม่มีกลุ่ม'
+  }
+
   function buildRosterGroups(): { groupName: string; employees: ApiEmployeeFull[] }[] {
-    const byGroup = new Map<string, ApiEmployeeFull[]>()
-    const noGroup: ApiEmployeeFull[] = []
-    for (const e of employeesFull) {
-      if (rosterDeptId && employeeOrgMap[e.id]?.departmentId !== rosterDeptId) continue
+    // กรองคนที่จะโชว์ด้วย filter กลุ่ม/แผนกจริงก่อนเหมือนเดิม — ลากย้ายกลุ่ม export
+    // เป็นแค่เรื่องจัดหน้าตาตอน export เท่านั้น ไม่เกี่ยวกับว่าใครอยู่ในผังองค์กรไหนจริง
+    const candidates = employeesFull.filter(e => {
+      if (rosterDeptId && employeeOrgMap[e.id]?.departmentId !== rosterDeptId) return false
       const gid = employeeGroupId[e.id]
-      if (rosterGroupId && gid !== rosterGroupId) continue
-      if (!gid) { noGroup.push(e); continue }
-      if (!byGroup.has(gid)) byGroup.set(gid, [])
-      byGroup.get(gid)!.push(e)
+      if (rosterGroupId && gid !== rosterGroupId) return false
+      return true
+    })
+
+    const byName = new Map<string, ApiEmployeeFull[]>()
+    for (const e of candidates) {
+      const name = rosterGroupOverrides[e.id] || realRosterGroupName(e)
+      if (!byName.has(name)) byName.set(name, [])
+      byName.get(name)!.push(e)
     }
-    const result = groups
-      .filter(g => !rosterGroupId || g.id === rosterGroupId)
-      .filter(g => (byGroup.get(g.id)?.length ?? 0) > 0)
-      .map(g => ({ groupName: g.name, employees: byGroup.get(g.id)! }))
-    if (noGroup.length > 0 && !rosterGroupId) result.push({ groupName: 'ไม่มีกลุ่ม', employees: noGroup })
+
+    // ลำดับโชว์: กลุ่มจริงตามลำดับเดิม (เฉพาะที่ผ่าน filter) → กลุ่มที่สร้างเอง (ตาม
+    // ลำดับที่สร้าง แม้ยังว่างอยู่ ให้ลากใส่ได้) → "ไม่มีกลุ่ม" ปิดท้าย
+    const order: string[] = []
+    for (const g of groups) if (!rosterGroupId || g.id === rosterGroupId) order.push(g.name)
+    for (const cg of rosterCustomGroups) if (!order.includes(cg)) order.push(cg)
+    if (!order.includes('ไม่มีกลุ่ม')) order.push('ไม่มีกลุ่ม')
+
+    const result: { groupName: string; employees: ApiEmployeeFull[] }[] = []
+    for (const name of order) {
+      const emps = byName.get(name) ?? []
+      byName.delete(name)
+      // กลุ่มจริง/"ไม่มีกลุ่ม" ที่ว่างเปล่าไม่ต้องโชว์ — แต่กลุ่มที่สร้างเองโชว์เสมอแม้ว่าง (ลากใส่ได้)
+      if (emps.length === 0 && !rosterCustomGroups.includes(name)) continue
+      result.push({ groupName: name, employees: emps })
+    }
+    for (const [name, emps] of byName) result.push({ groupName: name, employees: emps })
     return result
   }
 
@@ -928,7 +998,8 @@ export default function TeamCalendarTab() {
   // บวมขนาดหน้าเว็บตอนโหลดปกติ (โหลดเฉพาะตอนกด export ตารางแยกกลุ่มจริงๆ)
   async function exportRosterExcel() {
     const ExcelJS = (await import('exceljs')).default
-    const rosterGroups = buildRosterGroups()
+    // ตัดกลุ่มที่สร้างเองแต่ยังว่าง (โชว์ในมอดัลให้ลากใส่ได้ แต่ไม่ต้องขึ้นก้อนเปล่าในไฟล์จริง)
+    const rosterGroups = buildRosterGroups().filter(g => g.employees.length > 0)
     const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
 
     const wb = new ExcelJS.Workbook()
@@ -987,7 +1058,7 @@ export default function TeamCalendarTab() {
 
   function exportRosterPdf() {
     const win = window.open('', '_blank'); if (!win) return
-    const rosterGroups = buildRosterGroups()
+    const rosterGroups = buildRosterGroups().filter(g => g.employees.length > 0)
     const orderedIds = rosterGroups.flatMap(g => g.employees.map(e => e.id))
 
     function dayHeaderCells(): string {
@@ -1311,17 +1382,54 @@ export default function TeamCalendarTab() {
 
                 {/* สีต่อคน — ตั้งเองได้ (manual) จำไว้ในเครื่องนี้ */}
                 <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>สีประจำตัวแต่ละคน</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>คลิกวงกลมสีเพื่อเปลี่ยนเอง — ระบบจำไว้ในเครื่องนี้ ไม่ต้องเลือกใหม่ทุกครั้ง</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>สีประจำตัวแต่ละคน / จัดกลุ่ม export เอง</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>คลิกวงกลมสีเพื่อเปลี่ยนเอง — ลากคน (ไอคอน ⠿) ไปวางในกลุ่มอื่น หรือสร้างกลุ่มใหม่เพื่อจัดเฉพาะตอน export ได้เลย ระบบจำไว้ในเครื่องนี้ ไม่ต้องจัดใหม่ทุกครั้ง</div>
+
+                  {/* สร้างกลุ่ม export เอง */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addRosterCustomGroup(newGroupName) }}
+                      placeholder="ชื่อกลุ่มใหม่ เช่น ทีม A"
+                      style={{ flex: 1, padding: '6px 9px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.78rem', fontFamily: 'inherit' }} />
+                    <button onClick={() => addRosterCustomGroup(newGroupName)} disabled={!newGroupName.trim()}
+                      style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#244B83', fontWeight: 700, fontSize: '0.76rem', cursor: newGroupName.trim() ? 'pointer' : 'default', opacity: newGroupName.trim() ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Plus size={12} /> เพิ่มกลุ่ม
+                    </button>
+                  </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 280, overflowY: 'auto' }}>
-                    {rosterGroups.map(grp => (
-                      <div key={grp.groupName}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', marginBottom: 5 }}>{grp.groupName}</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {rosterGroups.map(grp => {
+                      const isCustom = rosterCustomGroups.includes(grp.groupName)
+                      const isDragOver = dragOverGroupName === grp.groupName
+                      return (
+                      <div key={grp.groupName}
+                        onDragOver={e => { if (!e.dataTransfer.types.includes(ROSTER_DND_MIME)) return; e.preventDefault(); setDragOverGroupName(grp.groupName) }}
+                        onDragLeave={() => setDragOverGroupName(prev => prev === grp.groupName ? null : prev)}
+                        onDrop={e => {
+                          if (!e.dataTransfer.types.includes(ROSTER_DND_MIME)) return
+                          e.preventDefault()
+                          const employeeId = e.dataTransfer.getData(ROSTER_DND_MIME)
+                          if (employeeId) moveEmployeeToRosterGroup(employeeId, grp.groupName)
+                          setDragOverGroupName(null)
+                        }}
+                        style={{ borderRadius: 8, padding: isDragOver ? 6 : 0, background: isDragOver ? '#eff6ff' : 'transparent', outline: isDragOver ? '1.5px dashed #60a5fa' : 'none', transition: 'background .1s' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af' }}>{grp.groupName}</div>
+                          {isCustom && (
+                            <button onClick={() => removeRosterCustomGroup(grp.groupName)} title="ลบกลุ่มนี้ (คนในกลุ่มกลับไปกลุ่มจริงของตัวเอง)"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', padding: 2 }}>
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: grp.employees.length === 0 ? 28 : undefined }}>
                           {grp.employees.map(e => {
                             const color = colorForEmployee(e.id, orderedIds)
                             return (
-                              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
+                              <div key={e.id} draggable
+                                onDragStart={ev => { ev.dataTransfer.setData(ROSTER_DND_MIME, e.id); ev.dataTransfer.effectAllowed = 'move' }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 2px', borderRadius: 6, cursor: 'grab' }}>
+                                <GripVertical size={13} color="#cbd5e1" style={{ flexShrink: 0 }} />
                                 <input type="color" value={color} onChange={ev => setEmployeeColor(e.id, ev.target.value)}
                                   style={{ width: 22, height: 22, padding: 0, border: 'none', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }} />
                                 <span style={{ fontSize: '0.8rem', color: '#374151' }}>{e.nickname || `${e.first_name} ${e.last_name}`}</span>
@@ -1329,9 +1437,13 @@ export default function TeamCalendarTab() {
                               </div>
                             )
                           })}
+                          {grp.employees.length === 0 && (
+                            <div style={{ fontSize: '0.72rem', color: '#cbd5e1', padding: '4px 2px' }}>ลากคนมาวางที่นี่</div>
+                          )}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                     {rosterGroups.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีพนักงานที่อยู่ในกลุ่ม</div>}
                   </div>
                 </div>
