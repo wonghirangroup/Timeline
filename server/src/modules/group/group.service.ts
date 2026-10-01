@@ -18,6 +18,11 @@ interface GroupPolicyInput {
   booking_enabled?: boolean; leave_enabled?: boolean
   saturday_rule?: GroupDayRule; sunday_rule?: GroupDayRule; booking_quota?: number
 }
+// ข้อมูลบริษัทระดับกลุ่ม — undefined = ไม่แตะ, null = เคลียร์กลับไปใช้ของ Tenant, string = override
+interface GroupIdentityInput {
+  company_name?: string | null; address?: string | null; tax_id?: string | null
+  logo_url?: string | null; signer_name?: string | null; signer_title?: string | null
+}
 
 export async function createGroup(tenantId: string, data: { name: string } & GroupPolicyInput) {
   const tenant = await prisma.tenant.findFirst({ where: { id: tenantId, deleted_at: null } })
@@ -39,10 +44,26 @@ export async function createGroup(tenantId: string, data: { name: string } & Gro
   })
 }
 
-export async function updateGroup(tenantId: string, id: string, data: { name?: string; is_active?: boolean } & GroupPolicyInput) {
+export async function updateGroup(tenantId: string, id: string, data: { name?: string; is_active?: boolean } & GroupPolicyInput & GroupIdentityInput) {
   const count = await prisma.group.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null
   return prisma.group.findFirst({ where: { id } })
+}
+
+// รวมข้อมูลบริษัทสำหรับออกเอกสาร HR — กลุ่ม override ก่อน ถ้าไม่ได้ตั้งไว้ (null/ว่าง) ใช้ของ
+// Tenant (บริษัทหลัก) แทน ฟิลด์ไหนไม่ตั้งที่กลุ่มก็ fallback เป็นรายฟิลด์ได้ ไม่ใช่ all-or-nothing
+export function resolveCompanyIdentity(
+  tenant: { name: string; address: string | null; tax_id: string | null; logo_url: string | null; signer_name: string | null; signer_title: string | null },
+  group?: { company_name: string | null; address: string | null; tax_id: string | null; logo_url: string | null; signer_name: string | null; signer_title: string | null } | null,
+) {
+  return {
+    name: group?.company_name || tenant.name,
+    address: group?.address || tenant.address,
+    tax_id: group?.tax_id || tenant.tax_id,
+    logo_url: group?.logo_url || tenant.logo_url,
+    signer_name: group?.signer_name || tenant.signer_name,
+    signer_title: group?.signer_title || tenant.signer_title,
+  }
 }
 
 async function groupChildCount(tenantId: string, id: string) {

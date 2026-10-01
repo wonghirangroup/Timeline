@@ -13,6 +13,16 @@ const HOLIDAY_POLICY_PROPS = {
   saturday_rule: DAY_RULE, sunday_rule: DAY_RULE,
   booking_quota: { type: 'integer', minimum: 0, maximum: 31 },
 }
+// ข้อมูลบริษัทระดับกลุ่ม (override ของ Tenant ต่อกลุ่ม) — nullable ทุกช่อง, null = เคลียร์กลับไป
+// ใช้ของ Tenant (feedback 2026-10-01 "สาขาที่โลโก้ต่างกัน")
+const COMPANY_IDENTITY_PROPS = {
+  company_name: { type: 'string', nullable: true },
+  address: { type: 'string', nullable: true },
+  tax_id: { type: 'string', nullable: true },
+  logo_url: { type: 'string', nullable: true },
+  signer_name: { type: 'string', nullable: true },
+  signer_title: { type: 'string', nullable: true },
+}
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
 const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'] as const
 
@@ -43,7 +53,7 @@ export async function groupRoutes(app: FastifyInstance) {
     schema: {
       tags: [TAG], summary: 'แก้ไขกลุ่ม (booking_enabled/leave_enabled = ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/คนในกลุ่มนี้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
-      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, is_active: { type: 'boolean' }, ...HOLIDAY_POLICY_PROPS } },
+      body: { type: 'object', properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, is_active: { type: 'boolean' }, ...HOLIDAY_POLICY_PROPS, ...COMPANY_IDENTITY_PROPS } },
     },
   }, async (req: any, reply) => {
     const g = await svc.updateGroup(req.tenantId, req.params.id, req.body)

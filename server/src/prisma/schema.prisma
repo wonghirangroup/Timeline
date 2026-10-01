@@ -491,6 +491,15 @@ model Group {
   sunday_rule     DayRule   @default(OFF) // ค่าเริ่มต้นวันอาทิตย์
   booking_quota   Int       @default(5) // จองวันหยุดได้กี่วัน/เดือน (ทั้ง 2 โหมด) — ชั้นล่าง override ได้
   is_active       Boolean   @default(true)
+  // ข้อมูลบริษัทสำหรับออกเอกสาร HR — null = ใช้ของ Tenant (บริษัทหลัก) แทน เผื่อกลุ่มนี้เป็น
+  // คนละนิติบุคคล/แบรนด์กัน (feedback 2026-10-01 "สาขาที่โลโก้ต่างกัน") — company_name ตั้ง
+  // แยกจาก name (ชื่อกลุ่มที่ใช้ในผังองค์กร) กันสับสน ฟิลด์ที่เหลือ mirror ของ Tenant ตรงๆ
+  company_name  String? // ชื่อบริษัทที่พิมพ์บนเอกสาร (ต่างจาก name ที่เป็นชื่อกลุ่มในผังองค์กร)
+  address       String? // ที่อยู่บริษัท
+  tax_id        String? // เลขประจำตัวผู้เสียภาษี
+  logo_url      String? // โลโก้บริษัท (URL)
+  signer_name   String? // ชื่อผู้ลงนามท้ายเอกสาร HR
+  signer_title  String? // ตำแหน่งผู้ลงนาม
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
   deleted_at      DateTime?

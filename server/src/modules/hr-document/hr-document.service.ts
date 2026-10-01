@@ -4,6 +4,7 @@
 // มีอยู่แล้วมาเติมอัตโนมัติ ส่วนตัวเลขการเงินแอดมินกรอกเองเสมอ (ระบบไม่มีข้อมูลการเงิน)
 // บันทึกเป็น snapshot ถาวร (เก็บไว้จริง มีเลขที่เอกสาร + ประวัติย้อนหลัง — ตามที่ยืนยัน)
 import { prisma } from '../../common/utils/prisma'
+import { resolveCompanyIdentity } from '../group/group.service'
 
 export const HR_DOC_TYPES = ['PAYSLIP', 'SALARY_CERT', 'RESIGNATION_LETTER', 'WORK_CERT'] as const
 export type HrDocType = (typeof HR_DOC_TYPES)[number]
@@ -22,7 +23,7 @@ export async function getDocData(tenantId: string, employeeId: string, type: HrD
       id: true, employee_code: true, first_name: true, last_name: true, nickname: true,
       hired_at: true,
       position: { select: { name: true } },
-      branch: { select: { name: true } },
+      branch: { select: { name: true, group: { select: { company_name: true, address: true, tax_id: true, logo_url: true, signer_name: true, signer_title: true } } } },
     },
   })
   if (!employee) return null
@@ -46,7 +47,9 @@ export async function getDocData(tenantId: string, employeeId: string, type: HrD
       branch_name: employee.branch?.name ?? null,
       hired_at: employee.hired_at,
     },
-    tenant,
+    // สาขาของพนักงานอยู่กลุ่มที่ตั้งข้อมูลบริษัทของตัวเองไว้ (คนละแบรนด์/นิติบุคคล) ก็ใช้ของ
+    // กลุ่มนั้นแทน — ไม่ตั้งไว้ (null) fallback เป็นของ Tenant ตามเดิมทุกฟิลด์
+    tenant: tenant ? resolveCompanyIdentity(tenant, employee.branch?.group) : tenant,
     suggested_doc_number,
   }
 }

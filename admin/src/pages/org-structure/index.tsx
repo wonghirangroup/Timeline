@@ -2,11 +2,12 @@
 // กลุ่ม(บริษัท) → ผังองค์กร 3 ชั้น (ฝ่าย → แผนก → ตำแหน่ง) ใต้กลุ่มที่เลือก + สถานะพนักงาน
 // (โควต้าวันหยุดต่อเดือน + เงื่อนไขวันหยุดอัตโนมัติ) — ทุกชั้นผูก parent ชัดเจนเสมอ เพราะเป็น
 // ที่อยู่ของ policy cascade (booking_enabled) ด้วย ไม่ใช่แค่ label เฉยๆ แบบเวอร์ชันก่อน
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye, Table2, LayoutGrid, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
+import { Building2, Layers, UserSquare2, Plus, Pencil, Trash2, IdCard, Landmark, MapPinned, Eye, Table2, LayoutGrid, ZoomIn, ZoomOut, Maximize, Upload, Loader2 } from 'lucide-react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { api } from '../../lib/axios'
+import { uploadImage } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -39,7 +40,8 @@ const modalBox: React.CSSProperties = { background: '#fff', borderRadius: 16, wi
 const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }
 
 type WeekendQuota = { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null }
-interface GroupT extends WeekendQuota { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
+type CompanyIdentity = { company_name: string | null; address: string | null; tax_id: string | null; logo_url: string | null; signer_name: string | null; signer_title: string | null }
+interface GroupT extends WeekendQuota, CompanyIdentity { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; is_active: boolean; _count: { branches: number; divisions: number } }
 interface BranchT { id: string; name: string; group_id: string | null }
 interface Div  extends WeekendQuota { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { departments: number } }
 interface Dept extends WeekendQuota { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; is_active: boolean; _count: { positions: number } }
@@ -137,12 +139,18 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
   const isMobile = useIsMobile()
   const [view, setView] = useState<'card' | 'table'>('card')
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
-  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5' })
+  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5',
+    company_name: '', address: '', tax_id: '', logo_url: '', signer_name: '', signer_title: '' })
   const [deleteTarget, setDeleteTarget] = useState<GroupT | null>(null)
   const [assignBranchGroup, setAssignBranchGroup] = useState<Record<string, string>>({})
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const { data: groups = [], isLoading } = useQuery<GroupT[]>({ queryKey: ['groups'], queryFn: () => api.get('/api/v1/admin/groups').then(r => r.data.data) })
   const { data: branches = [] } = useQuery<BranchT[]>({ queryKey: ['branches'], queryFn: () => api.get('/api/v1/admin/branches').then(r => r.data.data) })
+  const { data: tenantSettings } = useQuery<{ name: string; address: string | null; tax_id: string | null; logo_url: string | null; signer_name: string | null; signer_title: string | null }>({
+    queryKey: ['tenant-settings'], queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data),
+  })
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['groups'] }); qc.invalidateQueries({ queryKey: ['branches'] }); qc.invalidateQueries({ queryKey: ['plan-usage'] }) }
 
@@ -167,13 +175,42 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
     onError: () => showToast('error', 'ผูกไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF', sunday_rule: 'OFF', booking_quota: '5' }); setModal({}) }
-  const openEdit = (g: GroupT) => { setForm({ name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled, saturday_rule: g.saturday_rule ?? 'OFF', sunday_rule: g.sunday_rule ?? 'OFF', booking_quota: String(g.booking_quota ?? 5) }); setModal({ edit: g }) }
+  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true, saturday_rule: 'OFF', sunday_rule: 'OFF', booking_quota: '5', company_name: '', address: '', tax_id: '', logo_url: '', signer_name: '', signer_title: '' }); setModal({}) }
+  const openEdit = (g: GroupT) => { setForm({
+    name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled, saturday_rule: g.saturday_rule ?? 'OFF', sunday_rule: g.sunday_rule ?? 'OFF', booking_quota: String(g.booking_quota ?? 5),
+    company_name: g.company_name ?? '', address: g.address ?? '', tax_id: g.tax_id ?? '', logo_url: g.logo_url ?? '', signer_name: g.signer_name ?? '', signer_title: g.signer_title ?? '',
+  }); setModal({ edit: g }) }
   const handleSave = () => {
     if (!modal || !form.name.trim()) return
-    const body = { ...form, booking_quota: parseInt(form.booking_quota) || 0 }
-    if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body })
-    else createMutation.mutate(body)
+    const { company_name, address, tax_id, logo_url, signer_name, signer_title, ...rest } = form
+    const body: any = { ...rest, booking_quota: parseInt(form.booking_quota) || 0 }
+    // ฟิลด์ข้อมูลบริษัทมีเฉพาะตอนแก้ไข (POST สร้างกลุ่มใหม่ไม่รองรับ) — เว้นว่าง = เคลียร์กลับไปใช้ของบริษัทหลัก
+    if (modal.edit) {
+      Object.assign(body, {
+        company_name: company_name.trim() || null, address: address.trim() || null, tax_id: tax_id.trim() || null,
+        logo_url: logo_url.trim() || null, signer_name: signer_name.trim() || null, signer_title: signer_title.trim() || null,
+      })
+      updateMutation.mutate({ id: modal.edit.id, body })
+    } else {
+      createMutation.mutate(body)
+    }
+  }
+
+  async function pickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) { showToast('error', 'ต้องเป็นไฟล์รูปภาพ'); return }
+    setUploadingLogo(true)
+    try {
+      const url = await uploadImage(file, 'timeline/branding')
+      setForm(f => ({ ...f, logo_url: url }))
+      showToast('success', 'อัปโหลดโลโก้แล้ว — กด "บันทึก" เพื่อใช้งานจริง')
+    } catch {
+      showToast('error', 'อัปโหลดไม่สำเร็จ')
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   if (isLoading) return <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>กำลังโหลด...</p>
@@ -361,6 +398,34 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
             </div>
             <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุดได้กี่วัน/เดือน</label>
             <input type="number" min={0} max={31} style={quotaInputStyle} value={form.booking_quota} onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} />
+
+            {modal.edit && (
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 8px', fontWeight: 700 }}>
+                  ข้อมูลบริษัทสำหรับออกเอกสาร HR — เว้นว่างไว้ = ใช้ของบริษัทหลัก ({tenantSettings?.name ?? '...'}), กรอก = ใช้ของกลุ่มนี้แทน (เผื่อเป็นคนละแบรนด์/นิติบุคคล)
+                </p>
+                <label style={label}>ชื่อบริษัท (พิมพ์บนเอกสาร)</label>
+                <input style={inputStyle} value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder={tenantSettings?.name ?? ''} />
+                <label style={{ ...label, margin: '10px 0 4px' }}>ที่อยู่</label>
+                <input style={inputStyle} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder={tenantSettings?.address ?? ''} />
+                <label style={{ ...label, margin: '10px 0 4px' }}>เลขประจำตัวผู้เสียภาษี</label>
+                <input style={inputStyle} value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} placeholder={tenantSettings?.tax_id ?? ''} />
+                <label style={{ ...label, margin: '10px 0 4px' }}>โลโก้</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input style={{ ...inputStyle, flex: 1 }} value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://... หรือแนบไฟล์" />
+                  <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} title="แนบไฟล์รูปภาพ"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 600, cursor: uploadingLogo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                    {uploadingLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                  </button>
+                  <input ref={logoInputRef} type="file" accept="image/*" onChange={pickLogo} hidden />
+                </div>
+                <label style={{ ...label, margin: '10px 0 4px' }}>ชื่อผู้ลงนาม</label>
+                <input style={inputStyle} value={form.signer_name} onChange={e => setForm(f => ({ ...f, signer_name: e.target.value }))} placeholder={tenantSettings?.signer_name ?? ''} />
+                <label style={{ ...label, margin: '10px 0 4px' }}>ตำแหน่งผู้ลงนาม</label>
+                <input style={inputStyle} value={form.signer_title} onChange={e => setForm(f => ({ ...f, signer_title: e.target.value }))} placeholder={tenantSettings?.signer_title ?? ''} />
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
