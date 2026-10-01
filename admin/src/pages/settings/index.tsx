@@ -20,6 +20,7 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import Toggle from '../../components/ui/Toggle'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
@@ -448,9 +449,10 @@ function LeavePolicyTab() {
           </p>
         </div>
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer', marginBottom: 10 }}>
-        <input type="checkbox" checked={unlimited} disabled={readOnly} onChange={e => setUnlimited(e.target.checked)} /> ไม่จำกัด (ยื่นย้อนหลังได้เท่าไหร่ก็ได้)
-      </label>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: '13px', color: '#374151' }}>ไม่จำกัด (ยื่นย้อนหลังได้เท่าไหร่ก็ได้)</span>
+        <Toggle checked={unlimited} disabled={readOnly} onChange={setUnlimited} aria-label="ไม่จำกัดการยื่นลาย้อนหลัง" />
+      </div>
       {!unlimited && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '13px', color: '#374151' }}>
           ย้อนหลังได้ไม่เกิน
@@ -459,25 +461,23 @@ function LeavePolicyTab() {
           วัน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(0 = ยื่นได้เฉพาะวันนี้เป็นต้นไป)</span>
         </div>
       )}
-      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer' }}>
-          <input type="checkbox" checked={selfResign} disabled={readOnly} onChange={e => setSelfResign(e.target.checked)} style={{ marginTop: 3 }} />
-          <span>
-            <span style={{ fontWeight: 600 }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
-            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
-          </span>
-        </label>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>ให้พนักงานยื่นลาออกเองผ่าน LINE ได้</span>
+          <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>ปิด = ซ่อนเมนู "ยื่นลาออก" ในแอปพนักงาน (คำขอที่ยื่นไว้แล้วยังจัดการได้ที่หน้าคำขอลาออก)</span>
+        </span>
+        <Toggle checked={selfResign} disabled={readOnly} onChange={setSelfResign} aria-label="ให้พนักงานยื่นลาออกเองผ่าน LINE ได้" />
       </div>
       <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '13px', color: '#374151', cursor: readOnly ? 'default' : 'pointer' }}>
-          <input type="checkbox" checked={countWorkedOffDays} disabled={readOnly} onChange={e => setCountWorkedOffDays(e.target.checked)} style={{ marginTop: 3 }} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <span>
-            <span style={{ fontWeight: 600 }}>นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็น "ไม่ได้พักจริง" ในโบนัสพักร้อนรายเดือน</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็น "ไม่ได้พักจริง" ในโบนัสพักร้อนรายเดือน</span>
             <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
               โบนัสพักร้อนตามส่วนต่างจริงตอนหยุดไม่ครบโควต้า/เดือน (ดูที่ "การลา → นโยบายพักร้อน") — เปิดไว้จะนับวันที่จองหยุดแล้วแต่ดันเช็คอินมาทำงานจริง ว่าเป็นวันที่ไม่ได้พักด้วย ไม่ใช่แค่จำนวนที่จองอนุมัติเฉยๆ (ยกเว้นวันที่ HR ให้วันชดเชยแยกไปแล้ว) ปิด = นับแค่จำนวนวันที่จองอนุมัติเหมือนเดิม — ไม่ใช่ทุกบริษัทมีเคสนี้ เลือกได้ตามจริง
             </span>
           </span>
-        </label>
+          <Toggle checked={countWorkedOffDays} disabled={readOnly} onChange={setCountWorkedOffDays} aria-label="นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็นไม่ได้พักจริง" />
+        </div>
       </div>
       {!readOnly && (
         <Button variant="primary" loading={mut.isPending} onClick={() => mut.mutate()} style={{ marginTop: 16 }}>บันทึก</Button>
