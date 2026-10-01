@@ -1032,8 +1032,16 @@ export default function WeeklyOffPage() {
           {reqPaginated.map(g => {
             const pendingIds = g.items.filter(i => i.status === 'PENDING').map(i => i.id)
             const isBulkRejecting = bulkRejectFor?.employeeId === g.employee.id
+            // สีขอบการ์ด = สถานะรวมของพนักงานคนนี้ — ยังมีรอพิจารณาค้างอยู่ = เหลือง
+            // (ถือสำคัญสุด ต้องรีบดู) อนุมัติ/ปฏิเสธครบทุกวันแล้ว = เขียว/แดง (feedback
+            // 2026-10-01: "คนที่ยังมีคำขอค้างอยู่ให้เป็นสีเหลือง อนุมัติแล้วทั้งหมดเขียว
+            // ปฏิเสธทั้งหมดแดง")
+            const hasPending  = g.items.some(i => i.status === 'PENDING')
+            const allApproved = g.items.length > 0 && g.items.every(i => i.status === 'APPROVED')
+            const allRejected = g.items.length > 0 && g.items.every(i => i.status === 'REJECTED')
+            const cardBorderColor = hasPending ? '#f59e0b' : allApproved ? '#16a34a' : allRejected ? '#dc2626' : '#e5e7eb'
             return (
-              <div key={g.employee.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+              <div key={g.employee.id} style={{ background: '#fff', borderRadius: 12, border: `1.5px solid ${cardBorderColor}`, overflow: 'hidden' }}>
                 {/* Card header — ชื่อพนักงาน + ปุ่ม bulk (เฉพาะเมื่อมีรอพิจารณา >1 วัน) */}
                 <div style={{ padding: '12px 14px', background: '#F4F6F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                   <div>
