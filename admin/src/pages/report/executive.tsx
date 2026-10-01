@@ -10,6 +10,9 @@ import { Users, Building2, ClipboardCheck, AlertTriangle, Wallet, CalendarDays, 
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import ReportPieChart from '../../components/shared/ReportPieChart'
+import ReportBarChart from '../../components/shared/ReportBarChart'
+import ReportLineChart from '../../components/shared/ReportLineChart'
 import { downloadCsv } from '../../lib/exportCsv'
 import BranchReportPage from './branch'
 import EmployeeReportPage from './employee'
@@ -20,7 +23,7 @@ import CheckinReportPage from './index'
 
 interface ApiEmployee { id: string; branch_id: string }
 interface ApiBranch { id: string; name: string }
-interface ApiAttendance { id: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string }
+interface ApiAttendance { id: string; date: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string }
 interface ApiLeave { id: string; status: string; days: number; start_date: string; end_date: string }
 interface ApiPendingRow { id: string; status: string }
 
@@ -110,6 +113,39 @@ export default function ExecutiveReportPage() {
   ]
   const totalPending = pendingApprovals.reduce((s, p) => s + p.count, 0)
 
+  // ── ข้อมูลกราฟสรุป (feedback 2026-10-01 "อยากให้มีกราฟรวมแต่ละราย เช่น pie
+  // แท่ง โดนัท แนวโน้ม อื่นๆ") — สังเคราะห์จากข้อมูลที่โหลดมาแล้วของแท็บภาพรวม
+  // ไม่ยิง query เพิ่ม ──
+  // โดนัท: สัดส่วนสถานะเช็คอินเดือนนี้ (ปกติ/สาย/ขาด)
+  const attendancePie = useMemo(() => {
+    const onTime = Math.max(0, totals.checkins - totals.late - totals.absent)
+    return [
+      { key: 'ok',     label: 'มาปกติ', value: onTime,       color: '#16a34a' },
+      { key: 'late',   label: 'สาย',    value: totals.late,   color: '#d97706' },
+      { key: 'absent', label: 'ขาด',    value: totals.absent, color: '#dc2626' },
+    ].filter(d => d.value > 0)
+  }, [totals])
+
+  // แท่ง: งานค้างที่ต้องอนุมัติ แยกตามประเภท
+  const pendingBarData = useMemo(() =>
+    pendingApprovals.map(p => ({ name: p.label.replace(' รอพิจารณา', '').replace(' รอดำเนินการ', ''), count: p.count })),
+    [pendingApprovals])
+
+  // แนวโน้ม: เช็คอิน/สาย/ขาด รายวันตลอดเดือนที่เลือก
+  const dailyTrend = useMemo(() => {
+    const daysInMonth = getDaysInMonth(year, month)
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const dateKey = toYMD(year, month, i + 1)
+      const dayRecords = records.filter(r => r.date.slice(0, 10) === dateKey)
+      return {
+        day: String(i + 1),
+        เช็คอิน: dayRecords.length,
+        สาย: dayRecords.filter(r => r.is_late).length,
+        ขาด: dayRecords.filter(r => r.is_absent).length,
+      }
+    })
+  }, [records, year, month])
+
   function exportCsv() {
     const header = ['เดือน', 'พนักงานทั้งหมด', 'สาขาทั้งหมด', 'เช็คอินรวม (วัน)', 'มาสายรวม', 'ขาดรวม', 'ค่าปรับรวม (บาท)', 'วันลาอนุมัติ (วัน)', 'วันลารออนุมัติ']
     const row = [
@@ -181,17 +217,44 @@ export default function ExecutiveReportPage() {
           {isLoading ? (
             <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>กำลังโหลด...</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
-              {kpis.map(k => (
-                <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
-                    <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
+                {kpis.map(k => (
+                  <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
+                      <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{k.label}</div>
+                ))}
+              </div>
+
+              {/* กราฟสรุป — โดนัทสัดส่วนเช็คอิน + แท่งงานค้าง + แนวโน้มรายวัน
+                  (feedback 2026-10-01 "อยากให้มีกราฟรวมแต่ละราย เช่น pie แท่ง
+                  โดนัท แนวโน้ม อื่นๆ") */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>สัดส่วนสถานะเช็คอินเดือนนี้</div>
+                  <ReportPieChart data={attendancePie} height={240} emptyLabel="ยังไม่มีข้อมูลเช็คอินเดือนนี้" />
                 </div>
-              ))}
-            </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>งานค้างแยกตามประเภท</div>
+                  <ReportBarChart data={pendingBarData} xKey="name" height={240} emptyLabel="ไม่มีงานค้าง"
+                    series={[{ key: 'count', label: 'รายการ', color: '#244B83' }]} />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>แนวโน้มเช็คอินรายวัน — {MONTHS_TH[month - 1]} {year + 543}</div>
+                <ReportLineChart data={dailyTrend} xKey="day" height={260}
+                  series={[
+                    { key: 'เช็คอิน', label: 'เช็คอิน', color: '#244B83' },
+                    { key: 'สาย',    label: 'สาย',    color: '#d97706' },
+                    { key: 'ขาด',    label: 'ขาด',    color: '#dc2626' },
+                  ]} />
+              </div>
+            </>
           )}
         </>
       )}
