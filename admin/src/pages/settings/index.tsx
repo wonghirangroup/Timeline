@@ -20,7 +20,6 @@ import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Button from '../../components/ui/Button'
 import InfoTooltip from '../../components/ui/InfoTooltip'
-import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEditor'
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
@@ -724,11 +723,10 @@ function PlatformContactCard() {
   )
 }
 
-type SettingsTab = 'general' | 'users' | 'leave' | 'notifications' | 'features' | 'plan'
+type SettingsTab = 'general' | 'users' | 'notifications' | 'features' | 'plan'
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'general',       label: 'ทั่วไป' },
   { key: 'users',         label: 'ผู้ใช้งาน' },
-  { key: 'leave',         label: 'ประเภทการลา' },
   { key: 'notifications', label: 'การแจ้งเตือน' },
   { key: 'features',      label: 'ฟีเจอร์' },
   { key: 'plan',          label: 'แพ็กเกจ' },
@@ -751,7 +749,6 @@ export default function SettingsPage() {
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li><b>ทั่วไป</b> — ข้อมูลบริษัท/แบรนด์ และทางลัดไปตั้งค่าเกณฑ์สาย/ค่าปรับ (อยู่ที่หน้ากะ) และสถานะพนักงาน (อยู่ที่ผังองค์กร)</li>
               <li><b>ผู้ใช้งาน</b> — จัดการบัญชีที่ล็อกอินเข้าเว็บนี้ได้ (เฉพาะผู้ดูแลระบบจัดการคนอื่นได้) และสิทธิ์รายเมนู</li>
-              <li><b>ประเภทการลา</b> — ประเภทการลาที่กำหนดเอง และกติกาสะสมวันลา (นโยบายยื่นลาย้อนหลัง/ลาออกเอง ย้ายไปอยู่ที่หน้า "การลา → นโยบายพักร้อน" แล้ว)</li>
               <li><b>การแจ้งเตือน</b> — เลือกประเภทคำขอที่จะส่งเตือนเข้า LINE แอดมิน</li>
               <li><b>ฟีเจอร์</b> — เปิด/ปิดโมดูลต่างๆ ของระบบทั้งบริษัท</li>
             </ul>
@@ -784,7 +781,6 @@ export default function SettingsPage() {
           )}
         </>
       )}
-      {tab === 'leave' && <LeaveTypesManager />}
       {tab === 'notifications' && <NotificationPrefsTab />}
       {tab === 'features' && <FeatureTogglesTab />}
       {tab === 'plan' && (

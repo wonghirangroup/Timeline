@@ -17,6 +17,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
@@ -192,7 +193,7 @@ export default function LeaveRequestsTab() {
   const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
-  const [tab, setTab]             = useState<'requests' | 'add'>('requests')
+  const [tab, setTab]             = useState<'requests' | 'add' | 'types'>('requests')
   const [statusFilter, setStatus] = useState<'' | LeaveStatus>('')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [search, setSearch]       = useState('')
@@ -456,14 +457,20 @@ export default function LeaveRequestsTab() {
             </ul>
           } />
         </div>
-        <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
-          style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
-          {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setTab(tab === 'types' ? 'requests' : 'types')}
+            style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', cursor: 'pointer', background: tab === 'types' ? '#F4F6F9' : '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.875rem' }}>
+            {tab === 'types' ? '← กลับ' : 'ประเภทการลา'}
+          </button>
+          <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
+            {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}
+          </button>
+        </div>
       </div>
 
       {/* KPI */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+      {tab !== 'types' && <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         {[
           { label: 'รอพิจารณา', value: summary.pending,  color: '#d97706', bg: '#fef3c7', filter: 'PENDING'  as LeaveStatus },
           { label: 'อนุมัติ',   value: summary.approved, color: '#16a34a', bg: '#dcfce7', filter: 'APPROVED' as LeaveStatus },
@@ -475,7 +482,7 @@ export default function LeaveRequestsTab() {
             <div style={{ fontSize: '0.72rem', color: k.color, fontWeight: 600 }}>{k.label}</div>
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* ── Month / Year Picker ── */}
       {tab === 'requests' && (
@@ -602,6 +609,13 @@ export default function LeaveRequestsTab() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: ประเภทการลา (ย้ายมาจาก ตั้งค่า → ประเภทการลา — feedback 2026-10-01) ── */}
+      {tab === 'types' && (
+        <div style={{ maxWidth: 720 }}>
+          <LeaveTypesManager />
         </div>
       )}
 
