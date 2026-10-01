@@ -666,9 +666,10 @@ export default function WeeklyOffPage() {
   // "กดแล้วมันไม่ไปยังหน้านั้นเลย")
   const [sp] = useSearchParams()
   const focusMonth = sp.get('month')
+  const isWorkedAlertLink = !!sp.get('worked') // แจ้งเตือน "เช็คอินวันที่จองหยุดเอง" ต้องเปิดแท็บ exceptions ไม่ใช่ requests
   const { focusId, focusRef, rowHighlight } = useFocusHighlight()
   const [month, setMonth] = useState(focusMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>(focusId ? 'requests' : 'periods')
+  const [tab, setTab]     = useState<'requests' | 'periods' | 'overview' | 'exceptions'>(isWorkedAlertLink ? 'exceptions' : focusId ? 'requests' : 'periods')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [statusFilter, setStatus] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('')
   const [showAdd, setShowAdd]     = useState(false)
@@ -1277,14 +1278,17 @@ export default function WeeklyOffPage() {
       {tab === 'overview' && <OverviewTab requests={requests} isLoading={isLoading} month={month} employeeOrgMap={employeeOrgMap} />}
 
       {/* ── แจ้งเตือน & สลับ tab ────────────────────────────────────────── */}
-      {tab === 'exceptions' && <ExceptionsTab requests={requests} workedAlerts={workedAlerts} month={month} />}
+      {tab === 'exceptions' && <ExceptionsTab requests={requests} workedAlerts={workedAlerts} month={month} focusId={focusId} focusRef={focusRef} rowHighlight={rowHighlight} />}
     </div>
   )
 }
 
 // ─── แจ้งเตือน "เช็คอินวันที่จองไว้เอง" + สลับวันหยุดกัน 2 คน ──────────────────
-function ExceptionsTab({ requests, workedAlerts, month }: {
+function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHighlight }: {
   requests: WeeklyOffRequest[]; workedAlerts: WorkedOffAlert[]; month: string
+  focusId: string | null
+  focusRef: React.MutableRefObject<HTMLElement | null>
+  rowHighlight: (id: string) => React.CSSProperties
 }) {
   const { showToast } = useToast()
   const isReadOnly = useIsReadOnly()
@@ -1343,7 +1347,8 @@ function ExceptionsTab({ requests, workedAlerts, month }: {
         ) : (
           <div>
             {workedAlerts.map((a, idx) => (
-              <div key={a.id} style={{ padding: '12px 18px', borderBottom: idx < workedAlerts.length - 1 ? '1px solid #f8fafc' : 'none', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div key={a.id} ref={a.id === focusId ? (focusRef as any) : undefined}
+                style={{ padding: '12px 18px', borderBottom: idx < workedAlerts.length - 1 ? '1px solid #f8fafc' : 'none', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', ...(a.id === focusId ? rowHighlight(focusId) : {}) }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.86rem' }}>{empName(a.employee)}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>

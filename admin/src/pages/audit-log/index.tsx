@@ -4,12 +4,13 @@
 // พนักงาน) + LineMessageLog (แจ้งเตือนที่ส่งถึงพนักงาน) ที่ backend รวมให้แล้ว
 // (audit-log.service.ts) — กรองสาขาได้ผ่าน dropdown เดียวกับหน้าอื่นที่ใช้
 // OrgFilterBar
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileClock, UserPlus, UserCog, UserX, Bell, ShieldPlus, ShieldCheck, ShieldX } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import Pagination from '../../components/ui/Pagination'
 
 interface LogEntry {
   id: string
@@ -37,14 +38,25 @@ function fmtDateTime(iso: string): string {
   return d.toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+const PAGE_SIZE = 15
+
 export default function AuditLogPage() {
   const { branches } = useOrgFilterOptions()
   const [branchId, setBranchId] = useState('')
+  const [page, setPage] = useState(1)
 
   const { data: logs = [], isLoading } = useQuery<LogEntry[]>({
     queryKey: ['audit-log', branchId],
-    queryFn: () => api.get('/api/v1/admin/audit-log', { params: { branch_id: branchId || undefined, limit: 100 } }).then(r => r.data.data),
+    // 200 = เพดานสูงสุดที่ backend ยอมให้ขอ (ดู audit-log.route.ts) — feed นี้รวม
+    // 2 แหล่ง (AuditLog + LineMessageLog) มาเรียงรวมกันแล้ว ยังไม่มี cursor/offset
+    // ข้ามแหล่งจริง เลย paginate ฝั่ง client จากชุดนี้แทน (feedback 2026-10-01
+    // "ทำ pagination")
+    queryFn: () => api.get('/api/v1/admin/audit-log', { params: { branch_id: branchId || undefined, limit: 200 } }).then(r => r.data.data),
   })
+  useEffect(() => { setPage(1) }, [branchId])
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE))
+  const paginated = useMemo(() => logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [logs, page])
 
   return (
     <div>
@@ -77,10 +89,10 @@ export default function AuditLogPage() {
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ยังไม่มีกิจกรรมที่บันทึกไว้</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {logs.map((l, i) => {
+            {paginated.map((l, i) => {
               const cfg = ACTION_CFG[l.action] ?? DEFAULT_CFG
               return (
-                <div key={l.id} style={{ display: 'flex', gap: 14, padding: '14px 0', borderBottom: i < logs.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                <div key={l.id} style={{ display: 'flex', gap: 14, padding: '14px 0', borderBottom: i < paginated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                   <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {cfg.icon}
                   </div>
@@ -94,6 +106,9 @@ export default function AuditLogPage() {
           </div>
         )}
       </div>
+      {!isLoading && logs.length > 0 && (
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={logs.length} itemLabel="รายการ" />
+      )}
     </div>
   )
 }
