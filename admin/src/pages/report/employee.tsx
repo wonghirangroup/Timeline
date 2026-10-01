@@ -1,11 +1,15 @@
 // admin/src/pages/report/employee.tsx
-// รายงานพนักงาน — สรุปรายเดือนต่อพนักงาน: เช็คอิน, สาย, ขาด, ค่าปรับ, ลา
+// รายงานพนักงาน — สรุปรายเดือนต่อพนักงาน: เช็คอิน, สาย, ขาด, ค่าปรับ, ลา, OT
 // (feedback 2026-09-22 "เอาทุกหมวดก่อนแล้วค่อยทำไลน์อันสุดท้าย" — หมวดที่ 2)
 // ประกอบข้อมูลฝั่ง client จาก endpoint ทั่วไปที่มีอยู่แล้ว เหมือน branch.tsx
+// เพิ่มคอลัมน์ OT (feedback 2026-10-01 "อยากให้มีรายงานสรุปสำหรับจ่ายเงินเดือน")
+// — ระบบยังไม่เก็บเงินเดือน/อัตรา OT เป็นตัวเลขจริง (HR คิดเองนอกระบบ) เลยโชว์
+// แค่ "ค่าที่โดนหัก" (ค่าปรับ ที่มีอยู่แล้ว) กับ "ชั่วโมง OT ที่อนุมัติ" ให้ครบ
+// ไม่ยัดเยียดคำนวณเงินสุทธิที่ไม่มีข้อมูลรองรับจริง
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
+import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -16,6 +20,7 @@ import { downloadCsv } from '../../lib/exportCsv'
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 interface ApiAttendance { id: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string; employee: { id: string } }
 interface ApiLeave { id: string; status: string; days: number; start_date: string; end_date: string; employee: { id: string } }
+interface ApiOt { id: string; date: string; hours: number; status: string; employee: { id: string } }
 
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 
@@ -49,6 +54,10 @@ export default function EmployeeReportPage() {
     queryKey: ['admin', 'employee-report-leaves'],
     queryFn: () => api.get('/api/v1/admin/leave-requests').then(r => r.data.data),
   })
+  const { data: otRequests = [] } = useQuery<ApiOt[]>({
+    queryKey: ['admin', 'employee-report-ot'],
+    queryFn: () => api.get('/api/v1/admin/ot-requests', { params: { status: 'APPROVED' } }).then(r => r.data.data),
+  })
 
   const q = search.trim().toLowerCase()
   const filteredEmployees = q
@@ -64,15 +73,19 @@ export default function EmployeeReportPage() {
       const empLeaves = leaves.filter(l =>
         l.employee.id === e.id && l.status === 'APPROVED' && l.start_date.slice(0, 10) <= endDate && l.end_date.slice(0, 10) >= startDate)
       const leaveDays = empLeaves.reduce((s, l) => s + l.days, 0)
-      return { employee: e, checkinCount: empRecords.length, lateCount, absentCount, totalFine, leaveDays }
+      const otHours = otRequests
+        .filter(o => o.employee.id === e.id && o.date.slice(0, 10) >= startDate && o.date.slice(0, 10) <= endDate)
+        .reduce((s, o) => s + o.hours, 0)
+      return { employee: e, checkinCount: empRecords.length, lateCount, absentCount, totalFine, leaveDays, otHours }
     })
-  }, [filteredEmployees, records, leaves, startDate, endDate])
+  }, [filteredEmployees, records, leaves, otRequests, startDate, endDate])
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({
     checkinCount: acc.checkinCount + r.checkinCount,
     lateCount: acc.lateCount + r.lateCount,
     totalFine: acc.totalFine + r.totalFine,
-  }), { checkinCount: 0, lateCount: 0, totalFine: 0 }), [rows])
+    otHours: acc.otHours + r.otHours,
+  }), { checkinCount: 0, lateCount: 0, totalFine: 0, otHours: 0 }), [rows])
 
   // กราฟแสดงได้จำกัด — เอาแค่ Top 10 คนที่มาสาย/ขาดรวมกันมากสุด กันกราฟแน่นเกินไปเวลามีพนักงานเยอะ
   const chartRows = useMemo(() =>
@@ -80,10 +93,10 @@ export default function EmployeeReportPage() {
     [rows])
 
   function exportCsv() {
-    const header = ['รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'สาขา', 'เช็คอิน (วัน)', 'มาสาย', 'ขาด', 'ค่าปรับ (บาท)', 'ลา (วัน)']
+    const header = ['รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'สาขา', 'เช็คอิน (วัน)', 'มาสาย', 'ขาด', 'ค่าปรับ (บาท)', 'ลา (วัน)', 'OT (ชม.)']
     const body = rows.map(r => [
       r.employee.employee_code, r.employee.first_name, r.employee.last_name, r.employee.nickname ?? '', r.employee.branch.name,
-      String(r.checkinCount), String(r.lateCount), String(r.absentCount), String(r.totalFine), String(r.leaveDays),
+      String(r.checkinCount), String(r.lateCount), String(r.absentCount), String(r.totalFine), String(r.leaveDays), String(r.otHours),
     ])
     downloadCsv([header, ...body], `รายงานพนักงาน_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
   }
@@ -93,6 +106,7 @@ export default function EmployeeReportPage() {
     { label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
     { label: 'มาสายรวม', value: totals.lateCount, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
     { label: 'ค่าปรับรวม (฿)', value: totals.totalFine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+    { label: 'OT รวม (ชม.)', value: totals.otHours.toLocaleString(), icon: <Clock size={15}/>, color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
   ]
 
   return (
@@ -124,15 +138,15 @@ export default function EmployeeReportPage() {
           </div>
         )}
         <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
-        <InfoTooltip title="รายงานพนักงาน" width={300} content={
+        <InfoTooltip title="รายงานพนักงาน" width={310} content={
           <ul style={{ margin: 0, paddingLeft: 16 }}>
-            <li>สรุปเช็คอิน มาสาย ขาด ค่าปรับ และวันลา แยกรายพนักงาน ของเดือนที่เลือก ค้นหาชื่อ/รหัสพนักงานได้ที่ช่องค้นหา</li>
+            <li>สรุปเช็คอิน มาสาย ขาด ค่าปรับ วันลา และชั่วโมง OT ที่อนุมัติแล้ว แยกรายพนักงาน ของเดือนที่เลือก — ใช้เป็นข้อมูลประกอบตอนคิดจ่ายเงินเดือนได้ (ไม่มีเงินเดือน/อัตรา OT ในระบบ ตัวเลขที่โชว์คือ "ค่าที่โดนหัก" กับ "ชม. OT" เท่านั้น ไม่ได้คิดยอดสุทธิให้)</li>
             <li>สลับมุมมอง <b>การ์ด / ตาราง / กราฟ</b> ได้ — มุมมองกราฟแสดงเฉพาะ Top 10 คนที่มาสาย/ขาดรวมกันมากสุด ไม่ใช่พนักงานทั้งหมด</li>
           </ul>
         } />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(5, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
         {kpis.map(k => (
           <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -163,6 +177,7 @@ export default function EmployeeReportPage() {
                 <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ขาด</div><div style={{ fontWeight: 700, color: r.absentCount > 0 ? '#dc2626' : '#94a3b8' }}>{r.absentCount}</div></div>
                 <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ค่าปรับ (฿)</div><div style={{ fontWeight: 700, color: r.totalFine > 0 ? '#dc2626' : '#94a3b8' }}>{r.totalFine.toLocaleString()}</div></div>
                 <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>ลา (วัน)</div><div style={{ fontWeight: 700, color: r.leaveDays > 0 ? '#374151' : '#94a3b8' }}>{r.leaveDays}</div></div>
+                <div><div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>OT (ชม.)</div><div style={{ fontWeight: 700, color: r.otHours > 0 ? '#7c3aed' : '#94a3b8' }}>{r.otHours}</div></div>
               </div>
             </div>
           ))}
@@ -185,7 +200,7 @@ export default function EmployeeReportPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-                {['พนักงาน', 'สาขา', 'เช็คอิน', 'มาสาย', 'ขาด', 'ค่าปรับ (฿)', 'ลา (วัน)'].map(h => (
+                {['พนักงาน', 'สาขา', 'เช็คอิน', 'มาสาย', 'ขาด', 'ค่าปรับ (฿)', 'ลา (วัน)', 'OT (ชม.)'].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
                 ))}
               </tr>
@@ -206,6 +221,7 @@ export default function EmployeeReportPage() {
                   <td style={{ padding: '10px 12px', color: r.absentCount > 0 ? '#dc2626' : '#94a3b8' }}>{r.absentCount}</td>
                   <td style={{ padding: '10px 12px', color: r.totalFine > 0 ? '#dc2626' : '#94a3b8', fontWeight: r.totalFine > 0 ? 700 : 400 }}>{r.totalFine.toLocaleString()}</td>
                   <td style={{ padding: '10px 12px', color: r.leaveDays > 0 ? '#374151' : '#94a3b8' }}>{r.leaveDays}</td>
+                  <td style={{ padding: '10px 12px', color: r.otHours > 0 ? '#7c3aed' : '#94a3b8', fontWeight: r.otHours > 0 ? 700 : 400 }}>{r.otHours}</td>
                 </tr>
               ))}
             </tbody>
