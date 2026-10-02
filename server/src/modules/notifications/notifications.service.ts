@@ -34,6 +34,9 @@ const LEAVE_LABEL: Record<string, string> = {
   MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา (อื่นๆ)',
 }
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
+const DOC_REQUEST_LABEL: Record<string, string> = {
+  PAYSLIP: 'สลิปเงินเดือน', SALARY_CERT: 'หนังสือรับรองเงินเดือน', WORK_CERT: 'หนังสือรับรองการทำงาน', OTHER: 'เอกสารอื่นๆ',
+}
 
 function empName(e: { first_name: string; last_name: string; nickname: string | null }) {
   return e.nickname ? `${e.first_name} (${e.nickname})` : `${e.first_name} ${e.last_name}`
@@ -53,6 +56,8 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
     pendingLeave, pendingOt, pendingResign, pendingWeeklyOff,
     workedOwnOff, swaps,
     expiringDocs, probationDue,
+    pendingDocs,
+    cLeave, cOt, cResign, cWeeklyOff, cDoc,
   ] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: { tenant_id: tenantId, status: 'PENDING', ...empScope },
@@ -77,6 +82,18 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
     }),
     feat('employee_documents') ? listExpiringDocuments(tenantId, 45, scopedEmployeeIds).catch(() => []) : Promise.resolve([]),
     feat('probation') ? listProbationDue(tenantId, 14, scopedEmployeeIds).catch(() => []) : Promise.resolve([]),
+    feat('document_request')
+      ? prisma.documentRequest.findMany({
+          where: { tenant_id: tenantId, status: 'PENDING', ...empScope },
+          include: { employee: EMP_SELECT }, orderBy: { created_at: 'desc' }, take: 20,
+        })
+      : Promise.resolve([] as any[]),
+    // ตัวเลขบน sidebar — นับจริงจาก DB (ลิสต์ด้านบนจำกัด take 20-40 ถ้านับจากลิสต์จะตกหล่นเมื่อคำขอค้างเยอะ)
+    prisma.leaveRequest.count({ where: { tenant_id: tenantId, status: 'PENDING', ...empScope } }),
+    prisma.otRequest.count({ where: { tenant_id: tenantId, status: 'PENDING', ...empScope } }),
+    prisma.resignationRequest.count({ where: { tenant_id: tenantId, status: 'PENDING', ...empScope } }),
+    prisma.weeklyOffRequest.count({ where: { tenant_id: tenantId, status: 'PENDING', ...empScope } }),
+    feat('document_request') ? prisma.documentRequest.count({ where: { tenant_id: tenantId, status: 'PENDING', ...empScope } }) : Promise.resolve(0),
   ])
 
   const items: NotifItem[] = []
@@ -100,6 +117,17 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
       title: 'คำขอ OT รออนุมัติ',
       detail: `${empName(r.employee)} · ${d(r.date)} ${r.start_time}–${r.end_time} (${Number(r.hours)} ชม.)`,
       link: `/ot?approve=${r.id}`,
+      employee_id: r.employee.id, employee_name: empName(r.employee),
+      at: r.created_at.toISOString(),
+    })
+  }
+
+  for (const r of pendingDocs) {
+    items.push({
+      id: `docreq:${r.id}`, kind: 'pending_document_request', severity: 'action',
+      title: 'คำขอเอกสาร HR รอดำเนินการ',
+      detail: `${empName(r.employee)} · ${r.type === 'OTHER' && r.custom_type ? r.custom_type : (DOC_REQUEST_LABEL[r.type] ?? r.type)}${r.request_no ? ` · ${r.request_no}` : ''}`,
+      link: `/document-requests?approve=${r.id}`,
       employee_id: r.employee.id, employee_name: empName(r.employee),
       at: r.created_at.toISOString(),
     })
@@ -187,5 +215,13 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
     items,
     count: items.filter(i => i.severity === 'action').length,
     warn_count: items.filter(i => i.severity === 'warn').length,
+    // เลขบนเมนู sidebar (ต้องอนุมัติ/ตรวจสอบ) — leave รวมจองวันหยุดที่รออนุมัติ + เช็คอินวันหยุดตัวเองที่ HR ยังไม่ resolve
+    menu_counts: {
+      leave: cLeave + cWeeklyOff + workedOwnOff.length,
+      ot: cOt,
+      resignation: cResign,
+      document_request: cDoc,
+      employee: expiringDocs.length + probationDue.length,
+    },
   }
 }

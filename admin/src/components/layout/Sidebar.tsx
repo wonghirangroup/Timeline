@@ -7,6 +7,7 @@ import {
   TrendingUp, CalendarOff, MessageCircle,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
+import { useNotifications } from '../../hooks/useNotifications'
 import type { Role } from '../../stores/authStore'
 import type { PlanFeatures } from '../../types'
 
@@ -21,6 +22,7 @@ interface NavItem {
   permKey?: string // feature key ของระบบสิทธิ์แบบละเอียด (v187) — ปิด "ดู" แล้วเมนูนี้หาย
   roles?: Role[] // ไม่ระบุ = ทุกบทบาทเห็น — ระบุ = จำกัดเฉพาะบทบาทในลิสต์
   badge?: number
+  badgeTone?: 'action' | 'warn' // action = ต้องอนุมัติ (แดง), warn = ต้องไปตรวจสอบ (เหลือง)
 }
 
 interface NavSection {
@@ -165,6 +167,16 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
   const permissions     = useAuthStore(s => s.permissions)
   const role            = useAuthStore(s => s.role)
   const roleChip        = role ? ROLE_CHIP[role] : undefined
+  // ตัวเลขบนเมนู = งานที่รออนุมัติ/ต้องตรวจสอบ — ใช้ endpoint เดียวกับกระดิ่ง (react-query แชร์ cache poll ทุก 45 วิ ไม่ยิงซ้ำ)
+  const { data: notif } = useNotifications()
+  const mc = notif?.menu_counts
+  const MENU_BADGE: Record<string, { n: number; tone: 'action' | 'warn' } | undefined> = {
+    '/leave':             mc ? { n: mc.leave, tone: 'action' } : undefined,
+    '/ot':                mc ? { n: mc.ot, tone: 'action' } : undefined,
+    '/resignations':      mc ? { n: mc.resignation, tone: 'action' } : undefined,
+    '/document-requests': mc ? { n: mc.document_request, tone: 'action' } : undefined,
+    '/employee':          mc ? { n: mc.employee, tone: 'warn' } : undefined,
+  }
 
   // ปิดจริงที่ backend ด้วย (requireFeature middleware) — ตรงนี้แค่ซ่อนเมนูให้ตรงกับสิทธิ์
   // ไม่มี key ใน enabledFeatures เลย (tenant ไม่เคยถูกตั้งค่า) = เปิดใช้งานทุกฟีเจอร์ (ค่า default)
@@ -182,7 +194,9 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
   }
 
   // ── helper: icon-centered nav link ───────────────────────────────────────
-  function NavItem({ item, accent }: { item: { path: string; label: string; icon: JSX.Element; badge?: number }; accent: SecAccent }) {
+  function NavItem({ item, accent }: { item: { path: string; label: string; icon: JSX.Element; badge?: number; badgeTone?: 'action' | 'warn' }; accent: SecAccent }) {
+    const badgeBg = item.badgeTone === 'warn' ? '#f59e0b' : 'var(--error)'
+    const badgeText = item.badge != null && item.badge > 99 ? '99+' : item.badge
     // highlight ค้างไว้ถ้ายังอยู่ในหน้าลูกของเมนูนี้ เช่น /employee/:id ก็ยัง highlight "พนักงาน"
     // ยกเว้น /report — เดิม prefix-match ทำให้ "รายงานการเช็คอิน" (path /report)
     // ค้าง highlight ตอนเข้าหน้ารายงานหมวดอื่นด้วย (/report/branch ฯลฯ) เพราะ
@@ -211,15 +225,18 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
         onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(45,166,221,0.12)'; e.currentTarget.style.color = '#f8fafc'; } }}
         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,247,237,0.6)'; } }}
       >
-        <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>
+        <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive ? accent.text : 'inherit' }}>
           {item.icon}
+          {collapsed && item.badge != null && item.badge > 0 && (
+            <span style={{ position: 'absolute', top: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: badgeBg, border: '1.5px solid var(--bg-sidebar)' }} />
+          )}
         </div>
         {!collapsed && (
           <>
             <span style={{ flex: 1 }}>{item.label}</span>
             {item.badge != null && item.badge > 0 && (
-              <span style={{ background: 'var(--error)', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, flexShrink: 0 }}>
-                {item.badge}
+              <span title={item.badgeTone === 'warn' ? 'ต้องไปตรวจสอบ' : 'รอดำเนินการ/อนุมัติ'} style={{ background: badgeBg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 99, flexShrink: 0, minWidth: 20, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                {badgeText}
               </span>
             )}
           </>
@@ -280,7 +297,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
                 <div style={{ height: 1, background: 'rgba(101,129,168,0.10)', margin: '8px 4px' }} />
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {visItems.map(item => <NavItem key={item.path} item={item} accent={accent} />)}
+                {visItems.map(item => <NavItem key={item.path} item={{ ...item, badge: MENU_BADGE[item.path]?.n, badgeTone: MENU_BADGE[item.path]?.tone }} accent={accent} />)}
               </div>
               {!collapsed && si < NAV_SECTIONS.length - 1 && (
                 <div style={{ height: 1, background: 'rgba(101,129,168,0.10)', margin: '12px 10px 4px' }} />
