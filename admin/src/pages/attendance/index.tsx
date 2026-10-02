@@ -1077,21 +1077,16 @@ export default function AttendancePage() {
       {manualTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={() => setManualTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '20px 16px' : '26px 28px', width: isMobile ? '100%' : 640, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', boxSizing: 'border-box' }}
+          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '18px 14px' : '20px 26px', width: isMobile ? '100%' : 720, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', boxSizing: 'border-box' }}
             onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '1.1rem' }}>+ ลงบันทึกแทนพนักงาน</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #f1f5f9' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{manualTarget.first_name} {manualTarget.last_name}</span>
-              {manualTargetBranches.map((b, i) => (
-                <span key={b.id} style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 9px', borderRadius: 99, background: i === 0 ? '#E6ECF4' : '#f1f5f9', color: i === 0 ? '#244B83' : '#475569' }}>
-                  {b.name}{i === 0 && manualTargetBranches.length > 1 ? ' · หลัก' : ''}
-                </span>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.05rem' }}>+ ลงบันทึกแทนพนักงาน</h3>
+              <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#244B83' }}>{manualTarget.first_name} {manualTarget.last_name}</span>
               <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{date}</span>
             </div>
 
             {/* โหมด: มาทำงาน / ลา / หยุด */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#E6ECF4', padding: 4, borderRadius: 10 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, background: '#E6ECF4', padding: 3, borderRadius: 10 }}>
               {([['work', 'มาทำงาน'], ['leave', 'ลา'], ['off', 'หยุด']] as const).map(([m, label]) => (
                 <button key={m} onClick={() => { setManualMode(m); setManualNoteError(false) }}
                   style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit',
@@ -1102,30 +1097,34 @@ export default function AttendancePage() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {manualMode === 'work' && <>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 8 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 6 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
                 {manualTargetShiftGroups.length === 0 && (
                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#d97706', background: '#fffbeb', borderRadius: 10, padding: '10px 14px' }}>ยังไม่มีกะที่เปิดใช้งานในสาขาของพนักงานคนนี้</p>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {manualTargetShiftGroups.map(g => (
-                    <div key={g.branch.id}>
+                <div style={{ border: manualTargetShiftGroups.length > 1 ? '1px solid #eef2f7' : 'none', borderRadius: 10, overflow: 'hidden' }}>
+                  {manualTargetShiftGroups.map((g, gi) => (
+                    <div key={g.branch.id} style={{ display: 'grid', gridTemplateColumns: isMobile || manualTargetShiftGroups.length === 1 ? '1fr' : '210px 1fr', gap: isMobile ? 6 : 12, alignItems: 'center',
+                      padding: manualTargetShiftGroups.length > 1 ? '6px 10px' : 0, borderTop: gi > 0 ? '1px solid #eef2f7' : 'none', background: manualTargetShiftGroups.length > 1 && gi % 2 === 1 ? '#fafbfd' : '#fff' }}>
                       {manualTargetShiftGroups.length > 1 && (
-                        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
-                          {g.branch.name} <span style={{ fontWeight: 600, color: g.branch.id === manualTarget.branch_id ? '#244B83' : '#94a3b8' }}>({g.branch.id === manualTarget.branch_id ? 'สาขาหลัก' : 'สาขารอง'})</span>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', lineHeight: 1.3 }}>
+                          {g.branch.name}{' '}
+                          <span style={{ fontWeight: 600, fontSize: '0.68rem', color: g.branch.id === manualTarget.branch_id ? '#244B83' : '#94a3b8' }}>
+                            {g.branch.id === manualTarget.branch_id ? 'สาขาหลัก' : 'สาขารอง'}
+                          </span>
                         </div>
                       )}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {g.shifts.map(sh => {
                           const on = manualForm.shift_id === sh.id
                           return (
                             <button key={sh.id} type="button" onClick={() => setManualForm(f => manualRecalc({ ...f, shift_id: sh.id }))}
-                              style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-                                border: `1.5px solid ${on ? '#244B83' : '#e5e7eb'}`, background: on ? '#F4F6F9' : '#fff', boxShadow: on ? '0 0 0 2px rgba(36,75,131,0.12)' : 'none' }}>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: on ? '#244B83' : '#1f2937' }}>{sh.name}</div>
-                              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{sh.start_time}–{sh.end_time}</div>
+                              style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                                border: `1.5px solid ${on ? '#244B83' : '#e2e8f0'}`, background: on ? '#244B83' : '#fff' }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: on ? '#fff' : '#1f2937' }}>{sh.name}</span>
+                              <span style={{ fontSize: '0.72rem', color: on ? 'rgba(255,255,255,0.85)' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>{sh.start_time}–{sh.end_time}</span>
                             </button>
                           )
                         })}
@@ -1202,13 +1201,13 @@ export default function AttendancePage() {
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> หมายเหตุ</label>
                 <textarea value={manualForm.note}
                   onChange={e => { setManualForm(f => ({ ...f, note: e.target.value })); if (manualNoteError && e.target.value.trim()) setManualNoteError(false) }}
-                  placeholder={manualMode === 'leave' ? 'เหตุผลการลา' : 'เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย'} rows={3}
+                  placeholder={manualMode === 'leave' ? 'เหตุผลการลา' : 'เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย'} rows={2}
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', borderColor: manualNoteError ? '#ef4444' : undefined }} />
                 {manualNoteError && <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#ef4444' }}>ต้องกรอกหมายเหตุก่อนบันทึก</p>}
               </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
               <button onClick={() => setManualTarget(null)} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
               <button onClick={handleManual} disabled={saving} style={{ padding: '10px 32px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
                 {saving ? 'กำลังบันทึก...' : manualMode === 'leave' ? 'ลงวันลา' : manualMode === 'off' ? 'ลงวันหยุด' : 'ลงเวลา'}
