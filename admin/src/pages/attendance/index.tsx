@@ -845,21 +845,22 @@ export default function AttendancePage() {
           </select>
         </div>
         {/* Compact controls */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* ทุกตัวสูง 40px และจัดชิดบน — คำอธิบายวันที่ไทยใต้ช่องวันที่เป็นแค่บรรทัดเสริม ไม่ทำให้ช่องค้นหา/ปุ่มอื่นเลื่อนลงมากึ่งกลาง */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              style={{ ...inp, width: 'auto', borderRadius: 10 }} />
+              style={{ ...inp, width: 'auto', borderRadius: 10, height: 40, padding: '0 12px' }} />
             <span style={{ fontSize: '0.68rem', color: '#94a3b8', paddingLeft: 2 }}>{fmtThaiDate(date)}</span>
           </div>
           <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="ค้นหาชื่อ / รหัส"
-              style={{ ...inp, width: '100%', paddingLeft: 30, borderRadius: 10, boxSizing: 'border-box' }} />
+              style={{ ...inp, width: '100%', paddingLeft: 30, borderRadius: 10, boxSizing: 'border-box', height: 40, padding: '0 12px 0 30px' }} />
           </div>
-          <button onClick={() => refetch()} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
+          <button onClick={() => refetch()} style={{ height: 40, padding: '0 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
           {!isMobile && (
-            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', height: 40, boxSizing: 'border-box', background: '#f3f4f6', borderRadius: 10, padding: 3, flexShrink: 0 }}>
               {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['map', 'แผนที่', MapIcon]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setListView(v)}
                   title={label}
