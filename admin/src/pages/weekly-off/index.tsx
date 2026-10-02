@@ -756,10 +756,11 @@ export default function WeeklyOffPage() {
     return groups
   }, [filtered])
 
-  // จำนวนคนที่มีคำขอรอพิจารณาอย่างน้อย 1 รายการ — ใช้ขึ้นเลขที่แท็บ "รายการคำขอ"
+  // จำนวน "รายการ" คำขอที่รอพิจารณา (ไม่ใช่จำนวนคน) — ใช้ขึ้นเลขที่แท็บ "รายการคำขอ" ให้ตรงกับการ์ด "รอพิจารณา" ด้านบน
+  // และเลขบนเมนู sidebar ที่นับเป็นรายการเหมือนกัน (feedback 2026-10-02 "จำนวนไม่ตรงกัน นับเป็นรายการก็ได้")
   // (feedback 2026-10-01: "ถ้ามีคำขอ มาให้ขึ้นเลขไว้หน่อยว่ามีกี่คนส่งคำขอมา")
-  const pendingEmployeeCount = useMemo(
-    () => groupedByEmployee.filter(g => g.items.some(i => i.status === 'PENDING')).length,
+  const pendingRequestCount = useMemo(
+    () => groupedByEmployee.reduce((n, g) => n + g.items.filter(i => i.status === 'PENDING').length, 0),
     [groupedByEmployee],
   )
 
@@ -914,8 +915,8 @@ export default function WeeklyOffPage() {
               transition: 'all .15s',
             }}>
               <Icon size={13} /> {label}
-              {t === 'requests' && pendingEmployeeCount > 0 && (
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{pendingEmployeeCount}</span>
+              {t === 'requests' && pendingRequestCount > 0 && (
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{pendingRequestCount}</span>
               )}
               {t === 'exceptions' && workedAlerts.length > 0 && (
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{workedAlerts.length}</span>
