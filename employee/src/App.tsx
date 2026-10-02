@@ -6,7 +6,7 @@ import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
 import { useAuthStore, getLastKnownEmployeeName } from './stores/authStore'
 import { devLogin, liffLogin, reportIssue } from './lib/axios'
-import { initLiff, getLiffProfile, getChannelId, forceRelogin } from './lib/liff'
+import { initLiff, getLiffProfile, getChannelId, forceRelogin, hardResetLiff, probeConnectivity, tagStage } from './lib/liff'
 
 const CheckinPage  = lazy(() => import('./pages/checkin'))
 const CheckoutPage = lazy(() => import('./pages/checkout'))
@@ -32,8 +32,8 @@ const DEV_EMP_KEY = 'dev_employee_id'
 // /employee/report-issue (ไม่ต้อง login เลย ระบุ tenant จาก line_channel_id ที่
 // อ่านได้ฝั่ง client ล้วนๆ ไม่ต้องเรียก API ก่อน) feedback 2026-09-14: มี 2 คนเจอ
 // ปัญหานี้แล้วไม่มีทางแจ้ง
-function ErrorScreen({ message, onRetry, reportCtx }: {
-  message: string; onRetry: () => void
+function ErrorScreen({ message, detail, onRetry, reportCtx }: {
+  message: string; detail: string; onRetry: () => void
   reportCtx: { lineUserId?: string; displayName?: string }
 }) {
   const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
@@ -47,12 +47,18 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
       // ที่เคยล็อกอินสำเร็จบนเครื่องนี้แทน (เดา ไม่ใช่ตัวตนที่ยืนยันแล้ว จึงระบุกำกับ
       // ให้ชัดในข้อความ กันแอดมินเข้าใจผิดว่าเป็นข้อมูลจริง 100%)
       const fallbackName = !reportCtx.displayName ? getLastKnownEmployeeName() : null
+      // ตรวจการเชื่อมต่อจริงตอนกดแจ้ง (server เรา / LINE API / CDN ของ LIFF) แนบไปด้วย —
+      // แอดมินเห็นทันทีว่าพังฝั่งไหน ไม่ต้องเดาจาก "Failed to fetch" อย่างเดียวอีก
+      const probe = await probeConnectivity(import.meta.env.VITE_API_URL as string).catch(() => 'probe-error')
+      const lineVer = navigator.userAgent.match(/Line\/([\d.]+)/)?.[1] ?? '-'
+      const android = navigator.userAgent.match(/Android [\d.]+|iPhone OS [\d_]+/)?.[0] ?? navigator.platform
+      const diag = `${detail} | online=${navigator.onLine} | ${android} LINE ${lineVer} | ${probe}`.slice(0, 480)
       await reportIssue({
         line_channel_id: getChannelId(),
         line_user_id:    reportCtx.lineUserId,
         display_name:    reportCtx.displayName ?? (fallbackName ? `${fallbackName} (เดาจากครั้งล่าสุด ไม่ยืนยัน)` : undefined),
         message:         extra.trim() || 'พนักงานกดปุ่ม "แจ้งปัญหา" จากหน้า error (ไม่ได้พิมพ์รายละเอียดเพิ่ม)',
-        context:         message,
+        context:         diag,
       })
       setReportState('sent')
     } catch {
@@ -67,6 +73,12 @@ function ErrorScreen({ message, onRetry, reportCtx }: {
     }}>
       <div style={{ fontSize: '3rem' }}>⚠️</div>
       <div style={{ fontWeight: 700, color: '#dc2626', lineHeight: 1.5 }}>{message}</div>
+      {detail.startsWith('liff') && (
+        <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.6, maxWidth: 320 }}>
+          ถ้ากด "ลองใหม่" แล้วยังไม่หาย: ปิดแอป LINE ให้สนิท (ปัดทิ้งจากหน้าแอปที่เปิดล่าสุด) แล้วเปิดใหม่
+        </div>
+      )}
+      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{detail}</div>
       <button onClick={onRetry} style={{
         padding: '12px 28px', borderRadius: 14, border: 'none',
         background: '#244B83', color: '#fff',
@@ -221,6 +233,7 @@ export default function App() {
   const [bootState, setBootState] = useState<BootState>('loading')
   const [devToken,  setDevToken]  = useState('')
   const [errMsg,    setErrMsg]    = useState('')
+  const [errDetail, setErrDetail] = useState('')
   const [retrying,  setRetrying]  = useState<number | null>(null) // ครั้งที่กำลังลองซ้ำอัตโนมัติ (1-based) — null = ไม่ได้ลองซ้ำอยู่
   // เก็บไว้ให้ ErrorScreen ใช้แนบไปกับ "แจ้งปัญหาให้แอดมิน" — ดึงจาก LIFF SDK ได้
   // (ไม่ต้องเรียก API เรา) แม้ boot ล้มเหลวตอนเรียก backend ก็ตาม
@@ -262,11 +275,11 @@ export default function App() {
       setReportCtx({ lineUserId, displayName })
 
       try {
-        const { token, employee } = await liffLogin({
+        const { token, employee } = await tagStage('backend', liffLogin({
           liff_token:      idToken,
           line_user_id:    lineUserId,
           line_channel_id: channelId,
-        })
+        }))
         setAuth(employee, token)
         setRetrying(null)
         setBootState('authed')
@@ -279,7 +292,7 @@ export default function App() {
         } else if (code === 'INVALID_TOKEN') {
           // ID token ที่ liff SDK แคชไว้หมดอายุ (isLoggedIn() ยัง true อยู่ แต่ token ใช้ไม่ได้แล้ว) —
           // บังคับ logout+login ใหม่เพื่อเอา token สดจริง ไม่งั้นกด "ลองใหม่" จะวนเจอ error เดิมไม่รู้จบ
-          await forceRelogin()
+          await forceRelogin().catch(() => hardResetLiff())
         } else {
           throw err
         }
@@ -297,17 +310,27 @@ export default function App() {
       // เปิดใหม่ถึงจะหาย เท่ากับ logout+login LIFF ใหม่ทั้งหมด — ลอง forceRelogin()
       // อัตโนมัติให้ก่อนสักครั้งเดียว (กัน loop ด้วย sessionStorage flag) แทนที่จะ
       // โชว์หน้า error ให้ผู้ใช้ต้องไปทำเองด้วยมือ
-      if (isNetworkGlitch(err) && !import.meta.env.DEV) {
-        const FLAG = 'tl_force_relogin_tried'
-        if (!sessionStorage.getItem(FLAG)) {
-          sessionStorage.setItem(FLAG, '1')
-          await forceRelogin() // redirect ออกไปเลย ไม่ return กลับมาที่นี่
+      // แก้ 2026-10-02: เดิมเรียก forceRelogin() ซึ่งพึ่ง liff.login() — ใช้ไม่ได้ตอน
+      // liff.init() เป็นตัวที่พังเอง (โยน error ซ้ำ ระบบกู้คืนเลยไม่เคยทำงานจริง) เปลี่ยนเป็น
+      // hardResetLiff() ที่ล้าง session ของ LIFF เองแล้วเปิดใหม่ผ่าน liff.line.me — flag เก็บใน
+      // localStorage พร้อมเวลา (ไม่ใช่ sessionStorage) เพราะการเปิดใหม่อาจได้ WebView ใหม่ที่
+      // sessionStorage ว่าง ทำให้รีเซ็ตวนไม่รู้จบได้ — รีเซ็ตได้ครั้งเดียวต่อ 5 นาที
+      if (isNetworkGlitch(err) && !import.meta.env.DEV && String(err?.stage ?? '').startsWith('liff')) {
+        const FLAG = 'tl_liff_reset_at'
+        const last = Number(localStorage.getItem(FLAG) ?? 0)
+        if (Date.now() - last > 5 * 60_000) {
+          localStorage.setItem(FLAG, String(Date.now()))
+          await hardResetLiff()
           return
         }
-        sessionStorage.removeItem(FLAG) // ลองแล้วก็ยังไม่ผ่าน เคลียร์ไว้ให้ลองใหม่ได้รอบหน้า
       }
       setRetrying(null)
-      setErrMsg(err?.response?.data?.error?.message ?? err?.message ?? 'เกิดข้อผิดพลาด')
+      const raw = err?.response?.data?.error?.message ?? err?.message ?? 'เกิดข้อผิดพลาด'
+      const stage = err?.stage ?? 'unknown'
+      setErrDetail(`${stage}: ${raw}`)
+      setErrMsg(stage.startsWith('liff') && isNetworkGlitch(err)
+        ? 'เชื่อมต่อกับ LINE ไม่สำเร็จ'
+        : raw)
       setBootState('error')
     }
   }
@@ -324,7 +347,7 @@ export default function App() {
   }
 
   if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub={retrying ? `สัญญาณไม่นิ่ง กำลังลองใหม่ (${retrying}/${AUTO_RETRY_DELAYS.length})` : 'YooNai by Smartjigsaw'} />
-  if (bootState === 'error')    return <ErrorScreen message={errMsg} onRetry={boot} reportCtx={reportCtx} />
+  if (bootState === 'error')    return <ErrorScreen message={errMsg} detail={errDetail} onRetry={() => boot()} reportCtx={reportCtx} />
   if (bootState === 'dev-pick') return <DevPicker onPick={handleDevPick} />
 
   return (
