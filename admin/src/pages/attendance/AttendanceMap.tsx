@@ -118,10 +118,16 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
       const note = p.source === 'branch'
         ? '<br><i style="color:#64748b">แอดมินลงเวลาแทน — ตำแหน่งตามสาขา</i>'
         : p.outsideArea ? '<br><span style="color:#d97706">เช็คอินนอกรัศมีสาขา</span>' : ''
-      L.marker(ll, { icon }).bindPopup(
+      const photo = p.photo ? `<img src="${esc(p.photo)}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid ${p.color}">` : ''
+      const info =
+        `<div style="display:flex;gap:8px;align-items:center;min-width:170px">${photo}<div style="line-height:1.45">` +
         `<b>${esc(p.name)}</b>${p.nickname ? ` (${esc(p.nickname)})` : ''}<br><span style="color:#64748b">${esc(p.code)} · ${esc(p.branchName)}</span><br>` +
-        `เข้า <b>${esc(p.time)}</b> · ${esc(p.method)}<br><span style="color:${p.color};font-weight:700">${esc(p.statusLabel)}</span>${note}${gmaps}`,
-      ).addTo(layer)
+        `เข้า <b>${esc(p.time)}</b> · ${esc(p.method)}<br><span style="color:${p.color};font-weight:700">${esc(p.statusLabel)}</span>${note}</div></div>`
+      // hover = ข้อมูลของคนนั้น (tooltip) / คลิก = ป๊อปอัปเดิม + ลิงก์เปิด Google Maps
+      L.marker(ll, { icon })
+        .bindTooltip(info, { direction: 'top', offset: [0, -50], opacity: 1, sticky: false })
+        .bindPopup(info + gmaps, { offset: [0, -4] })
+        .addTo(layer)
       bounds.push(ll)
     }
 
