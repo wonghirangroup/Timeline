@@ -351,6 +351,16 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
   const [camErr,    setCamErr]    = useState<string | null>(null)
   const [scanning,  setScanning]  = useState(false)
   const [devText,   setDevText]   = useState('')
+  // 'requesting' = รอผู้ใช้กด "อนุญาต" กล้อง / รอกล้องพร้อม, attempt = ตัวกระตุ้นให้ขอกล้องใหม่ (ปุ่มลองใหม่)
+  const [camState,  setCamState]  = useState<'requesting' | 'ready'>('requesting')
+  const [attempt,   setAttempt]   = useState(0)
+  // onScan ที่ parent ส่งมาเป็น arrow ใหม่ทุกครั้งที่ render — ถ้าเอาเข้า dependency ของ effect กล้อง
+  // effect จะรีสตาร์ตทุกครั้งที่หน้าเช็คอินอัปเดตอะไรก็ตาม (เช่น โหลดรายการวันนี้เสร็จ) ระหว่างที่
+  // หน้าต่างขออนุญาตกล้องยังเปิดอยู่ → ขอกล้องซ้ำซ้อน สตรีมแรกกลายเป็นของที่ไม่มีใครถือ (กล้องค้าง)
+  const onScanRef = useRef(onScan)
+  useEffect(() => { onScanRef.current = onScan }, [onScan])
+  const camErrRef = useRef<string | null>(null)
+  useEffect(() => { camErrRef.current = camErr }, [camErr])
 
   const tick = useCallback(() => {
     const video  = videoRef.current
@@ -362,26 +372,78 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
     ctx.drawImage(video, 0, 0)
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
-    if (code?.data) { stopStream(); onScan(code.data); return }
+    if (code?.data) { stopStream(); onScanRef.current(code.data); return }
     rafRef.current = requestAnimationFrame(tick)
-  }, [onScan])
+  }, [])
 
   useEffect(() => {
     if (tab !== 'camera') return
+    let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     setCamErr(null)
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
-      .then(stream => {
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-        setScanning(true)
-        rafRef.current = requestAnimationFrame(tick)
-      })
-      .catch(() => setCamErr('ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้องแล้วลองใหม่'))
-    return stopStream
-  }, [tab, tick])
+    setCamState('requesting')
+
+    function explain(err: any): string {
+      const name = err?.name ?? ''
+      if (!navigator.mediaDevices?.getUserMedia) return 'อุปกรณ์/เบราว์เซอร์นี้เปิดกล้องไม่ได้ — ใช้แท็บ "เลือกรูป" แทนได้'
+      if (name === 'NotAllowedError' || name === 'SecurityError') return 'ยังไม่ได้อนุญาตให้ใช้กล้อง — กด "อนุญาต" ในหน้าต่างที่ขึ้นมา หรือเปิดสิทธิ์กล้องของแอป LINE ในตั้งค่าเครื่อง แล้วกดลองใหม่'
+      if (name === 'NotReadableError' || name === 'AbortError') return 'กล้องกำลังถูกใช้งานอยู่ — รอสักครู่แล้วกดลองใหม่'
+      return 'ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้องแล้วลองใหม่'
+    }
+
+    function open(retriesLeft: number) {
+      if (!navigator.mediaDevices?.getUserMedia) { setCamErr(explain(null)); return }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+        .then(stream => {
+          // ผู้ใช้ปิดหน้าต่าง/สลับแท็บ/กดลองใหม่ ระหว่างรอคำขออนุญาต — สตรีมที่เพิ่งได้มาไม่มีเจ้าของแล้ว
+          // ต้องปล่อยทันที ไม่งั้นกล้องค้างจนรอบหน้าเปิดไม่ติด
+          if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+          streamRef.current = stream
+          const video = videoRef.current
+          if (video) {
+            video.srcObject = stream
+            video.play().catch(() => {})
+          }
+          setScanning(true)
+          setCamState('ready')
+          rafRef.current = requestAnimationFrame(tick)
+        })
+        .catch(err => {
+          if (cancelled) return
+          // กล้องเพิ่งถูกปล่อยจากรอบก่อน ยังไม่ทันว่าง — ลองซ้ำเงียบๆ สั้นๆ ก่อนโชว์ error
+          if ((err?.name === 'NotReadableError' || err?.name === 'AbortError') && retriesLeft > 0) {
+            retryTimer = setTimeout(() => open(retriesLeft - 1), 700)
+            return
+          }
+          setCamState('ready')
+          setCamErr(explain(err))
+        })
+    }
+    open(2)
+
+    // ผู้ใช้ไปเปิดสิทธิ์กล้องในตั้งค่าเครื่องแล้วกลับเข้ามาที่แอป → ลองใหม่ให้เอง ไม่ต้องกดปุ่ม
+    // เฉพาะตอนที่กล้องอยู่ในสถานะ error เท่านั้น — กล่องขออนุญาตของระบบเองก็ทำให้หน้าสลับ hidden/visible ได้
+    // ถ้ารีสตาร์ตตอนกำลังรอผู้ใช้กด "อนุญาต" จะกลายเป็นขอกล้องซ้อนอีกรอบ (บั๊กเดิมที่กำลังแก้)
+    const onVisible = () => { if (document.visibilityState === 'visible' && camErrRef.current) setAttempt(a => a + 1) }
+    let permStatus: PermissionStatus | null = null
+    const onPermChange = () => { if (permStatus?.state === 'granted' && camErrRef.current) setAttempt(a => a + 1) }
+    try {
+      navigator.permissions?.query({ name: 'camera' as PermissionName }).then(p => {
+        if (cancelled) return
+        permStatus = p
+        p.addEventListener('change', onPermChange)
+      }).catch(() => {})
+    } catch { /* WebView นี้ไม่รองรับ Permissions API — ข้าม */ }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      clearTimeout(retryTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+      permStatus?.removeEventListener('change', onPermChange)
+      stopStream()
+    }
+  }, [tab, attempt, tick])
 
   function stopStream() {
     cancelAnimationFrame(rafRef.current)
@@ -436,7 +498,7 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
               <div style={{ padding: '20px', background: '#fef2f2', borderRadius: 14, color: '#dc2626', fontSize: '0.85rem', textAlign: 'center', lineHeight: 1.6 }}>
                 <AlertTriangle size={20} style={{ marginBottom: 4 }} /><br />
                 {camErr}
-                <br/><button onClick={() => { setCamErr(null); setTab('camera') }} style={{ marginTop: 10, padding: '6px 16px', borderRadius: 8, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ลองใหม่</button>
+                <br/><button onClick={() => setAttempt(a => a + 1)} style={{ marginTop: 10, padding: '6px 16px', borderRadius: 8, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ลองใหม่</button>
               </div>
             ) : (
               <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '1', width: '100%' }}>
@@ -445,7 +507,13 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                   <div style={{ width: '60%', aspectRatio: '1', border: '3px solid rgba(255,255,255,0.8)', borderRadius: 12, boxShadow: '0 0 0 2000px rgba(0,0,0,0.35)' }} />
                 </div>
-                {scanning && (
+                {camState === 'requesting' && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#fff', textAlign: 'center', padding: 20, fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.6 }}>
+                    <Loader2 size={22} className="animate-spin" />
+                    กำลังเปิดกล้อง…<br />ถ้ามีหน้าต่างขอสิทธิ์ ให้กด "อนุญาต"
+                  </div>
+                )}
+                {scanning && camState === 'ready' && (
                   <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                     <Search size={13} /> กำลังค้นหา QR Code…
                   </div>
