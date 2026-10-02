@@ -18,6 +18,7 @@ import { useAuthStore } from '../../stores/authStore'
 import HrLifecyclePanel from '../../components/shared/HrLifecyclePanel'
 import EmployeeDocsTab from '../hr-documents/EmployeeDocsTab'
 import AvatarUpload from '../../components/ui/AvatarUpload'
+import MapLink from '../../components/shared/MapLink'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
@@ -401,6 +402,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
                   {r.check_out_at && <span style={{ fontSize: '0.8rem', color: '#374151' }}>ออก <strong>{fmtTime(r.check_out_at)}</strong></span>}
                   {r.late_minutes > 0 && <span style={{ fontSize: '0.75rem', color: '#d97706' }}>สาย {r.late_minutes} นาที</span>}
                   {r.note && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{r.note}</span>}
+                  <MapLink lat={r.gps_lat} lng={r.gps_lng} />
                 </div>
               </div>
             )
@@ -566,8 +568,9 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
                 <div style={{ padding: '9px 8px', display: 'flex', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: `${color}20`, color, lineHeight: 1.25 }}>{label}</span>
                 </div>
-                <div style={{ padding: '9px 12px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                <div style={{ padding: '9px 12px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   {note && note !== label ? note : ''}
+                  <MapLink lat={r?.gps_lat} lng={r?.gps_lng} />
                 </div>
               </div>
             )
