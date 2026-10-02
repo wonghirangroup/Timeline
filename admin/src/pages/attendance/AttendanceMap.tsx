@@ -14,6 +14,7 @@ export interface MapPerson {
   branchName: string
   statusLabel: string
   color: string          // สีตามสถานะ (มาปกติ/สาย/ขาด)
+  photo?: string | null  // รูปโปรไฟล์ที่ใส่ในหมุด
   time: string
   method: string
   lat: number | null
@@ -60,9 +61,12 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
     loadLeaflet().then(L => {
       if (cancelled || !boxRef.current || mapRef.current) return
       const map = L.map(boxRef.current, { zoomControl: true }).setView([15.0, 102.1], 6)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map)
+      // พื้นแผนที่: Google ถนน (ค่าเริ่มต้น ตามที่ขอ) / ดาวเทียม / OpenStreetMap — สลับได้จากปุ่มมุมขวาบน
+      const street = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}', { subdomains: '0123', maxZoom: 20, attribution: '© Google Maps' })
+      const hybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}', { subdomains: '0123', maxZoom: 20, attribution: '© Google Maps' })
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' })
+      street.addTo(map)
+      L.control.layers({ 'Google ถนน': street, 'Google ดาวเทียม': hybrid, 'OpenStreetMap': osm }, undefined, { position: 'topright' }).addTo(map)
       layerRef.current = L.layerGroup().addTo(map)
       mapRef.current = map
       setReady(true)
@@ -93,14 +97,20 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
     }
 
     const pos = spread(people)
+    let pinSeq = 0
     for (const p of people) {
       const ll = pos[p.key]
       if (!ll) continue
       const initial = esc((p.nickname || p.name).trim().charAt(0) || '?')
       const dashed = p.source === 'branch'
+      const id = `pin${pinSeq++}`
+      // หมุดรูปหยดน้ำสีตามสถานะ + รูปโปรไฟล์วงกลมข้างใน (ไม่มีรูป = ตัวอักษรแรกของชื่อเล่น) — ปลายหมุดคือพิกัดจริง
+      const face = p.photo
+        ? `<circle cx="22" cy="21" r="14.5" fill="#fff"/><clipPath id="${id}"><circle cx="22" cy="21" r="14"/></clipPath><image href="${esc(p.photo)}" x="8" y="7" width="28" height="28" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>`
+        : `<circle cx="22" cy="21" r="14" fill="#fff"/><text x="22" y="26" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="700" fill="${p.color}">${initial}</text>`
       const icon = L.divIcon({
-        className: '', iconSize: [28, 28], iconAnchor: [14, 14],
-        html: `<div style="width:28px;height:28px;border-radius:50%;background:${p.color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px sans-serif;border:2.5px ${dashed ? 'dashed' : 'solid'} #fff;box-shadow:0 0 0 ${dashed ? 1.5 : 0}px ${p.color},0 1px 5px rgba(0,0,0,.4)">${initial}</div>`,
+        className: '', iconSize: [44, 56], iconAnchor: [22, 55], popupAnchor: [0, -50],
+        html: `<svg width="44" height="56" viewBox="0 0 44 56" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));overflow:visible"><path d="M22 55C22 55 3 34 3 21a19 19 0 1 1 38 0c0 13-19 34-19 34Z" fill="${p.color}" stroke="${dashed ? '#0f172a' : '#fff'}" stroke-width="2.5"${dashed ? ' stroke-dasharray="4 3"' : ''}/>${face}</svg>`,
       })
       const gmaps = p.source === 'gps'
         ? `<br><a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener noreferrer">เปิดใน Google Maps</a>`
@@ -134,7 +144,7 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
           {([['#16a34a', 'มาปกติ'], ['#d97706', 'สายระดับ 1'], ['#dc2626', 'สายระดับ 2/ขาด']] as const).map(([c, l]) => (
             <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 10, height: 10, borderRadius: '50%', background: c, display: 'inline-block' }} />{l}</span>
           ))}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px dashed #64748b', display: 'inline-block' }} />แอดมินลงให้</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 10, height: 10, borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', border: '1.5px dashed #0f172a', display: 'inline-block' }} />แอดมินลงให้ (ขอบประ)</span>
         </span>
       </div>
       {err ? (

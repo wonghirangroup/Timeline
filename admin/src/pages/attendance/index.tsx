@@ -11,6 +11,7 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { fmtThaiDate } from '../../lib/format'
+import { avatarUrl } from '../../lib/upload'
 import AttendanceMap from './AttendanceMap'
 import type { MapPerson, MapBranch } from './AttendanceMap'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -78,6 +79,7 @@ interface ApiEmployee {
   employee_status_type?: WQNode | null
   position?: (WQNode & { department?: (WQNode & { division?: WQNode | null }) | null }) | null
   default_shift_id?: string | null
+  photo_url?: string | null
   extra_branches?: { branch: { id: string; name: string } }[]
 }
 
@@ -614,7 +616,7 @@ export default function AttendancePage() {
       else if (rec.check_in_method === 'ADMIN' && bll) { [lat, lng] = bll; source = 'branch' }
       if (shiftBranch && bll) usedBranches.set(shiftBranch.id, { id: shiftBranch.id, name: shiftBranch.name, lat: bll[0], lng: bll[1], radius: Number(shiftBranch.gps_radius) || 200 })
       people.push({
-        key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
+        photo: avatarUrl(row.employee.photo_url, 96), key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
         branchName: shiftBranch?.name ?? row.employee.branch?.name ?? '', statusLabel: STATUS_CFG[row.status].label, color: STATUS_CFG[row.status].color,
         time: fmtTime(rec.check_in_at), method: (METHOD_CFG[rec.check_in_method] ?? METHOD_CFG.LIFF).label,
         lat, lng, source, outsideArea: rec.is_outside_area,
