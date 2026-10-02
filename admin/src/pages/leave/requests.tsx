@@ -19,6 +19,7 @@ import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import RequestNo from '../../components/ui/RequestNo'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
+import { downloadCsv } from '../../lib/exportCsv'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType   = 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER'
@@ -215,7 +216,7 @@ export default function LeaveRequestsTab() {
   const [forcePromptReason, setForcePromptReason] = useState<'LEAVE_DISABLED' | 'MONTHLY_CAP_EXCEEDED'>('LEAVE_DISABLED')
   const [page, setPage]                   = useState(1)
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
-  const [bulkConfirm, setBulkConfirm]     = useState<null | 'approve' | 'reject'>(null)
+  const [bulkConfirm, setBulkConfirm]     = useState<null | 'approve' | 'reject' | 'delete'>(null)
   const [bulkNote, setBulkNote]           = useState('')
   const PAGE_SIZE = 10
 
@@ -352,18 +353,47 @@ export default function LeaveRequestsTab() {
   }), [requests])
 
   // คำขอ PENDING ที่มองเห็นตอนนี้ (ตามฟิลเตอร์) — ฐานของการเลือกหลายรายการ
+  // เลือกได้ทุกสถานะ (ลบ/Export ที่เลือกได้ทุกใบ) — อนุมัติ/ปฏิเสธจะทำเฉพาะใบที่ยัง "รอพิจารณา" ในชุดที่เลือก
   const pendingVisible = useMemo(() => filtered.filter(r => r.status === 'PENDING'), [filtered])
   const pendingVisibleIds = useMemo(() => pendingVisible.map(r => r.id), [pendingVisible])
+  const filteredIds = useMemo(() => filtered.map(r => r.id), [filtered])
   // ตัด id ที่หลุดจากรายการ (อนุมัติไปแล้ว/ฟิลเตอร์เปลี่ยน) ออกจาก selection อัตโนมัติ
   useEffect(() => {
     setSelectedIds(prev => {
-      const valid = new Set(pendingVisibleIds)
+      const valid = new Set(filteredIds)
       const next = new Set([...prev].filter(id => valid.has(id)))
       return next.size === prev.size ? prev : next
     })
-  }, [pendingVisibleIds])
+  }, [filteredIds])
   const allVisibleSelected = pendingVisibleIds.length > 0 && pendingVisibleIds.every(id => selectedIds.has(id))
-  const selectedConflicts = pendingVisible.filter(r => selectedIds.has(r.id) && r.has_conflict).length
+  const allPageSelected = paginated.length > 0 && paginated.every(r => selectedIds.has(r.id))
+  const selectedRows = filtered.filter(r => selectedIds.has(r.id))
+  const selectedPending = selectedRows.filter(r => r.status === 'PENDING')
+  const selectedPendingIds = selectedPending.map(r => r.id)
+  const selectedConflicts = selectedPending.filter(r => r.has_conflict).length
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(ids.map(id => api.delete(`/api/v1/admin/leave-requests/${id}`)))
+      return { ok: results.filter(r => r.status === 'fulfilled').length, failed: results.filter(r => r.status === 'rejected').length }
+    },
+    onSuccess: ({ ok, failed }) => {
+      invalidate()
+      showToast(failed ? 'error' : 'success', failed ? `ลบสำเร็จ ${ok} รายการ ลบไม่สำเร็จ ${failed} รายการ` : `ลบ ${ok} รายการแล้ว`)
+      clearSel(); setBulkConfirm(null)
+    },
+    onError: () => showToast('error', 'ลบไม่สำเร็จ'),
+  })
+
+  function exportSelected() {
+    const header = ['เลขที่คำขอ', 'รหัสพนักงาน', 'ชื่อ-สกุล', 'สาขา', 'ประเภท', 'วันที่เริ่ม', 'วันที่สิ้นสุด', 'จำนวนวัน', 'เหตุผล', 'สถานะ', 'ยื่นเมื่อ']
+    const body = selectedRows.map(r => [
+      r.request_no ?? '', r.employee.employee_code, `${r.employee.first_name} ${r.employee.last_name}`, r.employee.branch.name,
+      getTypeCfg(r.leave_type, r.reason, (r as any).custom_type).displayLabel, r.start_date.slice(0, 10), r.end_date.slice(0, 10),
+      String(r.days), cleanReason(r.reason) === '—' ? '' : cleanReason(r.reason), STATUS_CFG[r.status].label, r.created_at.slice(0, 10),
+    ])
+    downloadCsv([header, ...body], `คำขอวันลา_${new Date().toISOString().slice(0, 10)}.csv`)
+  }
 
   // คีย์ลัด: a = อนุมัติที่เลือก · r = ปฏิเสธที่เลือก · Esc = ล้างการเลือก
   useEffect(() => {
@@ -372,12 +402,12 @@ export default function LeaveRequestsTab() {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.key === 'Escape') clearSel()
-      else if (e.key === 'a') { e.preventDefault(); setBulkConfirm('approve') }
-      else if (e.key === 'r') { e.preventDefault(); setBulkConfirm('reject') }
+      else if (e.key === 'a' && selectedPendingIds.length > 0) { e.preventDefault(); setBulkConfirm('approve') }
+      else if (e.key === 'r' && selectedPendingIds.length > 0) { e.preventDefault(); setBulkConfirm('reject') }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedIds.size, isReadOnly])
+  }, [selectedIds.size, selectedPendingIds.length, isReadOnly])
 
   function openEdit(r: ApiLeaveRequest) {
     setEditForm({
@@ -681,7 +711,7 @@ export default function LeaveRequestsTab() {
                       <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: selectedIds.has(r.id) ? '#f0fdf4' : undefined, ...rowHighlight(r.id) }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div style={{ display: 'flex', gap: 10 }}>
-                            {!isReadOnly && r.status === 'PENDING' && (
+                            {!isReadOnly && (
                               <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} aria-label="เลือกคำขอนี้"
                                 style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: 'pointer', marginTop: 3, flexShrink: 0 }} />
                             )}
@@ -730,10 +760,10 @@ export default function LeaveRequestsTab() {
                     <tr style={{ background: '#F4F6F9' }}>
                       {!isReadOnly && (
                         <th style={{ padding: '11px 8px 11px 14px', width: 34 }}>
-                          <input type="checkbox" checked={allVisibleSelected} disabled={pendingVisibleIds.length === 0}
-                            onChange={e => setSelectedIds(e.target.checked ? new Set(pendingVisibleIds) : new Set())}
-                            aria-label="เลือกทั้งหมดที่รอพิจารณา"
-                            style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: pendingVisibleIds.length ? 'pointer' : 'default' }} />
+                          <input type="checkbox" checked={allPageSelected} disabled={paginated.length === 0}
+                            onChange={e => setSelectedIds(prev => { const next = new Set(prev); paginated.forEach(r => e.target.checked ? next.add(r.id) : next.delete(r.id)); return next })}
+                            aria-label="เลือกทั้งหมดในหน้านี้" title="เลือกทั้งหมดในหน้านี้"
+                            style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: paginated.length ? 'pointer' : 'default' }} />
                         </th>
                       )}
                       {['เลขที่คำขอ', 'พนักงาน', 'สาขา', 'ประเภท', 'ช่วงวันลา', 'จำนวน', 'เหตุผล', 'สถานะ', 'จัดการ'].map(h => (
@@ -759,7 +789,7 @@ export default function LeaveRequestsTab() {
                         <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: '1px solid #f3f4f6', background: sel ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa', ...rowHighlight(r.id) }}>
                           {!isReadOnly && (
                             <td style={{ padding: '11px 8px 11px 14px' }}>
-                              {r.status === 'PENDING' && (
+                              {(
                                 <input type="checkbox" checked={sel} onChange={() => toggleSel(r.id)} aria-label={`เลือกคำขอของ ${r.employee.first_name}`}
                                   style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: 'pointer' }} />
                               )}
@@ -828,6 +858,7 @@ export default function LeaveRequestsTab() {
               display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             }}>
               <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-dark)' }}>เลือก {selectedIds.size} รายการ</span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>(รอพิจารณา {selectedPendingIds.length})</span>
               {selectedConflicts > 0 && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: '#dc2626', fontWeight: 700 }}>
                   <AlertTriangle size={12} /> {selectedConflicts} รายการชนตำแหน่ง
@@ -835,11 +866,17 @@ export default function LeaveRequestsTab() {
               )}
               <span style={{ flex: 1 }} />
               <button onClick={clearSel} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.8rem', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={() => { setBulkNote(''); setBulkConfirm('reject') }} disabled={bulkMutation.isPending}
+              <button onClick={exportSelected}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>Export ที่เลือก</button>
+              <button onClick={() => setBulkConfirm('delete')} disabled={bulkDeleteMutation.isPending}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}><Trash2 size={13} /> ลบที่เลือก</button>
+              <button onClick={() => { setBulkNote(''); setBulkConfirm('reject') }} disabled={bulkMutation.isPending || selectedPendingIds.length === 0}
+                title={selectedPendingIds.length === 0 ? 'ไม่มีใบที่รอพิจารณาในรายการที่เลือก' : undefined}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <X size={14} /> ปฏิเสธที่เลือก
               </button>
-              <button onClick={() => setBulkConfirm('approve')} disabled={bulkMutation.isPending}
+              <button onClick={() => setBulkConfirm('approve')} disabled={bulkMutation.isPending || selectedPendingIds.length === 0}
+                title={selectedPendingIds.length === 0 ? 'ไม่มีใบที่รอพิจารณาในรายการที่เลือก' : undefined}
                 style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <Check size={14} /> อนุมัติที่เลือก
               </button>
@@ -851,25 +888,36 @@ export default function LeaveRequestsTab() {
       {bulkConfirm === 'approve' && (
         <ConfirmDialog
           variant="default"
-          title={`อนุมัติ ${selectedIds.size} คำขอ?`}
+          title={`อนุมัติ ${selectedPendingIds.length} คำขอ?`}
           message={selectedConflicts > 0
             ? `มี ${selectedConflicts} รายการที่ชนวันลากับคนตำแหน่งเดียวกัน — อนุมัติทั้งหมดอยู่ดีหรือไม่?`
             : `คำขอวันลาที่เลือกไว้ทั้งหมดจะถูกอนุมัติ`}
           confirmLabel="อนุมัติทั้งหมด"
-          onConfirm={() => bulkMutation.mutate({ action: 'approve', ids: [...selectedIds] })}
+          onConfirm={() => bulkMutation.mutate({ action: 'approve', ids: selectedPendingIds })}
+          onCancel={() => setBulkConfirm(null)}
+        />
+      )}
+      {bulkConfirm === 'delete' && (
+        <ConfirmDialog
+          title={`ลบ ${selectedIds.size} คำขอ?`}
+          message={selectedRows.some(r => r.status === 'APPROVED')
+            ? `รวมใบลาที่อนุมัติแล้ว ${selectedRows.filter(r => r.status === 'APPROVED').length} ใบ — การลบจะคืนวันลาที่หักไปแล้วกลับเข้าโควต้าพนักงาน และลบกลับไม่ได้`
+            : 'คำขอที่เลือกไว้ทั้งหมดจะถูกลบถาวร ลบกลับไม่ได้'}
+          confirmLabel="ลบทั้งหมด"
+          onConfirm={() => bulkDeleteMutation.mutate([...selectedIds])}
           onCancel={() => setBulkConfirm(null)}
         />
       )}
       {bulkConfirm === 'reject' && (
         <Modal onClose={() => setBulkConfirm(null)} width={380}>
           <div style={{ padding: 24 }}>
-            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 6px' }}>ปฏิเสธ {selectedIds.size} คำขอ?</p>
+            <p style={{ fontWeight: 700, fontSize: '15px', color: '#111827', margin: '0 0 6px' }}>ปฏิเสธ {selectedPendingIds.length} คำขอ?</p>
             <p style={{ fontSize: '13px', color: 'var(--text-gray)', margin: '0 0 14px' }}>ใส่หมายเหตุร่วม (ไม่บังคับ) — จะแนบไปกับทุกคำขอที่เลือก</p>
             <textarea value={bulkNote} onChange={e => setBulkNote(e.target.value)} rows={3} placeholder="เหตุผลที่ปฏิเสธ"
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'none' }} />
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
               <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={() => bulkMutation.mutate({ action: 'reject', ids: [...selectedIds], note: bulkNote })} disabled={bulkMutation.isPending}
+              <button onClick={() => bulkMutation.mutate({ action: 'reject', ids: selectedPendingIds, note: bulkNote })} disabled={bulkMutation.isPending}
                 style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
                 {bulkMutation.isPending ? 'กำลังปฏิเสธ...' : 'ปฏิเสธทั้งหมด'}
               </button>
