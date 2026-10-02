@@ -308,8 +308,9 @@ export default function AttendancePage() {
   // + เปิดโมดัลลงบันทึกให้คนนั้นทันที
   const [searchParams, setSearchParams] = useSearchParams()
   const [date, setDate]           = useState(() => searchParams.get('date') || todayStr())
-  const [legendOpen, setLegendOpen] = useState(() => { try { return localStorage.getItem('att_legend_open') !== '0' } catch { return true } })
-  function toggleLegend() { setLegendOpen(o => { try { localStorage.setItem('att_legend_open', o ? '0' : '1') } catch { /* storage ปิดอยู่ */ } return !o }) }
+  // ปิดไว้เป็นค่าเริ่มต้นทุกครั้ง (กินพื้นที่จอมาก) — กดปุ่ม "คำอธิบายสี" ค่อยแสดง
+  const [legendOpen, setLegendOpen] = useState(false)
+  function toggleLegend() { setLegendOpen(o => !o) }
   // ให้ป้าย "กำลังทำงาน" เปลี่ยนเป็น "ลืมเช็คออก" เองเมื่อเลยเวลาเลิกงาน โดยไม่ต้องรีเฟรชหน้า
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t) }, [])
