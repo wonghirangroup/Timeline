@@ -847,7 +847,8 @@ function InfoTab({ emp, onResetLine }: { emp: any; onResetLine: () => void }) {
     { label: 'เบอร์โทร',      value: emp.phone ?? '—', mono: true },
     { label: 'เบอร์สำรอง',    value: emp.phone_alt || '—', mono: true },
     { label: 'แผนก',          value: deptName(emp.department) },
-    { label: 'สาขา',          value: emp.branch?.name ?? '—' },
+    { label: 'สาขาหลัก',      value: emp.branch?.name ?? '—' },
+    { label: 'สาขารอง (เช็คอินได้)', value: (emp.extra_branches ?? []).map((eb: any) => eb.branch.name).join(', ') || '—' },
     { label: 'ประเภทพนักงาน',  value: emp.emp_type || '—' },
     { label: 'เงินเดือน',      value: emp.salary ? `${Number(emp.salary).toLocaleString()} บาท` : '—' },
     { label: 'วันที่เริ่มงาน', value: thDate(emp.hired_at) },
@@ -1110,10 +1111,15 @@ export default function EmployeeDetailPage() {
             </div>
 
             {emp.branch && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#F4F6F9', color: '#131C45', border: '1px solid #B2C0D4', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Building2 size={11}/>{emp.branch.name}
+              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                <span title="สาขาหลัก" style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#F4F6F9', color: '#131C45', border: '1px solid #B2C0D4', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Building2 size={11}/>{emp.branch.name}{(emp.extra_branches ?? []).length > 0 && <span style={{ fontWeight: 500, color: '#64748b' }}> · หลัก</span>}
                 </span>
+                {(emp.extra_branches ?? []).map((eb: any) => (
+                  <span key={eb.branch.id} title="สาขารอง — เช็คอินได้ที่สาขานี้ด้วย" style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#fff', color: '#475569', border: '1px dashed #B2C0D4', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Building2 size={11}/>{eb.branch.name}<span style={{ fontWeight: 500, color: '#94a3b8' }}> · รอง</span>
+                  </span>
+                ))}
               </div>
             )}
           </div>
