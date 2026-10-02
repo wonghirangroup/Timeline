@@ -259,7 +259,7 @@ export default function DocumentRequestsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-                {['พนักงาน', 'ประเภทเอกสาร', 'ยื่นเมื่อ', 'หมายเหตุ', 'สถานะ', ''].map(h => (
+                {['เลขที่คำขอ', 'พนักงาน', 'ประเภทเอกสาร', 'ยื่นเมื่อ', 'หมายเหตุ', 'สถานะ', ''].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
                 ))}
               </tr>
@@ -269,6 +269,7 @@ export default function DocumentRequestsPage() {
                 const sc = STATUS_CFG[r.status]
                 return (
                   <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < pg.paged.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>{r.request_no ? <RequestNo no={r.request_no} /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                         <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
@@ -276,7 +277,6 @@ export default function DocumentRequestsPage() {
                       </button>
                     </td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#374151' }}>
-                      {r.request_no && <div style={{ marginBottom: 3 }}><RequestNo no={r.request_no} /></div>}
                       {TYPE_LABEL[r.type] ?? r.custom_type ?? r.type}{r.period ? ` — ${r.period}` : ''}
                       {r.file_url && (
                         <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11.5px', color: '#2563eb', marginTop: 3, textDecoration: 'none', fontWeight: 600 }}>

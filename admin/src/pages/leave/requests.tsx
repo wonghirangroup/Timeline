@@ -736,14 +736,14 @@ export default function LeaveRequestsTab() {
                             style={{ width: 15, height: 15, accentColor: '#16a34a', cursor: pendingVisibleIds.length ? 'pointer' : 'default' }} />
                         </th>
                       )}
-                      {['พนักงาน', 'สาขา', 'ประเภท', 'ช่วงวันลา', 'จำนวน', 'เหตุผล', 'สถานะ', 'จัดการ'].map(h => (
+                      {['เลขที่คำขอ', 'พนักงาน', 'สาขา', 'ประเภท', 'ช่วงวันลา', 'จำนวน', 'เหตุผล', 'สถานะ', 'จัดการ'].map(h => (
                         <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={isReadOnly ? 8 : 9} style={{ padding: 0 }}>
+                      <tr><td colSpan={isReadOnly ? 9 : 10} style={{ padding: 0 }}>
                         {requests.length === 0
                           ? <EmptyState icon={<CalendarDays size={22} />} title="ยังไม่มีคำขอวันลา"
                               hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ — หรือกด 'สร้างวันลา' ลงให้เอง"
@@ -765,6 +765,7 @@ export default function LeaveRequestsTab() {
                               )}
                             </td>
                           )}
+                          <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>{r.request_no ? <RequestNo no={r.request_no} /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                           <td style={{ padding: '11px 14px' }}>
                             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
@@ -776,7 +777,6 @@ export default function LeaveRequestsTab() {
                               )}
                             </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code}</div>
-                            {r.request_no && <div style={{ marginTop: 3 }}><RequestNo no={r.request_no} /></div>}
                           </td>
                           <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                           <td style={{ padding: '11px 14px' }}>

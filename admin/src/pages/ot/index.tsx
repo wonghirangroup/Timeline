@@ -558,7 +558,7 @@ export default function OtPage() {
                         style={{ width: 15, height: 15, accentColor: '#15803d', cursor: pendingVisibleIds.length ? 'pointer' : 'default' }} />
                     </th>
                   )}
-                  {['พนักงาน','สาขา','วันที่','เวลา','ชม.','ตัวคูณ','OT สัปดาห์นี้','หมายเหตุ','สถานะ','จัดการ'].map(h => (
+                  {['เลขที่คำขอ','พนักงาน','สาขา','วันที่','เวลา','ชม.','ตัวคูณ','OT สัปดาห์นี้','หมายเหตุ','สถานะ','จัดการ'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#131C45', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -580,10 +580,10 @@ export default function OtPage() {
                           )}
                         </td>
                       )}
+                      <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>{r.request_no ? <RequestNo no={r.request_no} /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                       <td style={{ padding: '11px 14px' }}>
                         <p style={{ margin: 0, fontWeight: 600, color: '#111827' }}>{r.full_name}</p>
                         <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{r.nickname}</p>
-                        {r.request_no && <div style={{ marginTop: 3 }}><RequestNo no={r.request_no} /></div>}
                       </td>
                       <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.branch_name}</td>
                       <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>{thDate(r.date)}</td>
@@ -628,7 +628,7 @@ export default function OtPage() {
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={isReadOnly ? 10 : 11} style={{ padding: 0 }}>
+                  <tr><td colSpan={isReadOnly ? 11 : 12} style={{ padding: 0 }}>
                     {rows.length === 0
                       ? <EmptyState icon={<Clock size={22} />} title="ยังไม่มีคำขอ OT" hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ" />
                       : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" compact />}
