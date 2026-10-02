@@ -153,6 +153,68 @@ const METHOD_CFG: Record<string, { label: string; color: string; bg: string }> =
   OFFSITE:      { label: 'Offsite', color: '#b45309', bg: '#fef3c7' },
 }
 
+// คำอธิบายสีแท็กสถานะ (feedback 2026-10-02 "เพิ่มคำอธิบายแท็กสีของสถานะ") — สี/ป้ายดึงจาก STATUS_CFG/METHOD_CFG
+// ตัวเดียวกับที่ใช้ในตารางจริง ไม่ซ้ำสี จึงตรงกันเสมอ
+const STATUS_DESC: Record<Status, string> = {
+  ON_TIME: 'เช็คอินทันเวลา หรืออยู่ในช่วงผ่อนผันของกะ',
+  LATE_1:  'เลยเวลาเริ่มกะถึงเกณฑ์สายระดับ 1 (มีค่าปรับถ้าตั้งไว้ที่กะ)',
+  LATE_2:  'เลยเกณฑ์สายระดับ 2 — ค่าปรับสูงขึ้น',
+  PENDING: 'ยังไม่เช็คอิน (วันนี้/วันข้างหน้า)',
+  ABSENT:  'ไม่มีบันทึกเช็คอินในวันที่ผ่านมา หรือสายเกินเกณฑ์ขาดงาน',
+  LEAVE:   'มีใบลาที่อนุมัติแล้ว',
+  DAY_OFF: 'วันหยุดประจำสัปดาห์ของพนักงาน',
+  HOLIDAY: 'วันหยุดนักขัตฤกษ์/วันหยุดบริษัท',
+}
+const METHOD_DESC: Record<string, string> = {
+  LIFF: 'เช็คอินผ่านแอป LINE', QR: 'สแกน QR ของสาขา', ADMIN: 'แอดมินลงเวลาแทน',
+  WEB_FALLBACK: 'เช็คอินผ่านเว็บ (สำรอง)', SELFIE: 'เช็คอินด้วยรูปถ่าย', OFFSITE: 'เช็คอินนอกสถานที่',
+}
+const TAG_NOTES: { label: string; color: string; bg: string; desc: string }[] = [
+  { label: 'กำลังทำงาน',      color: '#059669', bg: '#ecfdf5', desc: 'เช็คอินแล้ว ยังไม่ถึงเวลาเลิกงานของกะ จึงยังไม่ต้องเช็คออก' },
+  { label: 'ลืมเช็คออก',      color: '#dc2626', bg: '#fef2f2', desc: 'เลยเวลาเลิกงานของกะแล้ว แต่ยังไม่มีเวลาออก' },
+  { label: 'นอกพื้นที่',      color: '#d97706', bg: '#fef3c7', desc: 'เช็คอินอยู่นอกรัศมี GPS ของสาขา' },
+  { label: 'นอกเวลากะ',       color: '#7c3aed', bg: '#ede9fe', desc: 'เช็คอินนอกช่วงเวลาปกติของกะที่ระบบจับได้' },
+  { label: 'ไม่ตรงกะตัวเอง',  color: '#be185d', bg: '#fce7f3', desc: 'กะที่บันทึกไม่ตรงกับกะประจำของพนักงานคนนั้น' },
+  { label: 'ไม่มี GPS',       color: '#64748b', bg: '#E6ECF4', desc: 'ไม่ได้ส่งพิกัดมา ตรวจตำแหน่งจริงไม่ได้' },
+  { label: 'นอกสถานที่',      color: '#2563eb', bg: '#dbeafe', desc: 'พนักงานกำลังเช็คอินนอกสถานที่ (ออฟไซต์) อยู่' },
+]
+function LegendChip({ label, color, bg }: { label: string; color: string; bg: string }) {
+  return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 9px', borderRadius: 99, background: bg, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+}
+function LegendRow({ chip, desc }: { chip: React.ReactNode; desc: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '3px 0' }}>
+      <div style={{ width: 112, flexShrink: 0 }}>{chip}</div>
+      <span style={{ fontSize: '0.76rem', color: '#475569', lineHeight: 1.45 }}>{desc}</span>
+    </div>
+  )
+}
+function ColorLegend() {
+  const colTitle: React.CSSProperties = { fontSize: '0.7rem', fontWeight: 800, color: '#64748b', letterSpacing: '0.04em', marginBottom: 6 }
+  return (
+    <div style={{ marginTop: 12, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px 28px' }}>
+      <div>
+        <div style={colTitle}>สถานะการมาทำงาน</div>
+        {(Object.keys(STATUS_CFG) as Status[]).map(k => (
+          <LegendRow key={k} chip={<LegendChip label={STATUS_CFG[k].label} color={STATUS_CFG[k].color} bg={STATUS_CFG[k].bg} />} desc={STATUS_DESC[k]} />
+        ))}
+      </div>
+      <div>
+        <div style={colTitle}>แท็กเตือน / เวลาออก</div>
+        {TAG_NOTES.map(t => <LegendRow key={t.label} chip={<LegendChip label={t.label} color={t.color} bg={t.bg} />} desc={t.desc} />)}
+      </div>
+      <div>
+        <div style={colTitle}>วิธีเช็คอิน</div>
+        {Object.keys(METHOD_DESC).map(k => (
+          <LegendRow key={k} chip={<LegendChip label={METHOD_CFG[k].label} color={METHOD_CFG[k].color} bg={METHOD_CFG[k].bg} />} desc={METHOD_DESC[k]} />
+        ))}
+        <div style={{ ...colTitle, marginTop: 10 }}>ค่าปรับ</div>
+        <LegendRow chip={<span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#dc2626' }}>20 ฿</span>} desc="ตัวเลขสีแดง = ค่าปรับสายของวันนั้น (รวมที่ยกมาจากวันก่อน)" />
+      </div>
+    </div>
+  )
+}
+
 // ไม่มี GPS มาให้เช็คเลย (ไม่ใช่แค่ "อยู่นอกพื้นที่" ซึ่งหมายความว่ามี GPS แล้ว
 // แค่เกินรัศมี) — เดิมข้อมูลนี้มีอยู่แล้วใน gps_lat/gps_lng ที่เป็น null แต่ไม่มี
 // ที่ไหนโชว์ให้เห็นเลย แยกไม่ออกจาก "เช็คแล้วอยู่ในพื้นที่จริง" (feedback
@@ -246,6 +308,8 @@ export default function AttendancePage() {
   // + เปิดโมดัลลงบันทึกให้คนนั้นทันที
   const [searchParams, setSearchParams] = useSearchParams()
   const [date, setDate]           = useState(() => searchParams.get('date') || todayStr())
+  const [legendOpen, setLegendOpen] = useState(() => { try { return localStorage.getItem('att_legend_open') !== '0' } catch { return true } })
+  function toggleLegend() { setLegendOpen(o => { try { localStorage.setItem('att_legend_open', o ? '0' : '1') } catch { /* storage ปิดอยู่ */ } return !o }) }
   // ให้ป้าย "กำลังทำงาน" เปลี่ยนเป็น "ลืมเช็คออก" เองเมื่อเลยเวลาเลิกงาน โดยไม่ต้องรีเฟรชหน้า
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t) }, [])
@@ -696,6 +760,10 @@ export default function AttendancePage() {
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
           สถานะวันนี้
+          <button type="button" onClick={toggleLegend}
+            style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 99, border: '1px solid #e2e8f0', background: legendOpen ? '#F4F6F9' : '#fff', color: '#244B83', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'none', letterSpacing: 0 }}>
+            <Info size={11} /> {legendOpen ? 'ซ่อนคำอธิบายสี' : 'คำอธิบายสี'}
+          </button>
           <InfoTooltip title="เช็คอินวันนี้" width={300} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li>สรุปสถานะเช็คอินของพนักงานทุกคนในวันที่เลือก กดกรองสถานะ/สาขา/แผนกได้ที่แถบด้านล่าง</li>
@@ -725,6 +793,7 @@ export default function AttendancePage() {
             </div>
           ))}
         </div>
+        {legendOpen && <ColorLegend />}
       </div>
 
       {/* Filters */}
