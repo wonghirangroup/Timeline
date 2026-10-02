@@ -19,6 +19,8 @@ import { SkeletonRows } from '../../components/ui/Skeleton'
 import HrDocumentGenerateModal from '../hr-documents/generate'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import RequestNo from '../../components/ui/RequestNo'
+import { usePagination } from '../../hooks/usePagination'
+import Pagination from '../../components/ui/Pagination'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
@@ -72,6 +74,7 @@ export default function DocumentRequestsPage() {
   const filteredRows = q
     ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q))
     : rows
+  const pg = usePagination(filteredRows, { resetKey: `${search}|${statusFilter}`, focusId, idOf: (r: any) => r.id })
 
   // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup แนบไฟล์ให้เลย
   useEffect(() => {
@@ -207,10 +210,10 @@ export default function DocumentRequestsPage() {
         </div>
       ) : (isMobile || view === 'card') ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        {filteredRows.map((r, i) => {
+        {pg.paged.map((r, i) => {
           const sc = STATUS_CFG[r.status]
           return (
-            <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < filteredRows.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
+            <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < pg.paged.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>
@@ -262,10 +265,10 @@ export default function DocumentRequestsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r, i) => {
+              {pg.paged.map((r, i) => {
                 const sc = STATUS_CFG[r.status]
                 return (
-                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < filteredRows.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
+                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < pg.paged.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                         <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
@@ -332,6 +335,9 @@ export default function DocumentRequestsPage() {
           </table>
           </div>
         </div>
+      )}
+      {!isLoading && filteredRows.length > 0 && (
+        <Pagination page={pg.page} totalPages={pg.totalPages} onChange={pg.setPage} totalItems={pg.total} itemLabel="คำขอ" />
       )}
 
       {reqModal && (
@@ -517,6 +523,7 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
   }
 
   const totalNet = filtered.reduce((s, d) => s + (netAmount(d) ?? 0), 0)
+  const issuedPg = usePagination(filtered, { resetKey: `${typeFilter}|${JSON.stringify(orgFilter)}` })
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -552,10 +559,10 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((d, i) => {
+                {issuedPg.paged.map((d, i) => {
                   const net = netAmount(d)
                   return (
-                    <tr key={d.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
+                    <tr key={d.id} style={{ borderBottom: i < issuedPg.paged.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                       <td style={{ padding: '9px 14px' }}>
                         <div style={{ fontWeight: 600, color: '#111827' }}>{d.employee.first_name} {d.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{d.employee.employee_code} · {d.employee.branch.name}</div>
@@ -571,6 +578,11 @@ function IssuedDocsPanel({ onClose }: { onClose: () => void }) {
             </table>
           )}
         </div>
+        {issuedPg.totalPages > 1 && (
+          <div style={{ padding: '4px 20px 0', borderTop: '1px solid #E6ECF4' }}>
+            <Pagination page={issuedPg.page} totalPages={issuedPg.totalPages} onChange={issuedPg.setPage} totalItems={issuedPg.total} itemLabel="ฉบับ" compact />
+          </div>
+        )}
         {filtered.length > 0 && (
           <div style={{ padding: '12px 20px', borderTop: '1px solid #E6ECF4', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
             <span style={{ color: 'var(--text-muted)' }}>{filtered.length} ฉบับ</span>

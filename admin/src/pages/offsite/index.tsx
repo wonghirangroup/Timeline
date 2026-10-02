@@ -11,6 +11,8 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import Pagination from '../../components/ui/Pagination'
+import { usePagination } from '../../hooks/usePagination'
 
 interface ApiEmployeeOrg {
   id: string; branch?: { id: string; group_id?: string | null } | null; position_id?: string | null
@@ -109,6 +111,7 @@ export default function OffsitePage() {
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employees, positions), [employees, positions])
 
   const filtered = rows.filter(r => matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter))
+  const pg = usePagination(filtered, { resetKey: JSON.stringify(orgFilter) })
 
   // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
   // `filtered` ตรงๆ (ผ่าน OrgFilterBar บนจอแล้ว)
@@ -277,7 +280,7 @@ export default function OffsitePage() {
       <div style={{ ...card, overflow: 'hidden' }}>
         {(isMobile || listView === 'card') ? (
           <div>
-            {filtered.map((r, i) => (
+            {pg.paged.map((r, i) => (
               <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: !r.check_out_at ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                   <div>
@@ -347,7 +350,7 @@ export default function OffsitePage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
+                {pg.paged.map((r, i) => (
                   <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc', background: !r.check_out_at ? '#f0f7ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '11px 14px' }}>
                       <p style={{ margin: 0, fontWeight: 600, color: '#111827' }}>{r.employee.first_name} {r.employee.last_name}</p>
@@ -403,6 +406,7 @@ export default function OffsitePage() {
           </div>
         )}
       </div>
+      <Pagination page={pg.page} totalPages={pg.totalPages} onChange={pg.setPage} totalItems={pg.total} itemLabel="รายการ" />
 
       {/* ── Add/Edit Modal ── */}
       {modal && (

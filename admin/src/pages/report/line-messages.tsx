@@ -12,6 +12,8 @@ import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
+import Pagination from '../../components/ui/Pagination'
+import { usePagination } from '../../hooks/usePagination'
 
 interface ApiLineLog {
   id: string; category: string; recipient_type: 'EMPLOYEE' | 'ADMIN'
@@ -52,6 +54,8 @@ export default function LineMessagesReportPage() {
     queryKey: ['admin', 'line-message-logs', year, month],
     queryFn: () => api.get('/api/v1/admin/line-message-logs', { params: { startDate, endDate } }).then(r => r.data.data),
   })
+
+  const pg = usePagination(logs, { resetKey: `${year}-${month}` })
 
   const totals = useMemo(() => ({
     total: logs.length,
@@ -168,7 +172,7 @@ export default function LineMessagesReportPage() {
         />
       ) : (isMobile || view === 'card') ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {logs.map(l => (
+          {pg.paged.map(l => (
             <div key={l.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E6ECF4', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                 <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.85rem' }}>{l.title}</div>
@@ -198,8 +202,8 @@ export default function LineMessagesReportPage() {
               </tr>
             </thead>
             <tbody>
-              {logs.map((l, idx) => (
-                <tr key={l.id} style={{ borderBottom: idx < logs.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
+              {pg.paged.map((l, idx) => (
+                <tr key={l.id} style={{ borderBottom: idx < pg.paged.length - 1 ? '1px solid #E6ECF4' : 'none' }}>
                   <td style={{ padding: '10px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDateTime(l.created_at)}</td>
                   <td style={{ padding: '10px 12px', color: '#374151' }}>{CATEGORY_LABEL[l.category] ?? l.category}</td>
                   <td style={{ padding: '10px 12px' }}>
@@ -222,6 +226,9 @@ export default function LineMessagesReportPage() {
           </table>
           </div>
         </div>
+      )}
+      {view !== 'chart' && !isLoading && logs.length > 0 && (
+        <Pagination page={pg.page} totalPages={pg.totalPages} onChange={pg.setPage} totalItems={pg.total} itemLabel="ข้อความ" />
       )}
     </div>
   )

@@ -16,6 +16,8 @@ import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import RequestNo from '../../components/ui/RequestNo'
+import { usePagination } from '../../hooks/usePagination'
+import Pagination from '../../components/ui/Pagination'
 
 const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', c: '#d97706', bg: '#fef3c7' },
@@ -47,6 +49,7 @@ export default function ResignationsPage() {
   const filteredRows = q
     ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q))
     : rows
+  const pg = usePagination(filteredRows, { resetKey: search, focusId, idOf: (r: any) => r.id })
 
   // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติลาออกให้เลย
   useEffect(() => {
@@ -116,10 +119,10 @@ export default function ResignationsPage() {
         </div>
       ) : (isMobile || view === 'card') ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        {filteredRows.map((r, i) => {
+        {pg.paged.map((r, i) => {
           const sc = STATUS_CFG[r.status]
           return (
-            <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < filteredRows.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
+            <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 18px', borderBottom: i < pg.paged.length - 1 ? '1px solid #f3f4f6' : 'none', ...rowHighlight(r.id) }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>
@@ -156,10 +159,10 @@ export default function ResignationsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r, i) => {
+              {pg.paged.map((r, i) => {
                 const sc = STATUS_CFG[r.status]
                 return (
-                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < filteredRows.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
+                  <tr key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ borderBottom: i < pg.paged.length - 1 ? '1px solid #E6ECF4' : 'none', ...rowHighlight(r.id) }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                         <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
@@ -197,6 +200,9 @@ export default function ResignationsPage() {
           </table>
           </div>
         </div>
+      )}
+      {!isLoading && filteredRows.length > 0 && (
+        <Pagination page={pg.page} totalPages={pg.totalPages} onChange={pg.setPage} totalItems={pg.total} itemLabel="รายการ" />
       )}
 
       {approveTarget && (
