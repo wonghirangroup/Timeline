@@ -21,7 +21,8 @@ const ACTIONS: { key: PermissionAction; label: string }[] = [
 interface FeatureDef { key: string; label: string; section: string }
 type PermissionRow = { feature: string } & Record<PermissionAction, boolean>
 
-const SECTION_ORDER = ['ข้อมูล', 'การกระทำ', 'รายงาน', 'ตั้งค่า']
+// 'การกระทำ' = ชื่อเดิมที่ server รุ่นเก่ายังส่งมา (เปลี่ยนเป็น 'กิจกรรม' 2026-10-02) กันหมวดหายช่วง deploy ไม่พร้อมกัน
+const SECTION_ORDER = ['ข้อมูล', 'กิจกรรม', 'การกระทำ', 'รายงาน', 'ตั้งค่า']
 
 function rowFullCount(r: PermissionRow) { return ACTIONS.filter(a => r[a.key]).length }
 

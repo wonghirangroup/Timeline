@@ -6,7 +6,7 @@
 export interface FeatureDef {
   key: string
   label: string
-  section: 'ข้อมูล' | 'การกระทำ' | 'รายงาน' | 'ตั้งค่า'
+  section: 'ข้อมูล' | 'กิจกรรม' | 'รายงาน' | 'ตั้งค่า'
 }
 
 export const FEATURES: FeatureDef[] = [
@@ -15,13 +15,13 @@ export const FEATURES: FeatureDef[] = [
   { key: 'master_data',             label: 'Master Data',                   section: 'ข้อมูล' },
   { key: 'org_structure',           label: 'ผังองค์กร',                     section: 'ข้อมูล' },
 
-  { key: 'shift',                   label: 'เช็คอิน',                       section: 'การกระทำ' },
-  { key: 'leave',                   label: 'การลา และ วันหยุด',              section: 'การกระทำ' },
-  { key: 'offsite',                 label: 'เช็คอินนอกสถานที่',             section: 'การกระทำ' },
-  { key: 'ot',                      label: 'OT',                            section: 'การกระทำ' },
-  { key: 'resignation',             label: 'คำขอลาออก',                     section: 'การกระทำ' },
-  { key: 'document_request',        label: 'ขอเอกสาร HR',                   section: 'การกระทำ' },
-  { key: 'announcement',            label: 'ประกาศ',                        section: 'การกระทำ' },
+  { key: 'shift',                   label: 'เช็คอิน',                       section: 'กิจกรรม' },
+  { key: 'leave',                   label: 'การลา และ วันหยุด',              section: 'กิจกรรม' },
+  { key: 'offsite',                 label: 'เช็คอินนอกสถานที่',             section: 'กิจกรรม' },
+  { key: 'ot',                      label: 'OT',                            section: 'กิจกรรม' },
+  { key: 'resignation',             label: 'คำขอลาออก',                     section: 'กิจกรรม' },
+  { key: 'document_request',        label: 'ขอเอกสาร HR',                   section: 'กิจกรรม' },
+  { key: 'announcement',            label: 'ประกาศ',                        section: 'กิจกรรม' },
 
   { key: 'report_executive',        label: 'รายงานผู้บริหาร',               section: 'รายงาน' },
   { key: 'report_employee',         label: 'รายงานพนักงาน',                 section: 'รายงาน' },
