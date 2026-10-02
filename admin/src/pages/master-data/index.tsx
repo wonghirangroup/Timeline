@@ -32,6 +32,7 @@ interface ApiEmployee {
   department: string | null; phone: string | null; hired_at: string | null
   line_user_id: string | null; status: EmployeeStatusValue
   branch: { id: string; name: string; group_id?: string | null } & PolicyFields & { group?: PolicyFields | null }
+  extra_branches?: { branch: { id: string; name: string } }[]
   weekly_off_mode: 'WEEKLY' | 'MONTHLY_BATCH'
   default_shift_id: string | null
   position_id: string | null
@@ -238,7 +239,7 @@ export default function MasterDataPage() {
   // `filtered` ตรงๆ ทุกคอลัมน์ที่เห็นบนตาราง (org+status+ค้นหาที่ตั้งไว้แล้ว)
   function exportMasterData() {
     const header = [
-      'รหัสพนักงาน', 'ชื่อ-สกุล', 'ชื่อเล่น', 'เบอร์โทร', 'กลุ่ม', 'สาขา', 'แผนก', 'ตำแหน่ง',
+      'รหัสพนักงาน', 'ชื่อ-สกุล', 'ชื่อเล่น', 'เบอร์โทร', 'กลุ่ม', 'สาขาหลัก', 'สาขารอง', 'เช็คอินได้ที่', 'แผนก', 'ตำแหน่ง',
       'ประเภทพนักงาน', 'วันเริ่มงาน', 'อายุงาน', 'สถานะ', 'LINE', 'กะหลัก', 'โหมดวันหยุด',
       'วันหยุดใช้ไป', 'โควต้าวันหยุด', 'สิทธิ์จอง', 'สิทธิ์ลา', 'ลาป่วย(ใช้/รวม)', 'ลากิจ(ใช้/รวม)',
       'พักร้อน(ใช้/รวม)', 'ชดเชย(ใช้/รวม)', 'ค่าปรับค้าง',
@@ -251,7 +252,10 @@ export default function MasterDataPage() {
       const balStr = (v?: { total: number; used: number }) => v ? `${v.used}/${v.total}` : ''
       return [
         e.employee_code, `${e.first_name} ${e.last_name}`, e.nickname ?? '', e.phone || '',
-        (e.branch.group_id && groupName[e.branch.group_id]) || '', e.branch.name, deptName(e.department),
+        (e.branch.group_id && groupName[e.branch.group_id]) || '', e.branch.name,
+        (e.extra_branches ?? []).map(x => x.branch.name).join('; '),
+        [e.branch.name, ...(e.extra_branches ?? []).map(x => x.branch.name)].join('; '),
+        deptName(e.department),
         e.position?.name ?? '', e.employee_status_type?.name ?? '', thDateShort(e.hired_at), tenureShort(e.hired_at),
         STATUS_CFG[e.status].label, e.line_user_id ? 'เชื่อมแล้ว' : 'ยังไม่เชื่อม',
         e.default_shift_id ? (shiftName[e.default_shift_id] ?? '') : '',
@@ -348,7 +352,13 @@ export default function MasterDataPage() {
                   <th style={{ ...th, position: 'sticky', left: 0, zIndex: 1 }}>พนักงาน</th>
                   <th style={th}>เบอร์โทร</th>
                   <th style={th}>กลุ่ม</th>
-                  <th style={th}>สาขา</th>
+                  <th style={th}>สาขาหลัก</th>
+                  <th style={th}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      สาขารอง
+                      <InfoTooltip width={270} content="สาขาเพิ่มเติมที่พนักงานมีสิทธิ์เช็คอินได้ นอกจากสาขาหลัก — พนักงานเช็คอินได้ที่สาขาหลัก + สาขารองทุกแห่ง (ตั้งค่าที่หน้า พนักงาน → แก้ไข)" />
+                    </span>
+                  </th>
                   <th style={th}>แผนก</th>
                   <th style={th}>ตำแหน่ง</th>
                   <th style={th}>ประเภทพนักงาน</th>
@@ -422,7 +432,18 @@ export default function MasterDataPage() {
                       </td>
                       <td style={td}>{e.phone || '—'}</td>
                       <td style={td}>{(e.branch.group_id && groupName[e.branch.group_id]) || '—'}</td>
-                      <td style={td}>{e.branch.name}</td>
+                      <td style={td}>
+                        <span style={{ display: 'inline-block', fontSize: '0.74rem', fontWeight: 700, padding: '2px 9px', borderRadius: 99, background: '#E6ECF4', color: '#244B83', whiteSpace: 'nowrap' }}>{e.branch.name}</span>
+                      </td>
+                      <td style={td}>
+                        {(e.extra_branches ?? []).length === 0 ? '—' : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {(e.extra_branches ?? []).map(x => (
+                              <span key={x.branch.id} style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#f1f5f9', color: '#475569', whiteSpace: 'nowrap' }}>{x.branch.name}</span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td style={td}>{deptName(e.department)}</td>
                       <td style={td}>{e.position?.name ?? '—'}</td>
                       <td style={td}>{e.employee_status_type?.name ?? '—'}</td>
