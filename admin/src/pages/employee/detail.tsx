@@ -1047,7 +1047,7 @@ export default function EmployeeDetailPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', flexShrink: 0, background: '#f8fafc' }}>
 
       {/* ── Profile Header ── */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: isMobile ? '16px' : '20px 28px' }}>
