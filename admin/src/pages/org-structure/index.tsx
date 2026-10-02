@@ -377,56 +377,78 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
 
       {modal && (
         <div style={modalOverlay} onClick={() => setModal(null)}>
-          <div style={modalBox} onClick={e => e.stopPropagation()}>
+          <div style={{ ...modalBox, width: isMobile ? undefined : 640 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>{modal.edit ? 'แก้ไขกลุ่ม' : 'เพิ่มกลุ่มใหม่'}</h3>
             <label style={label}>ชื่อกลุ่ม</label>
             <input autoFocus style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น วงษ์, สมาร์ทจิ๊กซอว์" />
-            <p style={{ fontSize: '11px', color: '#9ca3af', margin: '14px 0 6px', fontWeight: 700 }}>ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/ตำแหน่ง/คนในกลุ่มนี้ (ชั้นล่าง/สถานะพนักงาน override ได้)</p>
-            <label style={{ ...label, margin: '10px 0 6px' }}>สิทธิ์จองวันหยุด</label>
-            <GroupToggle value={form.booking_enabled} onChange={v => setForm(f => ({ ...f, booking_enabled: v }))} kind="booking" />
-            <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา</label>
-            <GroupToggle value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} kind="leave" />
-            <div style={{ display: 'flex', gap: 10, margin: '12px 0 6px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={label}>วันเสาร์</label>
-                <DayRuleGroup value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+            <p style={{ fontSize: '11px', color: '#9ca3af', margin: '14px 0 8px', fontWeight: 700 }}>ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/ตำแหน่ง/คนในกลุ่มนี้ (ชั้นล่าง/สถานะพนักงาน override ได้)</p>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>สิทธิ์จองวันหยุด</label>
+                <GroupToggle value={form.booking_enabled} onChange={v => setForm(f => ({ ...f, booking_enabled: v }))} kind="booking" />
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={label}>วันอาทิตย์</label>
-                <DayRuleGroup value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>สิทธิ์การลา</label>
+                <GroupToggle value={form.leave_enabled} onChange={v => setForm(f => ({ ...f, leave_enabled: v }))} kind="leave" />
               </div>
             </div>
-            <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุดได้กี่วัน/เดือน</label>
-            <input type="number" min={0} max={31} style={quotaInputStyle} value={form.booking_quota} onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} />
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 120px', gap: 12, marginTop: 12, alignItems: 'end' }}>
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>วันเสาร์</label>
+                <DayRuleGroup value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+              </div>
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>วันอาทิตย์</label>
+                <DayRuleGroup value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+              </div>
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>จองได้/เดือน</label>
+                <input type="number" min={0} max={31} style={{ ...inputStyle, width: '100%' }} value={form.booking_quota} onChange={e => setForm(f => ({ ...f, booking_quota: e.target.value }))} />
+              </div>
+            </div>
 
             {modal.edit && (
-              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
                 <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 8px', fontWeight: 700 }}>
                   ข้อมูลบริษัทสำหรับออกเอกสาร HR — เว้นว่างไว้ = ใช้ของบริษัทหลัก ({tenantSettings?.name ?? '...'}), กรอก = ใช้ของกลุ่มนี้แทน (เผื่อเป็นคนละแบรนด์/นิติบุคคล)
                 </p>
-                <label style={label}>ชื่อบริษัท (พิมพ์บนเอกสาร)</label>
-                <input style={inputStyle} value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder={tenantSettings?.name ?? ''} />
-                <label style={{ ...label, margin: '10px 0 4px' }}>ที่อยู่</label>
-                <input style={inputStyle} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder={tenantSettings?.address ?? ''} />
-                <label style={{ ...label, margin: '10px 0 4px' }}>เลขประจำตัวผู้เสียภาษี</label>
-                <input style={inputStyle} value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} placeholder={tenantSettings?.tax_id ?? ''} />
-                <label style={{ ...label, margin: '10px 0 4px' }}>โลโก้</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...inputStyle, flex: 1 }} value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://... หรือแนบไฟล์" />
-                  <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} title="แนบไฟล์รูปภาพ"
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 600, cursor: uploadingLogo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
-                    {uploadingLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                  </button>
-                  <input ref={logoInputRef} type="file" accept="image/*" onChange={pickLogo} hidden />
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={label}>ชื่อบริษัท (พิมพ์บนเอกสาร)</label>
+                    <input style={inputStyle} value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder={tenantSettings?.name ?? ''} />
+                  </div>
+                  <div>
+                    <label style={label}>เลขประจำตัวผู้เสียภาษี</label>
+                    <input style={inputStyle} value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} placeholder={tenantSettings?.tax_id ?? ''} />
+                  </div>
+                  <div>
+                    <label style={label}>ที่อยู่</label>
+                    <input style={inputStyle} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder={tenantSettings?.address ?? ''} />
+                  </div>
+                  <div>
+                    <label style={label}>โลโก้</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://... หรือแนบไฟล์" />
+                      <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} title="แนบไฟล์รูปภาพ"
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 600, cursor: uploadingLogo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                        {uploadingLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                      </button>
+                      <input ref={logoInputRef} type="file" accept="image/*" onChange={pickLogo} hidden />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={label}>ชื่อผู้ลงนาม</label>
+                    <input style={inputStyle} value={form.signer_name} onChange={e => setForm(f => ({ ...f, signer_name: e.target.value }))} placeholder={tenantSettings?.signer_name ?? ''} />
+                  </div>
+                  <div>
+                    <label style={label}>ตำแหน่งผู้ลงนาม</label>
+                    <input style={inputStyle} value={form.signer_title} onChange={e => setForm(f => ({ ...f, signer_title: e.target.value }))} placeholder={tenantSettings?.signer_title ?? ''} />
+                  </div>
                 </div>
-                <label style={{ ...label, margin: '10px 0 4px' }}>ชื่อผู้ลงนาม</label>
-                <input style={inputStyle} value={form.signer_name} onChange={e => setForm(f => ({ ...f, signer_name: e.target.value }))} placeholder={tenantSettings?.signer_name ?? ''} />
-                <label style={{ ...label, margin: '10px 0 4px' }}>ตำแหน่งผู้ลงนาม</label>
-                <input style={inputStyle} value={form.signer_title} onChange={e => setForm(f => ({ ...f, signer_title: e.target.value }))} placeholder={tenantSettings?.signer_title ?? ''} />
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleSave} disabled={!form.name.trim()} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: !form.name.trim() ? 0.5 : 1 }}>
                 {modal.edit ? 'บันทึก' : 'สร้าง'}
@@ -1026,7 +1048,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
 
       {editModal && (
         <div style={modalOverlay} onClick={() => setEditModal(null)}>
-          <div style={{ ...modalBox, width: 360 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...modalBox, width: isMobile ? 360 : 600 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>แก้ไข{LEVEL_LABEL[editModal.level]}</h3>
             <label style={label}>ชื่อ</label>
             <input autoFocus style={inputStyle} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
@@ -1034,14 +1056,26 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
               const inheritLabel = editModal.level === 'division' ? 'ใช้ค่าจากกลุ่ม' : editModal.level === 'department' ? 'ใช้ค่าจากฝ่าย' : 'ใช้ค่าจากแผนก'
               return (
                 <>
-                  <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์จองวันหยุด</label>
-                  <PolicyToggle kind="booking" value={editForm.booking_enabled} onChange={v => setEditForm(f => ({ ...f, booking_enabled: v }))} inheritLabel={inheritLabel} />
-                  <label style={{ ...label, margin: '12px 0 6px' }}>สิทธิ์การลา</label>
-                  <PolicyToggle kind="leave" value={editForm.leave_enabled} onChange={v => setEditForm(f => ({ ...f, leave_enabled: v }))} inheritLabel={inheritLabel} />
-                  <label style={{ ...label, margin: '12px 0 6px' }}>วันเสาร์</label>
-                  <DayRuleInherit value={editForm.saturday_rule} onChange={v => setEditForm(f => ({ ...f, saturday_rule: v }))} inheritLabel={inheritLabel} />
-                  <label style={{ ...label, margin: '12px 0 6px' }}>วันอาทิตย์</label>
-                  <DayRuleInherit value={editForm.sunday_rule} onChange={v => setEditForm(f => ({ ...f, sunday_rule: v }))} inheritLabel={inheritLabel} />
+                  <div style={{ ...{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }, marginTop: 12 }}>
+                    <div>
+                      <label style={{ ...label, margin: '0 0 6px' }}>สิทธิ์จองวันหยุด</label>
+                      <PolicyToggle kind="booking" value={editForm.booking_enabled} onChange={v => setEditForm(f => ({ ...f, booking_enabled: v }))} inheritLabel={inheritLabel} />
+                    </div>
+                    <div>
+                      <label style={{ ...label, margin: '0 0 6px' }}>สิทธิ์การลา</label>
+                      <PolicyToggle kind="leave" value={editForm.leave_enabled} onChange={v => setEditForm(f => ({ ...f, leave_enabled: v }))} inheritLabel={inheritLabel} />
+                    </div>
+                  </div>
+                  <div style={{ ...{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }, marginTop: 12 }}>
+                    <div>
+                      <label style={{ ...label, margin: '0 0 6px' }}>วันเสาร์</label>
+                      <DayRuleInherit value={editForm.saturday_rule} onChange={v => setEditForm(f => ({ ...f, saturday_rule: v }))} inheritLabel={inheritLabel} />
+                    </div>
+                    <div>
+                      <label style={{ ...label, margin: '0 0 6px' }}>วันอาทิตย์</label>
+                      <DayRuleInherit value={editForm.sunday_rule} onChange={v => setEditForm(f => ({ ...f, sunday_rule: v }))} inheritLabel={inheritLabel} />
+                    </div>
+                  </div>
                   <label style={{ ...label, margin: '12px 0 6px' }}>จองวันหยุด/เดือน <span style={{ fontWeight: 400, color: '#9ca3af' }}>(ว่าง = {inheritLabel})</span></label>
                   <input type="number" min={0} max={31} style={quotaInputStyle} value={editForm.booking_quota} placeholder="—" onChange={e => setEditForm(f => ({ ...f, booking_quota: e.target.value }))} />
                   {editModal.level === 'position' && (
