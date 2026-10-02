@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
-import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
@@ -111,7 +110,7 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
 }
 
 // ─── Range KPI section ────────────────────────────────────────────────────────
-function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
+function RangeKpiSection({ branchFilter, offToday }: { branchFilter: string; offToday: OffTodayPerson[] }) {
   const isMobile = useIsMobile()
   const now = useMemo(() => new Date(), [])
   // Default = วันนี้ ไม่ใช่ 7 วัน (feedback 2026-09-15: "เอาวันนี้ขึ้นก่อนเมื่อกดมาหน้า dashboard")
@@ -165,15 +164,15 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
       )}
 
       {isLoading || !summary ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
-          <SkeletonCard /><SkeletonCard /><SkeletonCard />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
+          <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
         </div>
       ) : (
         <>
           {/* minmax(0,1fr) ไม่ใช่ 1fr เฉยๆ — กันช่อง grid ถูกดันกว้างเกิน track
               ตัวเองตาม min-content เวลาตัวเลข/ป้ายยาวๆ ไม่มีที่ยุบ ทำให้ทั้งหน้า
               เลื่อนแนวนอนได้บนจอแคบ (feedback 2026-09-16: "ยังไม่ Responsive mobile") */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
             <RangeKpiCard label="มาสาย" unit="คน" count={summary.late.count} color="#d97706" bg="var(--warning-bg)"
               icon={<AlertTriangle size={18} />} people={summary.late.employees} emptyLabel="ไม่มีใครมาสายในช่วงนี้"
               extraLine={p => p.late_count ? `${p.late_count} ครั้ง` : null} />
@@ -181,6 +180,10 @@ function RangeKpiSection({ branchFilter }: { branchFilter: string }) {
               icon={<UserMinus size={18} />} people={summary.resigned.employees} emptyLabel="ไม่มีใครลาออกในช่วงนี้" />
             <RangeKpiCard label="เข้าใหม่" unit="คน" count={summary.newHires.count} color="#16a34a" bg="var(--success-bg)"
               icon={<UserPlus size={18} />} people={summary.newHires.employees} emptyLabel="ไม่มีคนเข้าใหม่ในช่วงนี้" />
+            {/* หยุดวันนี้ = ข้อมูลของ "วันนี้" เสมอ ไม่ตามช่วงเวลาที่เลือกด้านบน (ลา + วันหยุดประจำที่อนุมัติแล้ว) */}
+            <RangeKpiCard label="หยุดวันนี้" unit="คน" count={offToday.length} color="#0891b2" bg="#e0f2fe"
+              icon={<Palmtree size={18} />} people={offToday} emptyLabel="วันนี้ไม่มีใครหยุด"
+              extraLine={p => (p as OffTodayPerson).label} />
           </div>
 
           {isYearView && (
@@ -334,7 +337,6 @@ export default function DashboardPage() {
     queryFn: () => api.get('/api/v1/admin/resignations', { params: { status: 'PENDING' } }).then(r => r.data.data).catch(() => []),
   })
 
-  const { activeOffsite } = useActiveOffsite()
 
   // ── Merge employees + records into rows ───────────────────────────────────
   // scope ด้วยรายชื่อพนักงานที่ยังใช้งานอยู่ (employees, มาจาก /admin/employees
@@ -408,7 +410,7 @@ export default function DashboardPage() {
         <SetupChecklist />
 
         {/* ── ภาพรวมตามช่วงเวลา (Dashboard requirement) ──────────────── */}
-        <RangeKpiSection branchFilter={branchFilter} />
+        <RangeKpiSection branchFilter={branchFilter} offToday={offTodayFiltered} />
 
         {/* ── Action required ──────────────────────────────────────── */}
         {(pendingLeaveCount > 0 || pendingResignations.length > 0 || probationDue.length > 0 || expiringDocs.length > 0) && (
@@ -460,42 +462,6 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-
-        {/* ── กำลังนอกสถานที่ตอนนี้ ───────────────────────────────────── */}
-        {activeOffsite.length > 0 && (
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <MapPin size={12} style={{ color: '#2563eb' }}/> กำลังนอกสถานที่ตอนนี้ ({activeOffsite.length})
-            </div>
-            <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
-              {activeOffsite.map((r, i) => (
-                <button key={r.id} onClick={() => navigate('/offsite')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                    borderBottom: i < activeOffsite.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none', background: 'var(--bg-card)' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}>
-                    <MapPin size={16}/>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>{r.employee.first_name} {r.employee.last_name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      ตั้งแต่ {fmtTime(r.check_in_at)} · {r.check_in_address ?? r.employee.branch.name}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── พนักงานที่หยุดวันนี้ (ลา + วันหยุดประจำ ที่อนุมัติแล้ว) ────── */}
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Palmtree size={12} style={{ color: '#0891b2' }}/> พนักงานที่หยุดวันนี้
-          </div>
-          <RangeKpiCard label="หยุดวันนี้" unit="คน" count={offTodayFiltered.length} color="#0891b2" bg="#e0f2fe"
-            icon={<Palmtree size={18} />} people={offTodayFiltered} emptyLabel="วันนี้ไม่มีใครหยุด"
-            extraLine={p => (p as OffTodayPerson).label} />
-        </div>
 
         {/* ── KPI cards ────────────────────────────────────────────── */}
         <div>
