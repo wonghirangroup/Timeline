@@ -11,9 +11,8 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { fmtThaiDate } from '../../lib/format'
-import { avatarUrl } from '../../lib/upload'
 import AttendanceMap from './AttendanceMap'
-import type { MapPerson, MapBranch } from './AttendanceMap'
+import { buildMapData } from './mapData'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -318,7 +317,7 @@ export default function AttendancePage() {
   // ให้ป้าย "กำลังทำงาน" เปลี่ยนเป็น "ลืมเช็คออก" เองเมื่อเลยเวลาเลิกงาน โดยไม่ต้องรีเฟรชหน้า
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t) }, [])
-  const [listView, setListView]   = useState<'card' | 'table' | 'map'>('table')
+  const [listView, setListView]   = useState<'card' | 'table' | 'map'>(() => (searchParams.get('view') === 'map' ? 'map' : 'table'))
   const autoOpenedRef = useRef(false)
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   // สาขายังเป็นตัวขับ query ฝั่ง server เหมือนเดิม (endpoint employees/attendance/shifts
@@ -597,33 +596,12 @@ export default function AttendancePage() {
 
   // ข้อมูลแผนที่ — เฉพาะคนที่เช็คอินแล้ว (ตามตัวกรองที่เลือก): มี GPS จริง → จุดเช็คอิน, แอดมินลงแทน → พิกัดสาขาของกะที่ลงให้
   const { mapPeople, mapBranches } = useMemo(() => {
-    const branchById = new Map(branches.map(b => [b.id, b]))
-    const validLL = (la: unknown, lo: unknown) => {
-      const a = Number(la), o = Number(lo)
-      return la != null && lo != null && Number.isFinite(a) && Number.isFinite(o) && !(a === 0 && o === 0) ? [a, o] as const : null
-    }
-    const usedBranches = new Map<string, MapBranch>()
-    const people: MapPerson[] = []
-    for (const row of filtered) {
-      const rec = row.record
-      if (!rec?.check_in_at) continue
-      let lat: number | null = null, lng: number | null = null
-      let source: MapPerson['source'] = 'none'
-      const gps = validLL(rec.gps_lat, rec.gps_lng)
-      const shiftBranch = branchById.get(rec.shift?.branch_id ?? '')
-      const bll = shiftBranch ? validLL(shiftBranch.lat, shiftBranch.lng) : null
-      if (gps) { [lat, lng] = gps; source = 'gps' }
-      else if (rec.check_in_method === 'ADMIN' && bll) { [lat, lng] = bll; source = 'branch' }
-      if (shiftBranch && bll) usedBranches.set(shiftBranch.id, { id: shiftBranch.id, name: shiftBranch.name, lat: bll[0], lng: bll[1], radius: Number(shiftBranch.gps_radius) || 200 })
-      people.push({
-        photo: avatarUrl(row.employee.photo_url, 96), key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
-        branchName: shiftBranch?.name ?? row.employee.branch?.name ?? '', statusLabel: STATUS_CFG[row.status].label, color: STATUS_CFG[row.status].color,
-        time: fmtTime(rec.check_in_at), method: (METHOD_CFG[rec.check_in_method] ?? METHOD_CFG.LIFF).label,
-        lat, lng, source, outsideArea: rec.is_outside_area, shiftBranchName: shiftBranch?.name,
-        reason: source === 'none' ? (rec.check_in_method === 'ADMIN' ? 'admin-branch-no-coord' : 'no-gps') : undefined,
-      })
-    }
-    return { mapPeople: people, mapBranches: [...usedBranches.values()] }
+    const d = buildMapData(filtered.map(row => ({
+      key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
+      photoUrl: row.employee.photo_url, employeeBranchName: row.employee.branch?.name,
+      statusLabel: STATUS_CFG[row.status].label, color: STATUS_CFG[row.status].color, record: row.record,
+    })), branches, fmtTime)
+    return { mapPeople: d.people, mapBranches: d.branches }
   }, [filtered, branches])
 
   useEffect(() => { setPage(1) }, [orgFilter, statusFilter, search, date])

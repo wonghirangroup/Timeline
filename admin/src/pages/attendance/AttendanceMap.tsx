@@ -52,7 +52,8 @@ function spread(people: MapPerson[]): Record<string, [number, number]> {
   return out
 }
 
-export default function AttendanceMap({ people, branches }: { people: MapPerson[]; branches: MapBranch[] }) {
+// compact = มินิแมพในหน้า Dashboard: สูง 220px, หมุดเล็กลง, ไม่ซูมด้วยล้อเมาส์ (ไม่แย่งการเลื่อนหน้า), ไม่มีแถบสรุป/รายชื่อไม่มีพิกัด/ตัวสลับพื้นแผนที่
+export default function AttendanceMap({ people, branches, compact = false }: { people: MapPerson[]; branches: MapBranch[]; compact?: boolean }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const layerRef = useRef<any>(null)
@@ -63,13 +64,13 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
     let cancelled = false
     loadLeaflet().then(L => {
       if (cancelled || !boxRef.current || mapRef.current) return
-      const map = L.map(boxRef.current, { zoomControl: true }).setView([15.0, 102.1], 6)
+      const map = L.map(boxRef.current, { zoomControl: true, scrollWheelZoom: !compact }).setView([15.0, 102.1], 6)
       // พื้นแผนที่: Google ถนน (ค่าเริ่มต้น ตามที่ขอ) / ดาวเทียม / OpenStreetMap — สลับได้จากปุ่มมุมขวาบน
       const street = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}', { subdomains: '0123', maxZoom: 20, attribution: '© Google Maps' })
       const hybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}', { subdomains: '0123', maxZoom: 20, attribution: '© Google Maps' })
       const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' })
       street.addTo(map)
-      L.control.layers({ 'Google ถนน': street, 'Google ดาวเทียม': hybrid, 'OpenStreetMap': osm }, undefined, { position: 'topright' }).addTo(map)
+      if (!compact) L.control.layers({ 'Google ถนน': street, 'Google ดาวเทียม': hybrid, 'OpenStreetMap': osm }, undefined, { position: 'topright' }).addTo(map)
       layerRef.current = L.layerGroup().addTo(map)
       mapRef.current = map
       setReady(true)
@@ -111,9 +112,10 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
       const face = p.photo
         ? `<circle cx="22" cy="21" r="14.5" fill="#fff"/><clipPath id="${id}"><circle cx="22" cy="21" r="14"/></clipPath><image href="${esc(p.photo)}" x="8" y="7" width="28" height="28" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>`
         : `<circle cx="22" cy="21" r="14" fill="#fff"/><text x="22" y="26" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="700" fill="${p.color}">${initial}</text>`
+      const k = compact ? 0.7 : 1
       const icon = L.divIcon({
-        className: '', iconSize: [44, 56], iconAnchor: [22, 55], popupAnchor: [0, -50],
-        html: `<svg width="44" height="56" viewBox="0 0 44 56" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));overflow:visible"><path d="M22 55C22 55 3 34 3 21a19 19 0 1 1 38 0c0 13-19 34-19 34Z" fill="${p.color}" stroke="${dashed ? '#0f172a' : '#fff'}" stroke-width="2.5"${dashed ? ' stroke-dasharray="4 3"' : ''}/>${face}</svg>`,
+        className: '', iconSize: [44 * k, 56 * k], iconAnchor: [22 * k, 55 * k], popupAnchor: [0, -50 * k],
+        html: `<svg width="${44 * k}" height="${56 * k}" viewBox="0 0 44 56" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));overflow:visible"><path d="M22 55C22 55 3 34 3 21a19 19 0 1 1 38 0c0 13-19 34-19 34Z" fill="${p.color}" stroke="${dashed ? '#0f172a' : '#fff'}" stroke-width="2.5"${dashed ? ' stroke-dasharray="4 3"' : ''}/>${face}</svg>`,
       })
       const gmaps = p.source === 'gps'
         ? `<br><a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener noreferrer">เปิดใน Google Maps</a>`
@@ -128,7 +130,7 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
         `เข้า <b>${esc(p.time)}</b> · ${esc(p.method)}<br><span style="color:${p.color};font-weight:700">${esc(p.statusLabel)}</span>${note}</div></div>`
       // hover = ข้อมูลของคนนั้น (tooltip) / คลิก = ป๊อปอัปเดิม + ลิงก์เปิด Google Maps
       L.marker(ll, { icon })
-        .bindTooltip(info, { direction: 'top', offset: [0, -50], opacity: 1, sticky: false })
+        .bindTooltip(info, { direction: 'top', offset: [0, -50 * k], opacity: 1, sticky: false })
         .bindPopup(info + gmaps, { offset: [0, -4] })
         .addTo(layer)
       bounds.push(ll)
@@ -137,6 +139,12 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
     if (bounds.length) mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 })
     setTimeout(() => mapRef.current?.invalidateSize(), 50)
   }, [ready, people, branches])
+
+  if (compact) {
+    return (
+      <div ref={boxRef} style={{ height: 220, width: '100%', background: '#e5e7eb', position: 'relative', zIndex: 0 }} />
+    )
+  }
 
   const noCoord = people.filter(p => p.source === 'none')
   const adminNoBranch = noCoord.filter(p => p.reason === 'admin-branch-no-coord')

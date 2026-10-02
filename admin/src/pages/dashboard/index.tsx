@@ -14,6 +14,8 @@ import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiMonth } from '../../lib/format'
+import AttendanceMap from '../attendance/AttendanceMap'
+import { buildMapData } from '../attendance/mapData'
 
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
@@ -214,14 +216,18 @@ interface ApiRecord {
   is_late:      boolean
   late_minutes: number
   is_absent:    boolean
+  gps_lat?: number | string | null
+  gps_lng?: number | string | null
+  check_in_method?: string | null
+  is_outside_area?: boolean
   employee: {
     id: string; first_name: string; last_name: string
     nickname: string | null; employee_code: string; photo_url?: string | null
     branch: { id: string; name: string }
   }
-  shift: { id: string; name: string; late_threshold_2: string | null }
+  shift: { id: string; name: string; branch_id?: string | null; late_threshold_2: string | null }
 }
-interface ApiBranch   { id: string; name: string }
+interface ApiBranch   { id: string; name: string; lat?: number | string | null; lng?: number | string | null; gps_radius?: number | null }
 interface ApiEmployee { id: string; branch_id: string; photo_url?: string | null; first_name?: string; last_name?: string; nickname?: string | null; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null }
 interface ApiLeave    { id: string; status: string }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
@@ -356,6 +362,13 @@ export default function DashboardPage() {
   const filtered = useMemo(() =>
     allRows.filter(r => matchesOrgFilter(employeeOrgMap[r.empId], orgFilter)),
   [allRows, orgFilter, employeeOrgMap])
+
+  // มินิแมพใต้รายชื่อวันนี้ — คนที่เช็คอินแล้วตามตัวกรององค์กร (ไม่ผูกกับการ์ดสถานะที่กดกรองรายชื่อ)
+  const miniMap = useMemo(() => buildMapData(
+    filtered.filter(r => r.record?.check_in_at).map(r => ({
+      key: r.key, name: r.name, nickname: r.nickname, code: r.record!.employee.employee_code, photoUrl: r.photo_url,
+      employeeBranchName: r.branch?.name, statusLabel: STATUS_CFG[r.status].label, color: STATUS_CFG[r.status].color, record: r.record,
+    })), branches, fmtTime), [filtered, branches])
 
   const onTime  = filtered.filter(r => r.status === 'ON_TIME').length
   const late    = filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length
@@ -612,6 +625,20 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* มินิแมพ — เช็คอินวันนี้เช็คจากที่ไหนบ้าง (เฉพาะจอคอม) */}
+        {!isMobile && (
+          <div className="premium-card" style={{ flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+              <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MapPin size={14} /> แผนที่เช็คอินวันนี้
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{miniMap.people.filter(p => p.source !== 'none').length}/{miniMap.people.length} คน</span>
+              </span>
+              <a href="/shift?view=map" onClick={e => { e.preventDefault(); navigate('/shift?view=map') }} style={{ fontSize: '11px', fontWeight: 700, color: '#244B83', textDecoration: 'none' }}>ดูแผนที่เต็ม →</a>
+            </div>
+            <AttendanceMap compact people={miniMap.people} branches={miniMap.branches} />
+          </div>
+        )}
       </div>
     </div>
   )
