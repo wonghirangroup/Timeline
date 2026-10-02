@@ -11,19 +11,20 @@ import VacationPolicyTab from './VacationPolicyTab'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useNotifications } from '../../hooks/useNotifications'
+import TabBar from '../../components/ui/TabBar'
 
 type LeaveTab = 'requests' | 'time-off' | 'vacation-policy' | 'holiday' | 'balance' | 'calendar'
 
 // นโยบายพักร้อนตามอายุงาน (feedback 2026-09-15) เดิมกระจายอยู่ 3 แท็บ (ตั้งสูตรที่ตำแหน่ง,
 // เลือกชดเชย/พักร้อนที่วันหยุด, ปุ่มรัน+รายงานที่โควต้า) — user บอกว่างง เลยรวมมาเป็นแท็บ
 // เดียวที่นี่ (VacationPolicyTab) เป็นจุดเริ่มต้น ส่วนการแก้ไขเต็มรูปแบบยังอยู่ที่เดิม
-const TABS: { id: LeaveTab; label: string; mobileLabel: string; icon: React.ReactNode; color: string; activeBg: string; activeBorder: string }[] = [
-  { id: 'requests',  label: 'วันลา',              mobileLabel: 'ลา',    icon: <CalendarDays size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-  { id: 'time-off',  label: 'จองวันหยุดประจำเดือน', mobileLabel: 'หยุด', icon: <CalendarOff  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-  { id: 'vacation-policy', label: 'นโยบายพักร้อน', mobileLabel: 'พักร้อน', icon: <Sparkles size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-  { id: 'holiday',   label: 'วันหยุดนักขัตฤกษ์', mobileLabel: 'ขัตฤกษ์', icon: <Palmtree  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-  { id: 'balance',   label: 'โควต้า',             mobileLabel: 'โควต้า', icon: <BarChart3  size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-  { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
+const TABS: { id: LeaveTab; label: string; mobileLabel: string; icon: React.ReactNode }[] = [
+  { id: 'requests',  label: 'วันลา',              mobileLabel: 'ลา',    icon: <CalendarDays size={15}/> },
+  { id: 'time-off',  label: 'จองวันหยุดประจำเดือน', mobileLabel: 'หยุด', icon: <CalendarOff  size={15}/> },
+  { id: 'vacation-policy', label: 'นโยบายพักร้อน', mobileLabel: 'พักร้อน', icon: <Sparkles size={15}/> },
+  { id: 'holiday',   label: 'วันหยุดนักขัตฤกษ์', mobileLabel: 'ขัตฤกษ์', icon: <Palmtree  size={15}/> },
+  { id: 'balance',   label: 'โควต้า',             mobileLabel: 'โควต้า', icon: <BarChart3  size={15}/> },
+  { id: 'calendar',  label: 'ปฏิทินรวม',          mobileLabel: 'ปฏิทิน', icon: <LayoutGrid size={15}/> },
 ]
 
 const VALID_TABS: LeaveTab[] = ['requests', 'time-off', 'vacation-policy', 'holiday', 'balance', 'calendar']
@@ -45,43 +46,14 @@ export default function LeavePage() {
     if (t && VALID_TABS.includes(t)) setActiveTab(t)
   }, [sp])
 
-  function renderTab(t: typeof TABS[0]) {
-    const isActive = activeTab === t.id
-    return (
-      <button
-        key={t.id}
-        onClick={() => setActiveTab(t.id)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8,
-          padding: isMobile ? '8px 12px' : '10px 20px', border: 'none', cursor: 'pointer',
-          fontSize: isMobile ? '12px' : '14px', fontWeight: isActive ? 700 : 600,
-          color: isActive ? t.color : 'var(--text-muted)',
-          background: isActive ? t.activeBg : 'transparent',
-          borderBottom: `3px solid ${isActive ? t.activeBorder : 'transparent'}`,
-          borderRadius: '8px 8px 0 0',
-          marginBottom: -4,
-          transition: 'all 0.2s',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-main)' } }}
-        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' } }}
-      >
-        <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
-        {isMobile ? t.mobileLabel : t.label}
-        {!!TAB_BADGE[t.id] && (
-          <span title="รอดำเนินการ/อนุมัติ" style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: '#fee2e2', color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{(TAB_BADGE[t.id] as number) > 99 ? '99+' : TAB_BADGE[t.id]}</span>
-        )}
-      </button>
-    )
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Tab bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 24, overflowX: 'auto', paddingBottom: 2 }}>
-        {TABS.map(t => renderTab(t))}
-        <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', paddingRight: 4 }}>
+      <TabBar
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={TABS.map(t => ({ key: t.id, label: t.label, mobileLabel: t.mobileLabel, icon: t.icon, badge: TAB_BADGE[t.id] }))}
+        trailing={
           <InfoTooltip title="จัดการวันลา & วันหยุด" width={300} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li><b>วันลา</b> — อนุมัติ/ปฏิเสธคำขอลาป่วย ลากิจ พักร้อน ฯลฯ ของพนักงาน</li>
@@ -90,8 +62,8 @@ export default function LeavePage() {
               <li><b>ปฏิทินรวม</b> — ดูวันลา+วันหยุดของทั้งทีมพร้อมกันในปฏิทินเดียว</li>
             </ul>
           } />
-        </span>
-      </div>
+        }
+      />
 
       {/* วันลา — preserve state with display:none */}
       <div style={{ display: activeTab === 'requests' ? 'block' : 'none' }}>

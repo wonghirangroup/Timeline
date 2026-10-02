@@ -9,6 +9,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import TabBar from '../../components/ui/TabBar'
 
 interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
 interface ApiBranch { id: string; name: string }
@@ -272,17 +273,6 @@ export default function AnnouncementPage() {
     directMutation.mutate({ employee_id: dEmployee, message: dMsg })
   }
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: isMobile ? '8px 14px' : '8px 20px',
-    borderRadius: 8, border: 'none', cursor: 'pointer',
-    fontSize: isMobile ? '0.8rem' : '0.875rem',
-    fontWeight: active ? 700 : 400,
-    background: active ? '#244B83' : '#f3f4f6',
-    color: active ? '#fff' : 'var(--text-muted)',
-    transition: 'all 0.15s',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  })
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' }
   const labelStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }
@@ -304,12 +294,15 @@ export default function AnnouncementPage() {
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
       </div>
 
-      {/* Tabs — scrollable on mobile */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
-        <button style={{ ...tabStyle(tab === 'broadcast'), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setTab('broadcast')}><Megaphone size={14}/>{isMobile ? 'ประกาศ' : 'ส่งประกาศ (Broadcast)'}</button>
-        <button style={{ ...tabStyle(tab === 'direct'), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setTab('direct')}><Mail size={14}/>{isMobile ? 'ส่วนตัว' : 'ข้อความส่วนตัว'}</button>
-        <button style={{ ...tabStyle(tab === 'feedback'), display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setTab('feedback')}><MessageSquare size={14}/>Feedback ({feedbacks.length})</button>
-      </div>
+      <TabBar
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { key: 'broadcast', label: 'ส่งประกาศ (Broadcast)', mobileLabel: 'ประกาศ', icon: <Megaphone size={14}/> },
+          { key: 'direct', label: 'ข้อความส่วนตัว', mobileLabel: 'ส่วนตัว', icon: <Mail size={14}/> },
+          { key: 'feedback', label: `Feedback (${feedbacks.length})`, icon: <MessageSquare size={14}/> },
+        ]}
+      />
 
       {/* ── Broadcast Tab ── */}
       {tab === 'broadcast' && (

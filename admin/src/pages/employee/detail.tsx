@@ -21,6 +21,7 @@ import AvatarUpload from '../../components/ui/AvatarUpload'
 import MapLink from '../../components/shared/MapLink'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import TabBar from '../../components/ui/TabBar'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -1148,20 +1149,7 @@ export default function EmployeeDetailPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 2, marginTop: 20, borderBottom: '2px solid #E6ECF4', overflowX: 'auto' }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '9px 18px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
-              fontSize: '0.875rem', fontWeight: tab === t.key ? 700 : 500,
-              background: tab === t.key ? '#fff' : 'transparent',
-              color: tab === t.key ? '#244B83' : '#64748b',
-              borderBottom: tab === t.key ? '2px solid #244B83' : '2px solid transparent',
-              marginBottom: -2, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-            }}>
-              {t.icon}{t.label}
-            </button>
-          ))}
-        </div>
+        <TabBar tabs={TABS} value={tab} onChange={setTab} style={{ marginTop: 20, marginBottom: 0 }} />
       </div>
 
       <div style={{ padding: isMobile ? '16px' : '24px 28px' }}>

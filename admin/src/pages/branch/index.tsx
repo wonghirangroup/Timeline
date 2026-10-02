@@ -15,6 +15,7 @@ import { avatarUrl } from '../../lib/upload'
 import ManageShiftTab from '../shift/manage'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 import GuidedTour from '../../components/shared/GuidedTour'
+import TabBar from '../../components/ui/TabBar'
 
 interface ApiBranch {
   id: string
@@ -559,28 +560,14 @@ export default function BranchPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 4, overflowX: 'auto' }}>
-        {([
-          { id: 'branch', label: 'สาขา',      icon: <Building2 size={15}/>, color: '#244B83', activeBg: '#F4F6F9', activeBorder: '#244B83' },
-          { id: 'shift',  label: 'จัดการกะ',  icon: <Clock size={15}/>,     color: '#6366f1', activeBg: '#eef2ff', activeBorder: '#6366f1' },
-        ] as const).map(t => {
-          const isActive = activeTab === t.id
-          return (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 20px', border: 'none', cursor: 'pointer',
-              fontSize: '14px', fontWeight: isActive ? 700 : 600,
-              color: isActive ? t.color : 'var(--text-muted)',
-              background: isActive ? t.activeBg : 'transparent',
-              borderBottom: `3px solid ${isActive ? t.activeBorder : 'transparent'}`,
-              borderRadius: '8px 8px 0 0', marginBottom: -4, transition: 'all 0.2s', whiteSpace: 'nowrap',
-            }}>
-              <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+      <TabBar
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { key: 'branch', label: 'สาขา', icon: <Building2 size={15}/> },
+          { key: 'shift', label: 'จัดการกะ', icon: <Clock size={15}/>, color: '#6366f1' },
+        ]}
+      />
 
       {/* จัดการกะ tab */}
       {activeTab === 'shift' && <ManageShiftTab />}
@@ -866,30 +853,30 @@ export default function BranchPage() {
 
       {/* Pagination Controls */}
       {!loading && totalPages > 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E6ECF4' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'linear-gradient(135deg, #131C45 0%, #244B83 100%)', borderRadius: 14, boxShadow: '0 4px 14px rgba(19,28,69,0.22)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)' }}>
               แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {isMobile && (
                 <div style={{ display: 'flex', gap: 4 }}>
                   {Array.from({ length: totalPages }, (_, i) => (
-                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#244B83' : '#e5e7eb', transition: 'all 0.2s' }} />
+                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#fff' : 'rgba(255,255,255,0.3)', transition: 'all 0.2s' }} />
                   ))}
                 </div>
               )}
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === 1 ? '#f9fafb' : '#fff', color: page === 1 ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.22)', background: page === 1 ? 'transparent' : 'rgba(255,255,255,0.12)', color: page === 1 ? 'rgba(255,255,255,0.3)' : '#fff', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronLeft size={16} />
               </button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                style={{ padding: '6px 12px', border: '1px solid #e5e7eb', background: page === totalPages ? '#f9fafb' : '#fff', color: page === totalPages ? 'var(--text-muted)' : '#374151', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
+                style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.22)', background: page === totalPages ? 'transparent' : 'rgba(255,255,255,0.12)', color: page === totalPages ? 'rgba(255,255,255,0.3)' : '#fff', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
                 <ChevronRight size={16} />
               </button>
             </div>
           </div>
-          {isMobile && <span style={{ fontSize: '0.68rem', color: '#d1d5db' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
+          {isMobile && <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
         </div>
       )}
 

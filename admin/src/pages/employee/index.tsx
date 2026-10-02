@@ -20,6 +20,7 @@ import PolicyOverview from './PolicyOverview'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import { PlanMeter } from '../../components/shared/PlanUsage'
+import TabBar from '../../components/ui/TabBar'
 
 interface ApiBranch {
   id: string
@@ -501,31 +502,17 @@ export default function EmployeePage() {
   }
 
   const tabBar = (
-    <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid rgba(0,0,0,0.05)', marginBottom: 20, overflowX: 'auto' }}>
-      {([
-        { id: 'employee', label: 'พนักงาน',   icon: <Users size={15}/>,   color: '#244B83', activeBg: '#F4F6F9' },
-        { id: 'policy',   label: 'สิทธิ์วันหยุด/การลา', icon: <CalendarDays size={15}/>, color: '#244B83', activeBg: '#F4F6F9' },
-        { id: 'groups',   label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/>, color: '#244B83', activeBg: '#F4F6F9' },
-        { id: 'org',      label: 'ผังองค์กร',   icon: <Network size={15}/>, color: '#244B83', activeBg: '#F4F6F9' },
-        { id: 'status',   label: 'สถานะพนักงาน', icon: <IdCard size={15}/>,  color: '#244B83', activeBg: '#F4F6F9' },
-      ] as const).map(t => {
-        const isActive = activeTab === t.id
-        return (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 20px', border: 'none', cursor: 'pointer',
-            fontSize: '14px', fontWeight: isActive ? 700 : 600,
-            color: isActive ? t.color : 'var(--text-muted)',
-            background: isActive ? t.activeBg : 'transparent',
-            borderBottom: `3px solid ${isActive ? t.color : 'transparent'}`,
-            borderRadius: '8px 8px 0 0', marginBottom: -4, transition: 'all 0.2s', whiteSpace: 'nowrap',
-          }}>
-            <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
-            {t.label}
-          </button>
-        )
-      })}
-    </div>
+    <TabBar
+      value={activeTab}
+      onChange={setActiveTab}
+      tabs={[
+        { key: 'employee', label: 'พนักงาน', icon: <Users size={15}/> },
+        { key: 'policy', label: 'สิทธิ์วันหยุด/การลา', icon: <CalendarDays size={15}/> },
+        { key: 'groups', label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/> },
+        { key: 'org', label: 'ผังองค์กร', icon: <Network size={15}/> },
+        { key: 'status', label: 'สถานะพนักงาน', icon: <IdCard size={15}/> },
+      ]}
+    />
   )
 
   // แท็บกลุ่ม/ผังองค์กร/สถานะพนักงาน — คนละหน้าจอเลย ไม่ต้องยุ่งกับ tree ของแท็บพนักงานด้านล่าง

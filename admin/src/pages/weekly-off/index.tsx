@@ -15,6 +15,7 @@ import { deptName } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
+import TabBar from '../../components/ui/TabBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiEmployee {
@@ -897,34 +898,17 @@ export default function WeeklyOffPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 10, padding: 3, flexWrap: 'wrap', gap: 2 }}>
-          {([
-            ['periods', Unlock, isMobile ? 'เปิด/ปิด' : 'เปิด/ปิดการจอง'],
-            ['requests', ClipboardList, isMobile ? 'คำขอ' : 'รายการคำขอ'],
-            ['overview', CalendarDays, 'ภาพรวม'],
-            ['exceptions', AlertTriangle, isMobile ? 'พิเศษ' : 'แจ้งเตือน & สลับ'],
-          ] as const).map(([t, Icon, label]) => (
-            <button key={t} onClick={() => setTab(t as any)} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: isMobile ? '6px 10px' : '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: tab === t ? '#fff' : 'transparent',
-              color: tab === t ? '#244B83' : 'var(--text-muted)',
-              fontWeight: tab === t ? 700 : 500,
-              fontSize: isMobile ? '0.75rem' : '0.82rem',
-              boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
-              transition: 'all .15s',
-            }}>
-              <Icon size={13} /> {label}
-              {t === 'requests' && pendingRequestCount > 0 && (
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{pendingRequestCount}</span>
-              )}
-              {t === 'exceptions' && workedAlerts.length > 0 && (
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fee2e2', color: '#dc2626' }}>{workedAlerts.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
+        <TabBar
+          value={tab}
+          onChange={setTab}
+          style={{ marginBottom: 0 }}
+          tabs={[
+            { key: 'periods', label: 'เปิด/ปิดการจอง', mobileLabel: 'เปิด/ปิด', icon: <Unlock size={13} /> },
+            { key: 'requests', label: 'รายการคำขอ', mobileLabel: 'คำขอ', icon: <ClipboardList size={13} />, badge: pendingRequestCount },
+            { key: 'overview', label: 'ภาพรวม', icon: <CalendarDays size={13} /> },
+            { key: 'exceptions', label: 'แจ้งเตือน & สลับ', mobileLabel: 'พิเศษ', icon: <AlertTriangle size={13} />, badge: workedAlerts.length },
+          ]}
+        />
       </div>
 
       {/* Periods tab */}

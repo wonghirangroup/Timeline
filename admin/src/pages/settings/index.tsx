@@ -25,6 +25,7 @@ import PermissionMatrixEditor from '../../components/shared/PermissionMatrixEdit
 import { useIsReadOnly, useAuthStore } from '../../stores/authStore'
 import { PlanUsageRow } from '../../components/shared/PlanUsage'
 import SearchSelect from '../../components/shared/SearchSelect'
+import TabBar from '../../components/ui/TabBar'
 
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 12,
@@ -791,16 +792,7 @@ export default function SettingsPage() {
         <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>ข้อมูลบริษัท ผู้ใช้งานเว็บ และนโยบายที่ใช้ทั้งบริษัท</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ padding: '9px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700,
-              color: tab === t.key ? '#131C45' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === t.key ? '#244B83' : 'transparent'}`, marginBottom: -1 }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={TABS} value={tab} onChange={setTab} style={{ marginBottom: 0 }} />
 
       {tab === 'general' && <><CompanyProfileTab /><ShortcutCard /></>}
       {tab === 'users' && (

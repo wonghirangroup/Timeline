@@ -21,6 +21,7 @@ import HolidayReportPage from './holiday'
 import LeaveReportPage from './leave'
 import LineMessagesReportPage from './line-messages'
 import CheckinReportPage from './index'
+import TabBar from '../../components/ui/TabBar'
 
 interface ApiEmployee { id: string; branch_id: string }
 interface ApiBranch { id: string; name: string }
@@ -170,16 +171,7 @@ export default function ExecutiveReportPage() {
       {/* แท็บรวมทุกรายงาน — ภาพรวม (สังเคราะห์ข้ามโดเมน) + อีก 6 หมวดที่เหลือ
           แต่ละหมวดเรียก component หน้ารายงานเดิมตรงๆ (การ์ด/ตาราง/กราฟ + เดือน
           ของตัวเอง อยู่ในนั้นแล้ว ไม่ต้องแยกเขียนใหม่) */}
-      <div className="no-print" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', overflowX: 'auto' }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, whiteSpace: 'nowrap',
-              color: tab === t.key ? '#131C45' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === t.key ? '#244B83' : 'transparent'}`, marginBottom: -1 }}>
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar className="no-print" tabs={TABS} value={tab} onChange={setTab} style={{ marginBottom: 0 }} />
 
       {tab === 'overview' && (
         <>
