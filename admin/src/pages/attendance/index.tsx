@@ -1077,12 +1077,18 @@ export default function AttendancePage() {
       {manualTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={() => setManualTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, padding: '24px', width: isMobile ? '100%' : 420, boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
+          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '20px 16px' : '26px 28px', width: isMobile ? '100%' : 640, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', boxSizing: 'border-box' }}
             onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงบันทึกแทนพนักงาน</h3>
-            <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {manualTarget.first_name} {manualTarget.last_name} · {manualTargetBranches.map(b => b.name).join(' + ')} · {date}
-            </p>
+            <h3 style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '1.1rem' }}>+ ลงบันทึกแทนพนักงาน</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #f1f5f9' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{manualTarget.first_name} {manualTarget.last_name}</span>
+              {manualTargetBranches.map((b, i) => (
+                <span key={b.id} style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 9px', borderRadius: 99, background: i === 0 ? '#E6ECF4' : '#f1f5f9', color: i === 0 ? '#244B83' : '#475569' }}>
+                  {b.name}{i === 0 && manualTargetBranches.length > 1 ? ' · หลัก' : ''}
+                </span>
+              ))}
+              <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{date}</span>
+            </div>
 
             {/* โหมด: มาทำงาน / ลา / หยุด */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#E6ECF4', padding: 4, borderRadius: 10 }}>
@@ -1099,21 +1105,36 @@ export default function AttendancePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {manualMode === 'work' && <>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
-                <select value={manualForm.shift_id} onChange={e => setManualForm(f => manualRecalc({ ...f, shift_id: e.target.value }))} style={inp}>
-                  <option value="">— เลือกกะ —</option>
-                  {manualTargetShiftGroups.length > 1
-                    ? manualTargetShiftGroups.map(g => (
-                        <optgroup key={g.branch.id} label={g.branch.id === manualTarget.branch_id ? `${g.branch.name} (สาขาหลัก)` : `${g.branch.name} (สาขารอง)`}>
-                          {g.shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>)}
-                        </optgroup>
-                      ))
-                    : manualTargetShiftGroups.flatMap(g => g.shifts).map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                      ))}
-                </select>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 8 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
+                {manualTargetShiftGroups.length === 0 && (
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#d97706', background: '#fffbeb', borderRadius: 10, padding: '10px 14px' }}>ยังไม่มีกะที่เปิดใช้งานในสาขาของพนักงานคนนี้</p>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {manualTargetShiftGroups.map(g => (
+                    <div key={g.branch.id}>
+                      {manualTargetShiftGroups.length > 1 && (
+                        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
+                          {g.branch.name} <span style={{ fontWeight: 600, color: g.branch.id === manualTarget.branch_id ? '#244B83' : '#94a3b8' }}>({g.branch.id === manualTarget.branch_id ? 'สาขาหลัก' : 'สาขารอง'})</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                        {g.shifts.map(sh => {
+                          const on = manualForm.shift_id === sh.id
+                          return (
+                            <button key={sh.id} type="button" onClick={() => setManualForm(f => manualRecalc({ ...f, shift_id: sh.id }))}
+                              style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                                border: `1.5px solid ${on ? '#244B83' : '#e5e7eb'}`, background: on ? '#F4F6F9' : '#fff', boxShadow: on ? '0 0 0 2px rgba(36,75,131,0.12)' : 'none' }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: on ? '#244B83' : '#1f2937' }}>{sh.name}</div>
+                              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{sh.start_time}–{sh.end_time}</div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 12 }}>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> เวลาเข้างาน</label>
                   <input type="time" value={manualForm.check_in_at} onChange={e => setManualForm(f => manualRecalc({ ...f, check_in_at: e.target.value }))} style={inp} />
@@ -1122,9 +1143,6 @@ export default function AttendancePage() {
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>เวลาออกงาน</label>
                   <input type="time" value={manualForm.check_out_at} onChange={e => setManualForm(f => ({ ...f, check_out_at: e.target.value }))} style={inp} />
                 </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>สถานะ</label>
                   <select value={manualForm.status}
@@ -1184,15 +1202,15 @@ export default function AttendancePage() {
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> หมายเหตุ</label>
                 <textarea value={manualForm.note}
                   onChange={e => { setManualForm(f => ({ ...f, note: e.target.value })); if (manualNoteError && e.target.value.trim()) setManualNoteError(false) }}
-                  placeholder={manualMode === 'leave' ? 'เหตุผลการลา' : 'เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย'} rows={2}
+                  placeholder={manualMode === 'leave' ? 'เหตุผลการลา' : 'เหตุผลที่ลงเวลาแทน เช่น ลืมเช็คอิน / เครื่องสแกนเสีย'} rows={3}
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', borderColor: manualNoteError ? '#ef4444' : undefined }} />
                 {manualNoteError && <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#ef4444' }}>ต้องกรอกหมายเหตุก่อนบันทึก</p>}
               </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setManualTarget(null)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={handleManual} disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+              <button onClick={() => setManualTarget(null)} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+              <button onClick={handleManual} disabled={saving} style={{ padding: '10px 32px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
                 {saving ? 'กำลังบันทึก...' : manualMode === 'leave' ? 'ลงวันลา' : manualMode === 'off' ? 'ลงวันหยุด' : 'ลงเวลา'}
               </button>
             </div>
