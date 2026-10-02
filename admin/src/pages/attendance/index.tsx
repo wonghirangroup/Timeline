@@ -60,6 +60,7 @@ interface ApiEmployee {
   employee_status_type?: WQNode | null
   position?: (WQNode & { department?: (WQNode & { division?: WQNode | null }) | null }) | null
   default_shift_id?: string | null
+  extra_branches?: { branch: { id: string; name: string } }[]
 }
 
 // resolve เสาร์/อาทิตย์จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
@@ -661,9 +662,14 @@ export default function AttendancePage() {
   // กะที่เลือกในโมดัล "ลงเวลาแทนพนักงาน" ต้องกรองตามสาขาของ "พนักงานที่เลือก" เสมอ
   // (ไม่ใช่ branch filter ของหน้า — ไม่งั้นถ้าหน้าเลือก "ทุกสาขา" อยู่ กะจากทุกสาขาจะ
   // ปนกันมาให้เลือกหมด ทั้งที่พนักงานคนนี้ทำงานสาขาเดียว)
-  const manualTargetShifts = manualTarget
-    ? shifts.filter(s => (s as any).branch_id === manualTarget.branch_id)
+  // รวมกะของสาขารอง (extra_branches) ด้วย — พนักงานที่อยู่หลายสาขาต้องเลือกลงกะของสาขารองได้
+  // (feedback 2026-10-02) ใช้ allShifts ไม่ใช่ shifts เพราะ shifts ถูกกรองตาม branch filter ของหน้า
+  const manualTargetBranches = manualTarget
+    ? [{ id: manualTarget.branch_id, name: manualTarget.branch.name }, ...(manualTarget.extra_branches ?? []).map(eb => eb.branch)]
     : []
+  const manualTargetShiftGroups = manualTargetBranches
+    .map(b => ({ branch: b, shifts: allShifts.filter(s => s.branch_id === b.id) }))
+    .filter(g => g.shifts.length > 0)
 
   return (
     <div>
@@ -1075,7 +1081,7 @@ export default function AttendancePage() {
             onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 4px', fontWeight: 700 }}>+ ลงบันทึกแทนพนักงาน</h3>
             <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {manualTarget.first_name} {manualTarget.last_name} · {manualTarget.branch.name} · {date}
+              {manualTarget.first_name} {manualTarget.last_name} · {manualTargetBranches.map(b => b.name).join(' + ')} · {date}
             </p>
 
             {/* โหมด: มาทำงาน / ลา / หยุด */}
@@ -1096,9 +1102,15 @@ export default function AttendancePage() {
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}><span style={{ color: '#ef4444' }}>*</span> กะ</label>
                 <select value={manualForm.shift_id} onChange={e => setManualForm(f => manualRecalc({ ...f, shift_id: e.target.value }))} style={inp}>
                   <option value="">— เลือกกะ —</option>
-                  {manualTargetShifts.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                  ))}
+                  {manualTargetShiftGroups.length > 1
+                    ? manualTargetShiftGroups.map(g => (
+                        <optgroup key={g.branch.id} label={g.branch.id === manualTarget.branch_id ? `${g.branch.name} (สาขาหลัก)` : `${g.branch.name} (สาขารอง)`}>
+                          {g.shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>)}
+                        </optgroup>
+                      ))
+                    : manualTargetShiftGroups.flatMap(g => g.shifts).map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                      ))}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
