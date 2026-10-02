@@ -619,7 +619,8 @@ export default function AttendancePage() {
         photo: avatarUrl(row.employee.photo_url, 96), key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
         branchName: shiftBranch?.name ?? row.employee.branch?.name ?? '', statusLabel: STATUS_CFG[row.status].label, color: STATUS_CFG[row.status].color,
         time: fmtTime(rec.check_in_at), method: (METHOD_CFG[rec.check_in_method] ?? METHOD_CFG.LIFF).label,
-        lat, lng, source, outsideArea: rec.is_outside_area,
+        lat, lng, source, outsideArea: rec.is_outside_area, shiftBranchName: shiftBranch?.name,
+        reason: source === 'none' ? (rec.check_in_method === 'ADMIN' ? 'admin-branch-no-coord' : 'no-gps') : undefined,
       })
     }
     return { mapPeople: people, mapBranches: [...usedBranches.values()] }

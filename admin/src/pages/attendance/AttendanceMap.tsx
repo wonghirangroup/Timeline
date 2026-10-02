@@ -21,6 +21,9 @@ export interface MapPerson {
   lng: number | null
   source: 'gps' | 'branch' | 'none'
   outsideArea?: boolean
+  // เหตุที่ไม่มีพิกัด: admin-branch-no-coord = แอดมินลงให้แต่สาขาของกะนั้นยังไม่ได้ตั้งพิกัด, no-gps = พนักงานไม่ได้ส่ง GPS มา
+  reason?: 'admin-branch-no-coord' | 'no-gps'
+  shiftBranchName?: string
 }
 export interface MapBranch { id: string; name: string; lat: number; lng: number; radius: number }
 
@@ -136,6 +139,9 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
   }, [ready, people, branches])
 
   const noCoord = people.filter(p => p.source === 'none')
+  const adminNoBranch = noCoord.filter(p => p.reason === 'admin-branch-no-coord')
+  const noGps = noCoord.filter(p => p.reason !== 'admin-branch-no-coord')
+  const missingBranches = [...new Set(adminNoBranch.map(p => p.shiftBranchName || p.branchName))]
   const onMap = people.length - noCoord.length
   const adminCount = people.filter(p => p.source === 'branch').length
 
@@ -161,11 +167,26 @@ export default function AttendanceMap({ people, branches }: { people: MapPerson[
       {people.length === 0 && !err && (
         <p style={{ padding: '14px 16px', margin: 0, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>ยังไม่มีใครเช็คอินในวันนี้ (ตามตัวกรองที่เลือก)</p>
       )}
-      {noCoord.length > 0 && (
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fffbeb' }}>
-          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#92400e', marginBottom: 6 }}>เช็คอินแล้วแต่ไม่มีพิกัด ({noCoord.length}) — ไม่ได้ส่ง GPS มา จึงขึ้นแผนที่ไม่ได้</div>
+      {adminNoBranch.length > 0 && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fef2f2' }}>
+          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>
+            แอดมินลงเวลาให้ {adminNoBranch.length} คน แต่ปักหมุดไม่ได้ เพราะสาขา <b>{missingBranches.join(', ')}</b> ยังไม่ได้ตั้งพิกัด —
+            ไปตั้งที่ <a href="/branch" style={{ color: '#991b1b', textDecoration: 'underline' }}>หน้าสาขา</a> (แก้ไขสาขา → เลือกตำแหน่งบนแผนที่) แล้วหมุดจะขึ้นเอง
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {noCoord.map(p => (
+            {adminNoBranch.map(p => (
+              <span key={p.key} style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: 99, background: '#fff', border: '1px solid #fecaca', color: '#7f1d1d' }}>
+                {p.name}{p.nickname ? ` (${p.nickname})` : ''} · {p.shiftBranchName || p.branchName} · {p.time}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {noGps.length > 0 && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', background: '#fffbeb' }}>
+          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#92400e', marginBottom: 6 }}>เช็คอินแล้วแต่ไม่มีพิกัด ({noGps.length}) — พนักงานไม่ได้ส่ง GPS มา จึงขึ้นแผนที่ไม่ได้</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {noGps.map(p => (
               <span key={p.key} style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: 99, background: '#fff', border: '1px solid #fde68a', color: '#78350f' }}>
                 {p.name}{p.nickname ? ` (${p.nickname})` : ''} · {p.branchName} · {p.time}
               </span>
