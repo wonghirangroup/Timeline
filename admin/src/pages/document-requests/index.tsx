@@ -46,7 +46,7 @@ export default function DocumentRequestsPage() {
   const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<'card' | 'table'>('card')
+  const [view, setView] = useState<'card' | 'table'>('table')
   const [completeTarget, setCompleteTarget] = useState<any>(null)
   const [rejectTarget, setRejectTarget] = useState<any>(null)
   const [rejectNote, setRejectNote] = useState('')
