@@ -639,6 +639,7 @@ model EmployeeStatusType {
 model Branch {
   id              String    @id @default(uuid())
   tenant_id       String
+  branch_code     String? // รหัสสาขา เช่น BR001 — ระบบรันให้ตอนสร้าง แอดมินแก้เองได้ (ซ้ำกันในบริษัทเดียวกันไม่ได้)
   group_id        String? // กลุ่ม(บริษัท)ที่สาขานี้สังกัด — nullable ระหว่าง migrate, ต้อง backfill ให้ทุกสาขามีกลุ่มในที่สุด
   name            String
   booking_enabled Boolean? // null = inherit จาก Group ของสาขานี้ (ดู resolvePolicyFlag())
@@ -665,6 +666,7 @@ model Branch {
   extra_employees    EmployeeBranch[]
   audit_logs         AuditLog[]
 
+  @@unique([tenant_id, branch_code])
   @@index([tenant_id])
   @@index([group_id])
   @@map("branches")

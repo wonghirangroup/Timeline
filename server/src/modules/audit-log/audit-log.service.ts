@@ -19,12 +19,15 @@ export interface MergedLogEntry {
   created_at:  Date
 }
 
+// branchId = 'none' → เฉพาะกิจกรรมที่ไม่ผูกสาขา (เช่น บัญชีแอดมินส่วนกลางที่ไม่ได้ผูกกับพนักงาน)
+export const NO_BRANCH = 'none'
+
 export async function getMergedAuditFeed(tenantId: string, opts: { branchId?: string; limit?: number } = {}): Promise<MergedLogEntry[]> {
   const limit = opts.limit ?? 50
 
   const [auditRows, lineRows] = await Promise.all([
     prisma.auditLog.findMany({
-      where: { tenant_id: tenantId, ...(opts.branchId ? { branch_id: opts.branchId } : {}) },
+      where: { tenant_id: tenantId, ...(opts.branchId ? { branch_id: opts.branchId === NO_BRANCH ? null : opts.branchId } : {}) },
       orderBy: { created_at: 'desc' }, take: limit,
     }),
     prisma.lineMessageLog.findMany({
@@ -51,7 +54,7 @@ export async function getMergedAuditFeed(tenantId: string, opts: { branchId?: st
         branch_id: r.recipient_id ? (branchByEmployee.get(r.recipient_id) ?? null) : null,
         created_at: r.created_at,
       }))
-      .filter(r => !opts.branchId || r.branch_id === opts.branchId),
+      .filter(r => !opts.branchId || r.branch_id === (opts.branchId === NO_BRANCH ? null : opts.branchId)),
   ]
 
   merged.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())

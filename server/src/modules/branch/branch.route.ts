@@ -54,6 +54,7 @@ export async function branchRoutes(app: FastifyInstance) {
         required: ['name'],
         properties: {
           name:       { type: 'string' },
+          branch_code: { type: 'string', maxLength: 20, description: 'รหัสสาขา — ไม่ส่ง = ระบบรันให้ (BR001...)' },
           location:   { type: 'string' },
           lat:        { type: 'number' },
           lng:        { type: 'number' },
@@ -72,6 +73,7 @@ export async function branchRoutes(app: FastifyInstance) {
       const branch = await createBranch(req.tenantId, req.body)
       return reply.code(201).send(ok(branch, 'สร้างสาขาสำเร็จ'))
     } catch (e: any) {
+      if (e.message === 'BRANCH_CODE_DUPLICATE') return reply.code(409).send(fail('BRANCH_CODE_DUPLICATE', 'รหัสสาขานี้ถูกใช้แล้ว — ใช้รหัสอื่น'))
       if (e.message === 'LIMIT_REACHED') return reply.code(409).send(fail('LIMIT_REACHED', 'จำนวนสาขาเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'))
       throw e
     }
@@ -89,6 +91,7 @@ export async function branchRoutes(app: FastifyInstance) {
         type: 'object',
         properties: {
           name:       { type: 'string' },
+          branch_code: { type: 'string', maxLength: 20, description: 'รหัสสาขา — ไม่ส่ง = ระบบรันให้ (BR001...)' },
           location:   { type: 'string' },
           lat:        { type: 'number' },
           lng:        { type: 'number' },
@@ -104,7 +107,12 @@ export async function branchRoutes(app: FastifyInstance) {
       },
     },
   }, async (req: any, reply) => {
-    const branch = await updateBranch(req.tenantId, req.params.id, req.body)
+    let branch
+    try { branch = await updateBranch(req.tenantId, req.params.id, req.body) }
+    catch (e: any) {
+      if (e.message === 'BRANCH_CODE_DUPLICATE') return reply.code(409).send(fail('BRANCH_CODE_DUPLICATE', 'รหัสสาขานี้ถูกใช้แล้ว — ใช้รหัสอื่น'))
+      throw e
+    }
     if (!branch) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบสาขา'))
     return ok(branch, 'อัปเดตสาขาสำเร็จ')
   })

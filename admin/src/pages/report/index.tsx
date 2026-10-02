@@ -2,7 +2,7 @@
 import { useState, useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3 } from 'lucide-react'
+import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3, Clock } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -287,7 +287,7 @@ export default function ReportPage() {
 
   // ── หาว่าใครมีวัน "ไม่มีข้อมูล" บ้าง (ไม่ใช่ลา/หยุด/นอกสถานที่/วันหยุดสุดสัปดาห์ — แค่ไม่มี
   // record จริงๆ) และเป็นวันไหน — เฉพาะวันที่ผ่านมาแล้ว (ไม่นับวันอนาคตที่ยังไม่ถึง)
-  const todayStr = now.toISOString().slice(0, 10)
+  const todayStr = new Date(now.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
   const activeDateKeys = useMemo(
     () => (viewMode === 'range' ? rangeDateKeys : days.map(d => toYMD(year, month, d))),
     [viewMode, rangeDateKeys, days, year, month],
@@ -385,6 +385,8 @@ export default function ReportPage() {
     if (!recs || recs.length === 0) {
       if (isWeekendOff) return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: 'วันหยุดสุดสัปดาห์', status: 'weekend' }
       if (dow === 0 || dow === 6) return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: '', status: 'weekend' }
+      // วันที่ยังมาไม่ถึง ไม่มีใครเช็คอินได้ — ไม่ใช่ "ขาด" (ลา/หยุด/นอกสถานที่ที่จองไว้ล่วงหน้าถูกจัดการไปแล้วด้านบน จึงยังแสดงตามปกติ)
+      if (dateKey > todayStr) return { bg: '#f8fafc', label: <Clock size={12} />, color: '#cbd5e1', tip: 'ยังไม่ถึงวัน', status: 'upcoming' as const }
       return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ไม่มีข้อมูล', status: 'absent' }
     }
 
@@ -425,6 +427,7 @@ export default function ReportPage() {
         }
         if (!recs || recs.length === 0) {
           if (dow === 0 || dow === 6) continue
+          if (dateKey > todayStr) continue // ยังไม่ถึงวัน — ไม่ใช่ขาด
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,
             dateKey, DAYS_TH[dow], '', '', '', 'ขาด', '', '', ''])
           continue
@@ -927,6 +930,7 @@ export default function ReportPage() {
               { bg: '#fce7f3', sym: <Baby size={11} />,          label: 'ลาคลอด' },
               { bg: '#f3e8ff', sym: <MapPin size={11} />,        label: 'นอกสถานที่' },
               { bg: '#f3f4f6', sym: null,                        label: 'เสาร์/อา' },
+              { bg: '#f8fafc', sym: <Clock size={11} color="#cbd5e1" />, label: 'ยังไม่ถึงวัน' },
             ].map(({ bg, sym, label }) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ background: bg, padding: '1px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center' }}>{sym}</span>

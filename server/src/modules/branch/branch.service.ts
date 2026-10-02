@@ -24,8 +24,34 @@ export async function getBranch(tenantId: string, id: string) {
   })
 }
 
+// รหัสสาขา: ตัวพิมพ์ใหญ่ ตัดช่องว่าง ว่าง = ไม่ระบุ
+export function normalizeBranchCode(v?: string | null): string | null {
+  const c = (v ?? '').trim().toUpperCase()
+  return c || null
+}
+
+async function branchCodeTaken(tenantId: string, code: string, exceptId?: string) {
+  const hit = await prisma.branch.findFirst({
+    where: { tenant_id: tenantId, branch_code: code, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    select: { id: true },
+  })
+  return !!hit
+}
+
+// BR001, BR002, ... — รันต่อจากเลขสูงสุดที่เคยมีในบริษัท (นับรวมสาขาที่ลบแล้ว จะได้ไม่นำรหัสเก่ากลับมาใช้)
+async function nextBranchCode(tenantId: string): Promise<string> {
+  const rows = await prisma.branch.findMany({ where: { tenant_id: tenantId, branch_code: { not: null } }, select: { branch_code: true } })
+  let max = 0
+  for (const r of rows) {
+    const m = /^BR(\d+)$/.exec(r.branch_code ?? '')
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  return 'BR' + String(max + 1).padStart(3, '0')
+}
+
 export async function createBranch(tenantId: string, data: {
   name: string
+  branch_code?: string
   location?: string
   lat?: number
   lng?: number
@@ -38,9 +64,24 @@ export async function createBranch(tenantId: string, data: {
   booking_quota?: number | null
 }) {
   await assertPlanCapacity(tenantId, 'branches')
-  return prisma.branch.create({
-    data: {
+  const manualCode = normalizeBranchCode(data.branch_code)
+  if (manualCode && await branchCodeTaken(tenantId, manualCode)) throw new Error('BRANCH_CODE_DUPLICATE')
+  // ไม่ระบุรหัส = รันต่อจากเลขสูงสุดของบริษัท — ถ้าชนกันพอดี (สร้างพร้อมกัน) ลองเลขถัดไปอีกครั้ง
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await prisma.branch.create({ data: await buildCreateData(tenantId, data, manualCode ?? (await nextBranchCode(tenantId)) ) })
+    } catch (e: any) {
+      if (e?.code === 'P2002' && !manualCode && attempt < 2) continue
+      if (e?.code === 'P2002') throw new Error('BRANCH_CODE_DUPLICATE')
+      throw e
+    }
+  }
+}
+
+async function buildCreateData(tenantId: string, data: Parameters<typeof createBranch>[1], branchCode: string) {
+  return {
       tenant_id: tenantId,
+      branch_code: branchCode,
       name: data.name,
       location: data.location,
       lat: data.lat,
@@ -52,8 +93,7 @@ export async function createBranch(tenantId: string, data: {
       saturday_rule: data.saturday_rule ?? null,
       sunday_rule: data.sunday_rule ?? null,
       booking_quota: data.booking_quota ?? null,
-    },
-  })
+  }
 }
 
 export async function getBranchQrUrl(tenantId: string, branchId: string): Promise<{ url: string; branch_name: string } | null> {
@@ -70,11 +110,20 @@ export async function getBranchQrUrl(tenantId: string, branchId: string): Promis
 export async function updateBranch(
   tenantId: string,
   id: string,
-  data: { name?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null; saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null },
+  data: { name?: string; branch_code?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null; saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null },
 ) {
+  const patch = { ...data }
+  if ('branch_code' in patch) {
+    const code = normalizeBranchCode(patch.branch_code)
+    if (!code) delete patch.branch_code   // ห้ามล้างรหัสทิ้ง — ไม่ส่ง/ส่งว่าง = คงรหัสเดิม
+    else {
+      if (await branchCodeTaken(tenantId, code, id)) throw new Error('BRANCH_CODE_DUPLICATE')
+      patch.branch_code = code
+    }
+  }
   const count = await prisma.branch.updateMany({
     where: { id, tenant_id: tenantId, deleted_at: null },
-    data,
+    data: patch,
   })
   if (count.count === 0) return null
   return prisma.branch.findFirst({ where: { id } })

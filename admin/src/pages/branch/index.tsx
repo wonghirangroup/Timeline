@@ -18,6 +18,7 @@ import GuidedTour from '../../components/shared/GuidedTour'
 
 interface ApiBranch {
   id: string
+  branch_code?: string | null
   name: string
   location: string | null
   lat: string | null
@@ -235,13 +236,15 @@ export default function BranchPage() {
       setSaving(false)
       showToast('error', err?.response?.data?.error?.code === 'LIMIT_REACHED'
         ? 'จำนวนสาขาเต็มตามแพ็กเกจแล้ว — ติดต่อผู้ดูแลระบบเพื่อขยายแพ็กเกจ'
-        : 'เพิ่มสาขาไม่สำเร็จ')
+        : err?.response?.data?.error?.code === 'BRANCH_CODE_DUPLICATE'
+          ? 'รหัสสาขานี้ถูกใช้แล้ว — ใช้รหัสอื่น'
+          : 'เพิ่มสาขาไม่สำเร็จ')
     },
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/branches/${id}`, body).then(r => r.data.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `บันทึกสาขา "${form.name}" เรียบร้อยแล้ว`); setModal(null); setSaving(false) },
-    onError: () => { showToast('error', 'บันทึกสาขาไม่สำเร็จ'); setSaving(false) },
+    onError: (e: any) => { showToast('error', e?.response?.data?.error?.code === 'BRANCH_CODE_DUPLICATE' ? 'รหัสสาขานี้ถูกใช้แล้ว — ใช้รหัสอื่น' : 'บันทึกสาขาไม่สำเร็จ'); setSaving(false) },
   })
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/admin/branches/${id}`),
@@ -297,7 +300,7 @@ export default function BranchPage() {
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
-  const [form, setForm]           = useState({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null, saturday_rule: null as BrDayRule | null, sunday_rule: null as BrDayRule | null, booking_quota: '' })
+  const [form, setForm]           = useState({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null, saturday_rule: null as BrDayRule | null, sunday_rule: null as BrDayRule | null, booking_quota: '' })
 
   const [tourActive, setTourActive] = React.useState(false)
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
@@ -410,7 +413,7 @@ export default function BranchPage() {
   }
 
   const openAdd = () => {
-    setForm({ name: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
+    setForm({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
     setEditTarget(null)
     setStep(1)
     setShowInfo(false)
@@ -420,7 +423,7 @@ export default function BranchPage() {
   }
 
   const openEdit = (b: ApiBranch) => {
-    setForm({ name: b.name, location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null, saturday_rule: b.saturday_rule ?? null, sunday_rule: b.sunday_rule ?? null, booking_quota: b.booking_quota == null ? '' : String(b.booking_quota) })
+    setForm({ name: b.name, branch_code: b.branch_code ?? '', location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null, saturday_rule: b.saturday_rule ?? null, sunday_rule: b.sunday_rule ?? null, booking_quota: b.booking_quota == null ? '' : String(b.booking_quota) })
     setEditTarget(b)
     setStep(1)
     setShowInfo(false)
@@ -513,6 +516,7 @@ export default function BranchPage() {
     setSaving(true)
     const body = {
       name: form.name,
+      branch_code: form.branch_code.trim() ? form.branch_code.trim().toUpperCase() : undefined,
       location: form.location || undefined,
       lat: form.lat ? parseFloat(form.lat) : undefined,
       lng: form.lng ? parseFloat(form.lng) : undefined,
@@ -660,6 +664,7 @@ export default function BranchPage() {
                   </div>
                   <div>
                     <p style={{ fontWeight: 700, color: '#111827', margin: 0, fontSize: '13px' }}>{b.name}</p>
+                    {b.branch_code && <p style={{ fontSize: '11px', fontWeight: 700, color: '#244B83', margin: '2px 0 0', fontFamily: 'monospace', letterSpacing: '0.3px' }}>{b.branch_code}</p>}
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
                       {b._count.employees} คน · {b._count.shifts} กะ
                     </p>
@@ -795,6 +800,7 @@ export default function BranchPage() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 700, color: '#111827' }}>{b.name}</div>
+                            {b.branch_code && <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#244B83', fontFamily: 'monospace' }}>{b.branch_code}</div>}
                             <span style={{ fontSize: '10.5px', fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: b.is_active ? '#F4F6F9' : '#f9fafb', color: b.is_active ? '#131C45' : 'var(--text-muted)' }}>
                               {b.is_active ? 'เปิด' : 'ปิด'}
                             </span>
@@ -959,6 +965,12 @@ export default function BranchPage() {
                       </label>
                       <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                         placeholder="เช่น สาขาสำนักงานใหญ่" style={inputStyle} autoFocus />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>รหัสสาขา</label>
+                      <input value={form.branch_code} onChange={e => setForm(f => ({ ...f, branch_code: e.target.value.toUpperCase().replace(/\s/g, '') }))}
+                        maxLength={20} placeholder={modal === 'add' ? 'เว้นว่าง = ระบบรันให้ (เช่น BR001)' : 'เช่น BR001'} style={{ ...inputStyle, fontFamily: 'monospace' }} />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>ใช้อ้างอิงสาขา ซ้ำกันในบริษัทเดียวกันไม่ได้</p>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>ที่อยู่ / สถานที่ตั้ง</label>
