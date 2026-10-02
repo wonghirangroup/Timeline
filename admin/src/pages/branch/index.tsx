@@ -15,6 +15,7 @@ import { avatarUrl } from '../../lib/upload'
 import ManageShiftTab from '../shift/manage'
 import { PlanMeter } from '../../components/shared/PlanUsage'
 import GuidedTour from '../../components/shared/GuidedTour'
+import Pagination from '../../components/ui/Pagination'
 import TabBar from '../../components/ui/TabBar'
 
 interface ApiBranch {
@@ -852,33 +853,7 @@ export default function BranchPage() {
       )}
 
       {/* Pagination Controls */}
-      {!loading && totalPages > 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'linear-gradient(135deg, #131C45 0%, #244B83 100%)', borderRadius: 14, boxShadow: '0 4px 14px rgba(19,28,69,0.22)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)' }}>
-              แสดง {(page - 1) * pageSize + 1} ถึง {Math.min(page * pageSize, branches.length)} จาก {branches.length} สาขา
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {isMobile && (
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <div key={i} onClick={() => setPage(i + 1)} style={{ width: page === i + 1 ? 18 : 7, height: 7, borderRadius: 99, cursor: 'pointer', background: page === i + 1 ? '#fff' : 'rgba(255,255,255,0.3)', transition: 'all 0.2s' }} />
-                  ))}
-                </div>
-              )}
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.22)', background: page === 1 ? 'transparent' : 'rgba(255,255,255,0.12)', color: page === 1 ? 'rgba(255,255,255,0.3)' : '#fff', borderRadius: 8, cursor: page === 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
-                <ChevronLeft size={16} />
-              </button>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.22)', background: page === totalPages ? 'transparent' : 'rgba(255,255,255,0.12)', color: page === totalPages ? 'rgba(255,255,255,0.3)' : '#fff', borderRadius: 8, cursor: page === totalPages ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-          {isMobile && <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>← ปัดซ้ายขวาเพื่อเปลี่ยนหน้า →</span>}
-        </div>
-      )}
+      {!loading && <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={branches.length} itemLabel="สาขา" />}
 
       {/* Add/Edit Modal — Stepper */}
       {(modal === 'add' || modal === 'edit') && (() => {

@@ -1,26 +1,5 @@
-import { useRef } from 'react'
-
-/**
- * Returns touch handlers that call onNext / onPrev when the user swipes
- * horizontally past `threshold` pixels. Attach to the scrollable list container.
- */
-export function useSwipePage(
-  onNext: () => void,
-  onPrev: () => void,
-  threshold = 50,
-) {
-  const startX = useRef<number | null>(null)
-
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (startX.current === null) return
-      const diff = startX.current - e.changedTouches[0].clientX
-      if (diff >  threshold) onNext()
-      if (diff < -threshold) onPrev()
-      startX.current = null
-    },
-  }
+// ปิดการใช้งานแล้ว: การปัดซ้าย/ขวาเปลี่ยนหน้าย้ายไปอยู่ใน components/ui/Pagination.tsx ทำงานกับทุกหน้าที่ใช้ Pagination อัตโนมัติ
+// เก็บ hook นี้ไว้คืนค่า handler ว่าง เพื่อให้หน้าเดิมที่ยัง spread {...swipeHandlers} อยู่ไม่ปัดซ้ำจนข้าม 2 หน้า
+export function useSwipePage(_onNext?: () => void, _onPrev?: () => void, _threshold?: number): React.HTMLAttributes<HTMLElement> {
+  return {}
 }
