@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid , Map as MapIcon } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -11,11 +11,13 @@ import { useSwipePage } from '../../hooks/useSwipePage'
 import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { api } from '../../lib/axios'
 import { fmtThaiDate } from '../../lib/format'
+import AttendanceMap from './AttendanceMap'
+import type { MapPerson, MapBranch } from './AttendanceMap'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 // ─── Types ───────────────────────────────────────────────────────────
-interface ApiBranch  { id: string; name: string }
+interface ApiBranch  { id: string; name: string; lat?: number | string | null; lng?: number | string | null; gps_radius?: number | null }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiShift   {
   id: string; name: string; branch_id: string; start_time: string; end_time: string
@@ -314,7 +316,7 @@ export default function AttendancePage() {
   // ให้ป้าย "กำลังทำงาน" เปลี่ยนเป็น "ลืมเช็คออก" เองเมื่อเลยเวลาเลิกงาน โดยไม่ต้องรีเฟรชหน้า
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t) }, [])
-  const [listView, setListView]   = useState<'card' | 'table'>('table')
+  const [listView, setListView]   = useState<'card' | 'table' | 'map'>('table')
   const autoOpenedRef = useRef(false)
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   // สาขายังเป็นตัวขับ query ฝั่ง server เหมือนเดิม (endpoint employees/attendance/shifts
@@ -591,6 +593,36 @@ export default function AttendancePage() {
   const totalPages = Math.ceil(filtered.length / pageSize)
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
 
+  // ข้อมูลแผนที่ — เฉพาะคนที่เช็คอินแล้ว (ตามตัวกรองที่เลือก): มี GPS จริง → จุดเช็คอิน, แอดมินลงแทน → พิกัดสาขาของกะที่ลงให้
+  const { mapPeople, mapBranches } = useMemo(() => {
+    const branchById = new Map(branches.map(b => [b.id, b]))
+    const validLL = (la: unknown, lo: unknown) => {
+      const a = Number(la), o = Number(lo)
+      return la != null && lo != null && Number.isFinite(a) && Number.isFinite(o) && !(a === 0 && o === 0) ? [a, o] as const : null
+    }
+    const usedBranches = new Map<string, MapBranch>()
+    const people: MapPerson[] = []
+    for (const row of filtered) {
+      const rec = row.record
+      if (!rec?.check_in_at) continue
+      let lat: number | null = null, lng: number | null = null
+      let source: MapPerson['source'] = 'none'
+      const gps = validLL(rec.gps_lat, rec.gps_lng)
+      const shiftBranch = branchById.get(rec.shift?.branch_id ?? '')
+      const bll = shiftBranch ? validLL(shiftBranch.lat, shiftBranch.lng) : null
+      if (gps) { [lat, lng] = gps; source = 'gps' }
+      else if (rec.check_in_method === 'ADMIN' && bll) { [lat, lng] = bll; source = 'branch' }
+      if (shiftBranch && bll) usedBranches.set(shiftBranch.id, { id: shiftBranch.id, name: shiftBranch.name, lat: bll[0], lng: bll[1], radius: Number(shiftBranch.gps_radius) || 200 })
+      people.push({
+        key: row.key, name: `${row.employee.first_name} ${row.employee.last_name}`, nickname: row.employee.nickname, code: row.employee.employee_code,
+        branchName: shiftBranch?.name ?? row.employee.branch?.name ?? '', statusLabel: STATUS_CFG[row.status].label, color: STATUS_CFG[row.status].color,
+        time: fmtTime(rec.check_in_at), method: (METHOD_CFG[rec.check_in_method] ?? METHOD_CFG.LIFF).label,
+        lat, lng, source, outsideArea: rec.is_outside_area,
+      })
+    }
+    return { mapPeople: people, mapBranches: [...usedBranches.values()] }
+  }, [filtered, branches])
+
   useEffect(() => { setPage(1) }, [orgFilter, statusFilter, search, date])
 
   // ── Summaries ────────────────────────────────────────────────────────
@@ -826,7 +858,7 @@ export default function AttendancePage() {
           <button onClick={() => refetch()} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>↻</button>
           {!isMobile && (
             <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
-              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2]] as const).map(([v, label, Icon]) => (
+              {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['map', 'แผนที่', MapIcon]] as const).map(([v, label, Icon]) => (
                 <button key={v} onClick={() => setListView(v)}
                   title={label}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: listView === v ? 700 : 500, background: listView === v ? '#fff' : 'transparent', color: listView === v ? '#244B83' : 'var(--text-muted)', boxShadow: listView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
@@ -843,7 +875,9 @@ export default function AttendancePage() {
       {/* Table */}
       {!loading && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E6ECF4', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
-          {(isMobile || listView === 'card') ? (
+          {listView === 'map' && !isMobile ? (
+            <AttendanceMap people={mapPeople} branches={mapBranches} />
+          ) : (isMobile || listView === 'card') ? (
             <div {...swipeHandlers}>
               {filtered.length === 0 && <p style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</p>}
               {paginated.map(row => {
