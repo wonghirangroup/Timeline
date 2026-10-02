@@ -1077,7 +1077,7 @@ export default function AttendancePage() {
       {manualTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={() => setManualTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '18px 14px' : '20px 26px', width: isMobile ? '100%' : 720, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', boxSizing: 'border-box' }}
+          <div style={{ background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '18px 14px' : '20px 26px', width: isMobile ? '100%' : 880, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', boxSizing: 'border-box' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.05rem' }}>+ ลงบันทึกแทนพนักงาน</h3>
@@ -1106,7 +1106,7 @@ export default function AttendancePage() {
                 )}
                 <div style={{ border: manualTargetShiftGroups.length > 1 ? '1px solid #eef2f7' : 'none', borderRadius: 10, overflow: 'hidden' }}>
                   {manualTargetShiftGroups.map((g, gi) => (
-                    <div key={g.branch.id} style={{ display: 'grid', gridTemplateColumns: isMobile || manualTargetShiftGroups.length === 1 ? '1fr' : '210px 1fr', gap: isMobile ? 6 : 12, alignItems: 'center',
+                    <div key={g.branch.id} style={{ display: 'grid', gridTemplateColumns: isMobile || manualTargetShiftGroups.length === 1 ? '1fr' : '240px 1fr', gap: isMobile ? 6 : 12, alignItems: 'center',
                       padding: manualTargetShiftGroups.length > 1 ? '6px 10px' : 0, borderTop: gi > 0 ? '1px solid #eef2f7' : 'none', background: manualTargetShiftGroups.length > 1 && gi % 2 === 1 ? '#fafbfd' : '#fff' }}>
                       {manualTargetShiftGroups.length > 1 && (
                         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', lineHeight: 1.3 }}>

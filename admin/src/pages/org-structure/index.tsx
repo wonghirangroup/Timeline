@@ -377,7 +377,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
 
       {modal && (
         <div style={modalOverlay} onClick={() => setModal(null)}>
-          <div style={{ ...modalBox, width: isMobile ? undefined : 640 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...modalBox, width: isMobile ? undefined : 780 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>{modal.edit ? 'แก้ไขกลุ่ม' : 'เพิ่มกลุ่มใหม่'}</h3>
             <label style={label}>ชื่อกลุ่ม</label>
             <input autoFocus style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น วงษ์, สมาร์ทจิ๊กซอว์" />
@@ -1048,7 +1048,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
 
       {editModal && (
         <div style={modalOverlay} onClick={() => setEditModal(null)}>
-          <div style={{ ...modalBox, width: isMobile ? 360 : 600 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...modalBox, width: isMobile ? 360 : 720 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>แก้ไข{LEVEL_LABEL[editModal.level]}</h3>
             <label style={label}>ชื่อ</label>
             <input autoFocus style={inputStyle} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
