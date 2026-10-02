@@ -10,6 +10,7 @@ import HolidayPage       from '../holiday'
 import VacationPolicyTab from './VacationPolicyTab'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import { useNotifications } from '../../hooks/useNotifications'
 
 type LeaveTab = 'requests' | 'time-off' | 'vacation-policy' | 'holiday' | 'balance' | 'calendar'
 
@@ -34,6 +35,9 @@ export default function LeavePage() {
     return t && VALID_TABS.includes(t) ? t : 'requests'
   })
   const isMobile = useIsMobile()
+  // เลขบนแท็บ = งานรออนุมัติทุกเดือนรวมกัน (ชุดเดียวกับเลขบนเมนู sidebar / กระดิ่ง)
+  const mc = useNotifications().data?.menu_counts
+  const TAB_BADGE: Partial<Record<LeaveTab, number>> = { requests: mc?.leave_requests, 'time-off': mc?.time_off }
 
   // กระดิ่งแจ้งเตือนส่ง ?tab=&focus= มา — สลับแท็บตาม URL (child tab อ่าน ?focus/?worked เอง)
   useEffect(() => {
@@ -65,6 +69,9 @@ export default function LeavePage() {
       >
         <span style={{ color: isActive ? t.color : 'var(--text-muted)', display: 'flex' }}>{t.icon}</span>
         {isMobile ? t.mobileLabel : t.label}
+        {!!TAB_BADGE[t.id] && (
+          <span title="รอดำเนินการ/อนุมัติ" style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: '#fee2e2', color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{(TAB_BADGE[t.id] as number) > 99 ? '99+' : TAB_BADGE[t.id]}</span>
+        )}
       </button>
     )
   }

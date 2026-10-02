@@ -19,7 +19,7 @@ export interface NotifPayload {
   items: NotifItem[]
   count: number       // จำนวน severity=action (ตัวเลขบนกระดิ่ง)
   warn_count: number
-  menu_counts?: { leave: number; ot: number; resignation: number; document_request: number; employee: number }
+  menu_counts?: { leave: number; leave_requests: number; time_off: number; ot: number; resignation: number; document_request: number; employee: number }
 }
 
 // poll ทุก 45 วิ — เบาพอสำหรับ read-only aggregate, refetch ตอน tab กลับมา focus

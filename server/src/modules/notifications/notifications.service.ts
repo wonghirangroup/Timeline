@@ -218,6 +218,8 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
     // เลขบนเมนู sidebar (ต้องอนุมัติ/ตรวจสอบ) — leave รวมจองวันหยุดที่รออนุมัติ + เช็คอินวันหยุดตัวเองที่ HR ยังไม่ resolve
     menu_counts: {
       leave: cLeave + cWeeklyOff + workedOwnOff.length,
+      leave_requests: cLeave,                          // แท็บ "วันลา" ในหน้าการลา
+      time_off: cWeeklyOff + workedOwnOff.length,      // แท็บ "จองวันหยุดประจำเดือน"
       ot: cOt,
       resignation: cResign,
       document_request: cDoc,
