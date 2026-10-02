@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
+import RequestNo from '../../components/ui/RequestNo'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
@@ -19,7 +20,7 @@ import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 
 interface ApiOt {
-  id: string; employee_id: string; date: string; start_time: string; end_time: string
+  id: string; request_no?: string | null; employee_id: string; date: string; start_time: string; end_time: string
   hours: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string; employee_code: string; branch: { id: string; name: string } }
 }
@@ -34,6 +35,7 @@ interface ApiPosition {
 function toOtRequest(a: ApiOt): OtRequest {
   return {
     id:           a.id,
+    request_no:   a.request_no ?? null,
     employee_id:  a.employee_id,
     full_name:    `${a.employee.first_name} ${a.employee.last_name}`,
     nickname:     a.employee.nickname,
@@ -237,7 +239,7 @@ export default function OtPage() {
   const filtered = rows.filter(r =>
     (!statusFilter || r.status === statusFilter) &&
     matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter) &&
-    (!search.trim() || r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
+    (!search.trim() || `${r.full_name} ${r.request_no ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
   )
   // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
   // `filtered` ตรงๆ (กรองด้วย OrgFilterBar/สถานะ/ค้นหาที่ตั้งไว้บนจอแล้ว) ไม่ใช่
@@ -461,7 +463,7 @@ export default function OtPage() {
           {/* Search */}
           <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน / เลขที่คำขอ..."
               style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           {/* Status Filter */}
@@ -504,7 +506,7 @@ export default function OtPage() {
                 <div key={r.id} ref={r.id === focusId ? (focusRef as any) : undefined} style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', background: r.status === 'PENDING' ? '#fffbf5' : i % 2 === 0 ? '#fff' : '#fafafa', ...rowHighlight(r.id) }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{r.full_name}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{r.full_name}<RequestNo no={r.request_no} /></div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{r.branch_name} · {thDate(r.date)}</div>
                     </div>
                     <span style={{ background: s.bg, color: s.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{s.label}</span>
@@ -581,6 +583,7 @@ export default function OtPage() {
                       <td style={{ padding: '11px 14px' }}>
                         <p style={{ margin: 0, fontWeight: 600, color: '#111827' }}>{r.full_name}</p>
                         <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{r.nickname}</p>
+                        {r.request_no && <div style={{ marginTop: 3 }}><RequestNo no={r.request_no} /></div>}
                       </td>
                       <td style={{ padding: '11px 14px', color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.branch_name}</td>
                       <td style={{ padding: '11px 14px', color: '#374151', whiteSpace: 'nowrap', fontSize: '12px' }}>{thDate(r.date)}</td>

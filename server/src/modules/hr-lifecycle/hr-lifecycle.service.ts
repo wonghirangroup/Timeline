@@ -2,6 +2,7 @@
 // HR lifecycle add-ons (Tier A): เอกสารพนักงาน / ทดลองงาน / หนังสือเตือน / ลาออก
 // แต่ละอันเป็น feature ที่ Super Admin เปิด/ปิดต่อ tenant ได้ (ดู common/utils/features.ts)
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { changeEmployeeStatus } from '../employee/employee.service'
 
@@ -209,7 +210,7 @@ export async function createResignation(tenantId: string, data: {
   if (existing) throw new Error('ALREADY_PENDING')
   return prisma.resignationRequest.create({
     data: {
-      tenant_id: tenantId, employee_id: data.employee_id,
+      tenant_id: tenantId, request_no: await nextRequestNo(tenantId, 'RS'), employee_id: data.employee_id,
       reason: data.reason ?? null, last_working_date: new Date(data.last_working_date),
     },
   })
@@ -275,7 +276,7 @@ export async function createDocumentRequest(tenantId: string, data: {
 }) {
   return prisma.documentRequest.create({
     data: {
-      tenant_id: tenantId, employee_id: data.employee_id, type: data.type as any,
+      tenant_id: tenantId, request_no: await nextRequestNo(tenantId, 'DOC'), employee_id: data.employee_id, type: data.type as any,
       custom_type: data.type === 'OTHER' ? (data.custom_type ?? null) : null,
       period: data.period ?? null, note: data.note ?? null,
     },

@@ -16,6 +16,7 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore'
 import { v4 as uuid } from 'uuid'
 import * as path from 'path'
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 
 const LEAVE_TYPE_MAP: Record<string, string> = {
   'ลาป่วย':           'SICK',
@@ -131,7 +132,7 @@ async function syncLeave(db: Firestore, tenantId: string): Promise<LeaveSyncResu
       try {
         await prisma.leaveRequest.create({
           data: {
-            id: uuid(), tenant_id: tenantId, employee_id: employeeId, leave_type: leaveType as any,
+            id: uuid(), tenant_id: tenantId, request_no: await nextRequestNo(tenantId, 'LV'), employee_id: employeeId, leave_type: leaveType as any,
             start_date: new Date(t), end_date: new Date(t), days: 1, status: 'APPROVED',
             reviewed_at: new Date(),
             reason: `[${types[String(t)] ?? leaveType}]`,

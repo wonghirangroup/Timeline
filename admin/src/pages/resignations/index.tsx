@@ -15,6 +15,7 @@ import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import RequestNo from '../../components/ui/RequestNo'
 
 const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   PENDING:  { label: 'รอพิจารณา', c: '#d97706', bg: '#fef3c7' },
@@ -44,7 +45,7 @@ export default function ResignationsPage() {
 
   const q = search.trim().toLowerCase()
   const filteredRows = q
-    ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code}`.toLowerCase().includes(q))
+    ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q))
     : rows
 
   // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup อนุมัติลาออกให้เลย
@@ -124,7 +125,7 @@ export default function ResignationsPage() {
                   <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: '14px', color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>
                     {r.employee.first_name} {r.employee.last_name}{r.employee.nickname ? ` (${r.employee.nickname})` : ''}
                   </button>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2 }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{r.employee.employee_code} · {r.employee.branch?.name}<RequestNo no={r.request_no} /></div>
                   <div style={{ fontSize: '12.5px', color: '#374151', marginTop: 6 }}>
                     วันทำงานสุดท้าย: <b>{thDate(r.last_working_date)}</b>
                   </div>
@@ -163,6 +164,7 @@ export default function ResignationsPage() {
                       <button onClick={() => navigate(`/employee/${r.employee.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                         <div style={{ fontWeight: 700, color: '#244B83', textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.employee.first_name} {r.employee.last_name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
+                        {r.request_no && <div style={{ marginTop: 3 }}><RequestNo no={r.request_no} /></div>}
                       </button>
                     </td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#374151', whiteSpace: 'nowrap' }}>{thDate(r.last_working_date)}</td>

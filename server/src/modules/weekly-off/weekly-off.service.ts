@@ -1,5 +1,6 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
 import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
@@ -162,6 +163,7 @@ export async function createWeeklyOff(tenantId: string, data: {
     created = await prisma.weeklyOffRequest.create({
       data: {
         tenant_id:   tenantId,
+        request_no:  await nextRequestNo(tenantId, 'WO'),
         employee_id: data.employee_id,
         week_start:  monday,
         day_of_week: data.day_of_week,
@@ -323,7 +325,7 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
         const day_of_week = new Date(p.dateStr + 'T00:00:00Z').getUTCDay()
         const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, week_start, day_of_week)
         const row = await tx.weeklyOffRequest.create({
-          data: { tenant_id: tenantId, employee_id: data.employee_id, week_start, day_of_week, has_conflict: conflict },
+          data: { tenant_id: tenantId, request_no: await nextRequestNo(tenantId, 'WO'), employee_id: data.employee_id, week_start, day_of_week, has_conflict: conflict },
           include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, branch: { select: { id: true, name: true } } } } },
         })
         if (conflict && employee?.position_id) {
@@ -376,6 +378,7 @@ export async function createMonthlyOff(tenantId: string, data: {
   return prisma.weeklyOffRequest.create({
     data: {
       tenant_id:   tenantId,
+      request_no:  await nextRequestNo(tenantId, 'WO'),
       employee_id: data.employee_id,
       week_start:  d,               // เก็บวันจริง (ไม่ normalize เป็น Monday)
       day_of_week: d.getUTCDay(),

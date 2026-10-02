@@ -354,6 +354,7 @@ model DisciplinaryRecord {
 model ResignationRequest {
   id                String      @id @default(uuid())
   tenant_id         String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id       String
   reason            String?     @db.Text
   last_working_date DateTime    @db.Date
@@ -366,6 +367,7 @@ model ResignationRequest {
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@map("resignation_requests")
@@ -379,6 +381,7 @@ model ResignationRequest {
 model DocumentRequest {
   id          String                @id @default(uuid())
   tenant_id   String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id String
   type        DocumentRequestType
   custom_type String? // ระบุเองเมื่อ type = OTHER
@@ -395,6 +398,7 @@ model DocumentRequest {
   employee     Employee     @relation(fields: [employee_id], references: [id])
   hr_documents HrDocument[]
 
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@map("document_requests")
@@ -866,6 +870,7 @@ enum CheckInMethod {
 model OffsiteCheckin {
   id                String    @id @default(uuid())
   tenant_id         String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id       String
   check_in_at       DateTime  @default(now())
   check_in_lat      Decimal?  @db.Decimal(10, 8) // null = แอดมินบันทึกด้วยมือ (ไม่มี GPS จริงของพนักงาน)
@@ -881,6 +886,7 @@ model OffsiteCheckin {
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@map("offsite_checkins")
@@ -893,6 +899,7 @@ model OffsiteCheckin {
 model LeaveRequest {
   id                   String      @id @default(uuid())
   tenant_id            String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id          String
   leave_type           LeaveType
   start_date           DateTime    @db.Date
@@ -919,6 +926,7 @@ model LeaveRequest {
   employee    Employee         @relation(fields: [employee_id], references: [id])
   custom_type TenantLeaveType? @relation(fields: [custom_type_id], references: [id], onDelete: SetNull)
 
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@index([custom_type_id])
@@ -1131,6 +1139,7 @@ enum VacationGrantSource {
 model OtRequest {
   id          String      @id @default(uuid())
   tenant_id   String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id String
   date        DateTime    @db.Date
   start_time  String // "18:00"
@@ -1146,6 +1155,7 @@ model OtRequest {
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@map("ot_requests")
@@ -1163,6 +1173,7 @@ enum WeeklyOffMode {
 model WeeklyOffRequest {
   id                   String          @id @default(uuid())
   tenant_id            String
+  request_no String? // เลขที่คำขอที่คนอ่านออก เช่น LV-2569-0001 — เลขรันต่อ tenant/ประเภท/ปี พ.ศ. (ดู common/utils/requestNo.ts) null = ยังไม่เคยออกเลข
   employee_id          String
   week_start           DateTime        @db.Date // วันจันทร์ของสัปดาห์นั้น
   day_of_week          Int // 0=อา 1=จ 2=อ 3=พ 4=พฤ 5=ศ 6=ส
@@ -1181,6 +1192,7 @@ model WeeklyOffRequest {
   employee Employee @relation(fields: [employee_id], references: [id])
 
   @@unique([employee_id, week_start, day_of_week]) // กันจองซ้ำวันเดียวกันเป๊ะ — จองได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14) จำกัดแค่โควต้ารวม/เดือน
+  @@unique([tenant_id, request_no])
   @@index([tenant_id])
   @@index([employee_id])
   @@map("weekly_off_requests")
@@ -1530,4 +1542,16 @@ model FirebaseSyncRun {
 
   @@index([tenant_id, started_at])
   @@map("firebase_sync_runs")
+}
+
+// ตัวนับเลขที่คำขอ (RequestCounter) — 1 แถวต่อ tenant ต่อ prefix (DOC/LV/OT/RS/WO/OS) ต่อปี พ.ศ.
+// เลขถัดไป = last + 1 ออกแบบ atomic ผ่าน INSERT ... ON DUPLICATE KEY UPDATE (ดู requestNo.ts)
+model RequestCounter {
+  tenant_id String
+  prefix    String
+  year      Int // ปี พ.ศ.
+  last      Int @default(0)
+
+  @@id([tenant_id, prefix, year])
+  @@map("request_counters")
 }

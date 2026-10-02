@@ -141,7 +141,7 @@ export async function otRoutes(app: FastifyInstance) {
     notifyAdminsLine(req.tenantId, employee_id, {
       type: 'ot',
       title: 'คำขอ OT รออนุมัติ',
-      detail: `${date} ${start_time}–${end_time} (${hours} ชม.)`,
+      detail: `${date} ${start_time}–${end_time} (${hours} ชม.)${request.request_no ? ` · เลขที่ ${request.request_no}` : ''}`,
       color: '#7C3AED',
       path: `/ot?approve=${request.id}`,
     })

@@ -17,6 +17,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import RequestNo from '../../components/ui/RequestNo'
 import LeaveTypesManager from '../../components/shared/LeaveTypesManager'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ interface ApiBranch   { id: string; name: string }
 
 interface ApiLeaveRequest {
   id: string
+  request_no?: string | null
   employee_id: string
   leave_type: LeaveType
   start_date: string
@@ -327,7 +329,7 @@ export default function LeaveRequestsTab() {
       if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
       if (search) {
         const q = search.toLowerCase()
-        if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code}`.toLowerCase().includes(q)) return false
+        if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q)) return false
       }
       return true
     })
@@ -626,7 +628,7 @@ export default function LeaveRequestsTab() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส / เลขที่คำขอ"
                 style={{ ...inp, width: '100%', paddingLeft: 30, boxSizing: 'border-box' }} />
             </div>
             <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
@@ -693,7 +695,7 @@ export default function LeaveRequestsTab() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code} · {r.employee.branch.name}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{r.employee.employee_code} · {r.employee.branch.name}<RequestNo no={r.request_no} /></div>
                             </div>
                           </div>
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
@@ -774,6 +776,7 @@ export default function LeaveRequestsTab() {
                               )}
                             </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code}</div>
+                            {r.request_no && <div style={{ marginTop: 3 }}><RequestNo no={r.request_no} /></div>}
                           </td>
                           <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                           <td style={{ padding: '11px 14px' }}>

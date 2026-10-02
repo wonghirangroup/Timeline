@@ -98,6 +98,7 @@ export type OtStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
 export interface OtRequest {
+  request_no?: string | null
   id: string
   employee_id: string
   full_name: string

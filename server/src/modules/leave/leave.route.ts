@@ -292,7 +292,7 @@ export async function leaveRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, employee_id, {
         type: 'leave',
         title: 'ใบลารออนุมัติ',
-        detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)`,
+        detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)${request.request_no ? ` · เลขที่ ${request.request_no}` : ''}`,
         color: '#EA580C',
         path: `/leave?tab=requests&approve=${request.id}`,
       })

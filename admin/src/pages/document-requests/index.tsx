@@ -18,6 +18,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import HrDocumentGenerateModal from '../hr-documents/generate'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import RequestNo from '../../components/ui/RequestNo'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
@@ -69,7 +70,7 @@ export default function DocumentRequestsPage() {
 
   const q = search.trim().toLowerCase()
   const filteredRows = q
-    ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code}`.toLowerCase().includes(q))
+    ? rows.filter(r => `${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q))
     : rows
 
   // กระดิ่งแจ้งเตือนส่ง ?approve=<id> มา → เปิด popup แนบไฟล์ให้เลย
@@ -217,7 +218,7 @@ export default function DocumentRequestsPage() {
                   </button>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 2 }}>{r.employee.employee_code} · {r.employee.branch?.name}</div>
                   <div style={{ fontSize: '12.5px', color: '#374151', marginTop: 6 }}>
-                    <b>{TYPE_LABEL[r.type] ?? r.custom_type ?? r.type}</b>{r.period ? ` — ${r.period}` : ''} · ยื่นเมื่อ {thDate(r.created_at)}
+                    <RequestNo no={r.request_no} /> <b>{TYPE_LABEL[r.type] ?? r.custom_type ?? r.type}</b>{r.period ? ` — ${r.period}` : ''} · ยื่นเมื่อ {thDate(r.created_at)}
                   </div>
                   {r.note && <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: 3 }}>หมายเหตุ: {r.note}</div>}
                   {r.reject_note && <div style={{ fontSize: '12px', color: '#dc2626', marginTop: 3, background: '#fef2f2', padding: '5px 9px', borderRadius: 6 }}>เหตุผลที่ปฏิเสธ: {r.reject_note}</div>}
@@ -272,6 +273,7 @@ export default function DocumentRequestsPage() {
                       </button>
                     </td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top', color: '#374151' }}>
+                      {r.request_no && <div style={{ marginBottom: 3 }}><RequestNo no={r.request_no} /></div>}
                       {TYPE_LABEL[r.type] ?? r.custom_type ?? r.type}{r.period ? ` — ${r.period}` : ''}
                       {r.file_url && (
                         <a href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11.5px', color: '#2563eb', marginTop: 3, textDecoration: 'none', fontWeight: 600 }}>

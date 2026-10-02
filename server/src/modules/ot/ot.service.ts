@@ -1,5 +1,6 @@
 // server/src/modules/ot/ot.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 import { employeeBranchWhere } from '../employee/employee.service'
 
 // scopedEmployeeIds: undefined = ไม่ scope, array = DEPT_HEAD จำกัดแค่คนในแผนกที่ดูแล
@@ -46,6 +47,7 @@ export async function createOtRequest(
   return prisma.otRequest.create({
     data: {
       tenant_id:   tenantId,
+      request_no:  await nextRequestNo(tenantId, 'OT'),
       employee_id: data.employee_id,
       date:        new Date(data.date),
       start_time:  data.start_time,

@@ -1,5 +1,6 @@
 // server/src/modules/leave/leave.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
@@ -209,6 +210,7 @@ export async function createLeaveRequest(
   const created = await prisma.leaveRequest.create({
     data: {
       tenant_id: tenantId,
+      request_no: await nextRequestNo(tenantId, 'LV'),
       employee_id: data.employee_id,
       leave_type: data.leave_type,
       custom_type_id: customTypeId,

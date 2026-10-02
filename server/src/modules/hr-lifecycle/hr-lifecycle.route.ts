@@ -219,11 +219,11 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, employee_id, {
         type: 'resignation',
         title: 'คำขอลาออกรอพิจารณา',
-        detail: `วันทำงานสุดท้าย ${last_working_date}`,
+        detail: `วันทำงานสุดท้าย ${last_working_date}${r.request_no ? ` · เลขที่ ${r.request_no}` : ''}`,
         color: '#DC2626',
         path: `/resignations?approve=${r.id}`,
       })
-      return reply.code(201).send(ok({ id: r.id }, 'ยื่นคำขอลาออกแล้ว รอผู้ดูแลอนุมัติ'))
+      return reply.code(201).send(ok({ id: r.id, request_no: r.request_no }, 'ยื่นคำขอลาออกแล้ว รอผู้ดูแลอนุมัติ'))
     } catch (e: any) {
       return reply.code(e.message === 'ALREADY_PENDING' ? 409 : 400).send(fail(e.message, e.message === 'ALREADY_PENDING' ? 'มีคำขอลาออกที่รออนุมัติอยู่แล้ว' : 'ยื่นไม่สำเร็จ'))
     }
@@ -381,10 +381,10 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
     notifyAdminsLine(req.tenantId, employee_id, {
       type: 'document_request',
       title: 'คำขอเอกสาร HR',
-      detail: `${label}${period ? ` (${period})` : ''}`,
+      detail: `${label}${period ? ` (${period})` : ''}${r.request_no ? ` · เลขที่ ${r.request_no}` : ''}`,
       color: '#7C3AED',
       path: `/document-requests?approve=${r.id}`,
     })
-    return reply.code(201).send(ok({ id: r.id }, 'ส่งคำขอแล้ว รอฝ่ายบุคคลดำเนินการ'))
+    return reply.code(201).send(ok({ id: r.id, request_no: r.request_no }, 'ส่งคำขอแล้ว รอฝ่ายบุคคลดำเนินการ'))
   })
 }

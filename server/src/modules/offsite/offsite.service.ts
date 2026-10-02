@@ -1,5 +1,6 @@
 // server/src/modules/offsite/offsite.service.ts
 import { prisma } from '../../common/utils/prisma'
+import { nextRequestNo } from '../../common/utils/requestNo'
 import { reverseGeocode } from '../../common/utils/geocode'
 import { employeeBranchWhere } from '../employee/employee.service'
 
@@ -55,6 +56,7 @@ export async function createOffsiteCheckin(
   return prisma.offsiteCheckin.create({
     data: {
       tenant_id:        tenantId,
+      request_no:       await nextRequestNo(tenantId, 'OS'),
       employee_id:      data.employee_id,
       check_in_lat:     data.lat,
       check_in_lng:     data.lng,
@@ -102,6 +104,7 @@ export async function createOffsiteCheckinByAdmin(tenantId: string, data: {
   return prisma.offsiteCheckin.create({
     data: {
       tenant_id:         tenantId,
+      request_no:        await nextRequestNo(tenantId, 'OS'),
       employee_id:       data.employee_id,
       check_in_at:       buildBangkokDateTime(data.check_in_date, data.check_in_time),
       check_in_address:  data.check_in_address || null,
