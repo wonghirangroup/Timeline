@@ -23,6 +23,22 @@ interface ApiShift   {
   late_fine_1: string | null; late_fine_2: string | null
 }
 
+// เช็คอินแล้วแต่ยังไม่มีเวลาออก: "กำลังทำงาน" ถ้ายังไม่ถึงเวลาเลิกงานของกะ / "ลืมเช็คออก" เฉพาะเมื่อเลยเวลาเลิกงานไปแล้วจริงๆ
+// (เดิมขึ้น "ลืมเช็คออก" ทันทีที่ไม่มีเวลาออก แม้กะเพิ่งเริ่ม — feedback 2026-10-02) กะข้ามคืน (เลิก <= เริ่ม) เลิกวันถัดไป
+// เวลาคำนวณเป็น Asia/Bangkok (UTC+7) เสมอ ไม่พึ่ง timezone ของเครื่องที่เปิดหน้า
+function checkoutState(rec: { check_in_at: string | null; check_out_at: string | null; shift?: { start_time: string; end_time: string } | null }, dateStr: string, nowMs: number): 'none' | 'done' | 'working' | 'forgot' {
+  if (!rec.check_in_at) return 'none'
+  if (rec.check_out_at) return 'done'
+  const end = rec.shift?.end_time, start = rec.shift?.start_time
+  if (!end || !start) return 'forgot'
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const [sh, sm] = start.split(':').map(Number)
+  const overnight = eh * 60 + em <= sh * 60 + sm
+  const endMs = Date.UTC(y, m - 1, d + (overnight ? 1 : 0), eh - 7, em)
+  return nowMs < endMs ? 'working' : 'forgot'
+}
+
 interface ApiRecord {
   id: string
   employee_id: string
@@ -230,6 +246,9 @@ export default function AttendancePage() {
   // + เปิดโมดัลลงบันทึกให้คนนั้นทันที
   const [searchParams, setSearchParams] = useSearchParams()
   const [date, setDate]           = useState(() => searchParams.get('date') || todayStr())
+  // ให้ป้าย "กำลังทำงาน" เปลี่ยนเป็น "ลืมเช็คออก" เองเมื่อเลยเวลาเลิกงาน โดยไม่ต้องรีเฟรชหน้า
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t) }, [])
   const [listView, setListView]   = useState<'card' | 'table'>('table')
   const autoOpenedRef = useRef(false)
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
@@ -789,9 +808,12 @@ export default function AttendancePage() {
                     </div>
                     <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>เข้า: <b style={{ color: '#1e40af' }}>{fmtTime(row.record?.check_in_at ?? null)}</b></span>
-                      {row.record?.check_in_at && !row.record?.check_out_at
-                        ? <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
-                        : <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ออก: <b>{fmtTime(row.record?.check_out_at ?? null) || '—'}</b></span>}
+                      {(() => {
+                        const st = row.record ? checkoutState(row.record, date, nowMs) : 'none'
+                        if (st === 'forgot') return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
+                        if (st === 'working') return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#ecfdf5', color: '#059669' }}>กำลังทำงาน</span>
+                        return <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ออก: <b>{fmtTime(row.record?.check_out_at ?? null) || '—'}</b></span>
+                      })()}
                       {row.record?.check_in_method && (() => {
                         const m = METHOD_CFG[row.record.check_in_method] ?? METHOD_CFG.LIFF
                         return <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: m.bg, color: m.color }}>{m.label}</span>
@@ -881,9 +903,12 @@ export default function AttendancePage() {
                           </div>
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          {row.record?.check_in_at && !row.record?.check_out_at
-                            ? <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
-                            : <span style={{ color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null) || '—'}</span>}
+                          {(() => {
+                            const st = row.record ? checkoutState(row.record, date, nowMs) : 'none'
+                            if (st === 'forgot') return <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#fef2f2', color: '#dc2626' }}>ลืมเช็คออก</span>
+                            if (st === 'working') return <span title={`ยังไม่ถึงเวลาเลิกงาน (${row.record?.shift?.end_time ?? ''})`} style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#ecfdf5', color: '#059669' }}>กำลังทำงาน</span>
+                            return <span style={{ color: '#374151' }}>{fmtTime(row.record?.check_out_at ?? null) || '—'}</span>
+                          })()}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
