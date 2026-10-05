@@ -118,6 +118,15 @@ function addDaysYMD(ymd: string, n: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+// แท็กส้มเล็ก "มาทำงานวันหยุด/วันลา" — ใช้ในแถวรายวัน (นับเป็นมาปกติ แต่ให้เห็นว่าวันนั้นเดิมเป็นวันหยุด/ลา)
+function WorkedOffTag({ kind }: { kind: 'วันหยุด' | 'วันลา' }) {
+  return (
+    <span style={{ marginLeft: 6, display: 'inline-block', padding: '1px 7px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+      มาทำงาน{kind}
+    </span>
+  )
+}
+
 export default function ReportPage() {
   const now = new Date()
   const isMobile = useIsMobile()
@@ -322,6 +331,17 @@ export default function ReportPage() {
     return m
   }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap, firstCheckinMap])
 
+  // จำนวนวันที่ "มาทำงานในวันหยุด/วันลา" ต่อคน ในช่วง/เดือนที่เลือก (ใช้เกณฑ์เดียวกับแท็กส้ม)
+  const workedOffByEmp = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const { info, byDate } of employees) {
+      let n = 0
+      for (const dk of activeDateKeys) if (workedOffKind(byDate.get(dk), info.id, dk)) n++
+      if (n > 0) m.set(info.id, n)
+    }
+    return m
+  }, [employees, activeDateKeys, leaveMap, dayoffMap])
+
   const filteredEmployees = onlyNoData ? employees.filter(e => noDataByEmp.has(e.info.id)) : employees
 
   // ตรวจข้อมูลย้อนหลังทั้งหมด — สลับไปมุมมอง "ช่วงเวลา" แล้วดันจุดเริ่มไปวันเช็คอินแรกสุด
@@ -355,7 +375,26 @@ export default function ReportPage() {
     })
   }, [viewMode, filteredEmployees, rangeDateKeys])
 
+  // มีเวลาเช็คอินจริงในวันที่ระบบถือว่าเป็นวันหยุด/วันลา (จองหยุดไว้ / ลาที่อนุมัติ / หมายเหตุเขียนว่าหยุด-ลา) → นับเป็นมาทำงานปกติ
+  // แต่ติดแท็ก "มาทำงานวันหยุด/วันลา" ไว้ให้เห็น (คืนค่า null ถ้าเป็นวันทำงานปกติ)
+  function workedOffKind(recs: AttendanceRecord[] | undefined, empId: string, dateKey: string): 'วันหยุด' | 'วันลา' | null {
+    if (!recs?.some(r => r.check_in_at) || recs.some(r => r.is_absent)) return null
+    const leaveType = leaveMap.get(empId)?.get(dateKey)?.label
+    if (leaveType) return ['หยุด', 'หยุดนักขัตฤกษ์', 'COMPENSATE'].includes(leaveType) ? 'วันหยุด' : 'วันลา'
+    if (dayoffMap.get(empId)?.has(dateKey)) return 'วันหยุด'
+    const note = recs.map(r => r.note ?? '').join(' ')
+    if (note.includes('วันหยุด')) return 'วันหยุด'
+    if (note.includes('พักร้อน') || note.includes('ลากิจ')) return 'วันลา'
+    return null
+  }
+
   function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
+    const base = cellInfoBase(recs, empCode, empId, dateKey, hiredAt)
+    const workedOff = workedOffKind(recs, empId, dateKey)
+    return workedOff ? { ...base, tip: `${base.tip} · มาทำงาน${workedOff}`, workedOff } : { ...base, workedOff: null as 'วันหยุด' | 'วันลา' | null }
+  }
+
+  function cellInfoBase(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
     if (hiredAt && dateKey < hiredAt.slice(0, 10)) {
       return { bg: '#fafafa', label: null as ReactNode, color: 'var(--text-muted)', tip: 'ก่อนเริ่มใช้ระบบ', status: 'weekend' as const }
     }
@@ -624,6 +663,16 @@ export default function ReportPage() {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dcfce7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}><Check size={12} /> มา {totalPresent} ครั้ง</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fef3c7', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#92400e', fontWeight: 600 }}><AlertTriangle size={12} /> สาย {totalLate}</span>
           {totalAbsent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}><X size={12} /> ขาด {totalAbsent}</span>}
+          {(() => {
+            const days = filteredEmployees.reduce((n, e) => n + (workedOffByEmp.get(e.info.id) ?? 0), 0)
+            const people = filteredEmployees.filter(e => workedOffByEmp.has(e.info.id)).length
+            return days > 0 ? (
+              <span title="วันที่มีเวลาเช็คอินจริงทั้งที่เป็นวันหยุดที่จองไว้ / วันลา — นับรวมในจำนวน มา แล้ว"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ffedd5', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#c2410c', fontWeight: 600 }}>
+                มาทำงานวันหยุด/ลา {days} วัน ({people} คน)
+              </span>
+            ) : null
+          })()}
           {totalFine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fdf2f8', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: '#be185d', fontWeight: 600 }}><Wallet size={12} /> ค่าปรับรวม {totalFine} ฿</span>}
           {noDataByEmp.size > 0 && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -680,6 +729,7 @@ export default function ReportPage() {
                       {absent > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '2px 7px' }}><X size={10} /> {absent}</span>}
                       {leave > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '2px 7px' }}><CalendarOff size={10} /> {+leave.toFixed(1)}</span>}
                       {fine > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 600, color: '#be185d', background: '#fdf2f8', borderRadius: 6, padding: '2px 7px' }}><Wallet size={10} /> {fine} ฿</span>}
+                      {workedOffByEmp.has(info.id) && <span title="มาทำงานในวันหยุด/วันลา (นับรวมใน มา แล้ว)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.68rem', fontWeight: 700, color: '#c2410c', background: '#ffedd5', borderRadius: 6, padding: '2px 7px' }}>มาวันหยุด/ลา {workedOffByEmp.get(info.id)}</span>}
                     </div>
                     {noDataByEmp.has(info.id) && (
                       <div style={{ marginTop: 5, fontSize: '0.68rem', color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }} title={fmtMissingDates(noDataByEmp.get(info.id)!)}>
@@ -703,7 +753,7 @@ export default function ReportPage() {
                       const d = new Date(dateKey + 'T00:00:00')
                       const dow = d.getDay()
                       const recs = byDate.get(dateKey)
-                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
+                      const { bg, label, color, tip, status, workedOff } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
                       const firstRec = recs?.[0]
                       // ช่วงที่เลือกอาจคาบเกี่ยวหลายเดือน (เช่นปุ่ม "ตรวจตั้งแต่เริ่มใช้งาน")
                       // แต่ละแถวมีแค่วันที่+วัน ไม่มีเดือน ดูแล้วสับสนว่าเป็นเดือนไหน —
@@ -726,7 +776,7 @@ export default function ReportPage() {
                                 <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{DAYS_TH[dow]}</div>
                               </div>
                               <div style={{ width: 24, height: 24, borderRadius: 6, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{label}</div>
-                              <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#374151' }}>{tip}</div>
+                              <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#374151' }}>{workedOff ? tip.replace(` · มาทำงาน${workedOff}`, '') : tip}{workedOff && <WorkedOffTag kind={workedOff} />}</div>
                               {firstRec && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{fmtTime(firstRec.check_in_at)}</div>}
                             </div>
                           )}
@@ -790,6 +840,7 @@ export default function ReportPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>มา {presentDays}/{workingDays} วัน</span>
                         {lateDays > 0 && <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={11} /> สาย {lateDays} วัน</span>}
+                        {workedOffByEmp.has(info.id) && <span title="มาทำงานในวันหยุด/วันลา" style={{ fontSize: '0.68rem', color: '#c2410c', fontWeight: 700 }}>มาวันหยุด/ลา {workedOffByEmp.get(info.id)} วัน</span>}
                       </div>
                       <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
@@ -859,7 +910,7 @@ export default function ReportPage() {
                       const dow = new Date(year, month - 1, d).getDay()
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
-                      const { bg, label, color, tip, status } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
+                      const { bg, label, color, tip, status, workedOff } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
                       if (status === 'weekend') return null
                       const firstRec = recs?.[0]
                       return (
@@ -895,7 +946,7 @@ export default function ReportPage() {
                                 </div>
                               </>
                             ) : (
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tip || '—'}</div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{workedOff ? tip.replace(` · มาทำงาน${workedOff}`, '') : (tip || '—')}{workedOff && <WorkedOffTag kind={workedOff} />}</div>
                             )}
                           </div>
 
@@ -948,6 +999,7 @@ export default function ReportPage() {
               { bg: '#f3e8ff', sym: <MapPin size={11} />,        label: 'นอกสถานที่' },
               { bg: '#f3f4f6', sym: null,                        label: 'เสาร์/อา' },
               { bg: '#f8fafc', sym: <Clock size={11} color="#cbd5e1" />, label: 'ยังไม่ถึงวัน' },
+              { bg: '#ffedd5', sym: <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />, label: 'มาทำงานวันหยุด/ลา' },
             ].map(({ bg, sym, label }) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ background: bg, padding: '1px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center' }}>{sym}</span>
@@ -1011,14 +1063,14 @@ export default function ReportPage() {
                       {days.map(d => {
                         const dateKey = toYMD(year, month, d)
                         const recs = byDate.get(dateKey)
-                        const { bg, label, color, tip } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
+                        const { bg, label, color, tip, workedOff } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
                         return (
                           <td key={d} style={{ padding: 2, textAlign: 'center' }}>
                             <div
                               onClick={() => recs?.length && setDetail({ emp: `${info.first_name} ${info.last_name}`, date: dateKey, records: recs })}
                               title={tip}
-                              style={{ width: 26, height: 26, borderRadius: 5, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 700, cursor: recs?.length ? 'pointer' : 'default', color }}
-                            >{label}</div>
+                              style={{ width: 26, height: 26, borderRadius: 5, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 700, cursor: recs?.length ? 'pointer' : 'default', color, position: 'relative' }}
+                            >{label}{workedOff && <span style={{ position: 'absolute', top: -3, right: -3, width: 9, height: 9, borderRadius: '50%', background: '#f97316', border: '1.5px solid #fff' }} />}</div>
                           </td>
                         )
                       })}
@@ -1026,6 +1078,7 @@ export default function ReportPage() {
                       <td style={{ padding: '8px 4px', textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>
                         <div style={{ fontWeight: 700, color: '#15803d' }}>{presentDays}</div>
                         {lateDays > 0 && <div style={{ fontSize: '0.62rem', color: '#92400e' }}>สาย {lateDays}</div>}
+                        {workedOffByEmp.has(info.id) && <div title="มาทำงานในวันหยุด/วันลา" style={{ fontSize: '0.62rem', color: '#c2410c', fontWeight: 700 }}>วันหยุด {workedOffByEmp.get(info.id)}</div>}
                       </td>
                     </tr>
                   )

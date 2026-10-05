@@ -2,13 +2,14 @@
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid, Smile, Users } from 'lucide-react'
+import { LayoutDashboard, Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid, Smile, Users } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import PageLinks from '../../components/ui/PageLinks'
 import TabBar from '../../components/ui/TabBar'
 
 interface ApiAnnouncement { id: string; title: string; content: string; send_line: boolean; created_at: string }
@@ -279,7 +280,8 @@ export default function AnnouncementPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
         <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Megaphone size={18} style={{ color: '#244B83' }}/>ประกาศ & ข้อความ
           <InfoTooltip size="md" title="ประกาศ & ข้อความ" width={300} content={
@@ -292,6 +294,8 @@ export default function AnnouncementPage() {
           } />
         </h2>
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
+        </div>
+        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
       </div>
 
       <TabBar

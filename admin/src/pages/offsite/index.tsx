@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
+import { LayoutDashboard, MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
@@ -11,6 +11,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter }
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import PageLinks from '../../components/ui/PageLinks'
 import Pagination from '../../components/ui/Pagination'
 import { usePagination } from '../../hooks/usePagination'
 
@@ -237,7 +238,8 @@ export default function OffsitePage() {
             </ul>
           } />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
           <Button variant="secondary" icon={<Download size={15} />} onClick={exportOffsite} disabled={filtered.length === 0}>Export</Button>
           {!isReadOnly && (
             <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>

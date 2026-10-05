@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { X, CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
+import { X, Megaphone, FileText, FileClock, CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -12,6 +12,7 @@ import SetupChecklist from '../../components/shared/SetupChecklist'
 import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
+import PageLinks from '../../components/ui/PageLinks'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiMonth } from '../../lib/format'
 import AttendanceMap from '../attendance/AttendanceMap'
@@ -512,6 +513,15 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
+
+        {/* ── ไปหน้ากิจกรรม (สลับกลับมาได้จากปุ่ม "ภาพรวม" ในแต่ละหน้า) ──────────── */}
+        <PageLinks links={[
+          { to: '/ot', label: 'OT', icon: <FileClock size={14} />, permKey: 'ot', feature: 'ot_management' },
+          { to: '/announcement', label: 'ประกาศ & ข้อความ', icon: <Megaphone size={14} />, permKey: 'announcement', feature: 'announcement' },
+          { to: '/offsite', label: 'เช็คอินนอกสถานที่', icon: <MapPin size={14} />, permKey: 'offsite', feature: 'gps_checkin' },
+          { to: '/resignations', label: 'คำขอลาออก', icon: <DoorOpen size={14} />, permKey: 'resignation', feature: 'resignation' },
+          { to: '/document-requests', label: 'ขอเอกสาร HR', icon: <FileText size={14} />, permKey: 'document_request', feature: 'document_request' },
+        ]} />
 
         {/* ── Quick links ──────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 16 }}>

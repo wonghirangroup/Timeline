@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2, Download, Wallet } from 'lucide-react'
+import { LayoutDashboard, FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2, Download, Wallet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { uploadFile } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
@@ -21,6 +21,7 @@ import InfoTooltip from '../../components/ui/InfoTooltip'
 import RequestNo from '../../components/ui/RequestNo'
 import { usePagination } from '../../hooks/usePagination'
 import Pagination from '../../components/ui/Pagination'
+import PageLinks from '../../components/ui/PageLinks'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
@@ -159,6 +160,7 @@ export default function DocumentRequestsPage() {
             </ul>
           } />
         </h1>
+        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
           <InfoTooltip width={290} content="สรุปเอกสารที่ออกแล้วจริง (ไม่ใช่รายการคำขอด้านล่าง) — ใช้ดู/กรอง/Export ยอดสลิปเงินเดือนและหนังสือรับรองเงินเดือนที่สร้างในระบบทั้งหมด แยกตามกลุ่ม/สาขา/แผนก" />

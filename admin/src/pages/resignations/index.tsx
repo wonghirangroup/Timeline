@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { DoorOpen, Check, X, Search, Table2, LayoutGrid } from 'lucide-react'
+import { LayoutDashboard, DoorOpen, Check, X, Search, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsReadOnly } from '../../stores/authStore'
@@ -15,6 +15,7 @@ import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import EmptyState from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import InfoTooltip from '../../components/ui/InfoTooltip'
+import PageLinks from '../../components/ui/PageLinks'
 import RequestNo from '../../components/ui/RequestNo'
 import { usePagination } from '../../hooks/usePagination'
 import Pagination from '../../components/ui/Pagination'
@@ -72,7 +73,7 @@ export default function ResignationsPage() {
 
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
           <DoorOpen size={20} /> คำขอลาออก
           <InfoTooltip size="md" title="คำขอลาออก" width={310} content={
@@ -83,6 +84,7 @@ export default function ResignationsPage() {
             </ul>
           } />
         </h1>
+        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>

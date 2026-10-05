@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search, Table2, LayoutGrid, Download } from 'lucide-react'
+import { LayoutDashboard, Check, AlertCircle, CheckCircle2, AlertTriangle, Clock, X, Plus, Wallet, Calculator, Circle, Search, Table2, LayoutGrid, Download } from 'lucide-react'
 import type { OtRequest, OtStatus } from '../../types'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useIsReadOnly } from '../../stores/authStore'
 import Pagination from '../../components/ui/Pagination'
+import PageLinks from '../../components/ui/PageLinks'
 import RequestNo from '../../components/ui/RequestNo'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Modal from '../../components/ui/Modal'
@@ -378,7 +379,8 @@ export default function OtPage() {
             </ul>
           } />
         </h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
           <button onClick={exportOt} disabled={filtered.length === 0}
             style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
           >
