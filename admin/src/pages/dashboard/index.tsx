@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
+import { X, CheckCircle2, AlertTriangle, XCircle, CalendarDays, ClipboardList, Clock, Users, BarChart2, Zap, MapPin, UserMinus, UserPlus, ChevronDown, TrendingUp, TrendingDown, DoorOpen, Target, FileWarning, Building2, Palmtree } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -11,6 +11,7 @@ import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import SetupChecklist from '../../components/shared/SetupChecklist'
 import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
+import Modal from '../../components/ui/Modal'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiMonth } from '../../lib/format'
 import AttendanceMap from '../attendance/AttendanceMap'
@@ -65,7 +66,7 @@ function personLabel(p: RangePerson) {
   return p.nickname ? `${full} (${p.nickname})` : full
 }
 
-// ─── Range KPI card — คลิกขยายดูรายชื่อได้ ────────────────────────────────────
+// ─── Range KPI card — คลิกแล้วเปิด popup รายชื่อ (เดิมขยายการ์ดในหน้า ทำให้การ์ดสูงไม่เท่ากัน ดันเลย์เอาต์) ────────────────────────────────────
 function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel, extraLine }: {
   label: string; count: number; unit: string; color: string; bg: string; icon: React.ReactNode
   people: RangePerson[]; emptyLabel: string; extraLine?: (p: RangePerson) => string | null
@@ -73,7 +74,7 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
   const [open, setOpen] = useState(false)
   return (
     <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
-      <button onClick={() => count > 0 && setOpen(o => !o)}
+      <button onClick={() => count > 0 && setOpen(true)}
         style={{ width: '100%', padding: '18px 20px', border: 'none', background: 'var(--bg-card)', cursor: count > 0 ? 'pointer' : 'default', textAlign: 'left', fontFamily: 'inherit' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           {/* ไอคอนแบดจ์ gradient แทนพื้นจางเดิม — ปรับ "ความรู้สึก" จาก reference
@@ -82,28 +83,37 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
           <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${color} 55%, white), ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${color}4D` }}>{icon}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: '30px', fontWeight: 800, color, lineHeight: 1 }}>{count}</span>
-            {count > 0 && <ChevronDown size={16} color="var(--text-muted)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />}
           </div>
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600, marginTop: 8 }}>{label} <span style={{ fontWeight: 400 }}>({unit})</span></div>
       </button>
       {open && (
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', maxHeight: 240, overflowY: 'auto' }}>
-          {people.length === 0 ? (
-            <div style={{ padding: '16px 20px', fontSize: '12px', color: 'var(--text-muted)' }}>{emptyLabel}</div>
-          ) : people.map((p, i) => {
-            const extra = extraLine?.(p)
-            return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: i < people.length - 1 ? '1px solid rgba(0,0,0,0.03)' : 'none' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{personLabel(p)}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}{p.branch ? ` · ${p.branch.name}` : ''}</div>
+        <Modal onClose={() => setOpen(false)} width={440} labelledBy="kpi-modal-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 20px', borderBottom: '1px solid #E6ECF4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${color} 55%, white), ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>{icon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div id="kpi-modal-title" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>{label}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{count} {unit}</div>
+            </div>
+            <button onClick={() => setOpen(false)} aria-label="ปิด" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 4 }}><X size={18} /></button>
+          </div>
+          <div>
+            {people.length === 0 ? (
+              <div style={{ padding: '24px 20px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>{emptyLabel}</div>
+            ) : people.map((p, i) => {
+              const extra = extraLine?.(p)
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 20px', borderBottom: i < people.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>{personLabel(p)}</div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}{p.branch ? ` · ${p.branch.name}` : ''}</div>
+                  </div>
+                  {extra && <span style={{ fontSize: '11.5px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '3px 10px', flexShrink: 0 }}>{extra}</span>}
                 </div>
-                {extra && <span style={{ fontSize: '11px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>{extra}</span>}
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </Modal>
       )}
     </div>
   )
