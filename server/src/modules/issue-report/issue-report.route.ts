@@ -29,6 +29,12 @@ export async function issueReportRoutes(app: FastifyInstance) {
     },
   }, async (req: any, reply) => {
     const { line_channel_id, line_user_id, display_name, message, context } = req.body
+    // เก็บรายงานไว้ใน log ของเซิร์ฟเวอร์ด้วย (เดิมไปอยู่แค่ในข้อความ LINE ของแอดมิน เปิดย้อนหลังไม่ได้) —
+    // ใช้ไล่หาแพทเทิร์นของอาการ "Failed to fetch" เช่น รุ่นเครื่อง/เวอร์ชัน LINE/เครือข่ายที่ตรงกัน
+    console.log('[issue-report]', JSON.stringify({
+      at: new Date().toISOString(), ip: req.headers['x-forwarded-for'] ?? req.ip, ua: req.headers['user-agent'],
+      line_channel_id, line_user_id, display_name, message, context,
+    }))
     const config = await getTenantByChannelId(line_channel_id)
     if (!config) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบบริษัทสำหรับ LINE นี้'))
 
