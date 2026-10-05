@@ -7,7 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
-  getMonthView, getMonthQuotaSummary, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
@@ -70,9 +70,40 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       tags: ['Admin'],
       summary: 'โควต้าวันหยุดจอง/เดือน ต่อพนักงาน — จองแล้ว (รอพิจารณา+อนุมัติ) / โควต้า / เหลือ',
       security: [{ oauth2: [] }],
-      querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string', description: 'YYYY-MM' } } },
+      querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string', description: 'YYYY-MM' }, all: { type: 'boolean', description: 'true = พนักงานที่ยังใช้งานทุกคน (ไม่ใช่เฉพาะคนที่มีรายการจอง)' } } },
     },
-  }, async (req: any) => ok(await getMonthQuotaSummary(req.tenantId, req.query.month, req.scopedEmployeeIds)))
+  }, async (req: any) => ok(await getMonthQuotaSummary(req.tenantId, req.query.month, req.scopedEmployeeIds, req.query.all === true)))
+
+  // ── Admin: ลงวันหยุดหลายวัน/หลายคนในครั้งเดียว (ปฏิทินรวม) ─────────────────
+  app.post('/admin/weekly-off/batch', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'add')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'Admin ลงวันหยุดให้พนักงานหลายวัน/หลายคนในครั้งเดียว (อนุมัติอัตโนมัติ) — คืนผลรายวัน',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object',
+        required: ['items'],
+        properties: {
+          force: { type: 'boolean', description: 'true = ยืนยันเพิ่มให้ทั้งที่สาขา/กลุ่มปิดสิทธิ์จอง' },
+          items: {
+            type: 'array', minItems: 1, maxItems: 200,
+            items: {
+              type: 'object', required: ['employee_id', 'dates'],
+              properties: {
+                employee_id: { type: 'string' },
+                dates: { type: 'array', minItems: 1, maxItems: 31, items: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (req: any) => {
+    const results = await createWeeklyOffBatch(req.tenantId, req.body.items, { force: req.body.force === true, actorUserId: req.userId })
+    const created = results.filter(r => r.ok).length
+    return ok({ created, failed: results.filter(r => !r.ok), total: results.length }, `ลงวันหยุดสำเร็จ ${created}/${results.length} วัน`)
+  })
 
   // ── Admin: เพิ่มวันหยุดให้พนักงาน ──────────────────────────────────
   app.post('/admin/weekly-off', {

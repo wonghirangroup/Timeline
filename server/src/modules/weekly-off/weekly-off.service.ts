@@ -120,10 +120,16 @@ export async function listWeeklyOff(tenantId: string, filters: {
 
 // โควต้าวันหยุดจอง/เดือน ของพนักงานทุกคนที่มีรายการจองในเดือนนี้ — จองไปแล้วกี่วัน (รอพิจารณา+อนุมัติ นับแบบเดียวกับตอนบล็อก OVER_QUOTA)
 // เทียบกับโควต้าที่ resolve จาก cascade (สถานะพนักงาน→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม, default 5) ใช้แสดง "3/5" ในหน้าคำขอวันหยุด
-export async function getMonthQuotaSummary(tenantId: string, month: string, scopedEmployeeIds?: string[]) {
+export async function getMonthQuotaSummary(tenantId: string, month: string, scopedEmployeeIds?: string[], all = false) {
   const list = await listWeeklyOff(tenantId, { month, scopedEmployeeIds })
   const modeById = new Map(list.map(r => [r.employee_id, (r.employee as any).weekly_off_mode as string | undefined]))
-  const ids = [...new Set(list.map(r => r.employee_id))]
+  // all=true → พนักงานที่ยังใช้งานทุกคน (ไม่ใช่เฉพาะคนที่มีรายการจองในเดือนนี้) — ใช้กับหน้าลงวันหยุดหลายคน
+  const ids = all
+    ? (await prisma.employee.findMany({
+        where: { tenant_id: tenantId, deleted_at: null, is_active: true, ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}) },
+        select: { id: true },
+      })).map(e => e.id)
+    : [...new Set(list.map(r => r.employee_id))]
   const modes = ids.length
     ? await prisma.employee.findMany({ where: { id: { in: ids } }, select: { id: true, weekly_off_mode: true } })
     : []
@@ -135,6 +141,28 @@ export async function getMonthQuotaSummary(tenantId: string, month: string, scop
     ])
     return { employee_id, quota, booked, remaining: quota - booked, weekly_off_mode: modeOf.get(employee_id) ?? modeById.get(employee_id) ?? 'WEEKLY' }
   }))
+}
+
+// แอดมินลงวันหยุดหลายวัน/หลายคนในครั้งเดียว (หน้า ปฏิทินรวม) — เรียก createWeeklyOff ทีละวัน (กฎเดียวกับการลงทีละวัน: โควต้า/เดือน, สิทธิ์จอง,
+// เพดานรวมหยุด+พักร้อน 10 วัน) ไม่ใช้ transaction เดียว เพราะแต่ละวันอิสระต่อกัน — วันที่ผ่านลงให้ วันที่ไม่ผ่านคืนรหัสเหตุผลกลับไปรายวัน
+export async function createWeeklyOffBatch(
+  tenantId: string,
+  items: { employee_id: string; dates: string[] }[],
+  opts: PolicyOpts = {},
+) {
+  const results: { employee_id: string; date: string; ok: boolean; code?: string }[] = []
+  for (const it of items) {
+    // เรียงวันที่ก่อน เพื่อให้โควต้านับจากวันแรกๆ ถ้าเกินจะตัดวันท้ายออกเป็นเหตุผล OVER_QUOTA
+    for (const date of [...new Set(it.dates)].sort()) {
+      try {
+        await createWeeklyOff(tenantId, { employee_id: it.employee_id, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }, opts)
+        results.push({ employee_id: it.employee_id, date, ok: true })
+      } catch (e: any) {
+        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR') })
+      }
+    }
+  }
+  return results
 }
 
 // opts.force: แอดมินกด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking cascade = ปิด (พนักงานจองเองส่ง {} เสมอ)

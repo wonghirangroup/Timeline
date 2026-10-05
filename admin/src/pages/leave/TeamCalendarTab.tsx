@@ -12,6 +12,8 @@ import { avatarUrl } from '../../lib/upload'
 import SearchSelect from '../../components/shared/SearchSelect'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import GuidedTour from '../../components/shared/GuidedTour'
+import DayOffBatchModal from './DayOffBatchModal'
+import { useIsReadOnly } from '../../stores/authStore'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
@@ -652,6 +654,8 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function TeamCalendarTab() {
+  const isReadOnly = useIsReadOnly()
+  const [batchMode, setBatchMode] = useState<null | 'single' | 'multi'>(null)   // ลงวันหยุดรายคน / หลายคน (modal)
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayYM  = todayStr.slice(0, 7)
   const isMobile = useIsMobile()
@@ -1241,6 +1245,19 @@ export default function TeamCalendarTab() {
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Printer size={14} /> PDF
           </button>
+          {!isReadOnly && (
+            <>
+              <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
+              <button onClick={() => setBatchMode('single')} title="เลือกพนักงาน 1 คน แล้วกดวันหยุดบนปฏิทินได้หลายวัน"
+                style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Plus size={14} /> ลงวันหยุดรายคน
+              </button>
+              <button onClick={() => setBatchMode('multi')} title="ตารางเต็มจอ ติ๊กวันหยุดให้หลายคนพร้อมกัน (ไม่เกินโควต้าที่เหลือของแต่ละคน)"
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #244B83', background: '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Table2 size={14} /> ลงวันหยุดหลายคน
+              </button>
+            </>
+          )}
           <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
           <button onClick={() => setShowRosterSettings(true)} title="ตั้งค่า + Export ตารางแยกกลุ่ม — เลือกคอลัมน์ / สีต่อคนเอง"
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#131C45', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1249,6 +1266,8 @@ export default function TeamCalendarTab() {
           <InfoTooltip width={280} content="ตารางรูปแบบ roster แยกเป็นกลุ่มเอง ปรับคอลัมน์ สีและกลุ่มของแต่ละคนได้อิสระ รวมถึงซ่อนบางคนออกจากตารางได้ — ต่างจาก Excel/PDF ด้านซ้ายที่ export ตามปฏิทินปกติ" />
         </div>
       </div>
+
+      {batchMode && <DayOffBatchModal mode={batchMode} month={month} onClose={() => setBatchMode(null)} onDone={invalidateCalendar} />}
 
       {/* Calendar grid (always full width) */}
       <div>
