@@ -705,6 +705,11 @@ export default function WeeklyOffPage() {
   // ปฏิเสธทั้งช่วง — สำหรับแถวที่รวมวันต่อเนื่องกันแล้ว (groupConsecutiveDays) แยกจาก
   // bulkRejectFor ด้านบน (นั้นคือ "ปฏิเสธทั้งหมดของการ์ด" ระดับพนักงาน คนละปุ่มกัน)
   const [rangeRejectFor, setRangeRejectFor] = useState<string[] | null>(null)
+  // แยกอนุมัติ/ปฏิเสธรายวันในช่วงที่ติดกัน (เช่น 27–31 อนุมัติ 27-29 และ 31, ปฏิเสธ 30)
+  const [splitKey, setSplitKey] = useState<string | null>(null)
+  const [splitSel, setSplitSel] = useState<string[]>([])
+  const [splitRejecting, setSplitRejecting] = useState(false)
+  const [splitNote, setSplitNote] = useState('')
   const [rangeRejectNote, setRangeRejectNote] = useState('')
   // แถว/บล็อกที่กำลังจะอนุมัติแบบมี conflict — เปิดตัวเลือก "หักจากไหน" ก่อนยืนยัน
   // (feedback 2026-09-15 ข้อ 1) เก็บเป็น id เดียว — บล็อกที่รวมหลายวันให้อนุมัติทีละวัน
@@ -717,6 +722,7 @@ export default function WeeklyOffPage() {
   function toggleBlock(key: string) {
     setOpenBlockKey(k => k === key ? null : key)
     setRejectId(null); setConflictApproveId(null); setRangeRejectFor(null)
+    setSplitKey(null); setSplitSel([]); setSplitRejecting(false); setSplitNote('')
   }
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
@@ -1245,6 +1251,12 @@ export default function WeeklyOffPage() {
                                   </span>
                                 ) : null
                               })()}
+                              {isRange && !isReadOnly && block.status === 'PENDING' && (
+                                <button onClick={() => { setSplitKey(splitKey === block.ids.join(',') ? null : block.ids.join(',')); setSplitSel([]); setSplitRejecting(false); setSplitNote('') }}
+                                  style={{ padding: '2px 10px', borderRadius: 99, border: '1px solid #244B83', background: splitKey === block.ids.join(',') ? '#244B83' : '#fff', color: splitKey === block.ids.join(',') ? '#fff' : '#244B83', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  {splitKey === block.ids.join(',') ? 'ปิดการแยกรายวัน' : 'แยกเลือกรายวัน'}
+                                </button>
+                              )}
                             </div>
                             {block.status === 'REJECTED' && block.rejectNote && (
                               <div style={{ fontSize: '0.72rem', color: '#dc2626', flexBasis: '100%' }}>หมายเหตุ: {block.rejectNote}</div>
@@ -1312,6 +1324,50 @@ export default function WeeklyOffPage() {
                                   style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
                                   ยกเลิก
                                 </button>
+                              </div>
+                            )}
+                            {isRange && splitKey === block.ids.join(',') && (
+                              <div style={{ flexBasis: '100%', marginTop: 4, background: '#fff', border: '1px solid #dbe4f0', borderRadius: 10, overflow: 'hidden' }}>
+                                <div style={{ padding: '8px 12px', background: '#F4F6F9', fontSize: '0.74rem', color: '#244B83', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                                  <span>ติ๊กเลือกวันที่ต้องการ แล้วกดอนุมัติ/ปฏิเสธเฉพาะวันที่เลือก (วันที่ไม่ได้เลือกยังรอพิจารณาอยู่)</span>
+                                  <button onClick={() => setSplitSel(splitSel.length === block.ids.length ? [] : [...block.ids])}
+                                    style={{ border: 'none', background: 'none', color: '#244B83', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                                    {splitSel.length === block.ids.length ? 'ล้างที่เลือก' : 'เลือกทั้งหมด'}
+                                  </button>
+                                </div>
+                                {block.items.map((it, di) => {
+                                  const checked = splitSel.includes(it.id)
+                                  return (
+                                    <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderTop: di === 0 ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', background: checked ? '#eff6ff' : '#fff' }}>
+                                      <input type="checkbox" checked={checked} onChange={() => setSplitSel(sel => checked ? sel.filter(x => x !== it.id) : [...sel, it.id])} />
+                                      <span style={{ fontWeight: 700, fontSize: '0.84rem', color: '#111827' }}>{fmtDate(resolveDate(it.week_start, it.day_of_week))}</span>
+                                      <span style={{ fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 6px' }}>{DAYS_TH[it.day_of_week]}</span>
+                                      {it.has_conflict && <span style={{ fontSize: '0.66rem', background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontWeight: 700 }}>ชนตำแหน่ง</span>}
+                                    </label>
+                                  )
+                                })}
+                                <div style={{ padding: '10px 12px', borderTop: '1px solid #e5e7eb', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                  {splitRejecting ? (
+                                    <>
+                                      <input value={splitNote} onChange={e => setSplitNote(e.target.value)} placeholder={`หมายเหตุ — ใช้กับ ${splitSel.length} วันที่เลือก (ไม่บังคับ)`} autoFocus
+                                        style={{ flex: 1, minWidth: 160, padding: '6px 9px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '12px', fontFamily: 'inherit' }} />
+                                      <button onClick={() => { rejectManyMutation.mutate({ ids: splitSel, note: splitNote }); setSplitRejecting(false); setSplitSel([]); setSplitNote('') }} disabled={rejectManyMutation.isPending}
+                                        style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>ยืนยันปฏิเสธ {splitSel.length} วัน</button>
+                                      <button onClick={() => setSplitRejecting(false)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>ยกเลิก</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button disabled={splitSel.length === 0 || approveManyMutation.isPending} onClick={() => { approveManyMutation.mutate(splitSel); setSplitSel([]) }}
+                                        style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Check size={12} /> อนุมัติที่เลือก ({splitSel.length})
+                                      </button>
+                                      <button disabled={splitSel.length === 0} onClick={() => { setSplitRejecting(true); setSplitNote('') }}
+                                        style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <X size={12} /> ปฏิเสธที่เลือก ({splitSel.length})
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             )}
                             {isRange && isRowRejecting && (
