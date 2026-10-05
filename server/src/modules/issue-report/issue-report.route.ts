@@ -6,6 +6,31 @@ import { ok, fail } from '../../common/utils/response'
 
 export async function issueReportRoutes(app: FastifyInstance) {
 
+  // POST /api/v1/employee/client-diag — แอปพนักงานส่งรายละเอียดทางเทคนิคมาเองอัตโนมัติตอน boot ล้มเหลว (ไม่ต้องรอให้พนักงานกด
+  // "แจ้งปัญหา") — เก็บลง log ของเซิร์ฟเวอร์อย่างเดียว ไม่ส่ง LINE หาแอดมิน (กันสแปม) ไว้ไล่หาแพทเทิร์นของ "Failed to fetch"
+  app.post('/employee/client-diag', {
+    schema: {
+      tags: ['Employee'],
+      summary: 'ส่ง diagnostic ตอน boot ล้มเหลว (ไม่ต้อง login — เก็บ log อย่างเดียว)',
+      body: {
+        type: 'object',
+        required: ['stage'],
+        properties: {
+          line_channel_id: { type: 'string', maxLength: 40 },
+          stage:   { type: 'string', maxLength: 40 },
+          detail:  { type: 'string', maxLength: 300 },
+          context: { type: 'string', maxLength: 800 },
+        },
+      },
+    },
+  }, async (req: any, reply) => {
+    console.log('[client-diag]', JSON.stringify({
+      at: new Date().toISOString(), ip: req.headers['x-forwarded-for'] ?? req.ip, ua: req.headers['user-agent'], ...req.body,
+    }))
+    return reply.code(204).send()
+  })
+
+
   // POST /api/v1/employee/report-issue — แจ้งปัญหาการใช้งานแอปให้แอดมินทาง LINE
   // ตั้งใจ "ไม่ผ่าน tenantMiddleware เลย" (ไม่ต้อง JWT) เพราะจุดประสงค์หลักคือใช้
   // ตอนพนักงาน login เข้าแอปไม่ได้เลย (เช่น "Failed to Fetch" วนลูปตอน boot) — ถ้า

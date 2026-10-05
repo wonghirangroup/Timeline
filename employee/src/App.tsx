@@ -5,8 +5,8 @@ import './index.css'
 import BottomNav    from './components/layout/BottomNav'
 import { PageLoader } from './components/ui'
 import { useAuthStore, getLastKnownEmployeeName } from './stores/authStore'
-import { devLogin, liffLogin, reportIssue } from './lib/axios'
-import { initLiff, getLiffProfile, getChannelId, forceRelogin, hardResetLiff, probeConnectivity, tagStage } from './lib/liff'
+import { devLogin, liffLogin, reportIssue, sendBootDiag } from './lib/axios'
+import { initLiff, getLiffProfile, getChannelId, forceRelogin, hardResetLiff, probeConnectivity, tagStage, getFetchFailures } from './lib/liff'
 
 const CheckinPage  = lazy(() => import('./pages/checkin'))
 const CheckoutPage = lazy(() => import('./pages/checkout'))
@@ -52,7 +52,7 @@ function ErrorScreen({ message, detail, onRetry, reportCtx }: {
       const probe = await probeConnectivity(import.meta.env.VITE_API_URL as string).catch(() => 'probe-error')
       const lineVer = navigator.userAgent.match(/Line\/([\d.]+)/)?.[1] ?? '-'
       const android = navigator.userAgent.match(/Android [\d.]+|iPhone OS [\d_]+/)?.[0] ?? navigator.platform
-      const diag = `${detail} | online=${navigator.onLine} | ${android} LINE ${lineVer} | ${probe}`.slice(0, 480)
+      const diag = `${detail} | online=${navigator.onLine} | ${android} LINE ${lineVer} | ${probe} | failed-fetch: ${getFetchFailures()}`.slice(0, 495)
       await reportIssue({
         line_channel_id: getChannelId(),
         line_user_id:    reportCtx.lineUserId,
@@ -282,6 +282,7 @@ export default function App() {
         }))
         setAuth(employee, token)
         setRetrying(null)
+        try { sessionStorage.removeItem('tl_boot_reloads') } catch { /* ignore */ }
         setBootState('authed')
       } catch (err: any) {
         const code = err?.response?.data?.error?.code
@@ -298,7 +299,20 @@ export default function App() {
         }
       }
     } catch (err: any) {
-      if (isNetworkGlitch(err) && attempt < AUTO_RETRY_DELAYS.length) {
+      const liffStage = String(err?.stage ?? '').startsWith('liff')
+      // ขั้น liff พังทั้งที่เครือข่ายปกติ (ตรวจแล้ว ours/line-api/liff-cdn = 200 ตอนกดแจ้งปัญหา) = สถานะของ LIFF SDK ใน WebView นี้ค้าง ไม่ใช่เน็ตหลุด —
+      // เรียก liff.init() ซ้ำใน context เดิมจึงพังซ้ำเหมือนเดิม (ตรงกับอาการที่ต้องปิดแอป LINE สนิทถึงจะหาย) ให้โหลดหน้าใหม่ทั้งหน้าแทน
+      // ได้ SDK instance สดเหมือนเปิดแอปใหม่ — จำกัด 2 ครั้งต่อ session กันวนไม่จบ ครบแล้วค่อยไปขั้นล้าง session / หน้า error
+      if (liffStage && isNetworkGlitch(err) && !import.meta.env.DEV) {
+        let n = 0
+        try { n = Number(sessionStorage.getItem('tl_boot_reloads') ?? 0); if (n < 2) sessionStorage.setItem('tl_boot_reloads', String(n + 1)) } catch { n = 2 }
+        if (n < 2) {
+          setRetrying(n + 1)
+          setTimeout(() => window.location.reload(), 900)
+          return
+        }
+      }
+      if (isNetworkGlitch(err) && !liffStage && attempt < AUTO_RETRY_DELAYS.length) {
         setRetrying(attempt + 1)
         setTimeout(() => boot(attempt + 1), AUTO_RETRY_DELAYS[attempt])
         return // ยังอยู่หน้า loading เดิม ไม่โชว์ error ให้ผู้ใช้เห็นเลยถ้าลองซ้ำแล้วผ่าน
@@ -328,6 +342,11 @@ export default function App() {
       const raw = err?.response?.data?.error?.message ?? err?.message ?? 'เกิดข้อผิดพลาด'
       const stage = err?.stage ?? 'unknown'
       setErrDetail(`${stage}: ${raw}`)
+      // ส่ง diagnostic ไปเก็บที่เซิร์ฟเวอร์เองเลย ไม่ต้องรอให้พนักงานกดแจ้งปัญหา — จะได้เห็นทุกเคส (รวมคนที่ไม่ได้กดแจ้ง)
+      sendBootDiag({
+        line_channel_id: getChannelId(), stage, detail: String(raw).slice(0, 300),
+        context: `LINE ${navigator.userAgent.match(/Line\/([\d.]+)/)?.[1] ?? '-'} | ${navigator.userAgent.match(/Android [\d.]+|iPhone OS [\d_]+/)?.[0] ?? '-'} | online=${navigator.onLine} | failed-fetch: ${getFetchFailures()}`.slice(0, 790),
+      })
       setErrMsg(stage.startsWith('liff') && isNetworkGlitch(err)
         ? 'เชื่อมต่อกับ LINE ไม่สำเร็จ'
         : raw)
@@ -347,7 +366,7 @@ export default function App() {
   }
 
   if (bootState === 'loading')  return <PageLoader title="กำลังเข้าสู่ระบบ…" sub={retrying ? `สัญญาณไม่นิ่ง กำลังลองใหม่ (${retrying}/${AUTO_RETRY_DELAYS.length})` : 'YooNai by Smartjigsaw'} />
-  if (bootState === 'error')    return <ErrorScreen message={errMsg} detail={errDetail} onRetry={() => boot()} reportCtx={reportCtx} />
+  if (bootState === 'error')    return <ErrorScreen message={errMsg} detail={errDetail} onRetry={() => (errDetail.startsWith('liff') ? window.location.reload() : boot())} reportCtx={reportCtx} />
   if (bootState === 'dev-pick') return <DevPicker onPick={handleDevPick} />
 
   return (

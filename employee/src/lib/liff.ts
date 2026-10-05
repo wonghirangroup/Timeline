@@ -12,6 +12,31 @@ async function _get(): Promise<LiffType> {
   return _liff
 }
 
+// บันทึก fetch() ที่ล้มเหลว (URL ที่ตัด query ออกแล้ว + error + ใช้เวลาเท่าไร) — "Failed to fetch" จาก liff.init() ไม่บอกว่าล้มที่
+// URL ไหน ทั้งที่ตรวจเครือข่ายตอนหลังต่อติดหมด (ours/line-api/liff-cdn = 200) จึงดักไว้ที่ window.fetch ให้เห็นชัดว่าตัวไหนล้ม
+const _fetchFailures: string[] = []
+export function getFetchFailures(): string {
+  return _fetchFailures.length ? _fetchFailures.join(' ; ') : 'none-recorded'
+}
+function installFetchRecorder() {
+  const w = window as any
+  if (w.__tlFetchRecorder || typeof w.fetch !== 'function') return
+  w.__tlFetchRecorder = true
+  const orig = w.fetch.bind(w)
+  w.fetch = (input: any, init?: any) => {
+    const started = Date.now()
+    return orig(input, init).catch((e: any) => {
+      try {
+        const raw = typeof input === 'string' ? input : input?.url ?? String(input)
+        const u = new URL(raw, window.location.href)
+        if (_fetchFailures.length < 6) _fetchFailures.push(`${u.host}${u.pathname.slice(0, 60)} ${e?.name ?? 'err'}/${Date.now() - started}ms`)
+      } catch { /* ดักไว้เฉยๆ อย่าให้พังของจริง */ }
+      throw e
+    })
+  }
+}
+installFetchRecorder()
+
 const SESSION_KEY = 'tl_liff_id'
 
 /** อ่าน LIFF ID จาก ?lid= → sessionStorage → env var (ตามลำดับ) */

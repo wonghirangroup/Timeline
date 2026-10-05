@@ -2,7 +2,7 @@
 import { useState, useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3, Clock } from 'lucide-react'
+import { CalendarDays, CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3, Clock, ArrowLeft } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -12,6 +12,7 @@ import { fmtThaiDate } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import PageLinks from '../../components/ui/PageLinks'
 import { downloadCsv } from '../../lib/exportCsv'
 
 interface AttendanceRecord {
@@ -107,6 +108,16 @@ function initials(first: string, last: string) {
   return (first.charAt(0) + last.charAt(0)).toUpperCase()
 }
 
+// วันนี้ตามเวลาไทย (YYYY-MM-DD) — ไม่ใช้ toISOString() ตรงๆ เพราะเป็น UTC ช่วงเที่ยงคืน–7 โมงเช้าจะเพี้ยนไป 1 วัน
+function bangkokToday(): string {
+  return new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)
+}
+function addDaysYMD(ymd: string, n: number): string {
+  const d = new Date(ymd + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function ReportPage() {
   const now = new Date()
   const isMobile = useIsMobile()
@@ -130,8 +141,8 @@ export default function ReportPage() {
   const [viewMode, setViewMode] = useState<'month' | 'range'>('month')
   // มุมมองการ์ด/ตาราง/กราฟ — เฉพาะโหมด 'month' บนจอใหญ่ (มือถือเป็นการ์ดเสมออยู่แล้ว)
   const [view, setView] = useState<'table' | 'card' | 'chart'>('table')
-  const [rangeStart, setRangeStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10) })
-  const [rangeEnd,   setRangeEnd]   = useState(() => new Date().toISOString().slice(0, 10))
+  const [rangeStart, setRangeStart] = useState(() => addDaysYMD(bangkokToday(), -29))
+  const [rangeEnd,   setRangeEnd]   = useState(() => bangkokToday())
   const [expandedRangeEmp, setExpandedRangeEmp] = useState<string | null>(null)
 
   const startDate = toYMD(year, month, 1)
@@ -147,9 +158,8 @@ export default function ReportPage() {
   const rangeDateKeys = useMemo(() => {
     if (viewMode !== 'range') return []
     const out: string[] = []
-    const cur = new Date(rangeStart + 'T00:00:00')
-    const end = new Date(rangeEnd + 'T00:00:00')
-    while (cur <= end) { out.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 1) }
+    // เดินทีละวันแบบ UTC ล้วนๆ (สตริง YYYY-MM-DD ไม่มีเวลา/โซนมาเกี่ยว) — วันสุดท้ายที่เลือกต้องรวมด้วย
+    for (let k = rangeStart; k <= rangeEnd && out.length < 800; k = addDaysYMD(k, 1)) out.push(k)
     return out
   }, [viewMode, rangeStart, rangeEnd])
 
@@ -287,7 +297,7 @@ export default function ReportPage() {
 
   // ── หาว่าใครมีวัน "ไม่มีข้อมูล" บ้าง (ไม่ใช่ลา/หยุด/นอกสถานที่/วันหยุดสุดสัปดาห์ — แค่ไม่มี
   // record จริงๆ) และเป็นวันไหน — เฉพาะวันที่ผ่านมาแล้ว (ไม่นับวันอนาคตที่ยังไม่ถึง)
-  const todayStr = new Date(now.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
+  const todayStr = bangkokToday()
   const activeDateKeys = useMemo(
     () => (viewMode === 'range' ? rangeDateKeys : days.map(d => toYMD(year, month, d))),
     [viewMode, rangeDateKeys, days, year, month],
@@ -323,7 +333,7 @@ export default function ReportPage() {
     })()
     setViewMode('range')
     setRangeStart(earliest)
-    setRangeEnd(now.toISOString().slice(0, 10))
+    setRangeEnd(todayStr)
   }
 
   // ── สรุปรายพนักงานสำหรับมุมมอง "ช่วงเวลา" — นับจาก cellInfo() ทีละวันในช่วงที่เลือก ──
@@ -395,9 +405,10 @@ export default function ReportPage() {
     if (recs.some(r => r.is_absent)) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาด (สายเกินกำหนด)', status: 'absent' }
 
     const note = recs.map(r => r.note ?? '').join(' ')
-    if (note.includes('วันหยุด')) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
-    if (note.includes('พักร้อน')) return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
-    if (note.includes('ลากิจ'))   return { bg: '#ede9fe', label: <ClipboardList size={13} />, color: '#7c3aed', tip: 'ลากิจ', status: 'personal' }
+    // มาทำงานจริง (มีเวลาเช็คอิน) ในวันที่หมายเหตุเขียนว่าหยุด/ลา → ถือเป็นการมาเช็คอินปกติ ไม่ใช่วันหยุด
+    if (!hasRealCheckin && note.includes('วันหยุด')) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
+    if (!hasRealCheckin && note.includes('พักร้อน')) return { bg: '#fef9c3', label: <Palmtree size={13} />, color: '#ca8a04', tip: 'พักร้อน', status: 'vacation' }
+    if (!hasRealCheckin && note.includes('ลากิจ'))   return { bg: '#ede9fe', label: <ClipboardList size={13} />, color: '#7c3aed', tip: 'ลากิจ', status: 'personal' }
     if (note.includes('ขาดงาน')) return { bg: '#fee2e2', label: <X size={13} />, color: '#ef4444', tip: 'ขาดงาน', status: 'absent' }
     if (note.includes('ระดับ 2'))  return { bg: '#fde8d8', label: <AlertOctagon size={13} />, color: '#131C45', tip: 'มาสาย ระดับ 2', status: 'late2' }
     if (note.includes('ระดับ 1') || recs.some(r => r.is_late)) return { bg: '#fef3c7', label: <AlertTriangle size={13} />, color: '#92400e', tip: 'มาสาย', status: 'late' }
@@ -497,13 +508,19 @@ export default function ReportPage() {
   return (
     <div style={{ maxWidth: '100%' }}>
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
         <h2 style={{ margin: '0 0 2px', fontSize: isMobile ? '1.05rem' : '1.2rem', fontWeight: 700 }}>รายงานการเข้างาน</h2>
         {!isMobile && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>ประวัติการมาทำงานรายพนักงานแต่ละวัน</p>}
         <p className="print-only" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#374151' }}>
           {viewMode === 'range' ? `${fmtThaiDate(rangeStart)} – ${fmtThaiDate(rangeEnd)}` : `${MONTHS_TH[month - 1]} ${year + 543}`}
-          {' · '}พิมพ์เมื่อ {fmtThaiDate(now.toISOString().slice(0, 10))}
+          {' · '}พิมพ์เมื่อ {fmtThaiDate(todayStr)}
         </p>
+        </div>
+        <PageLinks className="no-print" links={[
+          { to: '/shift', label: 'กลับไปเช็คอิน', icon: <ArrowLeft size={14} />, permKey: 'shift' },
+          { to: '/leave', label: 'การลา และ วันหยุด', icon: <CalendarDays size={14} />, permKey: 'leave', feature: 'leave_management' },
+        ]} />
       </div>
 
       {/* Filters — ซ่อนตอนพิมพ์ เหลือแค่หัวเรื่อง + ตาราง */}
@@ -542,7 +559,7 @@ export default function ReportPage() {
               <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} max={rangeEnd}
                 style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
               <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>–</span>
-              <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} min={rangeStart} max={now.toISOString().slice(0, 10)}
+              <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} min={rangeStart} max={todayStr}
                 style={{ border: 'none', fontSize: '0.8rem', fontFamily: 'inherit', color: '#374151', background: 'none' }} />
             </div>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', paddingLeft: 2 }}>
@@ -809,7 +826,7 @@ export default function ReportPage() {
                       const dateKey = toYMD(year, month, d)
                       const recs = byDate.get(dateKey)
                       const { status } = cellInfo(recs, info.employee_code, info.id, dateKey, startBoundOf(info))
-                      const isToday = dateKey === now.toISOString().slice(0, 10)
+                      const isToday = dateKey === todayStr
                       return (
                         <div
                           key={d}

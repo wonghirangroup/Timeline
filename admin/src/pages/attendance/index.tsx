@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid , Map as MapIcon } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Clock, MapPin, MapPinOff, Info, X, Wallet, Search, CalendarClock, Table2, LayoutGrid , Map as MapIcon, BarChart2, CalendarDays } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -13,6 +13,7 @@ import { api } from '../../lib/axios'
 import { fmtThaiDate } from '../../lib/format'
 import AttendanceMap from './AttendanceMap'
 import { buildMapData } from './mapData'
+import PageLinks from '../../components/ui/PageLinks'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
@@ -772,7 +773,7 @@ export default function AttendancePage() {
     <div>
       {/* KPI bar */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           สถานะวันนี้
           <button type="button" onClick={toggleLegend}
             style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 99, border: '1px solid #e2e8f0', background: legendOpen ? '#F4F6F9' : '#fff', color: '#244B83', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'none', letterSpacing: 0 }}>
@@ -787,6 +788,10 @@ export default function AttendancePage() {
               <li>กดไอคอนดินสอเพื่อแก้ไขเวลา/กะ หรือ "+ ลงบันทึก" สำหรับคนที่ยังไม่เช็คอิน</li>
             </ul>
           } />
+          <PageLinks className="no-print" style={{ marginLeft: 'auto' }} links={[
+            { to: '/report', label: 'รายงานการเช็คอิน', icon: <BarChart2 size={14} />, permKey: 'report_checkin' },
+            { to: '/leave', label: 'การลา และ วันหยุด', icon: <CalendarDays size={14} />, permKey: 'leave', feature: 'leave_management' },
+          ]} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {[

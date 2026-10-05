@@ -53,6 +53,11 @@ export async function reportIssue(params: {
   })
 }
 
+// ส่ง diagnostic ตอน boot ล้มเหลวแบบเงียบๆ (ไม่รอผู้ใช้กดปุ่ม) — เก็บใน log ของเซิร์ฟเวอร์อย่างเดียว
+export function sendBootDiag(params: { line_channel_id?: string; stage: string; detail?: string; context?: string }): void {
+  axios.post(`${BASE}/employee/client-diag`, params, { headers: { 'ngrok-skip-browser-warning': 'true' }, timeout: 8000 }).catch(() => {})
+}
+
 // Dev mode: ใช้ Admin JWT เพื่อเรียก employee endpoints (tenant_id ตรงกัน)
 export async function devLogin(): Promise<{ token: string; tenant_id: string }> {
   const username = import.meta.env.VITE_DEV_EMAIL    ?? 'wonghi_admin'
