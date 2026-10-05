@@ -36,12 +36,12 @@ interface PolicyEmployee {
   branch: { id: string; name: string; group_id?: string | null } & PolicyNode & { group?: PolicyNode | null }
   position?: (PolicyNode & { id: string; name: string; department?: (PolicyNode & { id: string; name: string; division?: (PolicyNode & { group_id?: string }) | null }) | null }) | null
   employee_status_type?: {
-    id: string; name: string; monthly_off_quota: number
+    id: string; name: string; monthly_off_quota: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'
     saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean
   } | null
   admin_user?: { role: 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'; is_active: boolean } | null
 }
-interface ApiStatusType { id: string; name: string; monthly_off_quota: number; saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean }
+interface ApiStatusType { id: string; name: string; monthly_off_quota: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'; saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean }
 interface ApiPositionLite { id: string; name: string; department?: { id: string; name: string; division?: { id: string; name: string; group_id: string } | null } | null }
 
 const pick = (v: boolean | null | undefined) => (v === null || v === undefined ? null : v)
@@ -73,7 +73,16 @@ function resolveWeekend(e: PolicyEmployee, day: 'saturday' | 'sunday'): DayRule 
   for (const n of weekendChain(e)) { const v = (n as any)?.[k]; if (v != null) return v }
   return 'OFF'
 }
+// จำนวนเสาร์+อาทิตย์ของเดือนปัจจุบัน — ใช้แสดงโควต้าของสถานะแบบ "เท่ากับเสาร์-อาทิตย์ของเดือน" (ระบบจริงคำนวณตามเดือนที่จอง)
+function weekendDaysThisMonth(): number {
+  const now = new Date(); const y = now.getFullYear(), m = now.getMonth()
+  let n = 0
+  for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) { const w = new Date(y, m, d).getDay(); if (w === 0 || w === 6) n++ }
+  return n
+}
+const statusQuotaText = (t: { monthly_off_quota: number; off_quota_mode?: string }) => t.off_quota_mode === 'WEEKENDS_IN_MONTH' ? 'เสาร์-อาทิตย์ของเดือน' : `${t.monthly_off_quota} ว/ด`
 function resolveQuota(e: PolicyEmployee): number {
+  if (e.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH') return weekendDaysThisMonth()
   const chain = [e.employee_status_type?.monthly_off_quota, e.position?.booking_quota, e.position?.department?.booking_quota, e.position?.department?.division?.booking_quota, e.branch?.booking_quota, e.branch?.group?.booking_quota]
   for (const v of chain) if (v != null) return v
   return 5
@@ -323,13 +332,13 @@ export default function PolicyOverview() {
                       onChange={e => patch(r.e.id, { employee_status_type_id: e.target.value || null })}
                       style={{ ...cellSel, fontWeight: 600, color: r.e.employee_status_type_id ? '#0f172a' : '#b45309', background: r.e.employee_status_type_id ? '#fff' : '#F4F6F9' }}>
                       <option value="">ยังไม่กำหนด</option>
-                      {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
+                      {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({statusQuotaText(t)})</option>)}
                     </select>
                   </td>
                   <td style={td}><Pill {...RULE_CFG[r.sat]} title="ค่า resolved — แก้ที่กลุ่ม/ฝ่าย/แผนก/ตำแหน่ง หรือสถานะพนักงาน" /></td>
                   <td style={td}><Pill {...RULE_CFG[r.sun]} title="ค่า resolved — แก้ที่กลุ่ม/ฝ่าย/แผนก/ตำแหน่ง หรือสถานะพนักงาน" /></td>
                   <td style={td}>{r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{r.quota ?? '—'}</td>
+                  <td style={{ ...td, textAlign: 'center' }} title={r.e.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH' ? 'โควต้า = จำนวนเสาร์+อาทิตย์ของเดือน (ตัวเลขนี้คือเดือนปัจจุบัน เปลี่ยนตามเดือน)' : undefined}>{r.quota ?? '—'}{r.e.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH' && <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>ตามเสาร์-อาทิตย์</div>}</td>
                   <td style={td}>
                     <select value={r.booking ? r.e.weekly_off_mode : 'OFF'} disabled={isReadOnly}
                       title={!r.booking && r.e.booking_enabled_override !== false ? 'ปิดจากลำดับชั้นนโยบาย (สาขา/กลุ่ม) — เลือกโหมดเพื่อบังคับเปิดให้คนนี้' : undefined}
@@ -368,7 +377,7 @@ export default function PolicyOverview() {
                   <select value={r.e.employee_status_type_id ?? ''} disabled={isReadOnly} onChange={e => patch(r.e.id, { employee_status_type_id: e.target.value || null })}
                     style={{ ...cellSel, flex: 1, maxWidth: 'none', fontWeight: 600 }}>
                     <option value="">ยังไม่กำหนด</option>
-                    {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.monthly_off_quota} ว/ด)</option>)}
+                    {statusTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({statusQuotaText(t)})</option>)}
                   </select>
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
@@ -376,7 +385,7 @@ export default function PolicyOverview() {
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>อาทิตย์</span><Pill {...RULE_CFG[r.sun]} />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>นักขัตฤกษ์</span>
                   {r.pubHoliday ? <Pill label="หยุด" color="#15803d" bg="#dcfce7" /> : <Pill label="ไม่หยุด" color="#b45309" bg="#fef3c7" />}
-                  {r.quota != null && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>โควต้า {r.quota} ว/ด</span>}
+                  {r.quota != null && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>โควต้า {r.quota} ว/ด{r.e.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH' ? ' (ตามเสาร์-อาทิตย์ของเดือน)' : ''}</span>}
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                   การจองวันหยุด
