@@ -7,7 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
-  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
@@ -245,6 +245,9 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       where: { tenant_id: req.tenantId, status: 'PENDING', week_start: { gte: start, lte: end } },
       data:  { status: 'APPROVED', reviewed_by: req.userId, reviewed_at: new Date() },
     })
+
+    // คำขอ "เปลี่ยนวัน" ที่ถูกอนุมัติ → ลบวันเดิมที่ถูกแทนที่ (updateMany ข้าม updateWeeklyOff ไปเลยต้องทำตรงนี้)
+    for (const p of pending) if (p.replaces_request_id) await deleteWeeklyOff(req.tenantId, p.replaces_request_id)
 
     return ok({ count: pending.length }, `อนุมัติ ${pending.length} รายการสำเร็จ`)
   })
@@ -562,8 +565,52 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (!deleted) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
       return ok(null, 'ยกเลิกคำขอแล้ว')
     } catch (e: any) {
+      if (e.message === 'APPROVED_LOCKED') return reply.code(403).send(fail('APPROVED_LOCKED', 'วันที่อนุมัติแล้วแก้ไขเองไม่ได้ — กด "แก้ไขวันที่จอง" เพื่อขอเปลี่ยนวัน แล้วรอแอดมินอนุมัติ'))
       if (e.message === 'NOT_PENDING')    return reply.code(409).send(fail('NOT_PENDING', 'ยกเลิกได้เฉพาะรายการที่รอพิจารณา'))
       if (e.message === 'PERIOD_CLOSED')  return reply.code(409).send(fail('PERIOD_CLOSED', 'ช่วงเปิดรับจองของเดือนนี้ปิดแล้ว — แก้ไขไม่ได้'))
+      throw e
+    }
+  })
+
+  // ── Employee (LIFF): ขอเปลี่ยนวันของวันหยุดที่อนุมัติแล้ว (ต้องให้แอดมินอนุมัติ) ─────────────
+  app.post('/employee/weekly-off/change', {
+    preHandler: [tenantMiddleware],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ขอเปลี่ยนวันหยุดที่อนุมัติแล้วไปเป็นวันอื่น — วันเดิมยังอยู่จนกว่าแอดมินจะอนุมัติ (LIFF)',
+      security: [{ oauth2: [] }],
+      body: {
+        type: 'object', required: ['request_id', 'new_date'],
+        properties: { request_id: { type: 'string' }, new_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    try {
+      const created = await requestWeeklyOffChange(req.tenantId, req.employeeId, req.body.request_id, req.body.new_date)
+      notifyAdminsLine(req.tenantId, req.employeeId, {
+        type: 'weekly_off',
+        title: 'ขอเปลี่ยนวันหยุด รออนุมัติ',
+        detail: `ขอเปลี่ยนวันหยุดเป็น ${req.body.new_date}`,
+        color: '#2563EB',
+        path: `/leave?tab=time-off&month=${req.body.new_date.slice(0, 7)}&focus=${created.id}`,
+        buttonLabel: 'เปิดดู',
+      })
+      return reply.code(201).send(ok(created, 'ส่งคำขอเปลี่ยนวันแล้ว — รอแอดมินอนุมัติ'))
+    } catch (e: any) {
+      const map: Record<string, [number, string]> = {
+        NOT_FOUND: [404, 'ไม่พบวันหยุดที่ต้องการเปลี่ยน'],
+        NOT_APPROVED: [409, 'เปลี่ยนวันได้เฉพาะวันหยุดที่อนุมัติแล้ว (รอพิจารณาอยู่ ยกเลิกแล้วจองใหม่ได้เลย)'],
+        CHANGE_ALREADY_PENDING: [409, 'วันนี้มีคำขอเปลี่ยนวันที่รออนุมัติอยู่แล้ว'],
+        SAME_DATE: [400, 'เลือกวันเดิม — กรุณาเลือกวันใหม่'],
+        PAST_DATE: [400, 'เปลี่ยนไปเป็นวันที่ผ่านมาแล้วไม่ได้'],
+        ALREADY_REQUESTED: [409, 'คุณมีวันหยุดวันนั้นอยู่แล้ว'],
+        PERIOD_CLOSED: [409, 'ช่วงเปิดรับจองของเดือนนั้นปิดแล้ว'],
+        OVER_QUOTA: [400, 'วันหยุดของเดือนนั้นครบโควต้าแล้ว'],
+        MONTHLY_CAP_EXCEEDED: [400, 'รวมวันหยุด + พักร้อนเดือนนั้นเกิน 10 วันแล้ว'],
+      }
+      const hit = map[e.message]
+      if (hit) return reply.code(hit[0]).send(fail(e.message, hit[1]))
       throw e
     }
   })

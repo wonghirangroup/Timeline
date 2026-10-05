@@ -39,6 +39,7 @@ interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
   employee: { id: string; first_name: string; last_name: string; nickname: string | null }
   swapped_with?: string | null // ชื่อคนที่สลับวันหยุดด้วย (ถ้าวันนี้มาจากการสลับ) — มีเฉพาะใน "own" ของ month-view
+  replaces_request_id?: string | null // คำขอ "เปลี่ยนวัน": แถวนี้คือวันใหม่ที่ขอ ชี้ไปหาวันเดิมที่อนุมัติแล้ว (รอแอดมินอนุมัติ)
 }
 interface PeriodStatus { is_open: boolean; deadline: string | null; note: string | null }
 interface SwapRequestRow {
@@ -548,6 +549,116 @@ function getWeeksOfMonth(month: string, todayStr: string): string[] {
 // เลือกเพื่อนที่มีวันหยุด "อนุมัติแล้ว" ในสาขา/เดือนเดียวกัน (colleagues จาก
 // month-view คัดกรอง status === 'APPROVED' — เพื่อนที่ยังรอพิจารณาสลับไม่ได้)
 // ส่งคำขอไปแล้วต้องรอเพื่อนกดยอมรับก่อน ถึงจะสลับจริง (ดู SwapRequestsPanel)
+// ── ขอเปลี่ยนวันหยุดที่อนุมัติแล้ว ─────────────────────────────────────────────
+// วันที่แอดมินอนุมัติแล้วพนักงานแก้/ลบเองไม่ได้ (เดิมกด "แก้ไขวันที่จอง" แล้วลบวันที่อนุมัติทิ้งหมดเดือน) — ต้องขอเปลี่ยนให้แอดมินอนุมัติ:
+//   ขั้น 1 แสดงวันที่เคยจองและอนุมัติแล้ว ให้เลือกว่าจะเปลี่ยนวันไหน → ขั้น 2 เลือกวันใหม่ → ส่งคำขอ (วันเดิมยังอยู่จนกว่าแอดมินจะอนุมัติ)
+function ChangeDaySheet({ employeeId, items, bookedDates, startMonth, todayStr, onClose }: {
+  employeeId: string; items: WeeklyOffRecord[]; bookedDates: Set<string>; startMonth: string; todayStr: string; onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [target, setTarget] = useState<WeeklyOffRecord | null>(null)
+  const [vMonth, setVMonth] = useState(startMonth)
+  const [newDate, setNewDate] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const oldDate = target ? resolveDate(target.week_start, target.day_of_week) : ''
+  const sendMutation = useMutation({
+    mutationFn: () => api.post('/employee/weekly-off/change', { request_id: target!.id, new_date: newDate }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setDone(true)
+    },
+    onError: (err: any) => setErrorMsg(err.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่'),
+  })
+
+  function moveMonth(delta: number) {
+    const [y, m] = vMonth.split('-').map(Number)
+    const d = new Date(y, m - 1 + delta, 1)
+    setVMonth(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`)
+  }
+
+  return (
+    <BottomSheet onClose={onClose}>
+      {done ? (
+        <div style={{ padding: '18px 0', textAlign: 'center' }}>
+          <CheckCircle2 size={36} color="#16A34A" style={{ marginBottom: 8 }} />
+          <div style={{ fontWeight: 800, color: '#16A34A', fontSize: '1rem' }}>ส่งคำขอเปลี่ยนวันแล้ว</div>
+          <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 6, lineHeight: 1.6 }}>
+            วันเดิม {fmtDateFull(oldDate)} <b>ยังใช้ได้อยู่</b> จนกว่าแอดมินจะอนุมัติ<br />เมื่ออนุมัติแล้วจึงเปลี่ยนเป็น {fmtDateFull(newDate!)}
+          </div>
+          <button onClick={onClose} style={{ marginTop: 16, padding: '10px 28px', borderRadius: 12, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ตกลง</button>
+        </div>
+      ) : !target ? (
+        <>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C', marginBottom: 4 }}>แก้ไขวันที่จอง</div>
+          <div style={{ fontSize: '0.78rem', color: '#6B7280', marginBottom: 14, lineHeight: 1.5 }}>
+            นี่คือวันหยุดที่คุณจองไว้และแอดมินอนุมัติแล้ว เลือกวันที่ต้องการเปลี่ยน — การเปลี่ยนต้องรอแอดมินอนุมัติ ระหว่างนั้นวันเดิมยังใช้ได้ตามปกติ
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
+            {items.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', border: '1px solid #BBF7D0', background: '#F0FDF4', borderRadius: 12 }}>
+                <Palmtree size={20} color="#16A34A" />
+                <div style={{ flex: 1, fontWeight: 700, fontSize: '0.85rem', color: '#1A2B3C' }}>{fmtDateFull(resolveDate(r.week_start, r.day_of_week))}</div>
+                <button onClick={() => { setTarget(r); setNewDate(null); setErrorMsg(null); setVMonth(resolveDate(r.week_start, r.day_of_week).slice(0, 7)) }}
+                  style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: COLOR.primary, color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                  เปลี่ยนวันนี้
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C', marginBottom: 4 }}>เลือกวันใหม่</div>
+          <div style={{ fontSize: '0.8rem', color: '#6B7280', marginBottom: 12 }}>เปลี่ยนจาก <b style={{ color: '#16A34A' }}>{fmtDateFull(oldDate)}</b> ไปเป็น...</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <button onClick={() => moveMonth(-1)} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronLeft size={16} /></button>
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#1A2B3C' }}>{fmtMonthTH(vMonth)}</div>
+            <button onClick={() => moveMonth(1)} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={16} /></button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF', padding: '2px 0' }}>{d}</div>)}
+            {Array.from({ length: getFirstDow(vMonth) }).map((_, i) => <div key={`b${i}`} />)}
+            {Array.from({ length: getDaysInMonth(vMonth) }, (_, i) => i + 1).map(d => {
+              const ds = `${vMonth}-${pad(d)}`
+              const isOld = ds === oldDate
+              const blocked = ds < todayStr || bookedDates.has(ds)
+              const sel = newDate === ds
+              return (
+                <button key={d} disabled={blocked || isOld} onClick={() => { setNewDate(ds); setErrorMsg(null) }}
+                  style={{
+                    height: 40, borderRadius: 10, fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 700, padding: 0,
+                    border: `1.5px solid ${sel ? COLOR.primary : isOld ? '#86EFAC' : '#E5E7EB'}`,
+                    background: sel ? COLOR.primary : isOld ? '#DCFCE7' : '#fff',
+                    color: sel ? '#fff' : isOld ? '#16A34A' : blocked ? '#D1D5DB' : '#374151',
+                    cursor: blocked || isOld ? 'not-allowed' : 'pointer',
+                  }}>
+                  {d}
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: '0.68rem', color: '#9CA3AF', marginTop: 8 }}>เขียว = วันเดิมที่จะเปลี่ยน · เทา = เลือกไม่ได้ (ผ่านมาแล้ว หรือมีวันหยุดอยู่แล้ว)</div>
+          {errorMsg && (
+            <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={14} /> {errorMsg}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <button onClick={() => { setTarget(null); setErrorMsg(null) }} style={{ flex: 1, padding: '11px', borderRadius: 12, border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ย้อนกลับ</button>
+            <button onClick={() => sendMutation.mutate()} disabled={!newDate || sendMutation.isPending}
+              style={{ flex: 2, padding: '11px', borderRadius: 12, border: 'none', background: COLOR.primary, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: newDate ? 1 : 0.5 }}>
+              {sendMutation.isPending ? 'กำลังส่ง...' : 'ส่งคำขอเปลี่ยนวัน (รอแอดมินอนุมัติ)'}
+            </button>
+          </div>
+        </>
+      )}
+    </BottomSheet>
+  )
+}
+
 function SwapPickerSheet({ employeeId, month, requesterOffId, onClose }: {
   employeeId: string; month: string; requesterOffId: string; onClose: () => void
 }) {
@@ -718,6 +829,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   const [picks, setPicks] = useState<Record<string, string>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null) // WeeklyOffRequest.id ที่กำลังจะขอสลับ
+  const [changeSheet, setChangeSheet] = useState(false) // เปิดหน้าเลือกวันที่จะขอเปลี่ยน
   // วันที่แตะล่าสุด — โชว์รายชื่อเพื่อนที่จองวันนั้นไปก่อนแล้วเฉพาะวันนี้วันเดียว
   // (ไม่โชว์ยาวทั้งเดือน เพราะถ้าพนักงานเยอะ list จะไหลยาวเกินไป — feedback 2026-09-15)
   const [viewDate, setViewDate] = useState<string | null>(null)
@@ -757,7 +869,9 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
 
   const isOpen     = periodQ.data?.is_open ?? false
   const allOwn     = historyQ.data ?? []
-  const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)))
+  // "คำขอเปลี่ยนวัน" (แถวที่ชี้ไปหาวันเดิม): ที่ยังรออนุมัติ แสดงเป็นหมายเหตุใต้วันเดิม ไม่นับเป็นวันจองเพิ่ม / ที่ไม่อนุมัติ ซ่อน
+  const pendingChangeOf = new Map(allOwn.filter(r => r.replaces_request_id && r.status === 'PENDING').map(r => [r.replaces_request_id as string, r]))
+  const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)) && !(r.replaces_request_id && r.status !== 'APPROVED'))
   const colleagues = colleagueQ.data?.colleagues ?? []
   // รายชื่อเพื่อน "ทุกคน" (ไม่ใช่แค่ร่วมตำแหน่งเดียวกันเหมือนเดิม) ที่จองวันไหน
   // ไปแล้วบ้าง — โชว์ให้เห็นชัดว่า "ใคร" จองวันไหนก่อน เพื่อจะได้ทักไปคุยขอ
@@ -773,7 +887,9 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   // "จองไป 3 วันอนุมัติแล้ว จะจองต่ออีก 2 วันโดยไม่แก้อันเดิม") — โควต้าที่เหลือ
   // ให้จองใหม่ = โควต้ารวม ลบจำนวนที่จองไปแล้ว (ไม่ว่าจะ PENDING หรือ APPROVED)
   const remainingQuota = Math.max(0, quota - ownThisMonth.length)
-  const bookedDateSet  = new Set(ownThisMonth.map(r => resolveDate(r.week_start, r.day_of_week)))
+  const bookedDateSet  = new Set([...ownThisMonth, ...pendingChangeOf.values()].map(r => resolveDate(r.week_start, r.day_of_week)))
+  // วันที่อนุมัติแล้วและยังไม่มีคำขอเปลี่ยนค้างอยู่ = เลือก "เปลี่ยนวัน" ได้
+  const changeable = ownThisMonth.filter(r => r.status === 'APPROVED' && !pendingChangeOf.has(r.id))
   const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= remainingQuota) : (pickedCount === requiredWeeks.length)
 
   const submitMutation = useMutation({
@@ -796,7 +912,8 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     },
   })
   const cancelAllMutation = useMutation({
-    mutationFn: () => Promise.all(ownThisMonth.map(r => api.delete(`/employee/weekly-off/${r.id}`, { params: { employeeId } }))),
+    // ยกเลิกได้เฉพาะที่ "รอพิจารณา" — วันที่อนุมัติแล้วลบเองไม่ได้ (ต้องขอเปลี่ยนวันให้แอดมินอนุมัติ)
+    mutationFn: () => Promise.all(ownThisMonth.filter(r => r.status === 'PENDING').map(r => api.delete(`/employee/weekly-off/${r.id}`, { params: { employeeId } }))),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
@@ -804,11 +921,22 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     },
     onError: (err: any) => {
       const code = err.response?.data?.error?.code
-      setErrorMsg(code === 'PERIOD_CLOSED' ? 'ช่วงเปิดรับจองของเดือนนี้ปิดแล้ว — แก้ไขไม่ได้' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      setErrorMsg(code === 'PERIOD_CLOSED' ? 'ช่วงเปิดรับจองของเดือนนี้ปิดแล้ว — แก้ไขไม่ได้' : code === 'APPROVED_LOCKED' ? 'วันที่อนุมัติแล้วแก้ไขเองไม่ได้ — กด "แก้ไขวันที่จอง" เพื่อขอเปลี่ยนวัน' : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
       // อาจลบไปแล้วบางรายการก่อนเจอ error — sync ให้ตรงกับ DB จริง
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
     },
+  })
+
+  // ยกเลิกทีละรายการ: คำขอที่รอพิจารณา หรือ "คำขอเปลี่ยนวัน" ที่ยังรออนุมัติ (วันเดิมที่อนุมัติแล้วยังอยู่เหมือนเดิม)
+  const cancelOneMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/employee/weekly-off/${id}`, { params: { employeeId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
+      qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      setErrorMsg(null)
+    },
+    onError: (err: any) => setErrorMsg(err.response?.data?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่'),
   })
 
   function changeMonth(delta: number) {
@@ -888,7 +1016,22 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
                     {fmtDateFull(resolveDate(r.week_start, r.day_of_week))}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: cfg.color, fontWeight: 700 }}>{cfg.label}</div>
+                  {pendingChangeOf.get(r.id) && (
+                    <div style={{ marginTop: 6, padding: '6px 9px', borderRadius: 8, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '0.72rem', color: '#92400E', fontWeight: 600, lineHeight: 1.5 }}>
+                      ขอเปลี่ยนเป็น <b>{fmtDateFull(resolveDate(pendingChangeOf.get(r.id)!.week_start, pendingChangeOf.get(r.id)!.day_of_week))}</b> · รอแอดมินอนุมัติ (วันเดิมยังใช้ได้)
+                      <button onClick={() => cancelOneMutation.mutate(pendingChangeOf.get(r.id)!.id)} disabled={cancelOneMutation.isPending}
+                        style={{ marginLeft: 8, padding: 0, border: 'none', background: 'none', color: '#DC2626', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                        ยกเลิกการเปลี่ยน
+                      </button>
+                    </div>
+                  )}
                 </div>
+                {r.status === 'PENDING' && !allSubmittedPending && (
+                  <button onClick={() => cancelOneMutation.mutate(r.id)} disabled={cancelOneMutation.isPending}
+                    style={{ padding: '6px 11px', borderRadius: 10, border: '1px solid #FCA5A5', background: '#fff', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                    ยกเลิก
+                  </button>
+                )}
                 {r.status === 'APPROVED' && (
                   <button onClick={() => setSwapPickerFor(r.id)}
                     style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -898,14 +1041,24 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
               </div>
             )
           })}
-          {/* ยกเลิก/แก้ไขได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองยังเปิดอยู่ */}
-          {(allSubmittedPending || isOpen) && (
+          {/* ยกเลิกทั้งเดือนได้เฉพาะตอนทุกวันยังรอพิจารณา — วันที่อนุมัติแล้วพนักงานลบเองไม่ได้ ต้อง "ขอเปลี่ยนวัน" ให้แอดมินอนุมัติ */}
+          {allSubmittedPending && (
             <button onClick={() => cancelAllMutation.mutate()} disabled={cancelAllMutation.isPending}
               style={{ width: '100%', padding: '11px', borderRadius: 12, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {cancelAllMutation.isPending ? '...' : allSubmittedPending ? 'ยกเลิกคำขอทั้งเดือน' : 'แก้ไขวันที่จอง'}
+              {cancelAllMutation.isPending ? '...' : 'ยกเลิกคำขอทั้งเดือน'}
+            </button>
+          )}
+          {changeable.length > 0 && isOpen && (
+            <button onClick={() => setChangeSheet(true)}
+              style={{ width: '100%', padding: '11px', borderRadius: 12, border: `1px solid ${COLOR.primary}`, background: 'transparent', color: COLOR.primary, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: allSubmittedPending ? 8 : 0 }}>
+              แก้ไขวันที่จอง (ขอเปลี่ยนวัน)
             </button>
           )}
         </div>
+      )}
+
+      {changeSheet && (
+        <ChangeDaySheet employeeId={employeeId} items={changeable} bookedDates={bookedDateSet} startMonth={month} todayStr={todayStr} onClose={() => setChangeSheet(false)} />
       )}
 
       {swapPickerFor && (
@@ -1170,8 +1323,8 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: r.status === 'APPROVED' ? '#16A34A' : '#D97706', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {r.status === 'APPROVED' ? <><CheckCircle2 size={15} /> อนุมัติแล้ว</> : <><Loader2 size={15} /> รอพิจารณา</>}
                 </div>
-                {/* ยกเลิกได้เสมอตอน PENDING — ตอน APPROVED ได้ถ้าช่วงจองสัปดาห์นี้ยังเปิด */}
-                {isCurrentWeek && (r.status === 'PENDING' || (r.status === 'APPROVED' && isOpen)) && (
+                {/* ยกเลิกเองได้เฉพาะที่รอพิจารณา — วันที่อนุมัติแล้วต้องขอเปลี่ยนให้แอดมินอนุมัติ (ไม่ใช่ลบเอง) */}
+                {isCurrentWeek && r.status === 'PENDING' && (
                   <button onClick={() => cancelMutation.mutate(r.id)} disabled={cancelMutation.isPending}
                     style={{ padding: '4px 12px', borderRadius: 99, border: '1px solid #DC2626', background: 'transparent', color: '#DC2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {cancelMutation.isPending ? '...' : 'ยกเลิก'}

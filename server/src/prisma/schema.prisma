@@ -1188,11 +1188,15 @@ model WeeklyOffRequest {
   // 1 วันจากโควต้าประเภทไหน (เช่น พักร้อน) — null = ไม่ได้หัก (ค่าเริ่มต้น) (feedback
   // 2026-09-15 ข้อ 1) เก็บไว้ย้อนกลับได้ตอนลบคำขอทีหลัง
   policy_override_by   String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking_enabled cascade = ปิด (null = สร้างตามปกติ)
+  // คำขอ "เปลี่ยนวัน" ของวันหยุดที่อนุมัติแล้ว (พนักงานแก้เองไม่ได้ ต้องให้แอดมินอนุมัติ): แถวนี้คือวันใหม่ที่ขอ (PENDING) ชี้ไปหาแถวเดิมที่ยังอนุมัติอยู่
+  // → แอดมินอนุมัติแล้วแถวเดิมถูกลบ / ไม่อนุมัติ = แถวเดิมยังอยู่เหมือนเดิม  (null = คำขอปกติ)
+  replaces_request_id  String?
   created_at           DateTime        @default(now())
   updated_at           DateTime        @updatedAt
 
   employee Employee @relation(fields: [employee_id], references: [id])
 
+  @@index([replaces_request_id])
   @@unique([employee_id, week_start, day_of_week]) // กันจองซ้ำวันเดียวกันเป๊ะ — จองได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14) จำกัดแค่โควต้ารวม/เดือน
   @@unique([tenant_id, request_no])
   @@index([tenant_id])

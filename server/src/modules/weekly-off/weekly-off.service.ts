@@ -6,6 +6,7 @@ import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
 import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from '../leave/vacation-policy.service'
 import { createLeaveRequest } from '../leave/leave.service'
+import { bangkokToday } from '../../common/utils/time'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -49,6 +50,8 @@ export async function countMonthOffRequests(
       tenant_id: tenantId, employee_id: employeeId,
       status: { in: statuses },
       week_start: { gte: rangeStart, lte: rangeEnd },
+      // คำขอ "เปลี่ยนวัน" ที่ยังรออนุมัติ ไม่นับเพิ่ม (วันเดิมที่อนุมัติอยู่ถูกนับอยู่แล้ว — ไม่งั้นนับซ้ำจนจองเพิ่มไม่ได้)
+      OR: [{ replaces_request_id: null }, { status: { not: 'PENDING' as const } }],
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     select: { week_start: true, day_of_week: true },
@@ -296,7 +299,7 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
     await applyConflictDeduction(tenantId, req.employee_id, data.conflict_deduct_type!, year, data.reviewed_by)
   }
 
-  return prisma.weeklyOffRequest.update({
+  const updated = await prisma.weeklyOffRequest.update({
     where: { id },
     data: {
       ...(data.day_of_week !== undefined ? { day_of_week: data.day_of_week } : {}),
@@ -306,6 +309,11 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
       ...(shouldDeduct ? { conflict_deduct_type: data.conflict_deduct_type } : {}),
     },
   })
+  // อนุมัติ "คำขอเปลี่ยนวัน" → วันเดิมที่เคยอนุมัติถูกแทนที่ (ลบ + คืนโควต้าที่เคยหักถ้ามี) ไม่อนุมัติ = วันเดิมอยู่เหมือนเดิม
+  if (data.status === 'APPROVED' && req.status === 'PENDING' && req.replaces_request_id) {
+    await deleteWeeklyOff(tenantId, req.replaces_request_id)
+  }
+  return updated
 }
 
 export async function deleteWeeklyOff(tenantId: string, id: string) {
@@ -546,18 +554,57 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
 // PENDING ยกเลิกได้เสมอ (ยังไม่ผ่านอนุมัติ ไม่กระทบใคร) — APPROVED ยกเลิก/แก้ไขได้ก็ต่อเมื่อ
 // ช่วงเปิดรับจองของเดือนนั้น (ตามสาขาพนักงาน) ยังเปิดอยู่เท่านั้น (feedback 2026-09-14:
 // เดิมพออนุมัติแล้วแก้ไม่ได้เลยแม้ช่วงจองจะยังไม่ปิด)
+// พนักงานขอ "เปลี่ยนวัน" ของวันหยุดที่อนุมัติแล้ว — สร้างแถวใหม่ (PENDING) ชี้ไปหาแถวเดิม วันเดิมยังอยู่จนกว่าแอดมินจะอนุมัติ
+export async function requestWeeklyOffChange(tenantId: string, employeeId: string, requestId: string, newDate: string) {
+  const old = await prisma.weeklyOffRequest.findFirst({
+    where: { id: requestId, tenant_id: tenantId, employee_id: employeeId },
+    include: { employee: { select: { branch_id: true, position_id: true } } },
+  })
+  if (!old) throw new Error('NOT_FOUND')
+  if (old.status !== 'APPROVED') throw new Error('NOT_APPROVED')
+  if (await prisma.weeklyOffRequest.findFirst({ where: { replaces_request_id: old.id, status: 'PENDING' }, select: { id: true } })) throw new Error('CHANGE_ALREADY_PENDING')
+
+  const oldDate = resolveActualDateStr(old.week_start, old.day_of_week)
+  if (newDate === oldDate) throw new Error('SAME_DATE')
+  if (new Date(newDate + 'T00:00:00Z') < bangkokToday()) throw new Error('PAST_DATE')
+
+  const monday = getMondayOf(newDate)
+  const dow = new Date(newDate + 'T00:00:00Z').getUTCDay()
+  if (await prisma.weeklyOffRequest.findFirst({ where: { employee_id: employeeId, week_start: monday, day_of_week: dow }, select: { id: true } })) throw new Error('ALREADY_REQUESTED')
+
+  const newMonth = newDate.slice(0, 7)
+  if (!(await checkPeriodOpen(tenantId, old.employee.branch_id, newMonth))) throw new Error('PERIOD_CLOSED')
+  // ย้ายข้ามเดือน = ไปเพิ่มโควต้าของเดือนปลายทาง (เดือนเดิมจะลดลงเมื่ออนุมัติ) — ในเดือนเดียวกันจำนวนวันไม่เปลี่ยน ไม่ต้องเช็ค
+  if (newMonth !== oldDate.slice(0, 7)) {
+    const quota = await resolveBookingQuota(tenantId, employeeId)
+    if (await countMonthOffRequests(tenantId, employeeId, newMonth) >= quota) throw new Error('OVER_QUOTA')
+    await assertMonthlyCap(tenantId, employeeId, newMonth, 1)
+  }
+
+  const conflict = await hasPositionConflict(tenantId, employeeId, old.employee.position_id ?? null, monday, dow)
+  try {
+    return await prisma.weeklyOffRequest.create({
+      data: {
+        tenant_id: tenantId, request_no: await nextRequestNo(tenantId, 'WO'), employee_id: employeeId,
+        week_start: monday, day_of_week: dow, has_conflict: conflict, replaces_request_id: old.id,
+      },
+    })
+  } catch (e: any) {
+    if (e.code === 'P2002') throw new Error('ALREADY_REQUESTED')
+    throw e
+  }
+}
+
 export async function deleteMonthlyOff(tenantId: string, id: string, employeeId: string) {
   const req = await prisma.weeklyOffRequest.findFirst({
     where: { id, tenant_id: tenantId, employee_id: employeeId },
     include: { employee: { select: { branch_id: true } } },
   })
   if (!req) return false
-  if (req.status !== 'PENDING') {
-    if (req.status !== 'APPROVED') throw new Error('NOT_PENDING')
-    const month = resolveActualDateStr(req.week_start, req.day_of_week).slice(0, 7)
-    const open = await checkPeriodOpen(tenantId, req.employee.branch_id, month)
-    if (!open) throw new Error('PERIOD_CLOSED')
-  }
+  // วันที่แอดมินอนุมัติแล้ว พนักงานลบ/แก้เองไม่ได้ — ต้องส่ง "คำขอเปลี่ยนวัน" (requestWeeklyOffChange) ให้แอดมินอนุมัติก่อน
+  // (เดิมกด "แก้ไขวันที่จอง" แล้วลบวันที่อนุมัติแล้วทิ้งทั้งเดือนได้เลย — feedback 2026-10-05)
+  if (req.status === 'APPROVED') throw new Error('APPROVED_LOCKED')
+  if (req.status !== 'PENDING') throw new Error('NOT_PENDING')
 
   await prisma.weeklyOffRequest.delete({ where: { id } })
   return true

@@ -34,6 +34,7 @@ interface WeeklyOffRequest {
   id: string; employee_id: string; week_start: string; day_of_week: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; reject_note: string | null
   created_at?: string   // เวลาที่ส่งคำขอ — ใช้เรียง "ขอมาล่าสุดก่อน"
+  replaces_request_id?: string | null   // คำขอ "เปลี่ยนวัน" จากพนักงาน: ชี้ไปหาวันเดิมที่อนุมัติแล้ว (อนุมัติ = แทนที่วันเดิม)
   employee: ApiEmployee
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ให้แอดมินตัดสินใจ
 }
@@ -1236,6 +1237,14 @@ export default function WeeklyOffPage() {
                                 </span>
                               )}
                               <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600 }}>{sc.label}</span>
+                              {(() => {
+                                const oldReq = r.replaces_request_id ? requests.find(x => x.id === r.replaces_request_id) : undefined
+                                return r.replaces_request_id ? (
+                                  <span title="พนักงานขอเปลี่ยนวันหยุดที่อนุมัติแล้ว — เมื่ออนุมัติ วันเดิมจะถูกแทนที่" style={{ background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                    ขอเปลี่ยนวัน{oldReq ? ` จาก ${fmtDate(resolveDate(oldReq.week_start, oldReq.day_of_week))}` : ''}
+                                  </span>
+                                ) : null
+                              })()}
                             </div>
                             {block.status === 'REJECTED' && block.rejectNote && (
                               <div style={{ fontSize: '0.72rem', color: '#dc2626', flexBasis: '100%' }}>หมายเหตุ: {block.rejectNote}</div>
