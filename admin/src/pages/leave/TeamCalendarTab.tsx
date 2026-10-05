@@ -18,7 +18,7 @@ import MonthNav from '../../components/ui/MonthNav'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
-interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; position?: { department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; position?: { name?: string; department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
@@ -91,6 +91,7 @@ function saveRosterColors(colors: Record<string, string>) {
 const ROSTER_GROUP_OVERRIDE_KEY = 'tl_roster_group_overrides'
 const ROSTER_CUSTOM_GROUPS_KEY = 'tl_roster_custom_groups'
 const ROSTER_HIDDEN_KEY = 'tl_roster_hidden_employees'
+const ROSTER_SPLIT_POSITIONS_KEY = 'tl_roster_split_positions'   // ตำแหน่งที่ให้แยกออกเป็นกลุ่มของตัวเองอัตโนมัติ (เช่น พนักงานขนส่ง)
 const ROSTER_DND_MIME = 'application/x-timeline-roster-employee'
 // ชื่อโซน "ไม่แสดง" — ลากคนมาลงตรงนี้เพื่อตัดออกจากตาราง export ไปเลย (feedback
 // 2026-10-01: "สามารถเลือกคนที่ไม่ต้องแสดงได้") ไม่ใช่ชื่อกลุ่มจริง ห้ามชนกับชื่อ
@@ -108,6 +109,12 @@ function loadRosterCustomGroups(): string[] {
 }
 function saveRosterCustomGroups(v: string[]) {
   try { localStorage.setItem(ROSTER_CUSTOM_GROUPS_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
+}
+function loadRosterSplitPositions(): string[] {
+  try { return JSON.parse(localStorage.getItem(ROSTER_SPLIT_POSITIONS_KEY) ?? '[]') } catch { return [] }
+}
+function saveRosterSplitPositions(v: string[]) {
+  try { localStorage.setItem(ROSTER_SPLIT_POSITIONS_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
 }
 function loadRosterHidden(): string[] {
   try { return JSON.parse(localStorage.getItem(ROSTER_HIDDEN_KEY) ?? '[]') } catch { return [] }
@@ -684,6 +691,10 @@ export default function TeamCalendarTab() {
   const [rosterGroupOverrides, setRosterGroupOverrides] = useState<Record<string, string>>(() => loadRosterGroupOverrides())
   const [rosterCustomGroups, setRosterCustomGroups] = useState<string[]>(() => loadRosterCustomGroups())
   const [rosterHidden, setRosterHidden] = useState<string[]>(() => loadRosterHidden())
+  const [rosterSplitPositions, setRosterSplitPositions] = useState<string[]>(() => loadRosterSplitPositions())
+  function toggleRosterSplitPosition(name: string) {
+    setRosterSplitPositions(prev => { const next = prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]; saveRosterSplitPositions(next); return next })
+  }
   const [newGroupName, setNewGroupName] = useState('')
   const [dragOverGroupName, setDragOverGroupName] = useState<string | null>(null)
   const [rosterTourActive, setRosterTourActive] = useState(false)
@@ -1016,7 +1027,9 @@ export default function TeamCalendarTab() {
 
     const byName = new Map<string, ApiEmployeeFull[]>()
     for (const e of candidates) {
-      const name = rosterGroupOverrides[e.id] || realRosterGroupName(e)
+      // ลำดับความสำคัญ: ลากย้ายเอง > ตำแหน่งที่ติ๊กให้แยก (ใช้ชื่อตำแหน่งเป็นชื่อกลุ่ม) > กลุ่มจริง
+      const posName = e.position?.name
+      const name = rosterGroupOverrides[e.id] || (posName && rosterSplitPositions.includes(posName) ? posName : realRosterGroupName(e))
       if (!byName.has(name)) byName.set(name, [])
       byName.get(name)!.push(e)
     }
@@ -1450,6 +1463,29 @@ export default function TeamCalendarTab() {
                     </div>
                   </div>
                 )}
+
+                {/* แยกตำแหน่งออกเป็นกลุ่มของตัวเองอัตโนมัติ — ไม่ต้องลากทีละคน (คนใหม่ที่ตำแหน่งตรงกันเข้ากลุ่มเอง) */}
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>แยกตำแหน่งออกเป็นกลุ่มของตัวเอง</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>ติ๊กตำแหน่งที่อยากให้แยกออกมาเป็นกลุ่มใน export (เช่น พนักงานขนส่ง) — ระบบจัดให้เองตามตำแหน่งในระบบ ไม่ต้องลาก · จะลากย้ายรายคนทับอีกที่ก็ได้</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(() => {
+                      const counts = new Map<string, number>()
+                      for (const e of employeesFull) if (e.position?.name) counts.set(e.position.name, (counts.get(e.position.name) ?? 0) + 1)
+                      const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'th'))
+                      if (names.length === 0) return <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>ยังไม่มีพนักงานที่กำหนดตำแหน่งไว้</span>
+                      return names.map(n => {
+                        const on = rosterSplitPositions.includes(n)
+                        return (
+                          <button key={n} onClick={() => toggleRosterSplitPosition(n)}
+                            style={{ padding: '5px 11px', borderRadius: 99, border: `1.5px solid ${on ? '#244B83' : '#e5e7eb'}`, background: on ? '#244B83' : '#fff', color: on ? '#fff' : '#475569', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {on ? '✓ ' : ''}{n} <span style={{ opacity: 0.75, fontWeight: 500 }}>({counts.get(n)})</span>
+                          </button>
+                        )
+                      })
+                    })()}
+                  </div>
+                </div>
 
                 {/* คอลัมน์ที่จะ export */}
                 <div data-tour="roster-columns">
