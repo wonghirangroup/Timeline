@@ -9,12 +9,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, ClipboardCheck, AlertTriangle, Wallet, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
+import { FileClock, FileText, Users, Search, ClipboardCheck, AlertTriangle, Wallet, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import PageLinks from '../../components/ui/PageLinks'
 import Pagination from '../../components/ui/Pagination'
 import { downloadCsv } from '../../lib/exportCsv'
 
@@ -146,6 +147,10 @@ export default function EmployeeReportPage() {
             ))}
           </div>
         )}
+        <PageLinks className="no-print" links={[
+          { to: '/ot', label: 'OT', icon: <FileClock size={14} />, permKey: 'ot', feature: 'ot_management' },
+          { to: '/document-requests', label: 'ขอเอกสาร HR', icon: <FileText size={14} />, permKey: 'document_request', feature: 'document_request' }
+        ]} />
         <ReportExportBar onExportCsv={exportCsv} disabled={rows.length === 0} mobile={isMobile} />
         <InfoTooltip title="รายงานพนักงาน" width={310} content={
           <ul style={{ margin: 0, paddingLeft: 16 }}>

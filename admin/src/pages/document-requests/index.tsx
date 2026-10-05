@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2, Download, Wallet } from 'lucide-react'
+import { BarChart2 as ReportIcon, FileText, Check, X, Upload, Loader2, Paperclip, Sparkles, Search, Table2, LayoutGrid, Plus, Pencil, Trash2, Download, Wallet } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { uploadFile } from '../../lib/upload'
 import { useToast } from '../../components/ui/Toast'
@@ -160,7 +160,9 @@ export default function DocumentRequestsPage() {
             </ul>
           } />
         </h1>
-        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
+        <PageLinks className="no-print" links={[
+            { to: '/report/employee', label: 'รายงานพนักงาน', icon: <ReportIcon size={14} />, permKey: 'report_employee' }
+          ]} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
           <InfoTooltip width={290} content="สรุปเอกสารที่ออกแล้วจริง (ไม่ใช่รายการคำขอด้านล่าง) — ใช้ดู/กรอง/Export ยอดสลิปเงินเดือนและหนังสือรับรองเงินเดือนที่สร้างในระบบทั้งหมด แยกตามกลุ่ม/สาขา/แผนก" />

@@ -11,6 +11,7 @@ import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import PageLinks from '../../components/ui/PageLinks'
 import ReportPieChart from '../../components/shared/ReportPieChart'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportLineChart from '../../components/shared/ReportLineChart'
@@ -171,6 +172,10 @@ export default function ExecutiveReportPage() {
       {/* แท็บรวมทุกรายงาน — ภาพรวม (สังเคราะห์ข้ามโดเมน) + อีก 6 หมวดที่เหลือ
           แต่ละหมวดเรียก component หน้ารายงานเดิมตรงๆ (การ์ด/ตาราง/กราฟ + เดือน
           ของตัวเอง อยู่ในนั้นแล้ว ไม่ต้องแยกเขียนใหม่) */}
+      <PageLinks className="no-print" links={[
+          { to: '/resignations', label: 'คำขอลาออก', icon: <DoorOpen size={14} />, permKey: 'resignation', feature: 'resignation' },
+          { to: '/ot', label: 'OT', icon: <FileClock size={14} />, permKey: 'ot', feature: 'ot_management' }
+        ]} />
       <TabBar className="no-print" tabs={TABS} value={tab} onChange={setTab} style={{ marginBottom: 0 }} />
 
       {tab === 'overview' && (

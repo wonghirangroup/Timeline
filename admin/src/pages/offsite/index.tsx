@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
+import { BarChart2 as ReportIcon, MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
@@ -239,7 +239,9 @@ export default function OffsitePage() {
           } />
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
+          <PageLinks className="no-print" links={[
+            { to: '/report', label: 'รายงานการเช็คอิน', icon: <ReportIcon size={14} />, permKey: 'report_checkin' }
+          ]} />
           <Button variant="secondary" icon={<Download size={15} />} onClick={exportOffsite} disabled={filtered.length === 0}>Export</Button>
           {!isReadOnly && (
             <Button variant="primary" icon={<Plus size={15} />} onClick={openAdd}>เพิ่มรายการ</Button>

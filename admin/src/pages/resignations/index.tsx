@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, DoorOpen, Check, X, Search, Table2, LayoutGrid } from 'lucide-react'
+import { BarChart2 as ReportIcon, DoorOpen, Check, X, Search, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsReadOnly } from '../../stores/authStore'
@@ -84,7 +84,9 @@ export default function ResignationsPage() {
             </ul>
           } />
         </h1>
-        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
+        <PageLinks className="no-print" links={[
+            { to: '/report/executive', label: 'รายงานผู้บริหาร', icon: <ReportIcon size={14} />, permKey: 'report_executive' }
+          ]} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>

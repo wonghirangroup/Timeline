@@ -558,6 +558,7 @@ export default function ReportPage() {
         </div>
         <PageLinks className="no-print" links={[
           { to: '/shift', label: 'กลับไปเช็คอิน', icon: <ArrowLeft size={14} />, permKey: 'shift' },
+          { to: '/offsite', label: 'เช็คอินนอกสถานที่', icon: <MapPin size={14} />, permKey: 'offsite', feature: 'gps_checkin' },
           { to: '/leave', label: 'การลา และ วันหยุด', icon: <CalendarDays size={14} />, permKey: 'leave', feature: 'leave_management' },
         ]} />
       </div>

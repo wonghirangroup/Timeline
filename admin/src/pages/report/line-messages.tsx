@@ -5,12 +5,13 @@
 // ย้อนหลังก่อนหน้านี้ไม่มีให้ดู
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
+import { Megaphone, MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import PageLinks from '../../components/ui/PageLinks'
 import { downloadCsv } from '../../lib/exportCsv'
 import Pagination from '../../components/ui/Pagination'
 import { usePagination } from '../../hooks/usePagination'
@@ -122,6 +123,9 @@ export default function LineMessagesReportPage() {
             ))}
           </div>
         )}
+        <PageLinks className="no-print" links={[
+          { to: '/announcement', label: 'ประกาศ & ข้อความ', icon: <Megaphone size={14} />, permKey: 'announcement', feature: 'announcement' }
+        ]} />
         <ReportExportBar onExportCsv={exportCsv} disabled={logs.length === 0} mobile={isMobile} />
         <InfoTooltip title="รายงานข้อความไลน์" width={300} content={
           <ul style={{ margin: 0, paddingLeft: 16 }}>

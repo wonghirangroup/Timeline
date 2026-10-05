@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid, Smile, Users } from 'lucide-react'
+import { BarChart2 as ReportIcon, Megaphone, Mail, MessageSquare, Gift, Building2, BarChart3, Wallet, PenLine, Clock, Smartphone, Send, AlertTriangle, LayoutTemplate, Search, X, Check, Plus, Trash2, Table2, LayoutGrid, Smile, Users } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import Button from '../../components/ui/Button'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -295,7 +295,9 @@ export default function AnnouncementPage() {
         </h2>
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>ส่งประกาศผ่าน Line OA, ข้อความส่วนตัว, และดูฟีดแบ็คพนักงาน</p>
         </div>
-        <PageLinks className="no-print" links={[{ to: '/dashboard', label: 'ภาพรวม (Dashboard)', icon: <LayoutDashboard size={14} /> }]} />
+        <PageLinks className="no-print" links={[
+            { to: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', icon: <ReportIcon size={14} />, permKey: 'report_line_messages' }
+          ]} />
       </div>
 
       <TabBar
