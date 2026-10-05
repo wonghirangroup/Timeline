@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
+import { Search, Users, Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -33,6 +33,7 @@ interface ApiPosition {
 interface WeeklyOffRequest {
   id: string; employee_id: string; week_start: string; day_of_week: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; reject_note: string | null
+  created_at?: string   // เวลาที่ส่งคำขอ — ใช้เรียง "ขอมาล่าสุดก่อน"
   employee: ApiEmployee
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ให้แอดมินตัดสินใจ
 }
@@ -749,14 +750,17 @@ export default function WeeklyOffPage() {
   })
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(employeesFull, positions), [employeesFull, positions])
 
+  const [reqSearch, setReqSearch] = useState('')   // ค้นหาชื่อ/ชื่อเล่น/รหัสพนักงานในรายการคำขอ
   const filtered = useMemo(() => requests.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
     if (statusFilter && r.status !== statusFilter) return false
+    const q = reqSearch.trim().toLowerCase()
+    if (q && !`${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${(r.employee as any).employee_code ?? ''}`.toLowerCase().includes(q)) return false
     return true
   }).sort((a, b) => {
     const order = { PENDING: 0, APPROVED: 1, REJECTED: 2 }
     return order[a.status] - order[b.status] || a.week_start.localeCompare(b.week_start)
-  }), [requests, orgFilter, employeeOrgMap, statusFilter])
+  }), [requests, orgFilter, employeeOrgMap, statusFilter, reqSearch])
 
   // จัดกลุ่มตามพนักงาน — คนเดียวจองหลายวันในเดือนนี้ให้รวมเป็นการ์ดเดียว
   // (feedback 2026-09-14: "อนุมัติวันลาที่จองมากกว่า 1 วันให้รวมเป็นการ์ดเดียว
@@ -772,12 +776,9 @@ export default function WeeklyOffPage() {
       ...g,
       items: [...g.items].sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week))),
     }))
-    // การ์ดที่มีรายการรอพิจารณาขึ้นก่อน แล้วเรียงชื่อ
-    groups.sort((a, b) => {
-      const aPending = a.items.some(i => i.status === 'PENDING') ? 0 : 1
-      const bPending = b.items.some(i => i.status === 'PENDING') ? 0 : 1
-      return aPending - bPending || a.employee.first_name.localeCompare(b.employee.first_name, 'th')
-    })
+    // คนที่ส่งคำขอมาล่าสุดขึ้นก่อน (ดูจากเวลาส่งคำขอล่าสุดของแต่ละคน) — เท่ากันค่อยเรียงตามชื่อ
+    const latest = (g: { items: WeeklyOffRequest[] }) => g.items.reduce((mx, i) => (i.created_at && i.created_at > mx ? i.created_at : mx), '')
+    groups.sort((a, b) => latest(b).localeCompare(latest(a)) || a.employee.first_name.localeCompare(b.employee.first_name, 'th'))
     return groups
   }, [filtered])
 
@@ -789,17 +790,17 @@ export default function WeeklyOffPage() {
     [groupedByEmployee],
   )
 
-  // มุมมอง "ทั้งหมด": ทุกวันที่จองเรียงตามวันที่ (ตามตัวกรองเดียวกับมุมมองรายคน)
+  // มุมมอง "ทั้งหมด": ทุกวันที่จอง เรียงตามเวลาที่ส่งคำขอ (ล่าสุดก่อน) แล้วตามวันที่ (ตามตัวกรองเดียวกับมุมมองรายคน)
   const allRows = useMemo(
-    () => [...filtered].sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week)) || a.employee.first_name.localeCompare(b.employee.first_name, 'th')),
+    () => [...filtered].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '') || resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week))),
     [filtered],
   )
-  useEffect(() => { setAllPage(1) }, [orgFilter, statusFilter, month])
+  useEffect(() => { setAllPage(1) }, [orgFilter, statusFilter, month, reqSearch])
   const [reqPage, setReqPage] = useState(1)
   const REQ_PAGE_SIZE = 10   // การ์ด/หน้า (คนละหน่วยกับตารางเดิมที่นับเป็นแถว)
   const reqTotalPages = Math.max(1, Math.ceil(groupedByEmployee.length / REQ_PAGE_SIZE))
   const reqPaginated = groupedByEmployee.slice((reqPage - 1) * REQ_PAGE_SIZE, reqPage * REQ_PAGE_SIZE)
-  useEffect(() => { setReqPage(1) }, [orgFilter, statusFilter, month])
+  useEffect(() => { setReqPage(1) }, [orgFilter, statusFilter, month, reqSearch])
   useEffect(() => { if (reqPage > reqTotalPages) setReqPage(reqTotalPages) }, [reqTotalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // กระดิ่งแจ้งเตือนส่ง ?focus=<requestId> มา — หา block/การ์ดที่มีรายการนั้น แล้ว
@@ -1049,6 +1050,11 @@ export default function WeeklyOffPage() {
       {/* Org filter + มุมมอง รายคน / ทั้งหมด */}
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 260 }}><OrgFilterBar value={orgFilter} onChange={setOrgFilter} /></div>
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          <input value={reqSearch} onChange={e => setReqSearch(e.target.value)} placeholder="ค้นหาชื่อพนักงาน / รหัส"
+            style={{ padding: '9px 12px 9px 31px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', width: 220, background: '#fff' }} />
+        </div>
         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
           {([['person', 'รายคน', Users], ['all', 'ทั้งหมด', Table2]] as const).map(([v, label, Icon]) => (
             <button key={v} onClick={() => setReqView(v)}
