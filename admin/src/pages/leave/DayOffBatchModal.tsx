@@ -4,7 +4,7 @@
 //   mode 'multi'  — modal เต็มจอแบบตาราง (แถว = พนักงาน, คอลัมน์ = วันที่ในเดือน) ติ๊กวันหยุดได้หลายคนพร้อมกัน
 // ทั้งสองโหมดเลือกได้ไม่เกิน "โควต้าที่เหลือ" ต่อคน (โควต้าจองวันหยุด/เดือน ตาม cascade เดียวกับพนักงานจองเอง — ปกติ 5 วัน)
 // บันทึกผ่าน POST /admin/weekly-off/batch (อนุมัติอัตโนมัติ) — วันไหนไม่ผ่านจะแจ้งเหตุผลรายวัน
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, X } from 'lucide-react'
 import { api } from '../../lib/axios'
@@ -81,18 +81,19 @@ function useBatchSave(month: string, onDone: () => void) {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [result, setResult] = useState<{ created: number; failed: BatchFailed[]; items: { employee_id: string; dates: string[] }[] } | null>(null)
+  const [success, setSuccess] = useState<{ created: number } | null>(null)
   const mut = useMutation({
     mutationFn: (p: { items: { employee_id: string; dates: string[] }[]; force?: boolean }) =>
       api.post('/api/v1/admin/weekly-off/batch', p).then(r => r.data.data as { created: number; failed: BatchFailed[]; total: number }),
     onSuccess: (data, vars) => {
       qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
       onDone()
-      if (data.failed.length === 0) { showToast('success', `ลงวันหยุดสำเร็จ ${data.created} วัน`); setResult(null) }
+      if (data.failed.length === 0) { setResult(null); setSuccess({ created: data.created }) }
       else setResult({ created: data.created, failed: data.failed, items: vars.items })
     },
     onError: () => showToast('error', 'ลงวันหยุดไม่สำเร็จ'),
   })
-  return { mut, result, setResult }
+  return { mut, result, setResult, success, setSuccess }
 }
 
 function ResultView({ result, empById, onRetryForce, onClose, saving }: {
@@ -125,6 +126,35 @@ function ResultView({ result, empById, onRetryForce, onClose, saving }: {
   )
 }
 
+// popup สำเร็จ: วงกลมเขียวเด้งขึ้น + เครื่องหมายถูกวาดเส้นทีละนิด แล้วเรียก onDone เองหลัง ~1.8 วินาที
+function SuccessView({ count, subtitle, onDone, doneLabel }: { count: number; subtitle?: string; onDone: () => void; doneLabel: string }) {
+  // เก็บ onDone ล่าสุดไว้ใน ref — ไม่งั้นทุกครั้งที่ข้อมูลรีเฟรช (ได้ฟังก์ชันใหม่) ตัวจับเวลาจะเริ่มนับใหม่ไม่จบ
+  const doneRef = useRef(onDone); doneRef.current = onDone
+  useEffect(() => { const t = setTimeout(() => doneRef.current(), 1800); return () => clearTimeout(t) }, [])
+  return (
+    <div style={{ padding: '40px 24px 30px', textAlign: 'center' }}>
+      <style>{`
+        @keyframes dob-pop { 0% { transform: scale(0.3); opacity: 0 } 60% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+        @keyframes dob-draw { to { stroke-dashoffset: 0 } }
+        @keyframes dob-ring { 0% { transform: scale(0.8); opacity: 0.55 } 100% { transform: scale(1.9); opacity: 0 } }
+        @keyframes dob-rise { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+        @media (prefers-reduced-motion: reduce) { .dob-anim, .dob-anim * { animation-duration: 0.01s !important; animation-delay: 0s !important } }
+      `}</style>
+      <div className="dob-anim" style={{ position: 'relative', width: 92, height: 92, margin: '0 auto 18px' }}>
+        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#16a34a', animation: 'dob-ring .9s ease-out .15s both' }} />
+        <svg viewBox="0 0 92 92" width="92" height="92" style={{ position: 'relative', animation: 'dob-pop .5s cubic-bezier(.2,.9,.3,1.2) both' }}>
+          <circle cx="46" cy="46" r="42" fill="#dcfce7" stroke="#16a34a" strokeWidth="4" />
+          <path d="M27 48 L41 62 L66 33" fill="none" stroke="#16a34a" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"
+            strokeDasharray="60" strokeDashoffset="60" style={{ animation: 'dob-draw .45s ease-out .35s forwards' }} />
+        </svg>
+      </div>
+      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#15803d', animation: 'dob-rise .4s ease-out .5s both' }}>ลงวันหยุดสำเร็จแล้ว</div>
+      <div style={{ fontSize: '0.88rem', color: '#475569', marginTop: 4, animation: 'dob-rise .4s ease-out .6s both' }}>{subtitle ? `${subtitle} · ` : ''}{count} วัน (อนุมัติอัตโนมัติ)</div>
+      <button onClick={onDone} style={{ marginTop: 20, padding: '8px 20px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', animation: 'dob-rise .4s ease-out .8s both' }}>{doneLabel}</button>
+    </div>
+  )
+}
+
 // สถานะรอส่ง force ซ้ำ: เอาเฉพาะวันที่ล้มเหลวเพราะ BOOKING_DISABLED
 function forceItems(result: NonNullable<ReturnType<typeof useBatchSave>['result']>) {
   const m = new Map<string, string[]>()
@@ -138,8 +168,9 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
   const remainingOf = useRemaining(quotaOf, bookedOf)
   const [empId, setEmpId] = useState('')
   const [picked, setPicked] = useState<string[]>([])
-  const { mut, result, setResult } = useBatchSave(month, onDone)
+  const { mut, result, setResult, success, setSuccess } = useBatchSave(month, onDone)
   const empById = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees])
+  const [savedName, setSavedName] = useState('')
 
   const info = empId ? remainingOf(empId) : null
   const booked = empId ? bookedOf.get(empId) : undefined
@@ -152,6 +183,11 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
     setPicked(p => p.includes(date) ? p.filter(d => d !== date) : (room > 0 ? [...p, date] : p))
   }
 
+  // บันทึกสำเร็จ → โชว์แอนิเมชัน แล้วกลับมาที่ฟอร์มนี้ (เคลียร์ชื่อ/วันที่ พร้อมลงให้คนต่อไป)
+  if (success) {
+    return <SuccessView count={success.created} subtitle={savedName} doneLabel="ลงให้คนต่อไป"
+      onDone={() => { setSuccess(null); setEmpId(''); setPicked([]); setResult(null) }} />
+  }
   if (result) {
     return <ResultView result={result} empById={empById} saving={mut.isPending}
       onRetryForce={() => mut.mutate({ items: forceItems(result), force: true })} onClose={onClose} />
@@ -209,7 +245,7 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
         <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>
         <button disabled={!empId || picked.length === 0 || mut.isPending}
-          onClick={() => mut.mutate({ items: [{ employee_id: empId, dates: picked }] })}
+          onClick={() => { setSavedName(empById.get(empId) ? nameOf(empById.get(empId)!) : ''); mut.mutate({ items: [{ employee_id: empId, dates: picked }] }) }}
           style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: !empId || picked.length === 0 ? 0.5 : 1 }}>
           {mut.isPending ? 'กำลังบันทึก...' : `บันทึก${picked.length ? ` (${picked.length} วัน)` : ''}`}
         </button>
@@ -225,7 +261,7 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
   const [picked, setPicked] = useState<Record<string, string[]>>({})
   const [search, setSearch] = useState('')
   const [branchId, setBranchId] = useState('')
-  const { mut, result } = useBatchSave(month, onDone)
+  const { mut, result, success } = useBatchSave(month, onDone)
   const empById = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees])
   const total = daysIn(month)
   const [y, m] = month.split('-').map(Number)
@@ -249,6 +285,9 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
     })
   }
 
+  if (success) {
+    return <SuccessView count={success.created} subtitle={`${totalPeople} คน`} doneLabel="ปิด" onDone={onClose} />
+  }
   if (result) {
     return <ResultView result={result} empById={empById} saving={mut.isPending}
       onRetryForce={() => mut.mutate({ items: forceItems(result), force: true })} onClose={onClose} />
