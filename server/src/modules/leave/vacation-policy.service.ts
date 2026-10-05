@@ -7,7 +7,7 @@
 // ตามแบบ group.service.ts เดิม
 import { prisma } from '../../common/utils/prisma'
 import { bangkokToday } from '../../common/utils/time'
-import { resolveBookingQuota } from '../group/group.service'
+import { resolveBookingQuota, usesWeekendPool } from '../group/group.service'
 
 // ── Tenure-based vacation entitlement (ข้อ 6) ──────────────────────────────
 // สูตร: base + incDays * floor((years - 1) / incYears) เมื่อ years >= 1
@@ -226,9 +226,19 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
     where: { tenant_id: tenantId, employee_id: employeeId, status: 'APPROVED', week_start: { gte: rangeStart, lte: rangeEnd } },
     select: { week_start: true, day_of_week: true },
   })
-  const bookedDates = approvedRows
+  let bookedDates = approvedRows
     .map(r => resolveActualDateStr(r.week_start, r.day_of_week))
     .filter(d => d.slice(0, 7) === ym)
+  // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" ที่ไม่ได้จองเลยในเดือนนั้น: วันหยุดคือเสาร์-อาทิตย์ทุกวันของเดือน (ค่าเริ่มต้น) —
+  // มาทำงานในวันเหล่านั้นก็นับเป็น "หยุดไม่ครบ" ได้โบนัสตามจำนวนวันที่มาทำงานเหมือนวันหยุดที่จอง
+  if (bookedDates.length === 0 && await usesWeekendPool(tenantId, employeeId)) {
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    bookedDates = []
+    for (let d = 1; d <= last; d++) {
+      const dt = new Date(Date.UTC(y, m - 1, d))
+      if (dt.getUTCDay() === 0 || dt.getUTCDay() === 6) bookedDates.push(dt.toISOString().slice(0, 10))
+    }
+  }
   if (bookedDates.length === 0) return 0
 
   const worked = await prisma.attendanceRecord.findMany({
@@ -270,10 +280,14 @@ export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
   for (const e of employees) {
     const elig = isVacationEligible(e, asOf)
     if (!elig.eligible) { ineligible++; continue }
-    const quota = await resolveBookingQuota(tenantId, e.id)
+    // โควต้าของเดือนนั้น (สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" = จำนวนเสาร์+อาทิตย์ของเดือน เช่น 8) — โบนัส = โควต้า − วันที่หยุดได้จริง
+    // เช่น โควต้า 8 จอง 7 → +1 · จอง 7 แต่ตอนสิ้นเดือนเช็คอินจริงในวันที่จองไว้ 1 วัน (หยุดจริง 6) → ส่วนต่างเพิ่มตามวันที่มาทำงาน
+    const quota = await resolveBookingQuota(tenantId, e.id, ym)
+    const pool = await usesWeekendPool(tenantId, e.id)
+    const hasBooking = (await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])) > 0
     const effectiveOff = countWorkedDays
       ? await countEffectiveOffDays(tenantId, e.id, ym)
-      : await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
+      : (pool && !hasBooking ? quota : await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED']))
     const shortfall = quota - effectiveOff
     if (shortfall > 0) {
       await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: shortfall, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota}) ได้รับ +${shortfall} วัน` })

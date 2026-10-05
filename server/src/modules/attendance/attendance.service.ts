@@ -1,7 +1,7 @@
 // server/src/modules/attendance/attendance.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
-import { getEmployeeWeeklyOff } from '../weekly-off/weekly-off.service'
+import { getEmployeeWeeklyOff, hasApprovedBookingInMonth } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
@@ -23,7 +23,7 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
     where: { id: employeeId, tenant_id: tenantId },
     select: {
       branch_id: true, department: true,
-      employee_status_type: { select: { saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
+      employee_status_type: { select: { saturday_rule: true, sunday_rule: true, off_on_public_holiday: true, off_quota_mode: true } },
     },
   })
   const st = employee?.employee_status_type
@@ -31,8 +31,13 @@ async function resolveDayRule(tenantId: string, employeeId: string, date: Date):
   // เสาร์/อาทิตย์ — resolve จาก cascade 6 ชั้น (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม; default OFF)
   const dow = date.getUTCDay()
   if (dow === 6 || dow === 0) {
-    const wr = await resolveWeekendRule(tenantId, employeeId, dow === 6 ? 'saturday' : 'sunday')
-    if (wr !== 'WORK') return { rule: wr }
+    // สถานะแบบ "โควต้า = จำนวนเสาร์-อาทิตย์ของเดือน": เดือนไหนที่พนักงานมีวันหยุดจองอนุมัติแล้ว เสาร์-อาทิตย์ไม่ใช่วันหยุดอัตโนมัติอีก
+    // (วันหยุดคือเฉพาะวันที่อนุมัติ — เช็คต่อด้านล่าง) · ไม่ได้จอง/ยังไม่อนุมัติ = หยุดเสาร์-อาทิตย์ตามเดิม
+    const pooled = st?.off_quota_mode === 'WEEKENDS_IN_MONTH' && await hasApprovedBookingInMonth(tenantId, employeeId, date.toISOString().slice(0, 7))
+    if (!pooled) {
+      const wr = await resolveWeekendRule(tenantId, employeeId, dow === 6 ? 'saturday' : 'sunday')
+      if (wr !== 'WORK') return { rule: wr }
+    }
   }
 
   // เช็ควันหยุดนักขัตฤกษ์เสมอ ไม่ผูกกับว่ามีสถานะพนักงานหรือไม่ (เดิมอยู่ใน

@@ -612,11 +612,21 @@ enum DayRule {
 // สถานะพนักงาน (ประจำ/ชั่วคราว/...) — admin สร้างเองได้ กำหนดโควต้าวันหยุดต่อเดือน +
 // เงื่อนไขวันหยุดอัตโนมัติต่อสถานะ (เสาร์/อาทิตย์/วันนักขัตฤกษ์) — ใช้เป็นฐานของโควต้าใน
 // MONTHLY_BATCH booking (ดู weekly-off.service.ts) และวันหยุดอัตโนมัติในปฏิทินพนักงาน
+// วิธีกำหนดโควต้าวันหยุดจอง/เดือนของสถานะพนักงาน
+//  FIXED             = ตัวเลขคงที่ (monthly_off_quota) — เดิม
+//  WEEKENDS_IN_MONTH = เท่ากับจำนวนเสาร์+อาทิตย์ของเดือนนั้นๆ (เช่น ต.ค. 2569 = 9 วัน) — ไม่จองก็หยุดเสาร์-อาทิตย์ตามเดิม แต่ถ้าจอง (และแอดมินอนุมัติ)
+//                      วันหยุดของเดือนนั้นจะเป็นเฉพาะวันที่อนุมัติ (เสาร์-อาทิตย์ที่ไม่ได้อยู่ในรายการกลายเป็นวันทำงาน) และต้องจองให้ครบเท่าจำนวนเสาร์-อาทิตย์
+enum OffQuotaMode {
+  FIXED
+  WEEKENDS_IN_MONTH
+}
+
 model EmployeeStatusType {
   id                    String    @id @default(uuid())
   tenant_id             String
   name                  String // เช่น "ประจำ", "ชั่วคราว", "รายวัน"
   monthly_off_quota     Int       @default(4) // จำนวนวันหยุดที่จองได้ต่อเดือน (โหมด MONTHLY_BATCH เท่านั้น)
+  off_quota_mode        OffQuotaMode @default(FIXED) // FIXED = ใช้ monthly_off_quota · WEEKENDS_IN_MONTH = เท่ากับจำนวนเสาร์+อาทิตย์ของเดือน
   saturday_rule         DayRule   @default(WORK) // เช่น office = OFFSITE (หยุดแต่ทำงานนอกสถานที่)
   sunday_rule           DayRule   @default(WORK) // เช่น office = OFF (หยุดจริง)
   off_on_public_holiday Boolean   @default(true) // หยุดวันนักขัตฤกษ์อัตโนมัติ (ตาม Holiday ของ tenant)

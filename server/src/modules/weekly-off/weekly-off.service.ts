@@ -1,7 +1,7 @@
 // server/src/modules/weekly-off/weekly-off.service.ts
 import { prisma } from '../../common/utils/prisma'
 import { nextRequestNo } from '../../common/utils/requestNo'
-import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.service'
+import { resolveBookingEnabled, resolveBookingQuota, usesWeekendPool } from '../group/group.service'
 import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
 import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from '../leave/vacation-policy.service'
@@ -140,7 +140,7 @@ export async function getMonthQuotaSummary(tenantId: string, month: string, scop
   const modeOf = new Map(modes.map(m => [m.id, m.weekly_off_mode]))
   return Promise.all(ids.map(async employee_id => {
     const [quota, booked] = await Promise.all([
-      resolveBookingQuota(tenantId, employee_id),
+      resolveBookingQuota(tenantId, employee_id, month),
       countMonthOffRequests(tenantId, employee_id, month),
     ])
     return { employee_id, quota, booked, remaining: quota - booked, weekly_off_mode: modeOf.get(employee_id) ?? modeById.get(employee_id) ?? 'WEEKLY' }
@@ -205,7 +205,7 @@ export async function createWeeklyOff(tenantId: string, data: {
   // โควต้าจอง/เดือน — cascade 6 ชั้น (default 5) · แอดมิน force ข้ามได้ (ผูกกับ
   // overrideBy เดิม = force ที่ใช้ข้าม booking cascade ปิด)
   if (!overrideBy) {
-    const quota = await resolveBookingQuota(tenantId, data.employee_id)
+    const quota = await resolveBookingQuota(tenantId, data.employee_id, actualMonth)
     if (await countMonthOffRequests(tenantId, data.employee_id, actualMonth) >= quota) throw new Error('OVER_QUOTA')
   }
   // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15
@@ -349,6 +349,19 @@ export async function getEmployeeWeeklyOff(tenantId: string, employeeId: string,
   })
 }
 
+// เดือนนั้นพนักงานมีวันหยุดจองที่ "อนุมัติแล้ว" อย่างน้อย 1 วันไหม — ใช้กับสถานะแบบโควต้า = จำนวนเสาร์-อาทิตย์
+// (มี = วันหยุดของเดือนนั้นคือเฉพาะวันที่อนุมัติ, ไม่มี = หยุดเสาร์-อาทิตย์ตามปกติ)
+export async function hasApprovedBookingInMonth(tenantId: string, employeeId: string, month: string): Promise<boolean> {
+  const [y, m] = month.split('-').map(Number)
+  const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+  const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
+  const rows = await prisma.weeklyOffRequest.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId, status: 'APPROVED', week_start: { gte: rangeStart, lte: rangeEnd } },
+    select: { week_start: true, day_of_week: true },
+  })
+  return rows.some(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === month)
+}
+
 // ── Monthly Batch Off (weekly_off_mode = MONTHLY_BATCH) ──────────────────────
 // โหมดโควต้า: เลือกวันไหนก็ได้ในเดือน ไม่เกิน booking_quota (resolve จาก cascade 6 ชั้น, default 5)
 // (เดิมมีโหมด "ต้องครบทุกสัปดาห์" สำหรับคนไม่ผูกสถานะพนักงาน — เลิกใช้แล้ว ทุกคนมีโควต้าจากกลุ่ม)
@@ -389,10 +402,16 @@ export async function createMonthlyBatchOff(tenantId: string, data: {
   }))
 
   // โหมดโควต้า (ทุกคน): เลือกวันไหนก็ได้ในเดือน ไม่เกินโควต้าที่ resolve จาก cascade 6 ชั้น (default 5)
-  const quota = await resolveBookingQuota(tenantId, data.employee_id)
+  const quota = await resolveBookingQuota(tenantId, data.employee_id, data.month)
   const uniqueDates = new Set(picked.map(p => p.dateStr))
   if (uniqueDates.size !== picked.length) throw new Error('DUPLICATE_DATE')
   if (picked.length > quota) throw new Error('OVER_QUOTA')
+  // สถานะแบบ "โควต้า = จำนวนเสาร์-อาทิตย์ของเดือน": ไม่จองก็หยุดเสาร์-อาทิตย์ แต่ถ้าจองต้องจองให้ครบ (จองที่มีอยู่แล้วในเดือน + ที่ส่งมารอบนี้ = โควต้าพอดี)
+  // ไม่งั้นเสาร์-อาทิตย์ที่ตกหล่นจะกลายเป็นวันทำงานเมื่อแอดมินอนุมัติ
+  if (await usesWeekendPool(tenantId, data.employee_id)) {
+    const existing = await countMonthOffRequests(tenantId, data.employee_id, data.month)
+    if (existing + picked.length !== quota) throw new Error('INCOMPLETE_QUOTA')
+  }
   // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15 ข้อ 5
   // (endpoint นี้พนักงานจองเองเท่านั้น ไม่มี force — block เสมอ)
   await assertMonthlyCap(tenantId, data.employee_id, data.month, picked.length)
@@ -586,7 +605,7 @@ export async function requestWeeklyOffChange(tenantId: string, employeeId: strin
   if (!(await checkPeriodOpen(tenantId, old.employee.branch_id, newMonth))) throw new Error('PERIOD_CLOSED')
   // ย้ายข้ามเดือน = ไปเพิ่มโควต้าของเดือนปลายทาง (เดือนเดิมจะลดลงเมื่ออนุมัติ) — ในเดือนเดียวกันจำนวนวันไม่เปลี่ยน ไม่ต้องเช็ค
   if (newMonth !== oldDate.slice(0, 7)) {
-    const quota = await resolveBookingQuota(tenantId, employeeId)
+    const quota = await resolveBookingQuota(tenantId, employeeId, newMonth)
     if (await countMonthOffRequests(tenantId, employeeId, newMonth) >= quota) throw new Error('OVER_QUOTA')
     await assertMonthlyCap(tenantId, employeeId, newMonth, 1)
   }

@@ -50,12 +50,12 @@ export async function employeeMeRoutes(app: FastifyInstance) {
       resolveHolidayPolicy(req.tenantId, employeeId),
       prisma.tenant.findFirst({ where: { id: req.tenantId }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
-    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota } = policy
+    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, off_quota_mode } = policy
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const { admin_user, extra_branches, ...empRest } = employee as any
     const admin_access = !!admin_user?.is_active
 
-    return ok({ employee: { ...empRest, extra_branches: extra_branches.map((eb: any) => eb.branch), booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), feat_document_request: ff('document_request'), admin_access }, shifts })
+    return ok({ employee: { ...empRest, extra_branches: extra_branches.map((eb: any) => eb.branch), booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, off_quota_mode, leave_backdate_days: tenant?.leave_backdate_days ?? null, feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true), feat_document_request: ff('document_request'), admin_access }, shifts })
   })
 
   // POST /api/v1/employee/switch-to-admin — ออก token auto-login สดใหม่ตอนกดปุ่มเท่านั้น

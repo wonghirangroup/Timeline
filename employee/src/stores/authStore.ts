@@ -26,6 +26,8 @@ export interface EmployeeProfile {
   saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
   sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'
   booking_quota?: number // จองวันหยุดได้กี่วัน/เดือน (ทั้ง 2 โหมด)
+  // WEEKENDS_IN_MONTH = โควต้าเท่ากับจำนวนเสาร์+อาทิตย์ของเดือนนั้น (ไม่จองก็หยุดเสาร์-อาทิตย์ จองแล้วต้องจองให้ครบ) — ไม่มี/FIXED = ใช้ booking_quota
+  off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'
   // ยื่นลาผ่าน LIFF ย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — ตั้งที่ admin การตั้งค่า → นโยบายการลา
   leave_backdate_days?: number | null
   feat_disciplinary?: boolean // tenant เปิดฟีเจอร์หนังสือเตือนไหม

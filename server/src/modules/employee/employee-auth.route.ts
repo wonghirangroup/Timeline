@@ -71,7 +71,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       where: { line_user_id, tenant_id: config.tenant.id, deleted_at: null, is_active: true },
       include: {
         branch: { select: { id: true, name: true } },
-        employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
+        employee_status_type: { select: { id: true, name: true, monthly_off_quota: true, off_quota_mode: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true } },
         admin_user: { select: { is_active: true } },
         extra_branches: { select: { branch: { select: { id: true, name: true } } } },
       },
@@ -94,7 +94,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       resolveHolidayPolicy(config.tenant.id, employee.id),
       prisma.tenant.findFirst({ where: { id: config.tenant.id }, select: { leave_backdate_days: true, enabled_features: true, self_resignation_enabled: true } }),
     ])
-    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota } = policy
+    const { booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, off_quota_mode } = policy
     const ff = (k: string) => isFeatureEnabled(tenant?.enabled_features, k as any)
     const admin_access = !!employee.admin_user?.is_active
 
@@ -104,7 +104,7 @@ export async function employeeAuthRoutes(app: FastifyInstance) {
       extra_branches: employee.extra_branches.map(eb => eb.branch),
       hired_at: employee.hired_at, status: employee.status,
       weekly_off_mode: employee.weekly_off_mode, employee_status_type: employee.employee_status_type,
-      photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota,
+      photo_url: employee.photo_url ?? null, booking_enabled, leave_enabled, saturday_rule, sunday_rule, booking_quota, off_quota_mode,
       leave_backdate_days: tenant?.leave_backdate_days ?? null,
       feat_disciplinary: ff('disciplinary'), feat_resignation: ff('resignation') && (tenant?.self_resignation_enabled ?? true),
       feat_document_request: ff('document_request'),

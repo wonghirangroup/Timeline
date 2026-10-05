@@ -1143,7 +1143,7 @@ const DAY_RULE_CFG: Record<DayRule, { label: string; color: string; bg: string }
   OFFSITE: { label: 'ทำงานนอกสถานที่',  color: '#9333ea', bg: '#faf5ff' },
 }
 interface StatusType {
-  id: string; name: string; monthly_off_quota: number
+  id: string; name: string; monthly_off_quota: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'
   saturday_rule: DayRule; sunday_rule: DayRule; off_on_public_holiday: boolean
   is_active: boolean; _count: { employees: number }
 }
@@ -1152,7 +1152,7 @@ function StatusTypesTab() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const [modal, setModal] = useState<{ edit?: StatusType } | null>(null)
-  const [form, setForm] = useState({ name: '', monthly_off_quota: '4', saturday_rule: 'WORK' as DayRule, sunday_rule: 'WORK' as DayRule, off_on_public_holiday: true })
+  const [form, setForm] = useState({ name: '', monthly_off_quota: '4', off_quota_mode: 'FIXED' as 'FIXED' | 'WEEKENDS_IN_MONTH', saturday_rule: 'WORK' as DayRule, sunday_rule: 'WORK' as DayRule, off_on_public_holiday: true })
   const [deleteTarget, setDeleteTarget] = useState<StatusType | null>(null)
 
   const { data: types = [], isLoading } = useQuery<StatusType[]>({
@@ -1175,12 +1175,12 @@ function StatusTypesTab() {
     onError: (err: any) => showToast('error', err.response?.data?.error?.code === 'IN_USE' ? 'มีพนักงานผูกสถานะนี้อยู่ ย้ายพนักงานออกก่อน' : 'ลบไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', monthly_off_quota: '4', saturday_rule: 'WORK', sunday_rule: 'WORK', off_on_public_holiday: true }); setModal({}) }
-  const openEdit = (t: StatusType) => { setForm({ name: t.name, monthly_off_quota: String(t.monthly_off_quota), saturday_rule: t.saturday_rule, sunday_rule: t.sunday_rule, off_on_public_holiday: t.off_on_public_holiday }); setModal({ edit: t }) }
+  const openAdd = () => { setForm({ name: '', monthly_off_quota: '4', off_quota_mode: 'FIXED', saturday_rule: 'WORK', sunday_rule: 'WORK', off_on_public_holiday: true }); setModal({}) }
+  const openEdit = (t: StatusType) => { setForm({ name: t.name, monthly_off_quota: String(t.monthly_off_quota), off_quota_mode: t.off_quota_mode ?? 'FIXED', saturday_rule: t.saturday_rule, sunday_rule: t.sunday_rule, off_on_public_holiday: t.off_on_public_holiday }); setModal({ edit: t }) }
   const handleSave = () => {
     if (!modal || !form.name.trim()) return
     const body = {
-      name: form.name, monthly_off_quota: parseInt(form.monthly_off_quota) || 0,
+      name: form.name, monthly_off_quota: parseInt(form.monthly_off_quota) || 0, off_quota_mode: form.off_quota_mode,
       saturday_rule: form.saturday_rule, sunday_rule: form.sunday_rule, off_on_public_holiday: form.off_on_public_holiday,
     }
     if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body })
@@ -1236,7 +1236,7 @@ function StatusTypesTab() {
               <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{t._count.employees} คน</p>
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#244B83', background: '#F4F6F9', padding: '3px 9px', borderRadius: 99 }}>{t.monthly_off_quota} วัน/เดือน</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#244B83', background: '#F4F6F9', padding: '3px 9px', borderRadius: 99 }}>{t.off_quota_mode === 'WEEKENDS_IN_MONTH' ? 'โควต้า = เสาร์-อาทิตย์ของเดือน' : `${t.monthly_off_quota} วัน/เดือน`}</span>
               {t.saturday_rule !== 'WORK' && (
                 <span style={{ fontSize: '11px', fontWeight: 700, color: DAY_RULE_CFG[t.saturday_rule].color, background: DAY_RULE_CFG[t.saturday_rule].bg, padding: '3px 9px', borderRadius: 99 }}>เสาร์: {DAY_RULE_CFG[t.saturday_rule].label}</span>
               )}
@@ -1258,7 +1258,23 @@ function StatusTypesTab() {
             <label style={label}>ชื่อสถานะ</label>
             <input autoFocus style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="เช่น ประจำ, ชั่วคราว, รายวัน" />
             <label style={{ ...label, margin: '12px 0 4px' }}>โควต้าวันหยุดต่อเดือน</label>
-            <input type="number" min={0} style={inputStyle} value={form.monthly_off_quota} onChange={e => setForm(f => ({ ...f, monthly_off_quota: e.target.value }))} />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {([['FIXED', 'คงที่ (ระบุจำนวนวัน)'], ['WEEKENDS_IN_MONTH', 'เท่ากับเสาร์-อาทิตย์ของเดือน']] as const).map(([v, lbl]) => (
+                <button key={v} type="button" onClick={() => setForm(f => ({ ...f, off_quota_mode: v }))}
+                  style={{ flex: 1, padding: '8px 6px', borderRadius: 8, border: `1.5px solid ${form.off_quota_mode === v ? '#244B83' : '#e5e7eb'}`, background: form.off_quota_mode === v ? '#F4F6F9' : '#fff', color: form.off_quota_mode === v ? '#244B83' : '#64748b', fontWeight: 700, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            {form.off_quota_mode === 'FIXED' ? (
+              <input type="number" min={0} style={inputStyle} value={form.monthly_off_quota} onChange={e => setForm(f => ({ ...f, monthly_off_quota: e.target.value }))} />
+            ) : (
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', fontSize: '12px', color: '#92400e', lineHeight: 1.65 }}>
+                โควต้าเปลี่ยนตามเดือน = <b>จำนวนวันเสาร์ + อาทิตย์ของเดือนนั้น</b> (เช่น ต.ค. 2569 = 9 วัน)<br />
+                • <b>ไม่จอง</b> → หยุดเสาร์-อาทิตย์ตามปกติ<br />
+                • <b>จอง</b> → ต้องจองให้ครบเท่าจำนวนนั้น เลือกวันไหนก็ได้ (เสาร์-อาทิตย์ที่ไม่ได้ย้ายไปวันอื่น ต้องจองเป็นวันหยุดด้วย) เมื่อแอดมินอนุมัติ วันหยุดของเดือนนั้นจะเป็นเฉพาะวันที่อนุมัติ
+              </div>
+            )}
 
             <div style={{ marginTop: 14 }}>
               <label style={{ ...label, marginBottom: 8 }}>

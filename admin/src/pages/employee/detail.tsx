@@ -164,6 +164,14 @@ function weekendRuleOf(emp: any, dow: number): 'WORK' | 'OFF' | 'OFFSITE' {
   for (const n of [emp?.employee_status_type, ...orgChain(emp)]) { const v = n?.[k]; if (v != null) return v }
   return 'OFF'
 }
+// เสาร์/อาทิตย์ที่ไม่ใช่วันหยุดอัตโนมัติ: สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" ที่เดือนนั้นมีวันหยุดจองอนุมัติแล้ว (วันหยุดคือเฉพาะวันที่อนุมัติ)
+function weekendRuleFor(emp: any, dow: number, dateStr: string, dayoffDates: Set<string>): 'WORK' | 'OFF' | 'OFFSITE' {
+  const r = weekendRuleOf(emp, dow)
+  if (r === 'WORK' || emp?.employee_status_type?.off_quota_mode !== 'WEEKENDS_IN_MONTH') return r
+  const ym = dateStr.slice(0, 7)
+  for (const d of dayoffDates) if (d.startsWith(ym)) return 'WORK'
+  return r
+}
 function resolveEmpPolicy(emp: any) {
   const flag = (key: 'booking' | 'leave') => {
     const ov = key === 'booking' ? emp?.booking_enabled_override : emp?.leave_enabled_override
@@ -388,7 +396,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             const dateStr0 = (r.date ?? '').slice(0, 10)
             const dow0 = new Date(dateStr0 + 'T00:00:00').getDay()
             const { label, color, bg } = resolveDayStatus({
-              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), holidayName: holidayByDate.get(dateStr0), weekendRule: weekendRuleOf(emp, dow0), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
+              recs: [r], dow: dow0, leaveLabel: leaveByDate.get(dateStr0), holidayName: holidayByDate.get(dateStr0), weekendRule: weekendRuleFor(emp, dow0, dateStr0, dayoffDates), isDayOff: dayoffDates.has(dateStr0), isOffsite: offsiteDates.has(dateStr0), isPast: dateStr0 < todayLocalStr(),
             })
             const dateStr = (r.date ?? '').slice(0, 10)
             const d = new Date(dateStr + 'T00:00:00')
@@ -473,7 +481,7 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
       for (const r of recs ?? []) fine += Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)
       const status = resolveDayStatus({
         recs, dow: new Date(dateKey).getDay(),
-        leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleOf(emp, new Date(dateKey).getDay()), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+        leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleFor(emp, new Date(dateKey).getDay(), dateKey, dayoffDates), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
       })
       if (status.label === 'ขาด' || status.label === 'ขาดงาน') absent++
       else if (holidayByDate.get(dateKey) === status.label || ['วันหยุด','พักร้อน','ลากิจ','ลาป่วย','ลาคลอด','ชดเชย','นอกสถานที่'].includes(status.label)) leave++
@@ -544,7 +552,7 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             const dow = new Date(dateKey).getDay()
             const note = r?.note ?? ''
             const { label, color, bg } = resolveDayStatus({
-              recs, dow, leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleOf(emp, dow), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
+              recs, dow, leaveLabel: leaveByDate.get(dateKey), holidayName: holidayByDate.get(dateKey), weekendRule: weekendRuleFor(emp, dow, dateKey, dayoffDates), isDayOff: dayoffDates.has(dateKey), isOffsite: offsiteDates.has(dateKey), isPast: dateKey < todayLocalStr(),
             })
             return (
               <div key={dateKey} style={{

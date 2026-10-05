@@ -114,6 +114,13 @@ function fmtMonthTH(ym: string) {
   return `${MONTHS_LONG[mm - 1]} ${yy + 543}`
 }
 function getDaysInMonth(ym: string) { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm, 0).getDate() }
+// จำนวนเสาร์+อาทิตย์ในเดือนนั้น (ใช้กับสถานะที่โควต้า = เสาร์-อาทิตย์ของเดือน) — ต้องตรงกับ weekendDaysInMonth ฝั่ง server
+function countWeekendDays(ym: string) {
+  const [yy, mm] = ym.split('-').map(Number)
+  let n = 0
+  for (let d = 1; d <= new Date(yy, mm, 0).getDate(); d++) { const w = new Date(yy, mm - 1, d).getDay(); if (w === 0 || w === 6) n++ }
+  return n
+}
 function getFirstDow(ym: string)    { const [yy, mm] = ym.split('-').map(Number); return new Date(yy, mm - 1, 1).getDay() }
 function toDateStr(ym: string, d: number) { return `${ym}-${String(d).padStart(2, '0')}` }
 // เหมือน toDateStr แต่รับ day ที่ overflow นอกเดือนได้ (0, -1, daysInMonth+1, ...)
@@ -835,7 +842,9 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   const [viewDate, setViewDate] = useState<string | null>(null)
 
   // โควต้าจอง/เดือน — resolve จาก cascade 6 ชั้น ฝั่ง server (default 5) · ทุกคนเป็นโหมดโควต้า
-  const quota    = employee?.booking_quota ?? employee?.employee_status_type?.monthly_off_quota ?? 5
+  // poolMode: สถานะแบบ "โควต้า = จำนวนเสาร์-อาทิตย์ของเดือน" — โควต้าเปลี่ยนตามเดือนที่ดู · ไม่จองก็หยุดเสาร์-อาทิตย์ แต่ถ้าจองต้องจองให้ครบ
+  const poolMode = employee?.off_quota_mode === 'WEEKENDS_IN_MONTH'
+  const quota    = poolMode ? countWeekendDays(month) : (employee?.booking_quota ?? employee?.employee_status_type?.monthly_off_quota ?? 5)
   const hasQuota = true
 
   const requiredWeeks = getWeeksOfMonth(month, todayStr)
@@ -890,7 +899,8 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   const bookedDateSet  = new Set([...ownThisMonth, ...pendingChangeOf.values()].map(r => resolveDate(r.week_start, r.day_of_week)))
   // วันที่อนุมัติแล้วและยังไม่มีคำขอเปลี่ยนค้างอยู่ = เลือก "เปลี่ยนวัน" ได้
   const changeable = ownThisMonth.filter(r => r.status === 'APPROVED' && !pendingChangeOf.has(r.id))
-  const complete     = hasQuota ? (pickedCount > 0 && pickedCount <= remainingQuota) : (pickedCount === requiredWeeks.length)
+  // poolMode ต้องเลือกให้ครบพอดี (เท่าจำนวนเสาร์-อาทิตย์ของเดือนที่ยังเหลือให้จอง) ส่งไม่ครบไม่ได้
+  const complete     = poolMode ? (remainingQuota > 0 && pickedCount === remainingQuota) : hasQuota ? (pickedCount > 0 && pickedCount <= remainingQuota) : (pickedCount === requiredWeeks.length)
 
   const submitMutation = useMutation({
     mutationFn: () => api.post('/employee/weekly-off/monthly-batch', { employee_id: employeeId, month, dates: Object.values(picks) }),
@@ -904,6 +914,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
       setErrorMsg(
         code === 'ALREADY_REQUESTED' ? 'มีการขอวันหยุดสัปดาห์ใดสัปดาห์หนึ่งในเดือนนี้ไปแล้ว' :
         code === 'INCOMPLETE_MONTH'  ? 'กรุณาเลือกวันหยุดให้ครบทุกสัปดาห์ก่อนส่ง' :
+        code === 'INCOMPLETE_QUOTA'  ? `ต้องจองวันหยุดให้ครบ ${quota} วัน (เท่าจำนวนเสาร์-อาทิตย์ของเดือนนี้) ก่อนส่ง` :
         code === 'OVER_QUOTA'        ? `เลือกวันหยุดเกินโควต้า (สูงสุด ${quota} วัน/เดือน)` :
         code === 'DUPLICATE_DATE'    ? 'เลือกวันที่ซ้ำกัน' :
         code === 'MONTHLY_CAP_EXCEEDED' ? 'รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว' :
@@ -953,7 +964,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     const key = hasQuota ? dateStr : getMondayOfDate(dateStr)
     setPicks(p => {
       if (p[key] === dateStr) { const next = { ...p }; delete next[key]; return next }
-      if (hasQuota && Object.keys(p).length >= quota) return p   // เกินโควต้า — ไม่เพิ่มวันใหม่
+      if (hasQuota && Object.keys(p).length >= remainingQuota) return p   // เกินโควต้าที่เหลือ — ไม่เพิ่มวันใหม่
       return { ...p, [key]: dateStr }
     })
   }
@@ -1086,6 +1097,28 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
                   : `เลือกวันหยุดได้สูงสุด ${quota} วัน/เดือน (${pickedCount}/${quota})`)
               : `เลือกวันหยุด 1 วัน/สัปดาห์ ให้ครบทุกสัปดาห์ (${pickedCount}/${requiredWeeks.length})`}
           </div>
+          {poolMode && (
+            <div style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 14, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '0.78rem', color: '#92400E', lineHeight: 1.65 }}>
+              <div style={{ fontWeight: 800, marginBottom: 4 }}>เดือนนี้มีเสาร์-อาทิตย์ {quota} วัน</div>
+              ถ้า<b>ไม่จอง</b> คุณหยุดเสาร์-อาทิตย์ตามปกติ · ถ้า<b>จอง</b> ต้องจองให้ครบ <b>{remainingQuota} วัน</b> เลือกวันไหนก็ได้ ส่วนเสาร์-อาทิตย์ที่คุณไม่ได้ย้ายไปวันอื่น ต้องจองเป็นวันหยุดด้วย
+              <div style={{ marginTop: 6, fontWeight: 700 }}>
+                เลือกแล้ว {pickedCount}/{remainingQuota} · {pickedCount === remainingQuota ? 'ครบแล้ว กดส่งได้เลย' : `เหลืออีก ${remainingQuota - pickedCount} วัน`}
+              </div>
+              <button type="button" onClick={() => {
+                  setPicks(p => {
+                    const next = { ...p }
+                    for (let d = 1; d <= daysInMonth && Object.keys(next).length < remainingQuota; d++) {
+                      const ds = cellDateStr(month, d); const w = new Date(ds + 'T00:00:00').getDay()
+                      if ((w === 0 || w === 6) && ds >= todayStr && !bookedDateSet.has(ds) && !(ds in next)) next[ds] = ds
+                    }
+                    return next
+                  })
+                }}
+                style={{ marginTop: 8, padding: '7px 12px', borderRadius: 10, border: '1px solid #F59E0B', background: '#fff', color: '#B45309', fontWeight: 700, fontSize: '0.76rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                เติมเสาร์-อาทิตย์ที่เหลือให้ครบ
+              </button>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
             {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', color: '#6B7280', fontWeight: 700, padding: '2px 0' }}>{d}</div>)}
           </div>
@@ -1158,6 +1191,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
             {submitMutation.isPending
               ? <><Loader2 size={17} className="animate-spin" /> กำลังส่ง...</>
               : complete ? <><CheckCircle2 size={17} /> ส่งคำขอหยุด {pickedCount} วัน</>
+              : poolMode ? `เลือกให้ครบ ${remainingQuota} วันก่อนส่ง (เลือกแล้ว ${pickedCount}/${remainingQuota})`
               : hasQuota ? `เลือกอย่างน้อย 1 วัน (เหลือโควต้า ${remainingQuota} วัน)`
               : `เลือกให้ครบทุกสัปดาห์ก่อน (${pickedCount}/${requiredWeeks.length})`}
           </button>

@@ -13,12 +13,13 @@ export async function listEmployeeStatusTypes(tenantId: string) {
 type DayRuleValue = 'WORK' | 'OFF' | 'OFFSITE'
 
 export async function createEmployeeStatusType(tenantId: string, data: {
-  name: string; monthly_off_quota?: number
+  name: string; monthly_off_quota?: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'
   saturday_rule?: DayRuleValue; sunday_rule?: DayRuleValue; off_on_public_holiday?: boolean
 }) {
   return prisma.employeeStatusType.create({
     data: {
       tenant_id: tenantId, name: data.name, monthly_off_quota: data.monthly_off_quota ?? 4,
+      off_quota_mode:        data.off_quota_mode ?? 'FIXED',
       saturday_rule:         data.saturday_rule ?? 'WORK',
       sunday_rule:           data.sunday_rule ?? 'WORK',
       off_on_public_holiday: data.off_on_public_holiday ?? true,
@@ -29,7 +30,7 @@ export async function createEmployeeStatusType(tenantId: string, data: {
 export async function updateEmployeeStatusType(
   tenantId: string, id: string,
   data: {
-    name?: string; monthly_off_quota?: number; is_active?: boolean
+    name?: string; monthly_off_quota?: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'; is_active?: boolean
     saturday_rule?: DayRuleValue; sunday_rule?: DayRuleValue; off_on_public_holiday?: boolean
   },
 ) {

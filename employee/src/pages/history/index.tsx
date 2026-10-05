@@ -114,7 +114,7 @@ function resolveItemStatus(
   leaveByDate: Map<string, { label: string; off: boolean }>,
   offDates: Set<string>,
   holidayByDate: Map<string, string>,
-  isWeekendOff: (dow: number) => boolean,
+  isWeekendOff: (dow: number, date?: string) => boolean,
   todayStr: string,
 ): DayStatus {
   if (it.kind === 'synthetic')
@@ -137,7 +137,7 @@ function resolveItemStatus(
   if (offDates.has(it.date)) return { label: 'หยุด', ...ST_OFF }
 
   const dow = new Date(it.date + 'T00:00:00').getDay()
-  if (isWeekendOff(dow)) return { label: 'หยุดสุดสัปดาห์', ...ST_WEEKEND }
+  if (isWeekendOff(dow, it.date)) return { label: 'หยุดสุดสัปดาห์', ...ST_WEEKEND }
   if (r.is_absent) return { label: 'นับเป็นขาด', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
   if (it.date < todayStr) return { label: 'ขาดงาน', color: COLOR.error, bg: COLOR.errorBg, Icon: Ban, bubble: 'icon-bubble icon-bubble-orange' }
   return { label: 'ไม่มีข้อมูล', color: COLOR.textMuted, bg: '#f3f4f6', Icon: XCircle, bubble: 'icon-bubble icon-bubble-purple' }
@@ -235,12 +235,15 @@ export default function HistoryPage() {
     // resolve จาก cascade 6 ชั้น ฝั่ง server (สถานะพนักงาน→ตำแหน่ง→…→กลุ่ม) — default OFF
     const sat = employee?.saturday_rule ?? 'OFF'
     const sun = employee?.sunday_rule ?? 'OFF'
-    return (dow: number) => {
+    // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน": เดือนไหนมีวันหยุดจองอนุมัติแล้ว เสาร์-อาทิตย์ไม่ใช่วันหยุดอัตโนมัติ (หยุดเฉพาะวันที่อนุมัติ)
+    const pool = employee?.off_quota_mode === 'WEEKENDS_IN_MONTH'
+    return (dow: number, date?: string) => {
+      if (pool && date) { for (const d of offDates) if (d.startsWith(date.slice(0, 7))) return false }
       if (dow === 6) return sat !== 'WORK'
       if (dow === 0) return sun !== 'WORK'
       return false
     }
-  }, [employee])
+  }, [employee, offDates])
 
   // record จริง + วันลา/หยุด (APPROVED) + วันหยุดนักขัตฤกษ์ ที่ผ่านมาแล้วและไม่มี record ในเดือนที่เลือก
   const attItems = useMemo<AttItem[]>(() => {
@@ -264,7 +267,7 @@ export default function HistoryPage() {
     for (let day = 1; day <= new Date(yy, mm, 0).getDate(); day++) {
       const date = `${yy}-${pad(mm)}-${pad(day)}`
       const dow = new Date(date + 'T00:00:00').getDay()
-      if (!isWeekendOff(dow) || !inMonth(date)) continue
+      if (!isWeekendOff(dow, date) || !inMonth(date)) continue
       items.push({ kind: 'synthetic', date, label: 'หยุดสุดสัปดาห์', tone: 'weekend' }); seen.add(date)
     }
     return items.sort((a, b) => b.date.localeCompare(a.date))

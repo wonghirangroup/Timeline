@@ -135,7 +135,7 @@ export function resolvePolicyFromChain(employee: PolicyEmployeeShape | null, fla
 type DayRule = 'WORK' | 'OFF' | 'OFFSITE'
 export interface PolicyDayNode { saturday_rule?: DayRule | null; sunday_rule?: DayRule | null; booking_quota?: number | null }
 export interface WeekendQuotaShape {
-  employee_status_type?: { saturday_rule?: DayRule | null; sunday_rule?: DayRule | null; monthly_off_quota?: number | null } | null
+  employee_status_type?: { saturday_rule?: DayRule | null; sunday_rule?: DayRule | null; monthly_off_quota?: number | null; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH' | null } | null
   branch?: (PolicyDayNode & { group?: PolicyDayNode | null }) | null
   position?: (PolicyDayNode & { department?: (PolicyDayNode & { division?: PolicyDayNode | null }) | null }) | null
 }
@@ -154,8 +154,20 @@ export function resolveWeekendRuleFromChain(e: WeekendQuotaShape | null, day: 's
   for (const v of chain) if (v !== null && v !== undefined) return v
   return 'OFF'
 }
-export function resolveBookingQuotaFromChain(e: WeekendQuotaShape | null): number {
+// จำนวนเสาร์+อาทิตย์ในเดือนนั้น (ym = YYYY-MM) — เช่น 2026-10 มีเสาร์ 5 + อาทิตย์ 4 = 9
+export function weekendDaysInMonth(ym: string): number {
+  const [y, m] = ym.split('-').map(Number)
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  let n = 0
+  for (let d = 1; d <= last; d++) { const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); if (dow === 0 || dow === 6) n++ }
+  return n
+}
+
+// month: ถ้าสถานะพนักงานเป็นแบบ WEEKENDS_IN_MONTH ใช้จำนวนเสาร์-อาทิตย์ของเดือนนั้น (ชั้นสถานะพนักงานเป็นชั้นบนสุด เลยชนะ cascade ทั้งหมด)
+// ไม่ส่ง month = ใช้ค่าตัวเลขคงที่เหมือนเดิม
+export function resolveBookingQuotaFromChain(e: WeekendQuotaShape | null, month?: string): number {
   if (!e) return DEFAULT_QUOTA
+  if (month && e.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH') return weekendDaysInMonth(month)
   const chain: (number | null | undefined)[] = [
     e.employee_status_type?.monthly_off_quota,
     e.position?.booking_quota, e.position?.department?.booking_quota, e.position?.department?.division?.booking_quota,
@@ -168,7 +180,7 @@ export function resolveBookingQuotaFromChain(e: WeekendQuotaShape | null): numbe
 const POLICY_SELECT = {
   booking_enabled_override: true,
   leave_enabled_override: true,
-  employee_status_type: { select: { saturday_rule: true, sunday_rule: true, monthly_off_quota: true } },
+  employee_status_type: { select: { saturday_rule: true, sunday_rule: true, monthly_off_quota: true, off_quota_mode: true } },
   branch: {
     select: {
       booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
@@ -203,8 +215,13 @@ export const resolveLeaveEnabled   = (tenantId: string, employeeId: string) => r
 export async function resolveWeekendRule(tenantId: string, employeeId: string, day: 'saturday' | 'sunday'): Promise<DayRule> {
   return resolveWeekendRuleFromChain(await loadPolicyEmployee(tenantId, employeeId) as any, day)
 }
-export async function resolveBookingQuota(tenantId: string, employeeId: string): Promise<number> {
-  return resolveBookingQuotaFromChain(await loadPolicyEmployee(tenantId, employeeId) as any)
+export async function resolveBookingQuota(tenantId: string, employeeId: string, month?: string): Promise<number> {
+  return resolveBookingQuotaFromChain(await loadPolicyEmployee(tenantId, employeeId) as any, month)
+}
+// สถานะพนักงานของคนนี้เป็นแบบ "โควต้า = จำนวนเสาร์-อาทิตย์ของเดือน" ไหม
+export async function usesWeekendPool(tenantId: string, employeeId: string): Promise<boolean> {
+  const e = await loadPolicyEmployee(tenantId, employeeId) as any
+  return e?.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH'
 }
 
 // resolve 3 อย่างในครั้งเดียว (ใช้ตอน LIFF login — ประหยัด query)
@@ -216,5 +233,6 @@ export async function resolveHolidayPolicy(tenantId: string, employeeId: string)
     saturday_rule:   resolveWeekendRuleFromChain(e as any, 'saturday'),
     sunday_rule:     resolveWeekendRuleFromChain(e as any, 'sunday'),
     booking_quota:   resolveBookingQuotaFromChain(e as any),
+    off_quota_mode:  ((e as any)?.employee_status_type?.off_quota_mode ?? 'FIXED') as 'FIXED' | 'WEEKENDS_IN_MONTH',
   }
 }

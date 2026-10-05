@@ -564,6 +564,20 @@ function QrScanSheet({ onScan, onClose }: { onScan: (raw: string) => void; onClo
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function CheckinPage() {
   const employee = useAuthStore(s => s.employee)
+  // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน": เดือนนี้มีวันหยุดจองอนุมัติแล้ว → เสาร์-อาทิตย์ไม่ใช่วันหยุดอัตโนมัติ (ไม่ขึ้นแถบ "วันนี้เป็นวันหยุด")
+  const [poolApproved, setPoolApproved] = useState(false)
+  useEffect(() => {
+    if (employee?.off_quota_mode !== 'WEEKENDS_IN_MONTH') return
+    const ym = new Date().toISOString().slice(0, 7)
+    api.get('/employee/weekly-off', { params: { employeeId: employee.id } }).then((r: any) => {
+      setPoolApproved((r.data.data ?? []).some((w: any) => {
+        if (w.status !== 'APPROVED') return false
+        const d = new Date(String(w.week_start).slice(0, 10) + 'T00:00:00Z')
+        d.setUTCDate(d.getUTCDate() + (w.day_of_week === 0 ? 6 : w.day_of_week - 1))
+        return d.toISOString().slice(0, 7) === ym
+      }))
+    }).catch(() => {})
+  }, [employee?.id, employee?.off_quota_mode])
   const [showScanner,       setShowScanner]       = useState(false)
   const [scanAction,        setScanAction]        = useState<'checkin' | 'checkout'>('checkin')
   const [preview,           setPreview]           = useState<ShiftPreview | null>(null)
@@ -794,7 +808,7 @@ export default function CheckinPage() {
           const st = employee.employee_status_type
           if (!st) return null
           const dow = new Date().getDay()
-          const rule = dow === 6 ? st.saturday_rule : dow === 0 ? st.sunday_rule : undefined
+          const rule = poolApproved && (dow === 6 || dow === 0) ? 'WORK' : dow === 6 ? st.saturday_rule : dow === 0 ? st.sunday_rule : undefined
           if (rule === 'OFF') {
             return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: '#F0F9FF', border: '1px solid #BAE6FD', marginBottom: 20 }}>

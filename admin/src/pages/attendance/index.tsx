@@ -69,7 +69,7 @@ interface ApiRecord {
 }
 
 type DayRuleT = 'WORK' | 'OFF' | 'OFFSITE'
-type WQNode = { saturday_rule?: DayRuleT | null; sunday_rule?: DayRuleT | null }
+type WQNode = { saturday_rule?: DayRuleT | null; sunday_rule?: DayRuleT | null; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH' | null }
 interface ApiEmployee {
   id: string; employee_code: string
   first_name: string; last_name: string; nickname: string | null
@@ -440,6 +440,19 @@ export default function AttendancePage() {
     return s
   }, [weeklyOffs, date])
 
+  // พนักงานสถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" ที่เดือนของวันที่เลือกมีวันหยุดจองอนุมัติแล้ว → เสาร์-อาทิตย์ไม่ใช่วันหยุดอัตโนมัติ (วันหยุดคือเฉพาะวันที่อนุมัติ)
+  const poolActiveEmps = useMemo(() => {
+    const s = new Set<string>()
+    const ym = date.slice(0, 7)
+    for (const w of weeklyOffs) {
+      if (w.status !== 'APPROVED') continue
+      const ws = new Date(String(w.week_start).slice(0, 10) + 'T00:00:00.000Z')
+      ws.setUTCDate(ws.getUTCDate() + ((w.day_of_week + 6) % 7))
+      if (ws.toISOString().slice(0, 7) === ym) s.add(w.employee_id)
+    }
+    return s
+  }, [weeklyOffs, date])
+
   const { data: shifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['admin', 'shifts', branchFilter],
     queryFn: () =>
@@ -572,7 +585,7 @@ export default function AttendancePage() {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'HOLIDAY', subLabel: hol.name })
         } else if (weeklyOffEmps.has(emp.id)) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'หยุดประจำสัปดาห์' })
-        } else if (weekendRuleOf(emp, dow) !== 'WORK') {
+        } else if (weekendRuleOf(emp, dow) !== 'WORK' && !(emp.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH' && poolActiveEmps.has(emp.id))) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: dow === 6 ? 'หยุดเสาร์' : 'หยุดอาทิตย์' })
         } else {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: deriveStatus(null, date) })
@@ -581,7 +594,7 @@ export default function AttendancePage() {
     }
 
     return result
-  }, [employees, records, date, leaveByEmp, weeklyOffEmps, holidaysToday])
+  }, [employees, records, date, leaveByEmp, weeklyOffEmps, poolActiveEmps, holidaysToday])
 
   const filtered = useMemo(() => rows.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false

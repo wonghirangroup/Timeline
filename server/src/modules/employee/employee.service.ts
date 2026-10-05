@@ -21,7 +21,7 @@ const POSITION_INCLUDE = {
   },
 } as const
 const STATUS_TYPE_INCLUDE = {
-  select: { id: true, name: true, monthly_off_quota: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true },
+  select: { id: true, name: true, monthly_off_quota: true, off_quota_mode: true, saturday_rule: true, sunday_rule: true, off_on_public_holiday: true },
 } as const
 
 // เงื่อนไข Prisma สำหรับกรอง "พนักงานที่สังกัดสาขานี้" — รวมทั้งสาขาหลัก (branch_id)
