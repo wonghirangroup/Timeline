@@ -25,6 +25,13 @@ function installFetchRecorder() {
   const orig = w.fetch.bind(w)
   w.fetch = (input: any, init?: any) => {
     const started = Date.now()
+    // SDK ของ LIFF (2.29) ดึง liffsdk.line-scdn.net/xlt/manifest.json ด้วย fetch ธรรมดา (ใช้แคช HTTP ของ WebView) — บน LINE 26.15 (Android 16)
+    // ล้มทันทีใน ~2ms ("Failed to fetch") ทั้งที่ตัวตรวจเครือข่ายของเราเรียก URL เดียวกันแบบ cache:'no-store' ได้ปกติ (200) =
+    // น่าจะติดรายการแคชที่ใช้ไม่ได้ (เช่น ไม่มี CORS header) ที่ค้างอยู่ใน WebView — บังคับข้ามแคชเฉพาะโฮสต์นี้ (ไฟล์เล็ก ไม่เปลืองเน็ต)
+    try {
+      const raw = typeof input === 'string' ? input : input?.url ?? String(input)
+      if (new URL(raw, window.location.href).host === 'liffsdk.line-scdn.net') init = { ...(init ?? {}), cache: 'no-store' }
+    } catch { /* ใช้ค่าเดิม */ }
     return orig(input, init).catch((e: any) => {
       try {
         const raw = typeof input === 'string' ? input : input?.url ?? String(input)
