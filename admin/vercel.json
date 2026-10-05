@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "[ -z \"$VERCEL_GIT_PREVIOUS_SHA\" ] && exit 1; git cat-file -e \"$VERCEL_GIT_PREVIOUS_SHA^{commit}\" 2>/dev/null || git fetch --quiet --unshallow origin 2>/dev/null || git fetch --quiet --depth=2000 origin main 2>/dev/null; git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . 2>/dev/null; [ $? -eq 0 ]",
+  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] || exit 1; git cat-file -e $VERCEL_GIT_PREVIOUS_SHA 2>/dev/null || git fetch -q --unshallow 2>/dev/null; git diff --quiet $VERCEL_GIT_PREVIOUS_SHA HEAD -- . 2>/dev/null; [ $? = 0 ]",
   "rewrites": [
     {
       "source": "/(.*)",
