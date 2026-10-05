@@ -12,6 +12,9 @@ export async function listEmployeeStatusTypes(tenantId: string) {
 
 type DayRuleValue = 'WORK' | 'OFF' | 'OFFSITE'
 
+// โหมดโควต้า = เสาร์-อาทิตย์ของเดือน ต้องตั้งเสาร์/อาทิตย์เป็น "หยุด" เสมอ — ค่าเริ่มต้นคือ "ไม่จองก็หยุดเสาร์-อาทิตย์" ถ้าเป็น WORK พนักงานที่ไม่จองจะต้องทำงานเสาร์-อาทิตย์
+const POOL_DAY_RULES = { saturday_rule: 'OFF', sunday_rule: 'OFF' } as const
+
 export async function createEmployeeStatusType(tenantId: string, data: {
   name: string; monthly_off_quota?: number; off_quota_mode?: 'FIXED' | 'WEEKENDS_IN_MONTH'
   saturday_rule?: DayRuleValue; sunday_rule?: DayRuleValue; off_on_public_holiday?: boolean
@@ -20,8 +23,8 @@ export async function createEmployeeStatusType(tenantId: string, data: {
     data: {
       tenant_id: tenantId, name: data.name, monthly_off_quota: data.monthly_off_quota ?? 4,
       off_quota_mode:        data.off_quota_mode ?? 'FIXED',
-      saturday_rule:         data.saturday_rule ?? 'WORK',
-      sunday_rule:           data.sunday_rule ?? 'WORK',
+      saturday_rule:         data.off_quota_mode === 'WEEKENDS_IN_MONTH' ? POOL_DAY_RULES.saturday_rule : (data.saturday_rule ?? 'WORK'),
+      sunday_rule:           data.off_quota_mode === 'WEEKENDS_IN_MONTH' ? POOL_DAY_RULES.sunday_rule : (data.sunday_rule ?? 'WORK'),
       off_on_public_holiday: data.off_on_public_holiday ?? true,
     },
   })
@@ -34,7 +37,11 @@ export async function updateEmployeeStatusType(
     saturday_rule?: DayRuleValue; sunday_rule?: DayRuleValue; off_on_public_holiday?: boolean
   },
 ) {
-  const count = await prisma.employeeStatusType.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data })
+  // เป็น (หรือกำลังเปลี่ยนเป็น) โหมดเสาร์-อาทิตย์ของเดือน → บังคับเสาร์/อาทิตย์ = หยุด
+  let patch = { ...data }
+  const nextMode = data.off_quota_mode ?? (await prisma.employeeStatusType.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null }, select: { off_quota_mode: true } }))?.off_quota_mode
+  if (nextMode === 'WEEKENDS_IN_MONTH') patch = { ...patch, ...POOL_DAY_RULES }
+  const count = await prisma.employeeStatusType.updateMany({ where: { id, tenant_id: tenantId, deleted_at: null }, data: patch })
   if (count.count === 0) return null
   return prisma.employeeStatusType.findFirst({ where: { id } })
 }

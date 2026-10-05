@@ -1181,7 +1181,7 @@ function StatusTypesTab() {
     if (!modal || !form.name.trim()) return
     const body = {
       name: form.name, monthly_off_quota: parseInt(form.monthly_off_quota) || 0, off_quota_mode: form.off_quota_mode,
-      saturday_rule: form.saturday_rule, sunday_rule: form.sunday_rule, off_on_public_holiday: form.off_on_public_holiday,
+      saturday_rule: form.off_quota_mode === 'WEEKENDS_IN_MONTH' ? 'OFF' : form.saturday_rule, sunday_rule: form.off_quota_mode === 'WEEKENDS_IN_MONTH' ? 'OFF' : form.sunday_rule, off_on_public_holiday: form.off_on_public_holiday,
     }
     if (modal.edit) updateMutation.mutate({ id: modal.edit.id, body })
     else createMutation.mutate(body)
@@ -1260,7 +1260,7 @@ function StatusTypesTab() {
             <label style={{ ...label, margin: '12px 0 4px' }}>โควต้าวันหยุดต่อเดือน</label>
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
               {([['FIXED', 'คงที่ (ระบุจำนวนวัน)'], ['WEEKENDS_IN_MONTH', 'เท่ากับเสาร์-อาทิตย์ของเดือน']] as const).map(([v, lbl]) => (
-                <button key={v} type="button" onClick={() => setForm(f => ({ ...f, off_quota_mode: v }))}
+                <button key={v} type="button" onClick={() => setForm(f => ({ ...f, off_quota_mode: v, ...(v === 'WEEKENDS_IN_MONTH' ? { saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule } : {}) }))}
                   style={{ flex: 1, padding: '8px 6px', borderRadius: 8, border: `1.5px solid ${form.off_quota_mode === v ? '#244B83' : '#e5e7eb'}`, background: form.off_quota_mode === v ? '#F4F6F9' : '#fff', color: form.off_quota_mode === v ? '#244B83' : '#64748b', fontWeight: 700, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
                   {lbl}
                 </button>
@@ -1281,8 +1281,17 @@ function StatusTypesTab() {
                 เงื่อนไขวันเสาร์-อาทิตย์
                 <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> — เช่น office หยุดอาทิตย์ แต่เสาร์ทำงานนอกสถานที่</span>
               </label>
-              <DayRuleRow label="วันเสาร์" value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
-              <DayRuleRow label="วันอาทิตย์" value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+              {form.off_quota_mode === 'WEEKENDS_IN_MONTH' ? (
+                <div style={{ padding: '10px 12px', borderRadius: 10, background: '#F4F6F9', border: '1px solid #dbe4f0', fontSize: '12px', color: '#475569', lineHeight: 1.6 }}>
+                  <b style={{ color: '#244B83' }}>วันเสาร์ = หยุด · วันอาทิตย์ = หยุด</b> (ตั้งให้อัตโนมัติสำหรับโหมดนี้)<br />
+                  เป็นค่าเริ่มต้นตอนพนักงาน <b>ไม่จอง</b> — ถ้าจองและแอดมินอนุมัติ วันหยุดของเดือนนั้นจะเป็นเฉพาะวันที่อนุมัติ
+                </div>
+              ) : (
+                <>
+                  <DayRuleRow label="วันเสาร์" value={form.saturday_rule} onChange={v => setForm(f => ({ ...f, saturday_rule: v }))} />
+                  <DayRuleRow label="วันอาทิตย์" value={form.sunday_rule} onChange={v => setForm(f => ({ ...f, sunday_rule: v }))} />
+                </>
+              )}
               <div style={{ marginTop: 8 }}>
                 <CheckRow label="หยุดวันนักขัตฤกษ์อัตโนมัติ" checked={form.off_on_public_holiday} onChange={v => setForm(f => ({ ...f, off_on_public_holiday: v }))} />
               </div>
