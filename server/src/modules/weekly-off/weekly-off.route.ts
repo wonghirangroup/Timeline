@@ -7,7 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
-  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, resetEmployeeMonthBookings, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
@@ -73,6 +73,35 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string', description: 'YYYY-MM' }, all: { type: 'boolean', description: 'true = พนักงานที่ยังใช้งานทุกคน (ไม่ใช่เฉพาะคนที่มีรายการจอง)' } } },
     },
   }, async (req: any) => ok(await getMonthQuotaSummary(req.tenantId, req.query.month, req.scopedEmployeeIds, req.query.all === true)))
+
+  // ── Admin: ล้างการจองทั้งเดือนของพนักงาน (รวมที่อนุมัติแล้ว) ให้จองใหม่ — เฉพาะเดือนที่เปิดรับจอง ─────────────────
+  app.post('/admin/weekly-off/reset-month', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'delete')],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ล้างการจองวันหยุดทั้งเดือนของพนักงาน (ทุกสถานะ) ให้พนักงานจองใหม่ — ทำได้เฉพาะเดือนที่ช่วงจองยังเปิด + แจ้งพนักงานทาง LINE',
+      security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['employee_id', 'month'], properties: { employee_id: { type: 'string' }, month: { type: 'string', pattern: '^\\d{4}-\\d{2}$' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const count = await resetEmployeeMonthBookings(req.tenantId, req.body.employee_id, req.body.month)
+      if (count > 0) {
+        notifyEmployeeLine(req.tenantId, req.body.employee_id, 'แอดมิน', {
+          title: 'ให้จองวันหยุดใหม่',
+          detail: `แอดมินล้างการจองวันหยุดเดือน ${req.body.month} ของคุณแล้ว (${count} วัน) กรุณาจองใหม่`,
+          color: '#D97706',
+          path: '/leave?tab=booking',
+          buttonLabel: 'จองเลย',
+        })
+      }
+      return ok({ count }, count > 0 ? `ล้างการจอง ${count} วัน — พนักงานจองใหม่ได้แล้ว` : 'เดือนนี้ไม่มีวันหยุดจองให้ล้าง')
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      if (e.message === 'PERIOD_CLOSED') return reply.code(409).send(fail('PERIOD_CLOSED', 'ช่วงเปิดรับจองของเดือนนี้ยังไม่เปิด/ปิดไปแล้ว — เปิดช่วงจองที่แท็บ "เปิด/ปิดการจอง" ก่อน พนักงานถึงจะจองใหม่ได้'))
+      throw e
+    }
+  })
 
   // ── Admin: ลงวันหยุดหลายวัน/หลายคนในครั้งเดียว (ปฏิทินรวม) ─────────────────
   app.post('/admin/weekly-off/batch', {

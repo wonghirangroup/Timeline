@@ -624,6 +624,28 @@ export async function requestWeeklyOffChange(tenantId: string, employeeId: strin
   }
 }
 
+// แอดมินล้างการจองวันหยุดทั้งเดือนของพนักงานคนหนึ่ง (ทุกสถานะ รวมที่อนุมัติแล้ว) เพื่อให้จองใหม่ได้ — ทำได้เฉพาะเดือนที่ช่วงจองของสาขายังเปิดอยู่
+// (ปิดอยู่ พนักงานจองใหม่ไม่ได้ ล้างไปจะไม่มีวันหยุดเลย) · คืนโควต้าที่เคยหักตอนอนุมัติ (ชนตำแหน่ง) ผ่าน deleteWeeklyOff และลบคำขอ "เปลี่ยนวัน" ที่ชี้มาหาด้วย
+export async function resetEmployeeMonthBookings(tenantId: string, employeeId: string, month: string): Promise<number> {
+  const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { branch_id: true } })
+  if (!emp) throw new Error('NOT_FOUND')
+  if (!(await checkPeriodOpen(tenantId, emp.branch_id, month))) throw new Error('PERIOD_CLOSED')
+
+  const [y, m] = month.split('-').map(Number)
+  const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+  const rangeEnd   = new Date(Date.UTC(y, m, 0));     rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 6)
+  const rows = await prisma.weeklyOffRequest.findMany({
+    where: { tenant_id: tenantId, employee_id: employeeId, week_start: { gte: rangeStart, lte: rangeEnd } },
+    select: { id: true, week_start: true, day_of_week: true },
+  })
+  const ids = rows.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === month).map(r => r.id)
+  if (ids.length === 0) return 0
+  await prisma.weeklyOffRequest.deleteMany({ where: { tenant_id: tenantId, replaces_request_id: { in: ids } } })
+  let n = 0
+  for (const id of ids) if (await deleteWeeklyOff(tenantId, id)) n++
+  return n
+}
+
 export async function deleteMonthlyOff(tenantId: string, id: string, employeeId: string) {
   const req = await prisma.weeklyOffRequest.findFirst({
     where: { id, tenant_id: tenantId, employee_id: employeeId },

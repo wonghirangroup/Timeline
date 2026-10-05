@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, Users, Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
+import { RotateCcw, Pencil, Search, Users, Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -10,6 +10,7 @@ import { useIsReadOnly } from '../../stores/authStore'
 import { useFocusHighlight } from '../../hooks/useFocusHighlight'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Modal from '../../components/ui/Modal'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { deptName } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
@@ -852,6 +853,20 @@ export default function WeeklyOffPage() {
     onSuccess: () => { invalidate(); showToast('success', 'ลบแล้ว') },
     onError:   () => showToast('error', 'ลบไม่สำเร็จ'),
   })
+  // จัดการวันที่จองแล้วจากตาราง "ทั้งหมด"/การ์ดรายคน: แก้ไขวัน · ยกเลิก · ให้จองใหม่ทั้งเดือน
+  const [cancelRow, setCancelRow] = useState<WeeklyOffRequest | null>(null)
+  const [editRow, setEditRow] = useState<{ req: WeeklyOffRequest; date: string } | null>(null)
+  const [resetTarget, setResetTarget] = useState<{ employee_id: string; name: string } | null>(null)
+  const editDayMutation = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) => api.patch(`/api/v1/admin/weekly-off/${id}`, { week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }),
+    onSuccess: () => { invalidate(); showToast('success', 'แก้ไขวันหยุดแล้ว'); setEditRow(null) },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.code === 'ALREADY_REQUESTED' ? 'พนักงานคนนี้มีวันหยุดวันนั้นอยู่แล้ว' : 'แก้ไขไม่สำเร็จ'),
+  })
+  const resetMonthMutation = useMutation({
+    mutationFn: (employee_id: string) => api.post('/api/v1/admin/weekly-off/reset-month', { employee_id, month }),
+    onSuccess: (r: any) => { invalidate(); showToast('success', r?.data?.message ?? 'ล้างการจองแล้ว'); setResetTarget(null) },
+    onError: (e: any) => { showToast('error', e?.response?.data?.error?.message ?? 'ล้างการจองไม่สำเร็จ'); setResetTarget(null) },
+  })
   const addMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/weekly-off', body),
     onSuccess: () => {
@@ -1047,6 +1062,47 @@ export default function WeeklyOffPage() {
         </div>
       )}
 
+      {cancelRow && (
+        <ConfirmDialog
+          variant="danger"
+          title="ยกเลิกวันหยุดนี้?"
+          message={`ลบวันหยุดของ ${cancelRow.employee.first_name} ${cancelRow.employee.last_name} วันที่ ${fmtDate(resolveDate(cancelRow.week_start, cancelRow.day_of_week))}${cancelRow.status === 'APPROVED' ? ' (อนุมัติแล้ว)' : ''} — โควต้าที่เคยหักตอนอนุมัติ (ถ้ามี) จะถูกคืนให้`}
+          confirmLabel="ยกเลิกวันหยุด"
+          onConfirm={() => { deleteMutation.mutate(cancelRow.id); setCancelRow(null) }}
+          onCancel={() => setCancelRow(null)}
+        />
+      )}
+      {resetTarget && (
+        <ConfirmDialog
+          variant="warning"
+          title={`ให้ ${resetTarget.name} จองใหม่ทั้งเดือน?`}
+          message={`ระบบจะลบวันหยุดที่จองไว้ทั้งหมดของเดือนนี้ (รวมที่อนุมัติแล้ว) แล้วแจ้งพนักงานทาง LINE ให้จองใหม่ ทำได้เฉพาะเดือนที่ช่วงจองยังเปิดอยู่ — ถ้าช่วงจองปิดอยู่ ให้เปิดที่แท็บ "เปิด/ปิดการจอง" ก่อน`}
+          confirmLabel="ล้างและให้จองใหม่"
+          onConfirm={() => resetMonthMutation.mutate(resetTarget.employee_id)}
+          onCancel={() => setResetTarget(null)}
+        />
+      )}
+      {editRow && (
+        <Modal onClose={() => setEditRow(null)} width={380}>
+          <div style={{ padding: 22 }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827', marginBottom: 4 }}>แก้ไขวันหยุด</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+              {editRow.req.employee.first_name} {editRow.req.employee.last_name} · เดิม {fmtDate(resolveDate(editRow.req.week_start, editRow.req.day_of_week))} ({STATUS_CFG[editRow.req.status].label})
+            </div>
+            <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>ย้ายไปเป็นวันที่</label>
+            <input type="date" value={editRow.date} onChange={e => setEditRow(r => r ? { ...r, date: e.target.value } : r)}
+              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button onClick={() => setEditRow(null)} style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>
+              <button disabled={!editRow.date || editDayMutation.isPending} onClick={() => editDayMutation.mutate({ id: editRow.req.id, date: editRow.date })}
+                style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: editRow.date ? 1 : 0.5 }}>
+                {editDayMutation.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {forcePrompt && (
         <ConfirmDialog
           variant="warning"
@@ -1085,7 +1141,7 @@ export default function WeeklyOffPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-                  {['วันที่หยุด', 'พนักงาน', 'จองแล้ว / โควต้า', 'สาขา', 'สถานะ'].map(h => (
+                  {['วันที่หยุด', 'พนักงาน', 'จองแล้ว / โควต้า', 'สาขา', 'สถานะ', ...(isReadOnly ? [] : ['จัดการ'])].map(h => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -1108,6 +1164,18 @@ export default function WeeklyOffPage() {
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{sc.label}</span>
                       </td>
+                      {!isReadOnly && (
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                          <button onClick={() => setEditRow({ req: r, date: d })} title="แก้ไขวันที่หยุด"
+                            style={{ padding: '4px 9px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#244B83', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', marginRight: 5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Pencil size={11} /> แก้ไข
+                          </button>
+                          <button onClick={() => setCancelRow(r)} title="ยกเลิก (ลบวันหยุดนี้)"
+                            style={{ padding: '4px 9px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Trash2 size={11} /> ยกเลิก
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -1115,7 +1183,7 @@ export default function WeeklyOffPage() {
             </table>
           </div>
           <div style={{ padding: '8px 14px', borderTop: '1px solid #f1f5f9', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            มุมมองนี้ใช้ดูภาพรวมทุกวันที่จอง — อนุมัติ/ปฏิเสธ/ลบ ทำในมุมมอง "รายคน"
+            แก้ไขวัน / ยกเลิกวันที่จองได้จากตารางนี้ (รวมที่อนุมัติแล้ว) · อนุมัติ/ปฏิเสธ/ย้อนเป็นรอพิจารณา ทำในมุมมอง "รายคน" · "ให้จองใหม่ทั้งเดือน" อยู่ที่การ์ดของแต่ละคน
           </div>
         </div>
       ) : isLoading ? (
@@ -1165,6 +1233,13 @@ export default function WeeklyOffPage() {
                         <X size={12} /> ปฏิเสธทั้งหมด
                       </button>
                     </div>
+                  )}
+                  {!isReadOnly && (
+                    <button onClick={() => setResetTarget({ employee_id: g.employee.id, name: `${g.employee.first_name} ${g.employee.last_name}` })}
+                      title="ล้างวันหยุดที่จองไว้ทั้งเดือน (รวมที่อนุมัติแล้ว) ให้พนักงานจองใหม่ — ทำได้เฉพาะเดือนที่เปิดรับจอง"
+                      style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+                      <RotateCcw size={12} /> ให้จองใหม่ทั้งเดือน
+                    </button>
                   )}
                 </div>
 
