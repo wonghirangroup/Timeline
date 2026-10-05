@@ -270,7 +270,7 @@ export async function createWeeklyOff(tenantId: string, data: {
 export async function updateWeeklyOff(tenantId: string, id: string, data: {
   day_of_week?: number
   week_start?: string   // YYYY-MM-DD — ย้ายไปสัปดาห์อื่น (ปฏิทินรวม: ลากวางย้ายวันหยุด) normalize เป็น Monday อัตโนมัติ
-  status?: 'APPROVED' | 'REJECTED'
+  status?: 'APPROVED' | 'REJECTED' | 'PENDING'   // PENDING = แอดมินย้อนวันที่อนุมัติ/ปฏิเสธแล้วกลับมารอพิจารณา (เช่น เผลอกดอนุมัติทั้งหมด)
   reviewed_by?: string
   reject_note?: string
   conflict_deduct_type?: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY' | 'COMPENSATE' | 'OTHER' | null
@@ -299,14 +299,24 @@ export async function updateWeeklyOff(tenantId: string, id: string, data: {
     await applyConflictDeduction(tenantId, req.employee_id, data.conflict_deduct_type!, year, data.reviewed_by)
   }
 
+  // ถอยจาก "อนุมัติ" ไปปฏิเสธ/รอพิจารณา: คืนโควต้าที่เคยหักตอนอนุมัติ (ชนตำแหน่ง) ไม่งั้นโควต้าหายไปเฉยๆ
+  const reverseDeduct = (data.status === 'REJECTED' || data.status === 'PENDING') && req.status === 'APPROVED' && !!req.conflict_deduct_type
+  if (reverseDeduct) {
+    const year = Number(resolveActualDateStr(req.week_start, req.day_of_week).slice(0, 4))
+    await reverseConflictDeduction(tenantId, req.employee_id, req.conflict_deduct_type!, year)
+  }
+
   const updated = await prisma.weeklyOffRequest.update({
     where: { id },
     data: {
       ...(data.day_of_week !== undefined ? { day_of_week: data.day_of_week } : {}),
       ...(monday !== undefined ? { week_start: monday } : {}),
-      ...(data.status ? { status: data.status, reviewed_by: data.reviewed_by, reviewed_at: new Date() } : {}),
+      ...(data.status === 'PENDING'
+        ? { status: 'PENDING' as const, reviewed_by: null, reviewed_at: null, reject_note: null }
+        : data.status ? { status: data.status, reviewed_by: data.reviewed_by, reviewed_at: new Date() } : {}),
       ...(data.reject_note ? { reject_note: data.reject_note } : {}),
       ...(shouldDeduct ? { conflict_deduct_type: data.conflict_deduct_type } : {}),
+      ...(reverseDeduct ? { conflict_deduct_type: null } : {}),
     },
   })
   // อนุมัติ "คำขอเปลี่ยนวัน" → วันเดิมที่เคยอนุมัติถูกแทนที่ (ลบ + คืนโควต้าที่เคยหักถ้ามี) ไม่อนุมัติ = วันเดิมอยู่เหมือนเดิม

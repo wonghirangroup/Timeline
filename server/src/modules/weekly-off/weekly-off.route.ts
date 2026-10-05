@@ -174,6 +174,21 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     return ok(null, 'ปฏิเสธวันหยุดแล้ว')
   })
 
+  // ── Admin/DEPT_HEAD: ย้อนวันที่อนุมัติ/ปฏิเสธแล้ว กลับเป็น "รอพิจารณา" (เช่น เผลอกดอนุมัติทั้งหมด) ───────────────
+  app.post('/admin/weekly-off/:id/reopen', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('leave', 'approve'), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'ย้อนวันหยุดที่อนุมัติ/ปฏิเสธไปแล้วกลับเป็นรอพิจารณา (คืนโควต้าที่เคยหักตอนอนุมัติด้วย)',
+      security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    const result = await updateWeeklyOff(req.tenantId, req.params.id, { status: 'PENDING' }, req.scopedEmployeeIds)
+    if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(null, 'ย้อนกลับเป็นรอพิจารณาแล้ว')
+  })
+
   // ── Admin: แก้ไขวัน (เปลี่ยน day_of_week / ย้ายสัปดาห์) ───────────────
   app.patch('/admin/weekly-off/:id', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'edit')],

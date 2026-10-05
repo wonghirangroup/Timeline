@@ -897,6 +897,12 @@ export default function WeeklyOffPage() {
     },
     onError:   () => showToast('error', 'ปฏิเสธบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
   })
+  // ย้อนวันที่อนุมัติ/ปฏิเสธไปแล้วกลับเป็น "รอพิจารณา" (เช่น เผลอกดอนุมัติทั้งหมด แล้วต้องการแก้บางวัน) — คืนโควต้าที่เคยหักตอนอนุมัติให้ด้วย
+  const reopenManyMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.post(`/api/v1/admin/weekly-off/${id}/reopen`))),
+    onSuccess: (_d, ids) => { invalidate(); showToast('success', `ย้อนกลับเป็นรอพิจารณา ${ids.length} วันแล้ว`) },
+    onError: () => showToast('error', 'ย้อนกลับบางรายการไม่สำเร็จ — เช็คสถานะแล้วลองใหม่'),
+  })
   // ลบหลายวันพร้อมกัน — ใช้กับแถวที่รวมวันต่อเนื่องกันแล้ว (groupConsecutiveDays)
   const deleteManyMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/api/v1/admin/weekly-off/${id}`))),
@@ -1251,7 +1257,7 @@ export default function WeeklyOffPage() {
                                   </span>
                                 ) : null
                               })()}
-                              {isRange && !isReadOnly && block.status === 'PENDING' && (
+                              {isRange && !isReadOnly && (block.status === 'PENDING' || block.status === 'APPROVED') && (
                                 <button onClick={() => { setSplitKey(splitKey === block.ids.join(',') ? null : block.ids.join(',')); setSplitSel([]); setSplitRejecting(false); setSplitNote('') }}
                                   style={{ padding: '2px 10px', borderRadius: 99, border: '1px solid #244B83', background: splitKey === block.ids.join(',') ? '#244B83' : '#fff', color: splitKey === block.ids.join(',') ? '#fff' : '#244B83', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                                   {splitKey === block.ids.join(',') ? 'ปิดการแยกรายวัน' : 'แยกเลือกรายวัน'}
@@ -1274,6 +1280,17 @@ export default function WeeklyOffPage() {
                                     disabled={isRange ? approveManyMutation.isPending : approveMutation.isPending}
                                     style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
                                     <Check size={12} /> {isRange ? `อนุมัติทั้งหมด (${block.items.length})` : 'อนุมัติ'}
+                                  </button>
+                                  <button onClick={() => isRange ? (setRangeRejectFor(block.ids), setRangeRejectNote('')) : (setRejectId(r.id), setRejectNote(''))}
+                                    style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                                    <X size={12} /> ปฏิเสธ
+                                  </button>
+                                </>}
+                                {block.status === 'APPROVED' && <>
+                                  <button onClick={() => reopenManyMutation.mutate(block.ids)} disabled={reopenManyMutation.isPending}
+                                    title="ย้อนกลับเป็นรอพิจารณา (เช่น เผลออนุมัติ) — คืนโควต้าที่เคยหักตอนอนุมัติให้ด้วย"
+                                    style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                                    <Clock size={12} /> {isRange ? `ย้อนเป็นรอพิจารณา (${block.items.length})` : 'ย้อนเป็นรอพิจารณา'}
                                   </button>
                                   <button onClick={() => isRange ? (setRangeRejectFor(block.ids), setRangeRejectNote('')) : (setRejectId(r.id), setRejectNote(''))}
                                     style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
@@ -1329,7 +1346,7 @@ export default function WeeklyOffPage() {
                             {isRange && splitKey === block.ids.join(',') && (
                               <div style={{ flexBasis: '100%', marginTop: 4, background: '#fff', border: '1px solid #dbe4f0', borderRadius: 10, overflow: 'hidden' }}>
                                 <div style={{ padding: '8px 12px', background: '#F4F6F9', fontSize: '0.74rem', color: '#244B83', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                                  <span>ติ๊กเลือกวันที่ต้องการ แล้วกดอนุมัติ/ปฏิเสธเฉพาะวันที่เลือก (วันที่ไม่ได้เลือกยังรอพิจารณาอยู่)</span>
+                                  <span>{block.status === 'APPROVED' ? 'ติ๊กเลือกวันที่ต้องการแก้ แล้วย้อนกลับเป็นรอพิจารณา หรือปฏิเสธเฉพาะวันที่เลือก (วันที่ไม่ได้เลือกยังอนุมัติอยู่)' : 'ติ๊กเลือกวันที่ต้องการ แล้วกดอนุมัติ/ปฏิเสธเฉพาะวันที่เลือก (วันที่ไม่ได้เลือกยังรอพิจารณาอยู่)'}</span>
                                   <button onClick={() => setSplitSel(splitSel.length === block.ids.length ? [] : [...block.ids])}
                                     style={{ border: 'none', background: 'none', color: '#244B83', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
                                     {splitSel.length === block.ids.length ? 'ล้างที่เลือก' : 'เลือกทั้งหมด'}
@@ -1357,10 +1374,17 @@ export default function WeeklyOffPage() {
                                     </>
                                   ) : (
                                     <>
-                                      <button disabled={splitSel.length === 0 || approveManyMutation.isPending} onClick={() => { approveManyMutation.mutate(splitSel); setSplitSel([]) }}
-                                        style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Check size={12} /> อนุมัติที่เลือก ({splitSel.length})
-                                      </button>
+                                      {block.status === 'APPROVED' ? (
+                                        <button disabled={splitSel.length === 0 || reopenManyMutation.isPending} onClick={() => { reopenManyMutation.mutate(splitSel); setSplitSel([]) }}
+                                          style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                          <Clock size={12} /> ย้อนเป็นรอพิจารณา ({splitSel.length})
+                                        </button>
+                                      ) : (
+                                        <button disabled={splitSel.length === 0 || approveManyMutation.isPending} onClick={() => { approveManyMutation.mutate(splitSel); setSplitSel([]) }}
+                                          style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                          <Check size={12} /> อนุมัติที่เลือก ({splitSel.length})
+                                        </button>
+                                      )}
                                       <button disabled={splitSel.length === 0} onClick={() => { setSplitRejecting(true); setSplitNote('') }}
                                         style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 700, cursor: splitSel.length ? 'pointer' : 'not-allowed', opacity: splitSel.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <X size={12} /> ปฏิเสธที่เลือก ({splitSel.length})
