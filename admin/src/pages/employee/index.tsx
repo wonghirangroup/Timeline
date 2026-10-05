@@ -10,7 +10,6 @@ import Button from '../../components/ui/Button'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
-import { useActiveOffsite } from '../../hooks/useActiveOffsite'
 import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { deptName, fmtThaiDate } from '../../lib/format'
@@ -218,7 +217,6 @@ export default function EmployeePage() {
     const target = deptName(legacyDept)
     return list.filter(p => { const pd = positionDivisionName(p); return !pd || pd === target })
   }
-  const { activeOffsiteByEmployee } = useActiveOffsite()
 
   const [search, setSearch]           = useState('')
   const [listView, setListView]       = useState<'card' | 'table'>('table')
@@ -545,7 +543,6 @@ export default function EmployeePage() {
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li>ภาพรวมพนักงานทั้งหมด ค้นหา/กรองตามกลุ่ม-สาขา-แผนก-ตำแหน่ง แล้วจัดการข้อมูลแต่ละคนได้จากหน้านี้</li>
               <li><b>ป้ายสถานะ</b> (วงกลมสี): <b style={{ color: '#16a34a' }}>เขียว</b> = ใช้งาน, <b style={{ color: '#64748b' }}>เทา</b> = ไม่ใช้งาน, <b style={{ color: '#244B83' }}>น้ำเงิน</b> = ลาออก, <b style={{ color: '#dc2626' }}>แดง</b> = เลิกจ้าง — กดที่ป้ายเพื่อเปลี่ยนสถานะได้ทันที</li>
-              <li><b>นอกสถานที่</b> = พนักงานกำลังเช็คอินอยู่นอกสาขาในขณะนี้</li>
               <li><b>ผูก Line แล้ว / ยังไม่ผูก</b> = เชื่อมบัญชี LINE สำหรับเช็คอินผ่าน LIFF หรือยัง</li>
             </ul>
           } />
@@ -754,12 +751,6 @@ export default function EmployeePage() {
                         style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         ● {STATUS_CFG[e.status].label}
                       </button>
-                      {activeOffsiteByEmployee.has(e.id) && (
-                        <span title={activeOffsiteByEmployee.get(e.id)!.check_in_address ?? undefined}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          <MapPin size={10} /> นอกสถานที่
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
@@ -832,11 +823,6 @@ export default function EmployeePage() {
                       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line <CheckCircle2 size={11} /></span>
                       : <span style={{ background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem' }}>ยังไม่ผูก</span>}
                   </div>
-                  {activeOffsiteByEmployee.has(e.id) && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dbeafe', color: '#2563eb', borderRadius: 99, padding: '2px 9px', fontSize: '0.7rem', fontWeight: 600 }}>
-                      <MapPin size={10} /> นอกสถานที่
-                    </span>
-                  )}
                 </div>
               </div>
               {e.phone && <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11}/>{e.phone}</p>}
