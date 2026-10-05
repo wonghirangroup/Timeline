@@ -916,7 +916,7 @@ export default function LeaveBalancePage() {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                       <span style={{ fontSize: '0.95rem', fontWeight: 800, color: sc }}>{used}</span>
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>/{quota === 0 ? '—' : quota}</span>
-                      {isOver && <span style={{ fontSize: '0.65rem', color: '#dc2626', fontWeight: 800 }}>!</span>}
+                      {isOver && <span title="ใช้เกินโควต้า" style={{ fontSize: '0.65rem', color: '#dc2626', fontWeight: 800 }}>เหลือ {quota - used}</span>}
                     </div>
                     <MiniBar used={used} quota={quota} color={lt.color} />
                     {quota === 0 && (

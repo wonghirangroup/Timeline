@@ -193,7 +193,9 @@ export async function createLeaveRequest(
     },
   }) : null
 
-  if (balance && (balance.used_days + days) > balance.total_days) {
+  // แอดมินลงให้ (autoApprove) ข้ามการเช็คโควต้า — เป็นการบันทึกตามจริงที่เกิดขึ้นแล้ว ไม่ควรถูกบล็อก ยอดคงเหลือจะติดลบให้เห็น (เช่น -1)
+  // ส่วนพนักงานยื่นเองยังโดนบล็อกเมื่อวันลาไม่พอเหมือนเดิม
+  if (balance && !data.autoApprove && (balance.used_days + days) > balance.total_days) {
     throw new Error('INSUFFICIENT_BALANCE')
   }
 
@@ -230,10 +232,16 @@ export async function createLeaveRequest(
   // autoApprove ข้ามขั้นตอน approveLeaveRequest() ไปเลย ต้องหักวันลาเองตรงนี้แทน
   // (ปกติ used_days จะถูกหักตอนกด "อนุมัติ" เท่านั้น ไม่ใช่ตอนสร้างคำขอ)
   if (data.autoApprove && checkQuota) {
-    await prisma.leaveBalance.updateMany({
+    const deducted = await prisma.leaveBalance.updateMany({
       where: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, custom_type_id: customTypeId, year: startDate.getFullYear() },
       data: { used_days: { increment: days } },
     })
+    // ยังไม่เคยมีแถวโควต้าของประเภท/ปีนี้ → สร้างให้ (โควต้า 0) แล้วหักเลย ยอดคงเหลือจะเป็นค่าติดลบ แทนที่จะไม่บันทึกการใช้วันลาเลย
+    if (deducted.count === 0) {
+      await prisma.leaveBalance.create({
+        data: { tenant_id: tenantId, employee_id: data.employee_id, leave_type: data.leave_type, custom_type_id: customTypeId, year: startDate.getFullYear(), total_days: 0, used_days: days },
+      })
+    }
   }
 
   if (conflict && employee?.position_id) {

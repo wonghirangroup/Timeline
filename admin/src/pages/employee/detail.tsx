@@ -349,8 +349,9 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
           {leaveTypes.map(lt => {
             const used  = bal(lt.key, 'used_days')
             const quota = bal(lt.key, 'total_days')
-            const rem   = Math.max(0, quota - used)
-            const pct   = quota === 0 ? 0 : Math.min(100, Math.round((used / quota) * 100))
+            const rem   = quota - used   // ติดลบได้ — แอดมินลงวันลาให้เกินโควต้าแล้วต้องเห็นเป็น -1 ไม่ใช่ 0
+            const over  = rem < 0
+            const pct   = quota === 0 ? (used > 0 ? 100 : 0) : Math.min(100, Math.round((used / quota) * 100))
             const barColor = pct >= 100 ? '#dc2626' : pct >= 80 ? '#f59e0b' : '#10b981'
             return (
               <div key={lt.key} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14 }}>
@@ -358,11 +359,11 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
                   <span style={{ color: lt.color }}>{lt.icon}</span>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: lt.color }}>{lt.label}</span>
                 </div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: quota === 0 ? '#94a3b8' : lt.color, lineHeight: 1 }}>
-                  {quota === 0 ? '—' : rem}
-                  {quota > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8', marginLeft: 2 }}>/{quota} วัน</span>}
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: over ? '#dc2626' : quota === 0 ? '#94a3b8' : lt.color, lineHeight: 1 }}>
+                  {quota === 0 && !over ? '—' : rem}
+                  {(quota > 0 || over) && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8', marginLeft: 2 }}>/{quota} วัน</span>}
                 </div>
-                {quota > 0 && (
+                {(quota > 0 || over) && (
                   <>
                     <div style={{ height: 5, borderRadius: 99, background: '#E6ECF4', overflow: 'hidden', margin: '8px 0 4px' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 99 }} />
