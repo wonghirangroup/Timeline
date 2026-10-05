@@ -14,6 +14,7 @@ import InfoTooltip from '../../components/ui/InfoTooltip'
 import GuidedTour from '../../components/shared/GuidedTour'
 import DayOffBatchModal from './DayOffBatchModal'
 import { useIsReadOnly } from '../../stores/authStore'
+import MonthNav from '../../components/ui/MonthNav'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
@@ -1217,16 +1218,8 @@ export default function TeamCalendarTab() {
         </div>
 
         {/* Month nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ background: '#E6ECF4', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
-            <ChevronLeft size={16} color="#374151" />
-          </button>
-          <span style={{ fontSize: isMobile ? '0.82rem' : '0.95rem', fontWeight: 700, color: '#111827', minWidth: isMobile ? 110 : 160, textAlign: 'center' }}>
-            {fmtMonthTH(month)}
-          </span>
-          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: '#E6ECF4', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
-            <ChevronRight size={16} color="#374151" />
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MonthNav label={fmtMonthTH(month)} onPrev={() => setMonth(m => addMonths(m, -1))} onNext={() => setMonth(m => addMonths(m, 1))} />
           <InfoTooltip size="md" title="ปฏิทินรวมทีม" width={320} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li>ภาพรวมวันหยุดประจำ + วันลาของทุกคนในเดือนที่เลือก คลิกวันที่เพื่อดูรายละเอียดหรือเพิ่มวันหยุด/วันลาให้คนในวันนั้นได้เลย</li>

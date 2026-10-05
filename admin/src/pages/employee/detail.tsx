@@ -22,6 +22,7 @@ import MapLink from '../../components/shared/MapLink'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import TabBar from '../../components/ui/TabBar'
+import MonthNav from '../../components/ui/MonthNav'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -489,34 +490,26 @@ function AttendanceTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <button onClick={prevMonth} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.9rem', color: '#374151' }}>‹ ก่อนหน้า</button>
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setShowMonthPicker(s => !s)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 800, color: '#0f172a', fontFamily: 'inherit', padding: '4px 8px', borderRadius: 6 }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-            {MONTH_TH[month-1]} {year} ({year+543})
-          </button>
-          {showMonthPicker && (
-            <>
-              <div onClick={() => setShowMonthPicker(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', zIndex: 41, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 10, display: 'flex', gap: 6 }}>
-                <select value={month} onChange={e => setMonth(Number(e.target.value))}
-                  style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
-                  {MONTH_TH.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </select>
-                <select value={year} onChange={e => setYear(Number(e.target.value))}
-                  style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
-                  {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
-                    <option key={y} value={y}>{y + 543}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-        </div>
-        <button onClick={nextMonth} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.9rem', color: '#374151' }}>ถัดไป ›</button>
+      <div style={{ marginBottom: 16 }}>
+        <MonthNav label={`${MONTH_TH[month-1]} ${year} (${year+543})`} onPrev={prevMonth} onNext={nextMonth} onLabelClick={() => setShowMonthPicker(s => !s)}>
+        {showMonthPicker && (
+          <>
+            <div onClick={() => setShowMonthPicker(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+            <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', zIndex: 41, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 10, display: 'flex', gap: 6 }}>
+              <select value={month} onChange={e => setMonth(Number(e.target.value))}
+                style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                {MONTH_TH.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+              <select value={year} onChange={e => setYear(Number(e.target.value))}
+                style={{ padding: '6px 8px', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                  <option key={y} value={y}>{y + 543}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+        </MonthNav>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>

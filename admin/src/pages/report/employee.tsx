@@ -18,6 +18,7 @@ import ReportExportBar from '../../components/shared/ReportExportBar'
 import PageLinks from '../../components/ui/PageLinks'
 import Pagination from '../../components/ui/Pagination'
 import { downloadCsv } from '../../lib/exportCsv'
+import MonthNav from '../../components/ui/MonthNav'
 
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 interface ApiAttendance { id: string; is_late: boolean; is_absent: boolean; fine: string; carried_fine: string; employee: { id: string } }
@@ -126,11 +127,7 @@ export default function EmployeeReportPage() {
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
       <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
-        </div>
+        <MonthNav label={`${MONTHS_TH[month - 1]} ${year + 543}`} onPrev={prevMonth} onNext={nextMonth} />
         <div style={{ position: 'relative', flex: 1, minWidth: 160, maxWidth: 280 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"

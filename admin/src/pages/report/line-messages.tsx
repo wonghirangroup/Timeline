@@ -15,6 +15,7 @@ import PageLinks from '../../components/ui/PageLinks'
 import { downloadCsv } from '../../lib/exportCsv'
 import Pagination from '../../components/ui/Pagination'
 import { usePagination } from '../../hooks/usePagination'
+import MonthNav from '../../components/ui/MonthNav'
 
 interface ApiLineLog {
   id: string; category: string; recipient_type: 'EMPLOYEE' | 'ADMIN'
@@ -107,11 +108,7 @@ export default function LineMessagesReportPage() {
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
-        </div>
+        <MonthNav label={`${MONTHS_TH[month - 1]} ${year + 543}`} onPrev={prevMonth} onNext={nextMonth} />
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (

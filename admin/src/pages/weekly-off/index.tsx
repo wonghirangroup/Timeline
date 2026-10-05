@@ -16,6 +16,7 @@ import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter, 
 import type { OrgFilterValue, EmployeeOrgInfo } from '../../components/shared/OrgFilterBar'
 import SearchSelect from '../../components/shared/SearchSelect'
 import TabBar from '../../components/ui/TabBar'
+import MonthNav from '../../components/ui/MonthNav'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ApiEmployee {
@@ -908,14 +909,8 @@ export default function WeeklyOffPage() {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 10, flexWrap: 'wrap' }}>
         {/* Month nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 12px', flexShrink: 0 }}>
-          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-            <ChevronLeft size={16} color="var(--text-muted)" />
-          </button>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: isMobile ? 100 : 130, textAlign: 'center' }}>{fmtYM(month)}</span>
-          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-            <ChevronRight size={16} color="var(--text-muted)" />
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <MonthNav label={fmtYM(month)} onPrev={() => setMonth(m => addMonths(m, -1))} onNext={() => setMonth(m => addMonths(m, 1))} />
           <InfoTooltip title="จองวันหยุดประจำเดือน" width={310} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li><b>เปิด/ปิดการจอง</b> — เปิด/ปิดสิทธิ์จองวันหยุดของแต่ละสาขา/กลุ่มต่อเดือน ตั้ง deadline ได้</li>

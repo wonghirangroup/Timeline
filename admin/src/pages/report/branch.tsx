@@ -13,6 +13,7 @@ import InfoTooltip from '../../components/ui/InfoTooltip'
 import ReportBarChart from '../../components/shared/ReportBarChart'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import { downloadCsv } from '../../lib/exportCsv'
+import MonthNav from '../../components/ui/MonthNav'
 
 interface ApiBranch { id: string; name: string }
 interface ApiEmployee { id: string; branch_id: string }
@@ -113,11 +114,7 @@ export default function BranchReportPage() {
       </div>
       {/* Month nav */}
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', width: 'fit-content' }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: 140, textAlign: 'center' }}>{MONTHS_TH[month - 1]} {year + 543}</span>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
-        </div>
+        <MonthNav label={`${MONTHS_TH[month - 1]} ${year + 543}`} onPrev={prevMonth} onNext={nextMonth} />
         {!isMobile && (
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
             {([['card', 'การ์ด', LayoutGrid], ['table', 'ตาราง', Table2], ['chart', 'กราฟ', BarChart3]] as const).map(([v, label, Icon]) => (

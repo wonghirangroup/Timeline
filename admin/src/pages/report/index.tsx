@@ -14,6 +14,7 @@ import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import ReportExportBar from '../../components/shared/ReportExportBar'
 import PageLinks from '../../components/ui/PageLinks'
 import { downloadCsv } from '../../lib/exportCsv'
+import MonthNav from '../../components/ui/MonthNav'
 
 interface AttendanceRecord {
   id: string
@@ -608,15 +609,7 @@ export default function ReportPage() {
           </div>
         ) : (
         /* Month nav */
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px' }}>
-          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>‹</button>
-          <button onClick={() => setShowMonthPicker(s => !s)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', minWidth: isMobile ? 110 : 140, textAlign: 'center', color: 'inherit', fontFamily: 'inherit', padding: '2px 4px', borderRadius: 6 }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-            {MONTHS_TH[month - 1]} {year + 543}
-          </button>
-          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>›</button>
+        <MonthNav label={`${MONTHS_TH[month - 1]} ${year + 543}`} onPrev={prevMonth} onNext={nextMonth} onLabelClick={() => setShowMonthPicker(s => !s)}>
 
           {showMonthPicker && (
             <>
@@ -635,7 +628,7 @@ export default function ReportPage() {
               </div>
             </>
           )}
-        </div>
+        </MonthNav>
         )}
 
         <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
