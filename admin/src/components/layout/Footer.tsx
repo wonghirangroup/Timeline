@@ -30,7 +30,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/axios'
 
-const APP_VERSION = 'v232'
+// เลขเวอร์ชันตามบันทึกงาน (brain/_LOG_VIEW.txt) — ขยับทุกครั้งที่ปล่อยงานชุดใหม่ ส่วน BUILD_ID อัตโนมัติจาก commit
+const APP_VERSION = 'v248'
+const BUILD_ID = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
 const PARTNER_LOGO_URL = '/smartjigsaw-logo.jpg'
 const PARTNER_NAME = 'Smart Jigsaw'
 
@@ -58,7 +60,7 @@ export default function Footer() {
       {/* ซ้าย: โลโก้ YooNai (แทนชื่อ+โลโก้ TimeLine เดิม) + เวอร์ชัน + ลิขสิทธิ์ + โลโก้ tenant */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 40, objectFit: 'contain' }} />
-        <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{APP_VERSION}</span>
+        <span title={`build ${BUILD_ID}`} style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{APP_VERSION}<span style={{ fontWeight: 400, fontSize: '11px', marginLeft: 6, color: '#94a3b8', fontFamily: 'monospace' }}>{BUILD_ID}</span></span>
         <span style={{ color: '#cbd5e1' }}>·</span>
         <span style={{ fontSize: '13.5px' }}>© {buddhistYear()} {data?.name ?? '…'}</span>
         <img src="/wonghirang-logo.png" alt="วงษ์หิรัญ" style={{ height: 34, objectFit: 'contain' }} />
