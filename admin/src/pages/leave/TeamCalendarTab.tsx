@@ -1078,7 +1078,8 @@ export default function TeamCalendarTab() {
 
     // กรอบบางๆ รอบทุกช่อง — ให้เห็นเป็นตารางชัดเจนเหมือนสเปรดชีตทั่วไป (ExcelJS
     // ไม่ใส่กรอบให้เองเป็น default ต่างจาก gridlines ที่โปรแกรมแสดงเฉยๆ ไม่ติดไปกับไฟล์)
-    const THIN = { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
+    // สีเทาเข้ม (เดิม D1D5DB อ่อนจนแทบมองไม่เห็นเมื่อเปิดใน Excel — feedback 2026-10-05 "ใส่กรอบตารางให้หน่อย")
+    const THIN = { style: 'thin' as const, color: { argb: 'FF6B7280' } }
     const CELL_BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
     const fixedCols = ['ชื่อ', ...(rosterCols.code ? ['รหัส'] : []), ...(rosterCols.branch ? ['สาขา'] : [])]
@@ -1091,6 +1092,8 @@ export default function TeamCalendarTab() {
 
     for (const grp of rosterGroups) {
       const groupRow = ws.addRow([`${grp.groupName} (${grp.employees.length} คน)`])
+      // ใส่กรอบทุกช่องของแถวหัวกลุ่มก่อนรวมช่อง — ช่องที่ถูกรวมต้องมีกรอบของตัวเองด้วย ไม่งั้นเส้นขอบขวาของแถวหาย
+      for (let c = 1; c <= totalCols; c++) groupRow.getCell(c).border = CELL_BORDER
       ws.mergeCells(groupRow.number, 1, groupRow.number, totalCols)
       groupRow.getCell(1).font = { bold: true, size: 12 }
       groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
