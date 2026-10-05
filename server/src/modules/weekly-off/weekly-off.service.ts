@@ -5,6 +5,7 @@ import { resolveBookingEnabled, resolveBookingQuota } from '../group/group.servi
 import { checkPeriodOpen } from './weekly-off-period.service'
 import { employeeBranchWhere } from '../employee/employee.service'
 import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from '../leave/vacation-policy.service'
+import { createLeaveRequest } from '../leave/leave.service'
 
 // การจอง/เพิ่มวันหยุดให้พนักงาน — gate ด้วย booking cascade (ดู resolvePolicyFlag)
 // พนักงานจองเอง: force = false เสมอ → ปิดแล้วจองไม่ได้
@@ -145,20 +146,34 @@ export async function getMonthQuotaSummary(tenantId: string, month: string, scop
 
 // แอดมินลงวันหยุดหลายวัน/หลายคนในครั้งเดียว (หน้า ปฏิทินรวม) — เรียก createWeeklyOff ทีละวัน (กฎเดียวกับการลงทีละวัน: โควต้า/เดือน, สิทธิ์จอง,
 // เพดานรวมหยุด+พักร้อน 10 วัน) ไม่ใช้ transaction เดียว เพราะแต่ละวันอิสระต่อกัน — วันที่ผ่านลงให้ วันที่ไม่ผ่านคืนรหัสเหตุผลกลับไปรายวัน
+// vacation_dates: วันที่เกินโควต้าวันหยุดแล้วแอดมินเลือก "ใช้ลาพักร้อน" แทน — ลงเป็นใบลาพักร้อน (อนุมัติอัตโนมัติ หักจากโควต้าพักร้อน)
+// ผ่านกฎเดิมของใบลาทั้งหมด (ทับซ้อน, ลาปิด, เพดานรวมหยุด+พักร้อน 10 วัน/เดือน) — ไม่ใช้ force ของ batch นี้ (force ใช้กับสิทธิ์จองวันหยุดเท่านั้น)
 export async function createWeeklyOffBatch(
   tenantId: string,
-  items: { employee_id: string; dates: string[] }[],
+  items: { employee_id: string; dates?: string[]; vacation_dates?: string[] }[],
   opts: PolicyOpts = {},
 ) {
-  const results: { employee_id: string; date: string; ok: boolean; code?: string }[] = []
+  const results: { employee_id: string; date: string; ok: boolean; code?: string; kind: 'off' | 'vacation' }[] = []
   for (const it of items) {
     // เรียงวันที่ก่อน เพื่อให้โควต้านับจากวันแรกๆ ถ้าเกินจะตัดวันท้ายออกเป็นเหตุผล OVER_QUOTA
-    for (const date of [...new Set(it.dates)].sort()) {
+    for (const date of [...new Set(it.dates ?? [])].sort()) {
       try {
         await createWeeklyOff(tenantId, { employee_id: it.employee_id, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }, opts)
-        results.push({ employee_id: it.employee_id, date, ok: true })
+        results.push({ employee_id: it.employee_id, date, ok: true, kind: 'off' })
       } catch (e: any) {
-        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR') })
+        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'off' })
+      }
+    }
+    for (const date of [...new Set(it.vacation_dates ?? [])].sort()) {
+      try {
+        await createLeaveRequest(tenantId, {
+          employee_id: it.employee_id, leave_type: 'VACATION', start_date: date, end_date: date, days: 1,
+          reason: '[พักร้อน] ลงจากปฏิทินรวม — เกินโควต้าวันหยุดจอง/เดือน',
+          autoApprove: true, reviewedBy: opts.actorUserId,
+        })
+        results.push({ employee_id: it.employee_id, date, ok: true, kind: 'vacation' })
+      } catch (e: any) {
+        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'vacation' })
       }
     }
   }

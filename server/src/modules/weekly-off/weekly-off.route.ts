@@ -89,10 +89,11 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
           items: {
             type: 'array', minItems: 1, maxItems: 200,
             items: {
-              type: 'object', required: ['employee_id', 'dates'],
+              type: 'object', required: ['employee_id'],
               properties: {
                 employee_id: { type: 'string' },
-                dates: { type: 'array', minItems: 1, maxItems: 31, items: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
+                dates: { type: 'array', maxItems: 31, items: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
+                vacation_dates: { type: 'array', maxItems: 31, description: 'วันที่เกินโควต้าแล้วเลือกใช้ลาพักร้อนแทน (ลงเป็นใบลาพักร้อน อนุมัติอัตโนมัติ)', items: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' } },
               },
             },
           },
@@ -102,7 +103,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any) => {
     const results = await createWeeklyOffBatch(req.tenantId, req.body.items, { force: req.body.force === true, actorUserId: req.userId })
     const created = results.filter(r => r.ok).length
-    return ok({ created, failed: results.filter(r => !r.ok), total: results.length }, `ลงวันหยุดสำเร็จ ${created}/${results.length} วัน`)
+    return ok({ created, failed: results.filter(r => !r.ok), total: results.length }, `ลงสำเร็จ ${created}/${results.length} วัน`)
   })
 
   // ── Admin: เพิ่มวันหยุดให้พนักงาน ──────────────────────────────────
