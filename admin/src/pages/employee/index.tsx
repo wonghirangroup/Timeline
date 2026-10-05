@@ -210,13 +210,10 @@ export default function EmployeePage() {
   // แปลงค่า department string เดิม ("01 ผู้บริหาร") เป็นชื่อล้วน แล้วหา entry ของ DEPARTMENTS
   // ที่ชื่อตรงกับฝ่าย (Division) ที่ตำแหน่งนี้ผูกอยู่ — ใช้ auto-fill ช่อง "แผนก" เดิมตอนเลือกตำแหน่งก่อน
   const matchLegacyDept = (name: string | null): string | undefined => name ? DEPARTMENTS.find(d => deptName(d) === name) : undefined
-  // กรองตำแหน่งตามแผนก(legacy string)ที่เลือกไว้ เทียบกับชื่อฝ่าย (Division) ของตำแหน่ง —
-  // ตำแหน่งที่ยังไม่ผูกฝ่ายเลย โชว์ไว้เสมอ กันไม่ให้ผู้ใช้เลือกไม่ได้เพราะยังไม่ได้จัดเข้าฝ่าย
-  const filterPositionsByDept = (list: ApiPosition[], legacyDept: string) => {
-    if (!legacyDept) return list
-    const target = deptName(legacyDept)
-    return list.filter(p => { const pd = positionDivisionName(p); return !pd || pd === target })
-  }
+  // เดิมกรองตำแหน่งตามช่อง "แผนก" แบบเก่า (01 ผู้บริหาร / 02 Office / 03 พนักงานขาย / 04 พนักงานขนส่ง) โดยเทียบกับชื่อฝ่ายในผังองค์กร —
+  // พอผังองค์กรใช้ชื่อฝ่ายจริง (เช่น "ฝ่ายขายและปฏิบัติการ") ไม่มีตำแหน่งไหนตรงกับแผนกแบบเก่าเลย ช่องตำแหน่งเลยว่างเปล่าทั้งที่มีตำแหน่งในระบบ
+  // (feedback 2026-10-05 "ฉันเพิ่มแล้วแต่ทำไมมันบอกไม่ระบุ") → ไม่กรองแล้ว โชว์ทุกตำแหน่ง (ป้ายบอก ฝ่าย ▸ แผนก ▸ ตำแหน่ง อยู่แล้ว) ช่อง "แผนก" เดิมเป็นข้อมูลแยก ไม่เกี่ยวกับตำแหน่ง
+  const filterPositionsByDept = (list: ApiPosition[], _legacyDept: string) => list
 
   const [search, setSearch]           = useState('')
   const [listView, setListView]       = useState<'card' | 'table'>('table')
