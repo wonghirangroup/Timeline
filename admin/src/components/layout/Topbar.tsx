@@ -21,6 +21,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings':     'การตั้งค่า',
 }
 
+// หน้าที่มีชื่อหน้าอยู่ในเนื้อหาของตัวเองอยู่แล้ว (รายงาน/OT/ประกาศ/เช็คอินนอกสถานที่) ไม่แสดงชื่อซ้ำในแถบด้านบน —
+// และหน้าที่ไม่ได้ตั้งชื่อไว้ก็ไม่ขึ้นข้อความ "YooNai HR" แทนแล้ว (feedback 2026-10-05 "Header Bar ไม่เอาข้อความหัวนี้")
+const HIDE_TITLE_ROUTES = ['/ot', '/offsite', '/report', '/announcement']
+
 const MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 
 function useClock() {
@@ -46,7 +50,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const navigate = useNavigate()
   const { showToast } = useToast()
   const now = useClock()
-  const title = PAGE_TITLES[location.pathname] ?? 'YooNai HR'
+  const title = HIDE_TITLE_ROUTES.includes(location.pathname) ? '' : (PAGE_TITLES[location.pathname] ?? '')
   const name = useAuthStore(s => s.name)
   const role = useAuthStore(s => s.role)
   const clear = useAuthStore(s => s.clear)

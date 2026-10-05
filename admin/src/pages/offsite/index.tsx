@@ -228,8 +228,8 @@ export default function OffsitePage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-        {/* ชื่อหน้าอยู่ที่ Topbar แล้ว ไม่ซ้ำในเนื้อหา — เหลือแค่ปุ่ม ⓘ อธิบายหน้านี้ */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MapPin size={20} /> เช็คอินนอกสถานที่
           <InfoTooltip size="md" title="เช็คอินนอกสถานที่" width={320} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li>รายการที่พนักงานเช็คอิน/เช็คเอาต์นอกสำนักงานผ่านแอป (พร้อมพิกัด GPS) และรายการที่แอดมินเพิ่ม/แก้ไขเองด้วยมือ</li>
@@ -237,7 +237,7 @@ export default function OffsitePage() {
               <li>ไอคอนหมุดข้างเวลา กดเพื่อเปิด Google Maps นำทางไปจุดนั้น — ส่วนช่อง "ที่อยู่" ในฟอร์มแก้ไขเป็นข้อความที่พิมพ์เอง ไม่ใช่พิกัด GPS</li>
             </ul>
           } />
-        </div>
+        </h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <PageLinks className="no-print" links={[
             { to: '/report', label: 'รายงานการเช็คอิน', icon: <ReportIcon size={14} />, permKey: 'report_checkin' }
