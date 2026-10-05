@@ -1380,6 +1380,30 @@ model ActivityLog {
 // เขียนหน้า pdpa/index.tsx) ตอบคำถาม "ใครเพิ่ม/ลบ/แก้ไข/ส่งแจ้งเตือนพนักงาน
 // คนไหนเมื่อไหร่" — Super Admin เห็นของทุกบริษัท, Admin เห็นเฉพาะ tenant ตัวเอง
 // (กรองสาขาเพิ่มได้ที่ frontend ผ่าน branch_id)
+// ทุกคำขอ (GET/POST/PUT/PATCH/DELETE + LOGIN) ที่แอดมินเรียกผ่านเว็บแอดมิน — ดู common/utils/adminActivity.ts
+// ไม่มี FK ตั้งใจ: log ต้องคงอยู่แม้บัญชี/บริษัทถูกลบ
+model AdminActivityLog {
+  id          String   @id @default(uuid())
+  tenant_id   String?
+  user_id     String?
+  actor_name  String // snapshot ชื่อผู้ทำ ณ ตอนนั้น
+  actor_role  String
+  method      String // GET | POST | PUT | PATCH | DELETE | LOGIN
+  route       String   @db.VarChar(255) // รูปแบบ route เช่น /api/v1/admin/leave-requests/:id/approve
+  url         String   @db.VarChar(500) // URL จริงรวม query
+  status_code Int
+  duration_ms Int
+  ip          String
+  user_agent  String   @db.VarChar(255)
+  body        String?  @db.Text // body ที่ตัดข้อมูลลับแล้ว (เฉพาะวิธีที่เขียนข้อมูล)
+  created_at  DateTime @default(now())
+
+  @@index([tenant_id, created_at])
+  @@index([user_id, created_at])
+  @@index([method, created_at])
+  @@map("admin_activity_logs")
+}
+
 model AuditLog {
   id          String   @id @default(uuid())
   tenant_id   String

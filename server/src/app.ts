@@ -45,6 +45,7 @@ import { platformSettingsRoutes, platformSettingsPublicRoutes } from './modules/
 import { loginAdsRoutes, loginAdsPublicRoutes } from './modules/login-ads/login-ads.route'
 import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
+import { registerAdminActivityLog, startAdminActivityCleanupCron } from './common/utils/adminActivity'
 import { startVacationPolicyCron } from './jobs/vacation-policy.job'
 
 const app = Fastify({
@@ -124,6 +125,8 @@ app.register(cors, {
 app.register(formbody)   // รับ application/x-www-form-urlencoded (OAuth2 token endpoint)
 app.register(jwt, { secret: process.env.JWT_ACCESS_SECRET! })
 
+registerAdminActivityLog(app)   // บันทึกทุกคำขอของแอดมิน (หน้า บันทึกกิจกรรม → การกระทำของแอดมิน)
+
 // ── Health ────────────────────────────────────────────────────────
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
@@ -175,6 +178,7 @@ const start = async () => {
     console.log(`🚀 TimeLine Server → http://localhost:${process.env.PORT || 3000}`)
     startFirebaseSyncCron()
     startLeaveAccrualCron()
+    startAdminActivityCleanupCron()
     startVacationPolicyCron()
   } catch (err) {
     app.log.error(err)

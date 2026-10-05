@@ -60,3 +60,20 @@ export async function getMergedAuditFeed(tenantId: string, opts: { branchId?: st
   merged.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
   return merged.slice(0, limit)
 }
+
+// ── การกระทำของแอดมิน (ทุกคำขอ) — ดู common/utils/adminActivity.ts ──
+export async function listAdminActivity(tenantId: string, q: {
+  method?: string; userId?: string; search?: string; from?: string; to?: string; limit: number; offset: number
+}) {
+  const where: any = { ...(tenantId ? { tenant_id: tenantId } : {}) }
+  if (q.method) where.method = q.method
+  if (q.userId) where.user_id = q.userId
+  if (q.search) where.OR = [{ url: { contains: q.search } }, { route: { contains: q.search } }, { body: { contains: q.search } }, { actor_name: { contains: q.search } }]
+  if (q.from || q.to) where.created_at = { ...(q.from ? { gte: new Date(q.from + 'T00:00:00+07:00') } : {}), ...(q.to ? { lte: new Date(q.to + 'T23:59:59.999+07:00') } : {}) }
+  const [rows, total, admins] = await Promise.all([
+    prisma.adminActivityLog.findMany({ where, orderBy: { created_at: 'desc' }, take: q.limit, skip: q.offset }),
+    prisma.adminActivityLog.count({ where }),
+    prisma.adminActivityLog.groupBy({ by: ['user_id', 'actor_name'], where: { ...(tenantId ? { tenant_id: tenantId } : {}), user_id: { not: null } }, _count: true }),
+  ])
+  return { rows, total, admins: admins.map(a => ({ user_id: a.user_id, name: a.actor_name })) }
+}

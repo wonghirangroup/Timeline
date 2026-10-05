@@ -11,6 +11,9 @@ import { api } from '../../lib/axios'
 import { useOrgFilterOptions } from '../../components/shared/OrgFilterBar'
 import InfoTooltip from '../../components/ui/InfoTooltip'
 import Pagination from '../../components/ui/Pagination'
+import TabBar from '../../components/ui/TabBar'
+import { useAuthStore } from '../../stores/authStore'
+import AdminActivityTab from './AdminActivityTab'
 
 interface LogEntry {
   id: string
@@ -53,7 +56,7 @@ const ACTION_LABEL: Record<string, string> = {
 }
 const selectStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }
 
-export default function AuditLogPage() {
+function EmployeeActivityTab() {
   const { branches } = useOrgFilterOptions()
   const [branchId, setBranchId] = useState('')
   const [moduleKey, setModuleKey] = useState('')
@@ -201,6 +204,24 @@ export default function AuditLogPage() {
       {!isLoading && filtered.length > 0 && (
         <Pagination page={page} totalPages={totalPages} onChange={setPage} totalItems={filtered.length} itemLabel="รายการ" />
       )}
+    </div>
+  )
+}
+
+// หน้า บันทึกกิจกรรม: แท็บ "กิจกรรมพนักงาน" (เดิม) + แท็บ "การกระทำของแอดมิน" (ทุกคำขอของแอดมิน — เห็นเฉพาะ SUPER_ADMIN/ADMIN)
+export default function AuditLogPage() {
+  const role = useAuthStore(s => s.role)
+  const canSeeAdminTab = role === 'SUPER_ADMIN' || role === 'ADMIN'
+  const [tab, setTab] = useState<'employee' | 'admin'>('employee')
+  return (
+    <div>
+      {canSeeAdminTab && (
+        <TabBar value={tab} onChange={setTab} tabs={[
+          { key: 'employee', label: 'กิจกรรมพนักงาน', icon: <FileClock size={15} /> },
+          { key: 'admin', label: 'การกระทำของแอดมิน', icon: <ShieldCheck size={15} /> },
+        ]} />
+      )}
+      {tab === 'admin' && canSeeAdminTab ? <AdminActivityTab /> : <EmployeeActivityTab />}
     </div>
   )
 }
