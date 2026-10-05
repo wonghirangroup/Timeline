@@ -118,6 +118,25 @@ export async function listWeeklyOff(tenantId: string, filters: {
   return results
 }
 
+// โควต้าวันหยุดจอง/เดือน ของพนักงานทุกคนที่มีรายการจองในเดือนนี้ — จองไปแล้วกี่วัน (รอพิจารณา+อนุมัติ นับแบบเดียวกับตอนบล็อก OVER_QUOTA)
+// เทียบกับโควต้าที่ resolve จาก cascade (สถานะพนักงาน→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม, default 5) ใช้แสดง "3/5" ในหน้าคำขอวันหยุด
+export async function getMonthQuotaSummary(tenantId: string, month: string, scopedEmployeeIds?: string[]) {
+  const list = await listWeeklyOff(tenantId, { month, scopedEmployeeIds })
+  const modeById = new Map(list.map(r => [r.employee_id, (r.employee as any).weekly_off_mode as string | undefined]))
+  const ids = [...new Set(list.map(r => r.employee_id))]
+  const modes = ids.length
+    ? await prisma.employee.findMany({ where: { id: { in: ids } }, select: { id: true, weekly_off_mode: true } })
+    : []
+  const modeOf = new Map(modes.map(m => [m.id, m.weekly_off_mode]))
+  return Promise.all(ids.map(async employee_id => {
+    const [quota, booked] = await Promise.all([
+      resolveBookingQuota(tenantId, employee_id),
+      countMonthOffRequests(tenantId, employee_id, month),
+    ])
+    return { employee_id, quota, booked, remaining: quota - booked, weekly_off_mode: modeOf.get(employee_id) ?? modeById.get(employee_id) ?? 'WEEKLY' }
+  }))
+}
+
 // opts.force: แอดมินกด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ booking cascade = ปิด (พนักงานจองเองส่ง {} เสมอ)
 export async function createWeeklyOff(tenantId: string, data: {
   employee_id: string

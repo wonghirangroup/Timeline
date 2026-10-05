@@ -7,7 +7,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
-  getMonthView, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  getMonthView, getMonthQuotaSummary, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
@@ -60,6 +60,19 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     })
     return ok(list)
   })
+
+  // ── Admin: จองไปแล้วกี่วัน / โควต้าเท่าไหร่ ต่อพนักงาน (ทั้งเดือน) ───────────
+  app.get('/admin/weekly-off/quotas', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermissionAny([
+      { feature: 'leave', action: 'view' }, { feature: 'report_holiday', action: 'view' }, { feature: 'report_checkin', action: 'view' },
+    ]), resolveDeptScope],
+    schema: {
+      tags: ['Admin'],
+      summary: 'โควต้าวันหยุดจอง/เดือน ต่อพนักงาน — จองแล้ว (รอพิจารณา+อนุมัติ) / โควต้า / เหลือ',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string', description: 'YYYY-MM' } } },
+    },
+  }, async (req: any) => ok(await getMonthQuotaSummary(req.tenantId, req.query.month, req.scopedEmployeeIds)))
 
   // ── Admin: เพิ่มวันหยุดให้พนักงาน ──────────────────────────────────
   app.post('/admin/weekly-off', {

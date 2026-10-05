@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
+import { Users, Check, X, Trash2, Plus, CalendarDays, ChevronLeft, ChevronRight, Unlock, Settings2, Ban, Clock, Circle, FileText, ClipboardList, Download, AlertTriangle, Repeat, Gift, CalendarClock, FileSpreadsheet, Table2, LayoutGrid } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -655,6 +655,21 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
+// ป้าย "จองแล้ว/โควต้า" ต่อพนักงาน — เขียวเมื่อยังเหลือ, เหลืองเมื่อเต็มพอดี, แดงเมื่อเกินโควต้า (แอดมินลงเกินให้ได้)
+function QuotaChip({ q }: { q?: { quota: number; booked: number; remaining: number; weekly_off_mode: string } }) {
+  if (!q) return null
+  const over = q.booked > q.quota
+  const full = q.booked === q.quota
+  const c = over ? { fg: '#dc2626', bg: '#fef2f2', bd: '#fecaca' } : full ? { fg: '#b45309', bg: '#fffbeb', bd: '#fde68a' } : { fg: '#16a34a', bg: '#f0fdf4', bd: '#bbf7d0' }
+  return (
+    <span title={`จองแล้ว ${q.booked} จากโควต้า ${q.quota} วัน/เดือน (นับรอพิจารณา + อนุมัติ)`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '1px 9px', borderRadius: 99, background: c.bg, border: `1px solid ${c.bd}`, color: c.fg, fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+      {q.booked}/{q.quota} วัน
+      <span style={{ fontWeight: 500, opacity: 0.85 }}>{over ? `เกิน ${q.booked - q.quota}` : `เหลือ ${q.remaining}`}</span>
+    </span>
+  )
+}
+
 export default function WeeklyOffPage() {
   const { showToast } = useToast()
   const qc = useQueryClient()
@@ -707,6 +722,14 @@ export default function WeeklyOffPage() {
     queryKey: ['admin', 'weekly-off', month],
     queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { month } }).then((r: any) => r.data.data),
   })
+  // จองไปแล้วกี่วัน / โควต้าเท่าไหร่ ต่อพนักงาน (key ขึ้นต้นเหมือนรายการคำขอ เพื่อให้ invalidate() รีเฟรชพร้อมกันหลังอนุมัติ/ปฏิเสธ/ลบ)
+  const { data: quotaRows = [] } = useQuery<{ employee_id: string; quota: number; booked: number; remaining: number; weekly_off_mode: string }[]>({
+    queryKey: ['admin', 'weekly-off', month, 'quotas'],
+    queryFn: () => api.get('/api/v1/admin/weekly-off/quotas', { params: { month } }).then((r: any) => r.data.data),
+  })
+  const quotaOf = useMemo(() => new Map(quotaRows.map(q => [q.employee_id, q])), [quotaRows])
+  const [reqView, setReqView] = useState<'person' | 'all'>('person')
+  const [allPage, setAllPage] = useState(1)
   const { data: employees = [] } = useQuery<ApiEmployee[]>({
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
@@ -765,6 +788,12 @@ export default function WeeklyOffPage() {
     [groupedByEmployee],
   )
 
+  // มุมมอง "ทั้งหมด": ทุกวันที่จองเรียงตามวันที่ (ตามตัวกรองเดียวกับมุมมองรายคน)
+  const allRows = useMemo(
+    () => [...filtered].sort((a, b) => resolveDate(a.week_start, a.day_of_week).localeCompare(resolveDate(b.week_start, b.day_of_week)) || a.employee.first_name.localeCompare(b.employee.first_name, 'th')),
+    [filtered],
+  )
+  useEffect(() => { setAllPage(1) }, [orgFilter, statusFilter, month])
   const [reqPage, setReqPage] = useState(1)
   const REQ_PAGE_SIZE = 10   // การ์ด/หน้า (คนละหน่วยกับตารางเดิมที่นับเป็นแถว)
   const reqTotalPages = Math.max(1, Math.ceil(groupedByEmployee.length / REQ_PAGE_SIZE))
@@ -1022,13 +1051,60 @@ export default function WeeklyOffPage() {
         />
       )}
 
-      {/* Org filter */}
-      <div style={{ marginBottom: 12 }}>
-        <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
+      {/* Org filter + มุมมอง รายคน / ทั้งหมด */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 260 }}><OrgFilterBar value={orgFilter} onChange={setOrgFilter} /></div>
+        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>
+          {([['person', 'รายคน', Users], ['all', 'ทั้งหมด', Table2]] as const).map(([v, label, Icon]) => (
+            <button key={v} onClick={() => setReqView(v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: reqView === v ? 700 : 500, background: reqView === v ? '#fff' : 'transparent', color: reqView === v ? '#244B83' : 'var(--text-muted)', boxShadow: reqView === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none', fontFamily: 'inherit' }}>
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Cards — 1 การ์ด/พนักงาน รวมทุกวันที่จองในเดือนนี้ (feedback 2026-09-14) */}
-      {isLoading ? (
+      {reqView === 'all' && !isLoading && filtered.length > 0 ? (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                  {['วันที่หยุด', 'พนักงาน', 'จองแล้ว / โควต้า', 'สาขา', 'สถานะ'].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allRows.slice((allPage - 1) * 15, allPage * 15).map((r, i, arr) => {
+                  const sc = STATUS_CFG[r.status]
+                  const d = resolveDate(r.week_start, r.day_of_week)
+                  return (
+                    <tr key={r.id} style={{ borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#374151' }}>
+                        {fmtDate(d)} <span style={{ marginLeft: 4, fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 5px' }}>{DAYS_TH[r.day_of_week]}</span>
+                      </td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <div style={{ fontWeight: 700, color: '#111827' }}>{r.employee.first_name} {r.employee.last_name}{r.employee.nickname ? ` (${r.employee.nickname})` : ''}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.employee.employee_code}</div>
+                      </td>
+                      <td style={{ padding: '9px 12px' }}><QuotaChip q={quotaOf.get(r.employee_id)} /></td>
+                      <td style={{ padding: '9px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>{r.employee.branch.name}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{sc.label}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: '8px 14px', borderTop: '1px solid #f1f5f9', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            มุมมองนี้ใช้ดูภาพรวมทุกวันที่จอง — อนุมัติ/ปฏิเสธ/ลบ ทำในมุมมอง "รายคน"
+          </div>
+        </div>
+      ) : isLoading ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
       ) : filtered.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่มีรายการวันหยุดในเดือนนี้</div>
@@ -1052,6 +1128,7 @@ export default function WeeklyOffPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {g.employee.first_name} {g.employee.last_name}{g.employee.nickname ? ` (${g.employee.nickname})` : ''}
+                      <QuotaChip q={quotaOf.get(g.employee.id)} />
                       {g.items.some(i => i.status === 'APPROVED') && (
                         <span title="มีวันที่อนุมัติแล้วอย่างน้อย 1 วัน"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '1px 7px', fontSize: '0.65rem', fontWeight: 700 }}>
@@ -1256,7 +1333,9 @@ export default function WeeklyOffPage() {
         </div>
       )}
 
-      <Pagination page={reqPage} totalPages={reqTotalPages} onChange={setReqPage} totalItems={groupedByEmployee.length} itemLabel="คน" />
+      {reqView === 'all'
+        ? <Pagination page={allPage} totalPages={Math.max(1, Math.ceil(allRows.length / 15))} onChange={setAllPage} totalItems={allRows.length} itemLabel="รายการ" />
+        : <Pagination page={reqPage} totalPages={reqTotalPages} onChange={setReqPage} totalItems={groupedByEmployee.length} itemLabel="คน" />}
       </>}
 
       {/* ── ภาพรวม tab ─────────────────────────────────────────────────── */}
