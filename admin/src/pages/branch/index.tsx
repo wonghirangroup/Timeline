@@ -1,3 +1,4 @@
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { showResult } from '../../components/ui/ResultDialog'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -209,6 +210,7 @@ export default function BranchPage() {
   })
   const [groupFilter, setGroupFilter] = useState('')
   const [branchView, setBranchView] = useState<'card' | 'table'>('card')
+  const [kpiPopup, setKpiPopup] = useState<null | 'all' | 'active' | 'emp'>(null)
   const branchesFiltered = groupFilter ? branches.filter(b => b.group_id === groupFilter) : branches
   const { data: allShifts = [] } = useQuery<ApiShift[]>({
     queryKey: ['shifts'],
@@ -629,14 +631,25 @@ export default function BranchPage() {
         </div>
       </div>
 
+      {kpiPopup && (() => {
+        const list = kpiPopup === 'active' ? branchesFiltered.filter(b => b.is_active) : [...branchesFiltered]
+        if (kpiPopup === 'emp') list.sort((a, b) => b._count.employees - a._count.employees)
+        const title = { all: 'สาขาทั้งหมด', active: 'สาขาที่เปิดใช้งาน', emp: 'พนักงานรวม — แยกตามสาขา' }[kpiPopup]
+        return <StatDetailModal title={title} color={kpiPopup === 'active' ? '#16a34a' : kpiPopup === 'emp' ? '#244B83' : '#6366f1'} onClose={() => setKpiPopup(null)}
+          rows={list.map(b => ({ key: b.id, primary: b.name, secondary: b.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน', right: `${b._count.employees} คน` }))} />
+      })()}
+
       {/* KPI row */}
       <div data-tour="branch-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'ทั้งหมด',     value: branchesFiltered.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-          { label: 'เปิดใช้งาน', value: branchesFiltered.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+          { k: 'all' as const, label: 'ทั้งหมด',     value: branchesFiltered.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+          { k: 'active' as const, label: 'เปิดใช้งาน', value: branchesFiltered.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+          { k: 'emp' as const, label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setKpiPopup(k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setKpiPopup(k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${k.color} 55%, white), ${k.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

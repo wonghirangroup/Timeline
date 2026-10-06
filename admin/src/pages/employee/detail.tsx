@@ -1,4 +1,5 @@
 // admin/src/pages/employee/detail.tsx
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
@@ -273,6 +274,7 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
   const offsiteDates = useMemo(() => buildOffsiteDates(offsiteData ?? []), [offsiteData])
   const holidayByDate = useMemo(() => buildHolidayByDate(holidayData ?? [], emp), [holidayData, emp])
 
+  const [statPopup, setStatPopup] = useState<null | 'วันทำงาน' | 'มาสาย' | 'ขาดงาน' | 'วันลา'>(null)
   const stats = useMemo(() => {
     const present = records.filter((r: any) => r.check_in_at)
     const late    = records.filter((r: any) => r.is_late)
@@ -299,11 +301,25 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
     { key: 'MATERNITY',label: 'ลาคลอด',  icon: <RefreshCw size={16}/>,     color: '#2563eb', bg: '#dbeafe' },
   ]
 
+  const fmtDay = (d: string) => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
+  const timeOf = (t?: string | null) => t ? new Date(t).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'
+  const statRows: StatRow[] = !statPopup ? [] : statPopup === 'วันลา'
+    ? leaves.filter((l: any) => l.status === 'APPROVED').map((l: any) => ({
+        key: l.id, primary: leaveTypes.find(t => t.key === l.leave_type)?.label ?? l.leave_type,
+        secondary: l.reason || undefined,
+        right: l.start_date.slice(0, 10) === l.end_date.slice(0, 10) ? fmtDay(l.start_date) : `${fmtDay(l.start_date)} – ${fmtDay(l.end_date)}` }))
+    : [...records].filter((r: any) => statPopup === 'วันทำงาน' ? r.check_in_at : statPopup === 'มาสาย' ? r.is_late : r.is_absent)
+        .sort((a: any, b: any) => (a.date ?? '').slice(0, 10).localeCompare((b.date ?? '').slice(0, 10)))
+        .map((r: any) => ({ key: r.id ?? r.date, primary: fmtDay(r.date),
+          secondary: r.check_in_at ? `เข้า ${timeOf(r.check_in_at)} · ออก ${timeOf(r.check_out_at)}` : undefined,
+          right: Number(r.fine ?? 0) + Number(r.carried_fine ?? 0) > 0 ? `ปรับ ${Number(r.fine ?? 0) + Number(r.carried_fine ?? 0)} ฿` : undefined }))
+
   const recent = [...records].sort((a: any, b: any) => (b.date ?? '').slice(0,10).localeCompare((a.date ?? '').slice(0,10))).slice(0, 7)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
+        {statPopup && <StatDetailModal title={`${statPopup} · ${MONTH_TH[month-1]} ${year}`} color="#244B83" rows={statRows} onClose={() => setStatPopup(null)} />}
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 10 }}>สถิติเดือน{MONTH_TH[month-1]} {year}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(84px,1fr))', gap: 10 }}>
           {([
@@ -312,7 +328,10 @@ function OverviewTab({ employeeId, emp }: { employeeId: string; emp?: any }) {
             { label: 'ขาดงาน',  value: stats.absent, icon: <XCircle size={18}/>,      color: '#dc2626', bg: '#fee2e2' },
             { label: 'วันลา',   value: stats.leave,  icon: <CalendarDays size={18}/>, color: '#2563eb', bg: '#dbeafe' },
           ] as { label: string; value: number; icon: ReactNode; color: string; bg: string }[]).map(s => (
-            <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '14px 12px', textAlign: 'center', border: `1px solid ${s.color}20` }}>
+            <div key={s.label} role="button" tabIndex={0} title={`กดเพื่อดูรายการ "${s.label}"`}
+              onClick={() => setStatPopup(s.label as any)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStatPopup(s.label as any) } }}
+              style={{ background: s.bg, borderRadius: 12, padding: '14px 12px', textAlign: 'center', border: `1px solid ${s.color}20`, cursor: 'pointer' }}>
               <div style={{ marginBottom: 4, color: s.color, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
               <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 4 }}>{s.label}</div>

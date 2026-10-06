@@ -406,11 +406,14 @@ export default function OtPage() {
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'รอพิจารณา',        icon: <Clock size={15}/>,         value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-          { label: 'ชม. OT อนุมัติ',   icon: <CheckCircle2 size={15}/>,  value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
-          { label: 'ใกล้/เกิน Cap',    icon: <AlertTriangle size={15}/>, value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : 'var(--text-muted)', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
+          { go: 'PENDING', label: 'รอพิจารณา',        icon: <Clock size={15}/>,         value: pending,      unit: 'รายการ', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+          { go: 'APPROVED', label: 'ชม. OT อนุมัติ',   icon: <CheckCircle2 size={15}/>,  value: approvedHrs,  unit: 'ชม.',    color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+          { go: 'CAP', label: 'ใกล้/เกิน Cap',    icon: <AlertTriangle size={15}/>, value: nearCapCount, unit: 'คน',     color: nearCapCount > 0 ? '#dc2626' : 'var(--text-muted)', bg: nearCapCount > 0 ? '#fef2f2' : '#f9fafb', border: nearCapCount > 0 ? '#fca5a5' : '#e5e7eb' },
         ].map(s => (
-          <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={s.label} role="button" tabIndex={0} title={s.go === 'CAP' ? 'กดเพื่อดูรายชื่อที่ใกล้/เกิน Cap' : `กดเพื่อดูเฉพาะ "${s.label}"`}
+            onClick={() => (s.go === 'CAP' ? document.getElementById('ot-cap-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : setStatusFilter(statusFilter === s.go ? '' : s.go as OtStatus))}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (s.go === 'CAP' ? document.getElementById('ot-cap-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : setStatusFilter(statusFilter === s.go ? '' : s.go as OtStatus)) } }}
+            style={{ background: s.bg, border: `1.5px solid ${statusFilter === s.go ? s.color : s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: statusFilter === s.go ? `0 0 0 3px color-mix(in srgb, ${s.color} 25%, transparent)` : '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'box-shadow .15s, border-color .15s' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${s.color} 55%, white), ${s.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
@@ -422,7 +425,7 @@ export default function OtPage() {
 
       {/* ── Cap Warning Panel ── */}
       {capWarnings.length > 0 && (
-        <div style={{ ...card, padding: isMobile ? 12 : 16, border: '1px solid #fca5a5', background: '#fff5f5' }}>
+        <div id="ot-cap-panel" style={{ ...card, padding: isMobile ? 12 : 16, border: '1px solid #fca5a5', background: '#fff5f5' }}>
           <p style={{ display: 'flex', alignItems: 'center', gap: 5, margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
             <AlertTriangle size={14} /> ขีดจำกัด OT รายสัปดาห์ (Cap {OT_WEEKLY_CAP} ชม./สัปดาห์)
           </p>

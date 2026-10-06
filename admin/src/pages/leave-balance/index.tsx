@@ -405,6 +405,8 @@ export default function LeaveBalancePage() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkQuotas,   setBulkQuotas]  = useState<Quotas>(DEFAULT_QUOTAS)
   const [page,         setPage]        = useState(1)
+  // กรองจากการ์ดสรุป: เกินโควต้า / ใกล้หมด / ปกติ
+  const [quotaState,   setQuotaState]  = useState<'' | 'over' | 'near' | 'ok'>('')
   const PAGE_SIZE = 10
 
   // ── แก้ไขแบบตาราง (Excel-style) — พิมพ์แก้ตัวเลขทีละช่องได้ตรงๆ ทุกคนพร้อมกัน
@@ -449,8 +451,16 @@ export default function LeaveBalancePage() {
   // Filters
   const currentYear = new Date().getFullYear()
 
+  const isOverQuota = (b: LeaveBalance) => LEAVE_TYPES.some(lt => usedOf(b, lt.key) > quotaOf(b, lt.key))
+  const isNearQuota = (b: LeaveBalance) => LEAVE_TYPES.some(lt => {
+    const q = quotaOf(b, lt.key)
+    return q !== 0 && usedOf(b, lt.key) / q >= 0.8 && usedOf(b, lt.key) <= q
+  })
   const filtered = balances.filter(b => {
     if (!matchesOrgFilter(employeeOrgMap[b.employee_id], orgFilter)) return false
+    if (quotaState === 'over' && !isOverQuota(b)) return false
+    if (quotaState === 'near' && !isNearQuota(b)) return false
+    if (quotaState === 'ok' && (isOverQuota(b) || isNearQuota(b))) return false
     if (search && !b.full_name.toLowerCase().includes(search.toLowerCase()) &&
                   !b.nickname.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -458,7 +468,7 @@ export default function LeaveBalancePage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => { setPage(1) }, [search, orgFilter, year])
+  useEffect(() => { setPage(1) }, [search, orgFilter, year, quotaState])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stats
@@ -656,12 +666,15 @@ export default function LeaveBalancePage() {
             // "พนักงานทั้งหมด" เดิมใช้ indigo (#4f46e5) ซึ่งเป็นสี Super Admin โดยเฉพาะ
             // (--sa-accent) ขัดกับ DESIGN.md "never mix orange and indigo" — เปลี่ยน
             // เป็นส้มแบรนด์แทน (feedback 2026-09-15 "คุมธีมส้มไปเลย")
-            { label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#244B83', bg: '#F4F6F9', iconColor: '#244B83' },
-            { label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
-            { label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
-            { label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
+            { q: '' as const, label: 'พนักงานทั้งหมด', value: totalEmployees,  icon: <Users size={18}/>,         color: '#244B83', bg: '#F4F6F9', iconColor: '#244B83' },
+            { q: 'over' as const, label: 'เกินโควต้า',      value: warnings,        icon: <AlertCircle size={18}/>,   color: '#dc2626', bg: '#fee2e2', iconColor: '#dc2626' },
+            { q: 'near' as const, label: 'ใกล้หมดโควต้า',  value: nearLimit,        icon: <AlertTriangle size={18}/>, color: '#d97706', bg: '#fef3c7', iconColor: '#d97706' },
+            { q: 'ok' as const, label: 'ปกติ',           value: totalEmployees - warnings - nearLimit, icon: <CheckCircle2 size={18}/>, color: '#059669', bg: '#d1fae5', iconColor: '#059669' },
           ].map(s => (
-            <div key={s.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div key={s.label} role="button" tabIndex={0} title={s.q ? `กดเพื่อดูเฉพาะ "${s.label}"` : 'กดเพื่อดูทั้งหมด'}
+              onClick={() => setQuotaState(quotaState === s.q ? '' : s.q)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setQuotaState(quotaState === s.q ? '' : s.q) } }}
+              style={{ background: '#fff', border: `1px solid ${quotaState === s.q && s.q ? s.color : '#e2e8f0'}`, borderRadius: 12, padding: '14px 16px', boxShadow: quotaState === s.q && s.q ? `0 0 0 3px color-mix(in srgb, ${s.color} 25%, transparent)` : '0 2px 6px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'box-shadow .15s, border-color .15s' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${s.iconColor} 55%, white), ${s.iconColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${s.iconColor}4D`, flexShrink: 0 }}>{s.icon}</div>
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>

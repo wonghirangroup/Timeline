@@ -327,7 +327,8 @@ export default function AttendancePage() {
   // รับ branchId param) — กลุ่ม/แผนก/ตำแหน่งกรองฝั่ง client เพิ่มเติมจาก employeeOrgMap
   const branchFilter = orgFilter.branchId
   const [search, setSearch]       = useState('')
-  const [statusFilter, setStatusFilter] = useState<Status | ''>('')
+  // 'LEAVE_GROUP' = การ์ดสรุป "ลา / หยุด" (รวมลา+หยุด+นักขัตฤกษ์) — ตั้งจากการ์ด ไม่มีใน dropdown
+  const [statusFilter, setStatusFilter] = useState<Status | 'LEAVE_GROUP' | ''>('')
   const [page, setPage]           = useState(1)
   const pageSize                  = 7
 
@@ -617,7 +618,7 @@ export default function AttendancePage() {
 
   const filtered = useMemo(() => rows.filter(r => {
     if (!matchesOrgFilter(employeeOrgMap[r.employee.id], orgFilter)) return false
-    if (statusFilter && r.status !== statusFilter) return false
+    if (statusFilter === 'LEAVE_GROUP' ? !(r.status === 'LEAVE' || r.status === 'DAY_OFF' || r.status === 'HOLIDAY') : (statusFilter && r.status !== statusFilter)) return false
     if (!search) return true
     const q = search.toLowerCase()
     const e = r.employee
@@ -827,15 +828,18 @@ export default function AttendancePage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {[
-            { label: 'ทั้งหมด',    value: summary.total,   icon: <Users size={15}/>,         color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
-            { label: 'มาปกติ',     value: summary.onTime,  icon: <CheckCircle2 size={15}/>,   color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
-            { label: 'ยังไม่เช็ค', value: summary.pending, icon: <Clock size={15}/>,          color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
-            { label: 'ลา / หยุด',  value: summary.leave,   icon: <CalendarClock size={15}/>,  color: '#0369a1', bg: '#e0f2fe',  border: '#bae6fd' },
-            { label: 'สายระดับ 1', value: summary.late1,   icon: <AlertTriangle size={15}/>,  color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
-            { label: 'สายระดับ 2', value: summary.late2,   icon: <AlertCircle size={15}/>,    color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
-            { label: 'ขาดงาน',     value: summary.absent,  icon: <XCircle size={15}/>,        color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+            { f: '' as Status | 'LEAVE_GROUP' | '', label: 'ทั้งหมด',    value: summary.total,   icon: <Users size={15}/>,         color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
+            { f: 'ON_TIME' as Status | 'LEAVE_GROUP' | '', label: 'มาปกติ',     value: summary.onTime,  icon: <CheckCircle2 size={15}/>,   color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
+            { f: 'PENDING' as Status | 'LEAVE_GROUP' | '', label: 'ยังไม่เช็ค', value: summary.pending, icon: <Clock size={15}/>,          color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
+            { f: 'LEAVE_GROUP' as Status | 'LEAVE_GROUP' | '', label: 'ลา / หยุด',  value: summary.leave,   icon: <CalendarClock size={15}/>,  color: '#0369a1', bg: '#e0f2fe',  border: '#bae6fd' },
+            { f: 'LATE_1' as Status | 'LEAVE_GROUP' | '', label: 'สายระดับ 1', value: summary.late1,   icon: <AlertTriangle size={15}/>,  color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
+            { f: 'LATE_2' as Status | 'LEAVE_GROUP' | '', label: 'สายระดับ 2', value: summary.late2,   icon: <AlertCircle size={15}/>,    color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+            { f: 'ABSENT' as Status | 'LEAVE_GROUP' | '', label: 'ขาดงาน',     value: summary.absent,  icon: <XCircle size={15}/>,        color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
           ].map(k => (
-            <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '12px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+            <div key={k.label} role="button" tabIndex={0} title={k.f ? `กดเพื่อดูเฉพาะ "${k.label}"` : 'กดเพื่อดูทั้งหมด'}
+              onClick={() => setStatusFilter(statusFilter === k.f ? '' : k.f)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStatusFilter(statusFilter === k.f ? '' : k.f) } }}
+              style={{ background: k.bg, border: `1.5px solid ${statusFilter === k.f && k.f ? k.color : k.border}`, boxShadow: statusFilter === k.f && k.f ? `0 0 0 3px color-mix(in srgb, ${k.color} 25%, transparent)` : '0 2px 6px rgba(0,0,0,0.05)', borderRadius: 14, padding: '12px 10px', cursor: 'pointer', transition: 'box-shadow .15s, border-color .15s' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${k.color} 55%, white), ${k.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{k.icon}</span>
                 <span style={{ fontSize: '1.6rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
@@ -852,9 +856,10 @@ export default function AttendancePage() {
         {/* Org filter */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <OrgFilterBar value={orgFilter} onChange={v => { setOrgFilter(v); setPage(1) }} />
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as Status | '')}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as Status | 'LEAVE_GROUP' | '')}
             style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
             <option value="">ทุกสถานะ</option>
+            {statusFilter === 'LEAVE_GROUP' && <option value="LEAVE_GROUP">ลา / หยุด (ทั้งหมด)</option>}
             {(Object.keys(STATUS_CFG) as Status[]).map(s => (
               <option key={s} value={s}>{STATUS_CFG[s].label}</option>
             ))}

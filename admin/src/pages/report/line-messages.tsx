@@ -3,6 +3,7 @@
 // อ่านจาก LineMessageLog ที่เพิ่งเริ่มบันทึกใหม่ (ก่อนหน้านี้ไม่มีการเก็บ log
 // การส่งเลยสักครั้ง) — ข้อมูลจะเริ่มมีตั้งแต่วันที่ deploy รอบนี้เป็นต้นไป
 // ย้อนหลังก่อนหน้านี้ไม่มีให้ดู
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Megaphone, MessageCircle, Check, X, Users, Shield, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
@@ -45,6 +46,7 @@ export default function LineMessagesReportPage() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
+  const [popup, setPopup] = useState<null | 'total' | 'success' | 'failed' | 'recipients'>(null)
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -94,15 +96,20 @@ export default function LineMessagesReportPage() {
     downloadCsv([header, ...body], `รายงานข้อความไลน์_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
   }
 
+  const popupRows: StatRow[] = !popup ? [] : logs
+    .filter(l => popup === 'success' ? l.success : popup === 'failed' ? !l.success : true)
+    .map(l => ({ key: l.id ?? l.created_at + l.title, primary: l.title, secondary: `${CATEGORY_LABEL[l.category] ?? l.category} · ถึง ${l.recipient_label}${l.error_message ? ' · ' + l.error_message : ''}`,
+      right: l.success ? 'สำเร็จ' : 'ล้มเหลว' }))
   const kpis = [
-    { label: 'ส่งทั้งหมด', value: totals.total, icon: <MessageCircle size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-    { label: 'สำเร็จ', value: totals.success, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-    { label: 'ล้มเหลว', value: totals.failed, icon: <X size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-    { label: 'ถึงพนักงาน / แอดมิน', value: `${totals.toEmployee} / ${totals.toAdmin}`, icon: totals.toEmployee >= totals.toAdmin ? <Users size={15}/> : <Shield size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+    { k: 'total' as const, label: 'ส่งทั้งหมด', value: totals.total, icon: <MessageCircle size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+    { k: 'success' as const, label: 'สำเร็จ', value: totals.success, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { k: 'failed' as const, label: 'ล้มเหลว', value: totals.failed, icon: <X size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+    { k: 'recipients' as const, label: 'ถึงพนักงาน / แอดมิน', value: `${totals.toEmployee} / ${totals.toAdmin}`, icon: totals.toEmployee >= totals.toAdmin ? <Users size={15}/> : <Shield size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {popup && <StatDetailModal title={`ข้อความไลน์ · ${MONTHS_TH[month - 1]} ${year + 543}`} count={popupRows.length} color={popup === 'failed' ? '#dc2626' : popup === 'success' ? '#16a34a' : '#6366f1'} rows={popupRows} onClose={() => setPopup(null)} />}
       <div className="print-only" style={{ margin: 0 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานข้อความไลน์</h2>
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -135,7 +142,10 @@ export default function LineMessagesReportPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setPopup(k.k === 'recipients' ? 'total' : k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopup(k.k === 'recipients' ? 'total' : k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.3rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

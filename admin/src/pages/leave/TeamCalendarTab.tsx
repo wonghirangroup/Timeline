@@ -15,6 +15,7 @@ import GuidedTour from '../../components/shared/GuidedTour'
 import DayOffBatchModal from './DayOffBatchModal'
 import { useIsReadOnly } from '../../stores/authStore'
 import MonthNav from '../../components/ui/MonthNav'
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
@@ -678,6 +679,8 @@ export default function TeamCalendarTab() {
   const branchFilter = orgFilter.branchId || 'all'
   const groupFilter   = orgFilter.groupId  || 'all'
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // popup รายละเอียดจากการ์ดสรุปด้านบน
+  const [statPopup, setStatPopup] = useState<null | 'holiday' | 'dayoff' | 'leave' | 'pending'>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
   const [forcePrompt, setForcePrompt] = useState<{ kind: 'dayoff' | 'leave'; vars: any } | null>(null)  // cascade ปิดสิทธิ์ — รอ retry ด้วย force
   const [showRosterSettings, setShowRosterSettings] = useState(false)
@@ -893,6 +896,28 @@ export default function TeamCalendarTab() {
     return overlap && branchOk && l.status !== 'REJECTED'
   })
   const pendingCount = [...allDayOffsThisMonth, ...allLeavesThisMonth].filter(e => (e as any).status === 'PENDING').length
+
+  const fmtD = (d: string) => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+  const leaveRow = (l: LeaveReq): StatRow => ({
+    key: 'l' + l.id, primary: `${l.name}${l.nickname ? ` (${l.nickname})` : ''}`,
+    secondary: `${l.display_label}${l.period_label ? ' · ' + l.period_label : ''} · ${l.branch_name}`,
+    right: l.start_date === l.end_date ? fmtD(l.start_date) : `${fmtD(l.start_date)} – ${fmtD(l.end_date)}`,
+  })
+  const dayOffRow = (d: DayOff): StatRow => ({
+    key: 'd' + d.id, primary: `${d.name}${d.nickname ? ` (${d.nickname})` : ''}`,
+    secondary: `วันหยุด · ${d.branch_name} · ${STATUS_LABEL_TH[d.status] ?? d.status}`, right: fmtD(d.date),
+  })
+  const holidayLeaves = allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label))
+  const normalLeaves  = allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label))
+  const statPopupCfg = statPopup && ({
+    holiday: { title: 'หยุดประจำ', color: '#ef4444', rows: holidayLeaves.map(leaveRow) },
+    dayoff:  { title: 'วันหยุดพิเศษ', color: '#244B83', rows: allDayOffsThisMonth.map(dayOffRow) },
+    leave:   { title: 'วันลาเดือนนี้', color: '#3b82f6', rows: normalLeaves.map(leaveRow) },
+    pending: { title: 'รออนุมัติ', color: '#d97706', rows: [
+      ...allDayOffsThisMonth.filter(d => d.status === 'PENDING').map(dayOffRow),
+      ...allLeavesThisMonth.filter(l => l.status === 'PENDING').map(leaveRow),
+    ] },
+  })[statPopup]
 
   const branchLabel = branchFilter === 'all' ? 'ทุกสาขา' : (branches.find(b => b.id === branchFilter)?.name ?? 'ทุกสาขา')
 
@@ -1213,12 +1238,15 @@ export default function TeamCalendarTab() {
       {/* Stats row — 2×2 on mobile, 4 cols on desktop */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 8 : 12, marginBottom: 16 }}>
         {[
-          { label: 'หยุดประจำ',    value: `${allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#ef4444', bg: '#fef2f2' },
-          { label: 'วันหยุดพิเศษ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'คำขอ',  color: '#244B83', bg: '#F4F6F9' },
-          { label: 'วันลาเดือนนี้', value: `${allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#3b82f6', bg: '#eff6ff' },
-          { label: 'รออนุมัติ',    value: `${pendingCount}`,                                                                 unit: 'รายการ', color: '#d97706', bg: '#fffbeb' },
+          { k: 'holiday' as const, label: 'หยุดประจำ',    value: `${allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#ef4444', bg: '#fef2f2' },
+          { k: 'dayoff' as const, label: 'วันหยุดพิเศษ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'คำขอ',  color: '#244B83', bg: '#F4F6F9' },
+          { k: 'leave' as const, label: 'วันลาเดือนนี้', value: `${allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#3b82f6', bg: '#eff6ff' },
+          { k: 'pending' as const, label: 'รออนุมัติ',    value: `${pendingCount}`,                                                                 unit: 'รายการ', color: '#d97706', bg: '#fffbeb' },
         ].map(s => (
-          <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: isMobile ? '10px 12px' : '12px 16px', border: `1px solid ${s.color}20` }}>
+          <div key={s.label} role="button" tabIndex={0} title={`กดเพื่อดูรายการ "${s.label}"`}
+            onClick={() => setStatPopup(s.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStatPopup(s.k) } }}
+            style={{ background: s.bg, borderRadius: 10, padding: isMobile ? '10px 12px' : '12px 16px', border: `1px solid ${s.color}20`, cursor: 'pointer', transition: 'box-shadow .15s' }}>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 2 }}>{s.label}</div>
             <div style={{ fontSize: isMobile ? '1.3rem' : '1.5rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>
               {s.value} <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{s.unit}</span>
@@ -1226,6 +1254,8 @@ export default function TeamCalendarTab() {
           </div>
         ))}
       </div>
+
+      {statPopupCfg && <StatDetailModal title={`${statPopupCfg.title} · ${fmtMonthTH(month)}`} color={statPopupCfg.color} rows={statPopupCfg.rows} onClose={() => setStatPopup(null)} />}
 
       {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>

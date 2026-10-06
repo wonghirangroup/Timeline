@@ -1,3 +1,4 @@
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, X, Users, UserPlus, Search, UserMinus, ChevronLeft, ChevronRight, Clock, CheckCircle2, Building2, HelpCircle, QrCode, ChevronsRight, MapPin, AlertTriangle, AlertOctagon, Ban, Lock, Wrench, Printer, Check, Loader2, Download, Save, Plus, Star, Moon, Table2, LayoutGrid } from 'lucide-react'
@@ -348,6 +349,7 @@ export default function ShiftPage() {
     onError: () => showToast('error', 'ลบกะไม่สำเร็จ'),
   })
   const [branchFilter, setBranchFilter] = useState('')
+  const [kpiPopup, setKpiPopup] = useState<null | 'all' | 'active' | 'branches'>(null)
   const [groupFilter, setGroupFilter] = useState('')
   const [shiftView, setShiftView] = useState<'card' | 'table'>('card')
   const branchIdToGroupId = useMemo(() => Object.fromEntries(branches.map(b => [b.id, b.group_id ?? null])), [branches])
@@ -525,14 +527,26 @@ export default function ShiftPage() {
         </div>
       </div>
 
+      {kpiPopup && (() => {
+        const bName = (id: string) => branches.find(b => b.id === id)?.name ?? '-'
+        const rows: StatRow[] = kpiPopup === 'branches'
+          ? branches.map(b => ({ key: b.id, primary: b.name, right: `${shifts.filter(s => s.branch_id === b.id).length} กะ` }))
+          : (kpiPopup === 'active' ? shifts.filter(s => getShiftStatus(s) === 'active') : shifts)
+              .map(s => ({ key: s.id, primary: s.name, secondary: bName(s.branch_id), right: `${s.start_time}–${s.end_time}` }))
+        return <StatDetailModal title={{ all: 'กะทั้งหมด', active: 'กะที่เปิดงานอยู่ตอนนี้', branches: 'จำนวนกะ — แยกตามสาขา' }[kpiPopup]} color="#244B83" rows={rows} onClose={() => setKpiPopup(null)} />
+      })()}
+
       {/* KPI row */}
       <div data-tour="shift-kpi" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
         {[
-          { label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
-          { label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { label: 'จำนวนสาขา',  value: branches.length,                          icon: <Building2 size={15}/>,    color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+          { k: 'all' as const, label: 'กะทั้งหมด',   value: shifts.length,                           icon: <Clock size={15}/>,        color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+          { k: 'active' as const, label: 'กะที่เปิดงาน', value: shifts.filter(s => getShiftStatus(s) === 'active').length, icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+          { k: 'branches' as const, label: 'จำนวนสาขา',  value: branches.length,                          icon: <Building2 size={15}/>,    color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setKpiPopup(k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setKpiPopup(k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

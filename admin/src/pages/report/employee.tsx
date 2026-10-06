@@ -7,6 +7,7 @@
 // แค่ "ค่าที่โดนหัก" (ค่าปรับ ที่มีอยู่แล้ว) กับ "ชั่วโมง OT ที่อนุมัติ" ให้ครบ
 // ไม่ยัดเยียดคำนวณเงินสุทธิที่ไม่มีข้อมูลรองรับจริง
 import { useEffect, useMemo, useState } from 'react'
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { FileClock, FileText, Users, Search, ClipboardCheck, AlertTriangle, Wallet, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
@@ -39,6 +40,7 @@ export default function EmployeeReportPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'card' | 'table' | 'chart'>('table')
   const [page, setPage] = useState(1)
+  const [popup, setPopup] = useState<null | 'emp' | 'checkin' | 'late' | 'fine' | 'ot'>(null)
   const PAGE_SIZE = 15
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
@@ -112,16 +114,26 @@ export default function EmployeeReportPage() {
     downloadCsv([header, ...body], `รายงานพนักงาน_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
   }
 
+  const POP = {
+    emp:     { title: 'พนักงานรวม', color: '#6366f1', val: (r: typeof rows[number]) => r.checkinCount, fmt: (r: typeof rows[number]) => `เช็คอิน ${r.checkinCount} วัน`, all: true },
+    checkin: { title: 'เช็คอินรวม (วัน)', color: '#16a34a', val: (r: typeof rows[number]) => r.checkinCount, fmt: (r: typeof rows[number]) => `${r.checkinCount} วัน`, all: false },
+    late:    { title: 'มาสายรวม', color: '#d97706', val: (r: typeof rows[number]) => r.lateCount, fmt: (r: typeof rows[number]) => `${r.lateCount} ครั้ง`, all: false },
+    fine:    { title: 'ค่าปรับรวม (฿)', color: '#dc2626', val: (r: typeof rows[number]) => r.totalFine, fmt: (r: typeof rows[number]) => `${r.totalFine.toLocaleString()} ฿`, all: false },
+    ot:      { title: 'OT รวม (ชม.)', color: '#7c3aed', val: (r: typeof rows[number]) => r.otHours, fmt: (r: typeof rows[number]) => `${r.otHours.toLocaleString()} ชม.`, all: false },
+  } as const
+  const popupRows: StatRow[] = popup ? rows.filter(r => POP[popup].all || POP[popup].val(r) > 0).sort((a, b) => POP[popup].val(b) - POP[popup].val(a))
+    .map(r => ({ key: r.employee.id, primary: `${r.employee.first_name} ${r.employee.last_name}${r.employee.nickname ? ` (${r.employee.nickname})` : ''}`, secondary: `${r.employee.employee_code} · ${r.employee.branch.name}`, right: POP[popup].fmt(r) })) : []
   const kpis = [
-    { label: 'พนักงานรวม', value: rows.length, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-    { label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-    { label: 'มาสายรวม', value: totals.lateCount, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    { label: 'ค่าปรับรวม (฿)', value: totals.totalFine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-    { label: 'OT รวม (ชม.)', value: totals.otHours.toLocaleString(), icon: <Clock size={15}/>, color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+    { k: 'emp' as const, label: 'พนักงานรวม', value: rows.length, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+    { k: 'checkin' as const, label: 'เช็คอินรวม (วัน)', value: totals.checkinCount, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { k: 'late' as const, label: 'มาสายรวม', value: totals.lateCount, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+    { k: 'fine' as const, label: 'ค่าปรับรวม (฿)', value: totals.totalFine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+    { k: 'ot' as const, label: 'OT รวม (ชม.)', value: totals.otHours.toLocaleString(), icon: <Clock size={15}/>, color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {popup && <StatDetailModal title={`${POP[popup].title} · ${MONTHS_TH[month - 1]} ${year + 543}`} color={POP[popup].color} rows={popupRows} onClose={() => setPopup(null)} />}
       <div className="print-only" style={{ margin: 0 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานพนักงาน</h2>
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -159,7 +171,10 @@ export default function EmployeeReportPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(5, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setPopup(k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopup(k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform .12s' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

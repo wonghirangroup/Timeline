@@ -1,3 +1,4 @@
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BarChart2 as ReportIcon, MapPin, Clock, ExternalLink, Navigation, Table2, LayoutGrid, Plus, Pencil, Trash2, X, Download } from 'lucide-react'
@@ -89,6 +90,7 @@ export default function OffsitePage() {
   const { showToast } = useToast()
   const qc = useQueryClient()
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
+  const [kpiPopup, setKpiPopup] = useState<null | 'active' | 'month'>(null)
   const [listView, setListView]   = useState<'card' | 'table'>('table')
   const [modal, setModal]         = useState<'add' | 'edit' | null>(null)
   const [editTarget, setEditTarget] = useState<ApiOffsiteCheckin | null>(null)
@@ -248,13 +250,25 @@ export default function OffsitePage() {
           )}
         </div>
       </div>
+      {kpiPopup && (() => {
+        const nowD = new Date()
+        const list = kpiPopup === 'active' ? rows.filter(r => !r.check_out_at)
+          : rows.filter(r => { const d = new Date(r.check_in_at); return d.getMonth() === nowD.getMonth() && d.getFullYear() === nowD.getFullYear() })
+        return <StatDetailModal title={kpiPopup === 'active' ? 'กำลังอยู่นอกสถานที่' : 'เช็คอินนอกสถานที่เดือนนี้'} color={kpiPopup === 'active' ? '#2563eb' : '#64748b'} onClose={() => setKpiPopup(null)}
+          rows={list.map(r => ({ key: r.id, primary: `${r.employee.first_name} ${r.employee.last_name}${r.employee.nickname ? ` (${r.employee.nickname})` : ''}`,
+            secondary: r.check_in_address ?? r.note ?? r.employee.employee_code,
+            right: new Date(r.check_in_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }))} />
+      })()}
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
-          { label: 'กำลังอยู่นอกสถานที่', icon: <Navigation size={15}/>, value: activeCount, unit: 'คน', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-          { label: 'รวมเดือนนี้',          icon: <Clock size={15}/>,      value: monthCount,  unit: 'ครั้ง', color: 'var(--text-muted)', bg: '#f9fafb', border: '#e5e7eb' },
+          { k: 'active' as const, label: 'กำลังอยู่นอกสถานที่', icon: <Navigation size={15}/>, value: activeCount, unit: 'คน', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+          { k: 'month' as const, label: 'รวมเดือนนี้',          icon: <Clock size={15}/>,      value: monthCount,  unit: 'ครั้ง', color: 'var(--text-muted)', bg: '#f9fafb', border: '#e5e7eb' },
         ].map(s => (
-          <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={s.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${s.label}"`}
+            onClick={() => setKpiPopup(s.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setKpiPopup(s.k) } }}
+            style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${s.color} 55%, white), ${s.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>

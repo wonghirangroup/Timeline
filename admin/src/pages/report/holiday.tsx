@@ -2,6 +2,7 @@
 // รายงานวันหยุด — วันหยุดบริษัทที่ประกาศ + สรุปการจองวันหยุดประจำเดือน/สัปดาห์
 // ต่อสาขา (feedback 2026-09-22 "เอาทุกหมวดก่อนแล้วค่อยทำไลน์อันสุดท้าย")
 import { useMemo, useState } from 'react'
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarOff, Palmtree, Users, Clock, Check, Table2, LayoutGrid, BarChart3, Search, User } from 'lucide-react'
 import { api } from '../../lib/axios'
@@ -39,6 +40,7 @@ export default function HolidayReportPage() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
   const [groupBy, setGroupBy] = useState<'branch' | 'person'>('branch')
+  const [popup, setPopup] = useState<null | 'holidays' | 'total' | 'approved' | 'pending'>(null)
   const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
 
@@ -124,15 +126,28 @@ export default function HolidayReportPage() {
     downloadCsv([holidayHeader, ...holidayRows, [], branchHeader, ...branchRowsOut], `รายงานวันหยุด_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
   }
 
+  const POP = {
+    holidays: { title: 'วันหยุดบริษัทเดือนนี้', color: '#0891b2' },
+    total:    { title: 'คำขอวันหยุดรวม — แยกตามสาขา', color: '#6366f1' },
+    approved: { title: 'คำขอวันหยุดที่อนุมัติ — แยกตามสาขา', color: '#16a34a' },
+    pending:  { title: 'คำขอวันหยุดรอพิจารณา — แยกตามสาขา', color: '#d97706' },
+  } as const
+  const popupRows: StatRow[] = !popup ? [] : popup === 'holidays'
+    ? [...monthHolidays].sort((a, b) => a.date.localeCompare(b.date)).map(h => ({
+        key: h.date + h.name, primary: h.name, secondary: h.target_branches?.length ? `${h.target_branches.length} สาขา` : 'ทั้งบริษัท',
+        right: new Date(h.date.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) }))
+    : [...branchRows].sort((a, b) => b[popup] - a[popup]).filter(r => r[popup] > 0)
+        .map(r => ({ key: r.branch.id, primary: r.branch.name, right: `${r[popup]} คำขอ` }))
   const kpis = [
-    { label: 'วันหยุดบริษัทเดือนนี้', value: monthHolidays.length, icon: <Palmtree size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
-    { label: 'คำขอวันหยุดรวม', value: totals.total, icon: <CalendarOff size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-    { label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-    { label: 'รอพิจารณา', value: totals.pending, icon: <Clock size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+    { k: 'holidays' as const, label: 'วันหยุดบริษัทเดือนนี้', value: monthHolidays.length, icon: <Palmtree size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
+    { k: 'total' as const, label: 'คำขอวันหยุดรวม', value: totals.total, icon: <CalendarOff size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+    { k: 'approved' as const, label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { k: 'pending' as const, label: 'รอพิจารณา', value: totals.pending, icon: <Clock size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {popup && <StatDetailModal title={`${POP[popup].title} · ${MONTHS_TH[month - 1]} ${year + 543}`} color={POP[popup].color} rows={popupRows} onClose={() => setPopup(null)} />}
       <div className="print-only" style={{ margin: 0 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานวันหยุด</h2>
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -184,7 +199,10 @@ export default function HolidayReportPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setPopup(k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopup(k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform .12s' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

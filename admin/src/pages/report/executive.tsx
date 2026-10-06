@@ -160,12 +160,12 @@ export default function ExecutiveReportPage() {
   }
 
   const kpis = [
-    { label: 'พนักงานทั้งหมด', value: totals.employees, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-    { label: 'สาขาทั้งหมด', value: totals.branches, icon: <Building2 size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
-    { label: 'เช็คอินรวม (วัน)', value: totals.checkins, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-    { label: 'มาสายรวม', value: totals.late, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    { label: 'ค่าปรับรวม (฿)', value: totals.fine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-    { label: 'วันลารวม (อนุมัติ)', value: totals.leaveDays, icon: <CalendarDays size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+    { go: 'employee' as TabKey, label: 'พนักงานทั้งหมด', value: totals.employees, icon: <Users size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+    { go: 'branch' as TabKey, label: 'สาขาทั้งหมด', value: totals.branches, icon: <Building2 size={15}/>, color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
+    { go: 'checkin' as TabKey, label: 'เช็คอินรวม (วัน)', value: totals.checkins, icon: <ClipboardCheck size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { go: 'checkin' as TabKey, label: 'มาสายรวม', value: totals.late, icon: <AlertTriangle size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+    { go: 'employee' as TabKey, label: 'ค่าปรับรวม (฿)', value: totals.fine.toLocaleString(), icon: <Wallet size={15}/>, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+    { go: 'leave' as TabKey, label: 'วันลารวม (อนุมัติ)', value: totals.leaveDays, icon: <CalendarDays size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
   ]
 
   return (
@@ -226,7 +226,10 @@ export default function ExecutiveReportPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
                 {kpis.map(k => (
-                  <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                  <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+                    onClick={() => setTab(k.go)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab(k.go) } }}
+                    style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
                       <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
                       <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

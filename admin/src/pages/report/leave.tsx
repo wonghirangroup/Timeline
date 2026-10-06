@@ -2,6 +2,7 @@
 // รายงานวันลา — สรุปตามประเภทการลา + รายการคำขอลาของเดือนที่เลือก
 // (feedback 2026-09-22 "เอาทุกหมวดก่อนแล้วค่อยทำไลน์อันสุดท้าย")
 import { useMemo, useState } from 'react'
+import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Thermometer, ClipboardList, Sun, Heart, RefreshCw, CalendarDays, Check, Clock, Table2, LayoutGrid, BarChart3 } from 'lucide-react'
@@ -41,6 +42,7 @@ export default function LeaveReportPage() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [view, setView]   = useState<'card' | 'table' | 'chart'>('table')
+  const [popup, setPopup] = useState<null | 'total' | 'approved' | 'pending' | 'days'>(null)
 
   function prevMonth() { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
@@ -85,15 +87,28 @@ export default function LeaveReportPage() {
     downloadCsv([header, ...body], `รายงานวันลา_${MONTHS_TH[month - 1]}_${year + 543}.csv`)
   }
 
+  const POP = {
+    total:    { title: 'คำขอลารวม', color: '#6366f1', pick: (_l: typeof monthLeaves[number]) => true },
+    approved: { title: 'คำขอลาที่อนุมัติแล้ว', color: '#16a34a', pick: (l: typeof monthLeaves[number]) => l.status === 'APPROVED' },
+    pending:  { title: 'คำขอลารอพิจารณา', color: '#d97706', pick: (l: typeof monthLeaves[number]) => l.status === 'PENDING' },
+    days:     { title: 'วันลารวม (อนุมัติ)', color: '#244B83', pick: (l: typeof monthLeaves[number]) => l.status === 'APPROVED' },
+  } as const
+  const fmtShort = (d: string) => new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+  const popupRows: StatRow[] = popup ? monthLeaves.filter(POP[popup].pick).map(l => {
+    const cfg = LEAVE_TYPE_CFG[l.leave_type] ?? LEAVE_TYPE_CFG.OTHER
+    return { key: l.id, primary: `${l.employee.first_name} ${l.employee.last_name}`, secondary: `${cfg.label} · ${l.employee.branch.name} · ${STATUS_TH[l.status]}`,
+      right: `${l.start_date.slice(0, 10) === l.end_date.slice(0, 10) ? fmtShort(l.start_date) : `${fmtShort(l.start_date)} – ${fmtShort(l.end_date)}`} (${l.days} วัน)` }
+  }) : []
   const kpis = [
-    { label: 'คำขอลารวม', value: totals.total, icon: <CalendarDays size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
-    { label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-    { label: 'รอพิจารณา', value: totals.pending, icon: <Clock size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    { label: 'วันลารวม (อนุมัติ)', value: totals.days, icon: <ClipboardList size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+    { k: 'total' as const, label: 'คำขอลารวม', value: totals.total, icon: <CalendarDays size={15}/>, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+    { k: 'approved' as const, label: 'อนุมัติแล้ว', value: totals.approved, icon: <Check size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { k: 'pending' as const, label: 'รอพิจารณา', value: totals.pending, icon: <Clock size={15}/>, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+    { k: 'days' as const, label: 'วันลารวม (อนุมัติ)', value: totals.days, icon: <ClipboardList size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
   ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {popup && <StatDetailModal title={`${POP[popup].title} · ${MONTHS_TH[month - 1]} ${year + 543}`} color={POP[popup].color} rows={popupRows} onClose={() => setPopup(null)} />}
       <div className="print-only" style={{ margin: 0 }}>
         <h2 style={{ margin: '0 0 2px', fontSize: '1.2rem', fontWeight: 700 }}>รายงานวันลา</h2>
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#374151' }}>{MONTHS_TH[month - 1]} {year + 543} · พิมพ์เมื่อ {now.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -123,7 +138,10 @@ export default function LeaveReportPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: isMobile ? 8 : 10 }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
+            onClick={() => setPopup(k.k)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopup(k.k) } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform .12s' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
               <span style={{ fontSize: '1.4rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>

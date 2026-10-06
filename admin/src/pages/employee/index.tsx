@@ -570,11 +570,14 @@ export default function EmployeePage() {
       {/* KPI mini row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 8 : 10, marginBottom: 20 }}>
         {[
-          { label: 'ทั้งหมด',    value: employees.length,                                icon: <Users size={15}/>,        color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
-          { label: 'ใช้งาน',     value: employees.filter(e => e.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
-          { label: 'ผูก Line แล้ว', value: employees.filter(e => e.line_user_id).length, icon: <Smartphone size={15}/>,   color: '#0891b2', bg: '#ecfeff',  border: '#a5f3fc' },
+          { active: () => !statusFilter && !lineFilter, apply: () => { setStatusFilter(''); setLineFilter('') }, label: 'ทั้งหมด',    value: employees.length,                                icon: <Users size={15}/>,        color: '#6366f1', bg: '#eef2ff',  border: '#c7d2fe' },
+          { active: () => statusFilter === 'ACTIVE' && !lineFilter, apply: () => { setStatusFilter('ACTIVE'); setLineFilter('') }, label: 'ใช้งาน',     value: employees.filter(e => e.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
+          { active: () => lineFilter === 'linked', apply: () => { setStatusFilter(''); setLineFilter('linked') }, label: 'ผูก Line แล้ว', value: employees.filter(e => e.line_user_id).length, icon: <Smartphone size={15}/>,   color: '#0891b2', bg: '#ecfeff',  border: '#a5f3fc' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, border: `1.5px solid ${k.border}`, borderRadius: 14, padding: '14px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+          <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อกรอง "${k.label}"`}
+            onClick={k.apply}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.apply() } }}
+            style={{ background: k.bg, border: `1.5px solid ${k.active() ? k.color : k.border}`, boxShadow: k.active() ? `0 0 0 3px color-mix(in srgb, ${k.color} 25%, transparent)` : '0 2px 6px rgba(0,0,0,0.05)', borderRadius: 14, padding: '14px 12px', cursor: 'pointer', transition: 'box-shadow .15s, border-color .15s' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ width: 24, height: 24, borderRadius: 7, background: `linear-gradient(135deg, color-mix(in srgb, ${k.color} 55%, white), ${k.color})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{k.icon}</span>
               <span style={{ fontSize: '1.8rem', fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</span>
