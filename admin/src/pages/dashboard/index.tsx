@@ -82,7 +82,7 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
           {/* ไอคอนแบดจ์ gradient แทนพื้นจางเดิม — ปรับ "ความรู้สึก" จาก reference
               สีสันสดที่ user ส่งมา (feedback 2026-09-15 "คุมธีมส้มไปเลย") ยังใช้สี
               ความหมายเดิม (color/bg ต่อ card) แค่เพิ่มมิติให้มีชีวิตชีวาขึ้น */}
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${color} 55%, white), ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${color}4D` }}>{icon}</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${color} 16%, white)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, boxShadow: 'none' }}>{icon}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: '30px', fontWeight: 800, color, lineHeight: 1 }}>{count}</span>
           </div>
@@ -92,7 +92,7 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
       {open && (
         <Modal onClose={() => setOpen(false)} width={440} labelledBy="kpi-modal-title">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 20px', borderBottom: '1px solid #E6ECF4', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${color} 55%, white), ${color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>{icon}</div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${color} 16%, white)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>{icon}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div id="kpi-modal-title" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>{label}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{count} {unit}</div>
@@ -160,7 +160,7 @@ function RangeKpiSection({ branchFilter, offToday }: { branchFilter: string; off
           {RANGE_PRESETS.map(p => (
             <button key={p.id} onClick={() => setPreset(p.id)}
               style={{ padding: '5px 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700,
-                background: preset === p.id ? '#1e293b' : '#E6ECF4', color: preset === p.id ? '#fff' : 'var(--text-muted)' }}>
+                background: preset === p.id ? 'linear-gradient(180deg, #2563EB, #1740B8)' : 'rgba(214,228,248,0.7)', color: preset === p.id ? '#fff' : '#475569', boxShadow: preset === p.id ? '0 4px 12px rgba(23,64,184,0.3)' : 'none' }}>
               {p.label}
             </button>
           ))}
@@ -413,7 +413,42 @@ export default function DashboardPage() {
 
   const pendingLeaveCount = pendingLeaves.length
 
+  const adminName = useAuthStore(s => s.name)
+  const hr = new Date().getHours()
+  const greetTh = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'
+  const greetEn = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening'
+  const todayTh = new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const checkedIn = total - pending
+
   return (
+    <div className="dash-sky">
+      <style>{`
+        .dash-sky .premium-card { border-radius: 24px; border: 1.5px solid #E3ECF8; box-shadow: 0 6px 22px rgba(36,75,131,0.08); }
+        .dash-sky .premium-card:hover { box-shadow: 0 10px 30px rgba(36,75,131,0.14); }
+        .dash-sky .dash-hero-stat { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.32); border-radius: 18px; padding: 10px 16px; min-width: 96px; }
+      `}</style>
+
+      {/* ── แบนเนอร์ทักทาย (โทนเดียวกับแอปพนักงาน) ───────────────── */}
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 30, marginBottom: 24, padding: isMobile ? '22px 20px' : '28px 32px', minHeight: 150,
+        background: 'linear-gradient(135deg, #4FA3FF 0%, #2F86F2 50%, #1F6FE0 100%)', boxShadow: '0 12px 30px rgba(31,111,224,0.25)' }}>
+        <span aria-hidden="true" style={{ position: 'absolute', left: -70, bottom: -60, width: 280, height: 140, borderRadius: '50%', background: 'rgba(120,185,255,0.40)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', right: 120, bottom: -80, width: 360, height: 150, borderRadius: '50%', background: 'rgba(80,150,250,0.45)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', left: 30, top: -60, width: 240, height: 110, borderRadius: '50%', background: 'rgba(150,200,255,0.28)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', right: 230, top: 24, color: '#FFD76A', fontSize: '1.1rem' }}>✦</span>
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: isMobile ? '64%' : '70%' }}>
+          <div style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>YooNai HR · {todayTh}</div>
+          <div style={{ fontWeight: 800, fontSize: isMobile ? '1.6rem' : '2.2rem', color: '#fff', lineHeight: 1.15, marginTop: 4, textShadow: '0 2px 10px rgba(0,40,120,0.25)' }}>{greetTh}{adminName ? ` ${adminName}` : ''}</div>
+          <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{greetEn}</div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+            <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>เช็คอินแล้ว</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{checkedIn}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> / {total} คน</span></div></div>
+            <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>มาสายวันนี้</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{late}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> คน</span></div></div>
+            <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>ใบลารออนุมัติ</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{pendingLeaveCount}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> ใบ</span></div></div>
+          </div>
+        </div>
+        <img src="/dashboard/owl-wave.webp" alt="" aria-hidden="true" draggable={false}
+          style={{ position: 'absolute', right: isMobile ? -20 : 36, top: isMobile ? 14 : 10, width: isMobile ? 120 : 190, height: isMobile ? 120 : 190, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none', zIndex: 1 }} />
+      </div>
+
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 380px', gap: 24, alignItems: 'start' }}>
 
       {/* ── Left Column ───────────────────────────────────────────── */}
@@ -505,7 +540,7 @@ export default function DashboardPage() {
                   aria-pressed={active}
                   style={{ padding: '20px', border: active ? `2px solid ${card.ring}` : '2px solid transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', background: 'var(--bg-card)', boxShadow: active ? `0 0 0 3px ${card.ring}22` : undefined, transition: 'border-color 0.15s, box-shadow 0.15s' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, color-mix(in srgb, ${card.color} 55%, white), ${card.color})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: `0 4px 10px ${card.color}4D` }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${card.color} 16%, white)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.color, boxShadow: 'none' }}>
                       {card.icon}
                     </div>
                     <span style={{ fontSize: '36px', fontWeight: 800, color: card.color, lineHeight: 1 }}>{card.value}</span>
@@ -637,6 +672,7 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }
