@@ -325,15 +325,10 @@ function LiveClock() {
   }, [])
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{
-        fontVariantNumeric: 'tabular-nums', fontSize: '3rem', fontWeight: 800,
-        background: COLOR.primary,
-        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        lineHeight: 1, marginBottom: 8, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.12))',
-      }}>
+      <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: '3.5rem', fontWeight: 800, color: '#0F2A5C', lineHeight: 1, marginBottom: 8, letterSpacing: '-1px' }}>
         {formatTime(now)}
       </div>
-      <div style={{ fontSize: '0.85rem', color: COLOR.textSecondary, letterSpacing: '0.5px', fontWeight: 500 }}>
+      <div style={{ fontSize: '1.15rem', color: '#374151', fontWeight: 500 }}>
         {formatThaiDate(now)}
       </div>
     </div>
@@ -768,37 +763,48 @@ export default function CheckinPage() {
   const busy = showScanner || !!preview
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div className="page-container ci-page" style={{ maxWidth: 430, margin: '0 auto', position: 'relative', overflow: 'hidden', background: '#EAF4FF url(/checkin/bg.webp) center top / cover no-repeat' }}>
+      <style>{`
+        @keyframes ci-breathe { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.035) } }
+        @keyframes ci-owl { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+        .ci-btn { transition: transform .15s ease; -webkit-tap-highlight-color: transparent }
+        .ci-btn:active:not(:disabled) { transform: scale(.95) }
+        @media (prefers-reduced-motion: reduce) { .ci-breathe, .ci-owl { animation: none !important } }
+      `}</style>
 
-      {/* ── Orange Gradient Header ─────────────────────────────────── */}
-      <div className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 1 }}>YooNai HR</div>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{th}</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>{en}</div>
+      {/* ลายนกฮูกจางๆ เป็นลายน้ำมุมล่าง — ตกแต่งเฉยๆ ไม่รับการกด */}
+      <img src="/checkin/owl-ghost.webp" alt="" aria-hidden="true" draggable={false}
+        style={{ position: 'absolute', right: -70, bottom: 70, width: '82%', opacity: 0.5, pointerEvents: 'none', userSelect: 'none', zIndex: 0 }} />
+
+      <div style={{ position: 'relative', zIndex: 1, padding: '26px 22px 120px' }}>
+
+        {/* ทักทาย + นกฮูกชะโงกเหนือการ์ด */}
+        <div style={{ position: 'relative', zIndex: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', minHeight: 170 }}>
+          <div style={{ paddingBottom: 34, minWidth: 0 }}>
+            <div style={{ fontSize: '1.05rem', color: '#1D4ED8', fontWeight: 500, marginBottom: 2 }}>YooNai HR</div>
+            <div style={{ fontWeight: 800, fontSize: '2.05rem', color: '#0F2A5C', lineHeight: 1.15, letterSpacing: '-0.3px' }}>{th}</div>
+            <div style={{ fontSize: '1.15rem', color: '#4B5563', marginTop: 2 }}>{en}</div>
           </div>
+          <img src="/checkin/owl.webp" alt="" aria-hidden="true" draggable={false} className="ci-owl"
+            style={{ width: 196, height: 196, flexShrink: 0, marginRight: -4, marginBottom: -26, objectFit: 'contain', animation: 'ci-owl 4s ease-in-out infinite', pointerEvents: 'none', userSelect: 'none' }} />
         </div>
-      </div>
 
-      {/* ── White Panel ───────────────────────────────────────────── */}
-      <div className="app-panel" style={{ paddingBottom: 100 }}>
-
-        {/* Employee card */}
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', marginBottom: 32 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary }}>{employee.first_name} {employee.last_name}</div>
-            <div style={{ fontSize: '0.8rem', color: COLOR.info, marginTop: 2, fontWeight: 500 }}>{employee.employee_code} · {employee.branch.name}</div>
+        {/* การ์ดพนักงาน */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: 12, padding: '18px 20px', marginBottom: 22,
+          background: '#fff', borderRadius: 24, boxShadow: '0 8px 28px rgba(36,75,131,0.12)' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{employee.first_name} {employee.last_name}</div>
+            <div style={{ fontSize: '0.95rem', color: '#1D4ED8', marginTop: 3, fontWeight: 600 }}>{employee.employee_code} · {employee.branch.name}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700,
-            color: allCheckedOut ? '#6b7280' : hasOpenRecord ? '#1d4ed8' : COLOR.success,
-            background: allCheckedOut ? '#f3f4f6' : hasOpenRecord ? '#eff6ff' : COLOR.successBg,
-            padding: '6px 12px', borderRadius: 99 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.95rem', fontWeight: 800, flexShrink: 0,
+            color: allCheckedOut ? '#6b7280' : hasOpenRecord ? '#1d4ed8' : '#16A34A',
+            background: allCheckedOut ? '#f3f4f6' : hasOpenRecord ? '#DBEAFE' : '#DCFCE7',
+            padding: '10px 18px', borderRadius: 99 }}>
             {allCheckedOut
-              ? <><CheckCircle2 size={13} /> เสร็จแล้ว</>
+              ? <><CheckCircle2 size={18} /> เสร็จแล้ว</>
               : hasOpenRecord
-                ? <><Clock size={13} /> กำลังทำงาน</>
-                : <><CheckCircle2 size={13} /> พร้อม</>}
+                ? <><Clock size={18} /> กำลังทำงาน</>
+                : <><CheckCircle2 size={18} /> พร้อม</>}
           </div>
         </div>
 
@@ -842,9 +848,49 @@ export default function CheckinPage() {
           </div>
         )}
 
+        {/* ปุ่มหลักปุ่มเดียว — เปลี่ยนตามสถานะ (เช็คอิน / เช็คเอาต์ / เสร็จแล้ว)
+            เดิมมี 2 วงกลมโชว์พร้อมกันโดยอันที่ใช้ไม่ได้จะจาง ทำให้ต้องคิดทุกครั้งว่ากดอันไหน */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, margin: '10px 0 4px' }}>
+          {(() => {
+            const mode: 'checkin' | 'checkout' | 'done' = allCheckedOut ? 'done' : hasOpenRecord ? 'checkout' : 'checkin'
+            const disabled = busy || mode === 'done'
+            if (mode === 'checkin') {
+              return (
+                <button type="button" className="ci-btn" onClick={() => openScanner('checkin')} disabled={disabled} aria-label="เช็คอิน — สแกน QR"
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1, borderRadius: '50%' }}>
+                  <img src="/checkin/btn.webp" alt="" draggable={false} className="ci-breathe"
+                    style={{ display: 'block', width: 270, height: 270, animation: 'ci-breathe 3s ease-in-out infinite', userSelect: 'none' }} />
+                </button>
+              )
+            }
+            const cfg = mode === 'checkout'
+              ? { bg: 'linear-gradient(180deg, #38A0FF, #0B63F6)', Icon: Flag, label: 'เช็คเอาต์', glow: '0 0 0 10px rgba(56,160,255,0.22), 0 0 0 22px rgba(56,160,255,0.12), 0 14px 34px rgba(11,99,246,0.35)' }
+              : { bg: 'linear-gradient(180deg, #E5E7EB, #CBD5E1)', Icon: CheckCircle2, label: 'เสร็จแล้ว', glow: '0 0 0 10px rgba(148,163,184,0.18)' }
+            return (
+              <button type="button" className="ci-btn" onClick={() => openScanner('checkout')} disabled={disabled}
+                aria-label={mode === 'done' ? 'เสร็จงานวันนี้แล้ว' : 'เช็คเอาต์ — สแกน QR'}
+                style={{ width: 196, height: 196, margin: 37, borderRadius: '50%', border: '4px solid #fff', cursor: disabled ? 'not-allowed' : 'pointer', background: cfg.bg, boxShadow: cfg.glow,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy ? 0.6 : 1 }}>
+                <cfg.Icon size={52} strokeWidth={1.8} color={mode === 'done' ? '#64748B' : '#fff'} />
+                <span style={{ fontSize: '1.3rem', fontWeight: 800, color: mode === 'done' ? '#64748B' : '#fff' }}>{cfg.label}</span>
+              </button>
+            )
+          })()}
+
+          {!error && (
+            <div style={{ fontSize: '1rem', color: '#374151', textAlign: 'center', lineHeight: 1.65, whiteSpace: 'pre-line', fontWeight: 500 }}>
+              {hasOpenRecord
+                ? 'สแกน QR Code เดิมที่หน้าสาขา เพื่อเช็คเอาต์'
+                : allCheckedOut
+                  ? 'เสร็จงานวันนี้แล้ว!'
+                  : 'สแกน QR Code ที่ติดไว้หน้าสาขา\nระบบตรวจจับกะจากเวลาที่สแกนอัตโนมัติ'}
+            </div>
+          )}
+        </div>
+
         {/* Today status strip */}
         {todayRecords.length > 0 && (
-          <div style={{ margin: '20px 0 0', padding: '12px 16px', borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <div style={{ margin: '20px 0 0', boxShadow: '0 4px 16px rgba(36,75,131,0.08)', padding: '12px 16px', borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>วันนี้</div>
             {todayRecords.map(r => (
               <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #E6ECF4', fontSize: '0.82rem' }}>
@@ -857,51 +903,6 @@ export default function CheckinPage() {
             ))}
           </div>
         )}
-
-        {/* ปุ่มหลักปุ่มเดียว — เปลี่ยนตามสถานะ (เช็คอิน / เช็คเอาต์ / เสร็จแล้ว)
-            เดิมมี 2 วงกลมโชว์พร้อมกันโดยอันที่ใช้ไม่ได้จะจาง ทำให้ต้องคิดทุกครั้งว่ากดอันไหน */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, margin: '36px 0 8px' }}>
-          {(() => {
-            const mode: 'checkin' | 'checkout' | 'done' = allCheckedOut ? 'done' : hasOpenRecord ? 'checkout' : 'checkin'
-            const cfg = {
-              checkin:  { bg: COLOR.primary, Icon: QrCode, label: 'เช็คอิน',  shadow: '0 4px 14px rgba(36,75,131,0.25)' },
-              checkout: { bg: '#2563EB',     Icon: Flag,   label: 'เช็คเอาต์', shadow: '0 4px 14px rgba(37,99,235,0.25)' },
-              done:     { bg: '#e5e7eb',     Icon: CheckCircle2, label: 'เสร็จแล้ว', shadow: 'none' },
-            }[mode]
-            return (
-              <button
-                type="button"
-                onClick={() => openScanner(mode === 'checkout' ? 'checkout' : 'checkin')}
-                disabled={busy || mode === 'done'}
-                aria-label={mode === 'done' ? 'เสร็จงานวันนี้แล้ว' : `${cfg.label} — สแกน QR`}
-                style={{
-                  width: 168, height: 168, borderRadius: '50%', border: 'none',
-                  cursor: (busy || mode === 'done') ? 'not-allowed' : 'pointer',
-                  background: cfg.bg,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  boxShadow: cfg.shadow,
-                  opacity: busy ? 0.6 : 1,
-                  transition: 'background 0.2s',
-                }}
-              >
-                <cfg.Icon size={48} strokeWidth={1.6} color={mode === 'done' ? '#9ca3af' : '#fff'} />
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: mode === 'done' ? '#9ca3af' : '#fff', letterSpacing: '0.3px' }}>
-                  {cfg.label}
-                </span>
-              </button>
-            )
-          })()}
-
-          {!error && (
-            <div style={{ fontSize: '0.8rem', color: COLOR.textMuted, textAlign: 'center', lineHeight: 1.6, marginTop: 4, whiteSpace: 'pre-line' }}>
-              {hasOpenRecord
-                ? 'สแกน QR Code เดิมที่หน้าสาขา เพื่อเช็คเอาต์'
-                : allCheckedOut
-                  ? 'เสร็จงานวันนี้แล้ว!'
-                  : 'สแกน QR Code ที่ติดไว้หน้าสาขา\nระบบตรวจจับกะจากเวลาที่สแกนอัตโนมัติ'}
-            </div>
-          )}
-        </div>
 
         {/* เช็คอินนอกสถานที่ — ปักหมุด GPS อิสระจากกะปกติ ใช้ได้ทุกเมื่อ แต่ต้องมี
             สิทธิ์รายบุคคลก่อน (feedback 2026-09-15: "ใช้ได้สำหรับคนที่มีสิทธิเท่านั้น")

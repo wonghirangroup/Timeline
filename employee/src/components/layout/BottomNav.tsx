@@ -33,8 +33,8 @@ export default function BottomNav() {
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: COLOR.navBg,
-      borderRadius: 0,
-      boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+      borderRadius: '24px 24px 0 0',
+      boxShadow: '0 -6px 24px rgba(36,75,131,0.10)',
       borderTop: `1px solid ${COLOR.navBorder}`,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '8px 8px calc(8px + env(safe-area-inset-bottom, 0px))',
