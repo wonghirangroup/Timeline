@@ -786,7 +786,7 @@ export default function CheckinPage() {
             <div style={{ fontSize: '1.15rem', color: '#4B5563', marginTop: 2 }}>{en}</div>
           </div>
           <img src="/checkin/owl.webp" alt="" aria-hidden="true" draggable={false} className="ci-owl"
-            style={{ width: 176, height: 176, flexShrink: 0, marginRight: -2, marginBottom: -34, objectFit: 'contain', animation: 'ci-owl 4s ease-in-out infinite', pointerEvents: 'none', userSelect: 'none' }} />
+            style={{ width: 176, height: 176, flexShrink: 0, marginRight: -2, marginBottom: -34, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
         </div>
 
         {/* การ์ดพนักงาน */}

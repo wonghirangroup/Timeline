@@ -116,7 +116,7 @@ export default function ProfilePage() {
           YooNai<br />Employee<br /><span style={{ fontSize: '1.1rem' }}>♡</span>
         </div>
         <img src="/checkin/owl-wave.webp" alt="" aria-hidden="true" draggable={false} className="px-owl"
-          style={{ position: 'absolute', right: -18, top: 6, width: 132, height: 132, objectFit: 'contain', animation: 'px-owl 4s ease-in-out infinite', pointerEvents: 'none' }} />
+          style={{ position: 'absolute', right: -18, top: 6, width: 132, height: 132, objectFit: 'contain', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ position: 'relative', width: 104, height: 104 }}>

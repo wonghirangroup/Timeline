@@ -339,7 +339,7 @@ export default function HistoryPage() {
             </div>
           </div>
           <img src="/checkin/owl-calendar.webp" alt="" aria-hidden="true" draggable={false} className="hx-owl"
-            style={{ position: 'absolute', right: -6, bottom: -8, width: 158, height: 158, objectFit: 'contain', zIndex: 2, animation: 'hx-owl 4s ease-in-out infinite', pointerEvents: 'none' }} />
+            style={{ position: 'absolute', right: -6, bottom: -8, width: 158, height: 158, objectFit: 'contain', zIndex: 2, pointerEvents: 'none' }} />
         </div>
 
         {/* ── แท็บประเภท ──────────────────────────────────────────── */}

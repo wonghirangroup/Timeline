@@ -2014,7 +2014,7 @@ export default function LeavePage() {
             </div>
           </div>
           <img src="/checkin/owl-beach.webp" alt="" aria-hidden="true" draggable={false} className="lx-owl"
-            style={{ position: 'absolute', right: -14, bottom: -10, width: 190, height: 190, objectFit: 'contain', zIndex: 2, animation: 'lx-owl 4.5s ease-in-out infinite', pointerEvents: 'none' }} />
+            style={{ position: 'absolute', right: -14, bottom: -10, width: 190, height: 190, objectFit: 'contain', zIndex: 2, pointerEvents: 'none' }} />
         </div>
 
         {/* ── วันลาคงเหลือ (แถบฟ้าแก้ว) ─────────────────────────── */}
