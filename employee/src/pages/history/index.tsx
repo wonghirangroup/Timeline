@@ -1,7 +1,7 @@
 // employee/src/pages/history/index.tsx
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet, FileText, Palmtree, MapPin, AlertTriangle, PartyPopper } from 'lucide-react'
+import { CheckCircle2, Ban, Clock, XCircle, ClipboardList, Wallet, FileText, Palmtree, MapPin, AlertTriangle, PartyPopper, CalendarDays, ChevronDown } from 'lucide-react'
 import { PageLoader, COLOR } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -311,88 +311,114 @@ export default function HistoryPage() {
     : loadingOffsite
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div className="page-container hx-page" style={{ maxWidth: 430, margin: '0 auto', background: '#EAF4FF url(/checkin/bg.webp) center top / cover fixed no-repeat' }}>
+      <style>{`
+        .hx-card { background: #fff; border-radius: 26px; box-shadow: 0 6px 22px rgba(36,75,131,0.08); border: 1.5px solid #E3ECF8 }
+        .hx-late { border-color: #FB923C !important; box-shadow: 0 0 0 4px rgba(251,146,60,0.14), 0 10px 28px rgba(251,146,60,0.22) !important; background: #FFFBF5 !important }
+        .hx-tab { transition: background .15s, transform .12s }
+        .hx-tab:active { transform: scale(.96) }
+        @keyframes hx-owl { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+        @media (prefers-reduced-motion: reduce) { .hx-owl { animation: none !important } }
+      `}</style>
 
-      {/* ── Orange Gradient Header ──────────────────────────────── */}
-      <div className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>ประวัติ</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>
+      <div style={{ padding: '16px 16px 120px' }}>
+
+        {/* ── แบนเนอร์หัวหน้า (ท้องฟ้า+เมฆ+นกฮูกถือปฏิทิน) ───────────── */}
+        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 30, padding: '24px 22px', minHeight: 150,
+          background: 'linear-gradient(135deg, #1B6EF0 0%, #3B9BFF 100%)', boxShadow: '0 12px 30px rgba(27,110,240,0.28)' }}>
+          <span aria-hidden="true" style={{ position: 'absolute', right: 108, top: 16, width: 90, height: 34, borderRadius: 99, background: 'rgba(255,255,255,0.22)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: -30, bottom: -34, width: 190, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.28)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: 90, bottom: -42, width: 170, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.22)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', right: -24, bottom: -40, width: 200, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: 150, top: 22, color: '#BFE0FF', fontSize: '1.1rem' }}>✦</span>
+          <span aria-hidden="true" style={{ position: 'absolute', right: 18, top: 24, color: '#FFD76A', fontSize: '1rem' }}>✦</span>
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: '62%' }}>
+            <div style={{ fontWeight: 800, fontSize: '2.2rem', color: '#fff', lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,40,120,0.25)' }}>ประวัติ</div>
+            <div style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.95)', marginTop: 10, lineHeight: 1.4 }}>
               {employee ? `${employee.first_name} ${employee.last_name} · ${employee.branch.name}` : ''}
             </div>
           </div>
+          <img src="/checkin/owl-calendar.webp" alt="" aria-hidden="true" draggable={false} className="hx-owl"
+            style={{ position: 'absolute', right: -6, bottom: -8, width: 158, height: 158, objectFit: 'contain', zIndex: 2, animation: 'hx-owl 4s ease-in-out infinite', pointerEvents: 'none' }} />
         </div>
 
-        {/* ── Record type tabs ─────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {/* ── แท็บประเภท ──────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, padding: 8, borderRadius: 26, background: 'linear-gradient(180deg, #2F86F2, #1D6FE0)', boxShadow: '0 8px 22px rgba(29,111,224,0.28)' }}>
           {TABS.map(t => {
             const active = recordType === t.id
             return (
-              <button key={t.id} onClick={() => setRecordType(t.id)}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  padding: '8px 2px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                  background: active ? 'rgba(255,255,255,0.94)' : 'rgba(255,255,255,0.14)',
-                  color: active ? COLOR.primary : 'rgba(255,255,255,0.85)',
-                }}>
-                <t.Icon size={15} />
-                <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>{t.label}</span>
+              <button key={t.id} className="hx-tab" onClick={() => setRecordType(t.id)} aria-pressed={active}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '11px 2px 9px', borderRadius: 18, border: active ? 'none' : '1px solid rgba(255,255,255,0.28)', cursor: 'pointer', fontFamily: 'inherit',
+                  background: active ? '#fff' : 'rgba(255,255,255,0.16)', color: active ? '#1D4ED8' : '#fff', boxShadow: active ? '0 4px 12px rgba(0,40,120,0.18)' : 'none' }}>
+                <t.Icon size={22} strokeWidth={2} />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800 }}>{t.label}</span>
               </button>
             )
           })}
         </div>
 
-        {recordType === 'attendance' && (
-          <div className="header-stat-row">
-            <div className="header-stat-col">
-              <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> ตรงเวลา</div>
-              <div className="header-stat-value">{cntOnTime} วัน</div>
-            </div>
-            <div className="header-stat-col">
-              <div className="header-stat-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={13} /> มาสาย</div>
-              <div className="header-stat-value">{cntLate} วัน</div>
-            </div>
+        {/* ── เลือกเดือน ──────────────────────────────────────────── */}
+        <div style={{ position: 'relative', marginTop: 14, height: 58, borderRadius: 22, background: '#fff', boxShadow: '0 6px 20px rgba(36,75,131,0.10)', border: '1.5px solid #E3ECF8', overflow: 'hidden' }}>
+          <span aria-hidden="true" style={{ position: 'absolute', right: 70, bottom: -24, width: 130, height: 56, borderRadius: '50%', background: '#DCEBFB' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', right: 20, bottom: -26, width: 90, height: 50, borderRadius: '50%', background: '#E8F1FC' }} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, height: '100%', padding: '0 20px' }}>
+            <CalendarDays size={26} color="#1D6FE0" strokeWidth={2} />
+            <span style={{ fontWeight: 800, fontSize: '1.3rem', color: '#0B3A9E' }}>
+              {(() => { const [yy, mm] = selectedMonth.split('-').map(Number); return `${MONTHS[mm - 1]} ${yy + 543}` })()}
+            </span>
+            <ChevronDown size={22} color="#F97316" strokeWidth={3} style={{ marginLeft: 'auto' }} />
           </div>
-        )}
-
-        {/* Month selector — dropdown */}
-        <div style={{ marginTop: recordType === 'attendance' ? 16 : 0 }}>
-          <select
-            value={selectedMonth}
+          <select aria-label="เลือกเดือน" value={selectedMonth}
             onChange={e => { setSelectedMonth(e.target.value); setFilterTab('all') }}
-            style={{
-              width: '100%', padding: '9px 14px', borderRadius: 14, border: 'none', cursor: 'pointer',
-              fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
-              background: 'rgba(255,255,255,0.94)', color: COLOR.primary, outline: 'none',
-              appearance: 'none', WebkitAppearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23FF5E00' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
-            }}
-          >
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', fontSize: '16px' }}>
             {displayMonths.map(mo => {
               const [yy, mm] = mo.split('-').map(Number)
               return <option key={mo} value={mo}>{MONTHS[mm - 1]} {yy + 543}</option>
             })}
           </select>
         </div>
-      </div>
 
-      {/* ── White Content Panel ─────────────────────────────────── */}
-      <div className="app-panel" style={{ paddingBottom: 100 }}>
-
-        {/* Filter tabs — เฉพาะแท็บเช็คชื่อ */}
+        {/* ── สรุป ตรงเวลา / มาสาย (เฉพาะแท็บเช็คชื่อ) ──────────────── */}
         {recordType === 'attendance' && (
-          <div className="fw-tabs" style={{ background: COLOR.pageBg, padding: 6, borderRadius: 16 }}>
+          <div style={{ position: 'relative', overflow: 'hidden', marginTop: 14, display: 'flex', alignItems: 'center', borderRadius: 26, padding: '16px 18px', background: 'rgba(255,255,255,0.94)', border: '1.5px solid #E3ECF8', boxShadow: '0 6px 22px rgba(36,75,131,0.08)' }}>
+            <img src="/checkin/owl-ghost2.webp" alt="" aria-hidden="true" draggable={false}
+              style={{ position: 'absolute', right: -52, bottom: -56, width: 128, height: 128, opacity: 0.45, pointerEvents: 'none' }} />
+            {[
+              { label: 'ตรงเวลา', value: cntOnTime, Icon: Clock, color: '#15803D', tile: '#DCFCE7' },
+              { label: 'มาสาย',   value: cntLate,   Icon: Clock, color: '#EA580C', tile: '#FFEDD5' },
+            ].map((x, i) => (
+              <div key={x.label} style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', gap: 12, paddingLeft: i ? 16 : 0, borderLeft: i ? '1.5px solid #DCE6F5' : 'none' }}>
+                <div style={{ width: 50, height: 50, borderRadius: 16, background: x.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <x.Icon size={26} color={x.color} strokeWidth={2.3} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.92rem', color: '#1E2A4A' }}>{x.label}</div>
+                  <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#0F1B3D', lineHeight: 1.1 }}>
+                    {x.value} <span style={{ fontSize: '1.4rem' }}>วัน</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── ตัวกรอง (เฉพาะแท็บเช็คชื่อ) ──────────────────────────── */}
+        {recordType === 'attendance' && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 14, padding: 7, borderRadius: 99, background: 'rgba(235,243,254,0.95)', border: '1px solid #DCE8F8' }}>
             {([
               { key: 'all',    label: `ทั้งหมด (${resolved.length})` },
               { key: 'ontime', label: `ตรงเวลา (${cntOnTime})` },
               { key: 'late',   label: `สาย/ขาด (${cntLate + cntAbsent})` },
-            ] as { key: FilterTab; label: string }[]).map(t => (
-              <button key={t.key} className={`fw-tab${filterTab === t.key ? ' active' : ''}`} onClick={() => setFilterTab(t.key)}>
-                {t.label}
-              </button>
-            ))}
+            ] as { key: FilterTab; label: string }[]).map(t => {
+              const on = filterTab === t.key
+              return (
+                <button key={t.key} className="hx-tab" onClick={() => setFilterTab(t.key)} aria-pressed={on}
+                  style={{ flex: on ? 1.25 : 1, padding: '13px 4px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.92rem', fontWeight: 800, whiteSpace: 'nowrap',
+                    background: on ? 'linear-gradient(180deg, #2563EB, #1740B8)' : 'rgba(214,228,248,0.7)', color: on ? '#fff' : '#475569', boxShadow: on ? '0 6px 16px rgba(23,64,184,0.35)' : 'none' }}>
+                  {t.label}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -415,13 +441,13 @@ export default function HistoryPage() {
                 const StatusIcon = st.Icon
 
                 return (
-                  <div key={it.kind === 'record' ? it.rec.id : `syn-${it.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms`, border: `1.5px solid ${st.color}`, background: `${st.bg}40` }}>
-                    <div className={st.bubble}>
-                      <StatusIcon size={22} strokeWidth={2} />
+                  <div key={it.kind === 'record' ? it.rec.id : `syn-${it.date}`} className={`hx-card animate-slide-up${rec?.is_late || st.label === 'ขาดงาน' || st.label === 'นับเป็นขาด' ? ' hx-late' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                    <div style={{ width: 62, height: 62, borderRadius: 20, background: `${st.color}1F`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <StatusIcon size={30} color={st.color} strokeWidth={2.3} />
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: COLOR.textPrimary }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.25rem', color: '#0B1220' }}>
                         {d.getDate()} {MONTHS[d.getMonth()]} {DAYS_TH[d.getDay()]}
                       </div>
                       {rec?.check_in_at ? (
@@ -443,7 +469,7 @@ export default function HistoryPage() {
                       )}
                     </div>
 
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: st.color, background: '#fff', border: `1px solid ${st.color}`, padding: '6px 12px', borderRadius: 12, flexShrink: 0, maxWidth: 140, textAlign: 'right', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: st.color, background: '#fff', border: `1px solid ${st.color}`, padding: '6px 12px', borderRadius: 16, flexShrink: 0, maxWidth: 140, textAlign: 'right', lineHeight: 1.3, wordBreak: 'break-word' }}>
                       {st.label}
                     </span>
                   </div>
@@ -467,7 +493,7 @@ export default function HistoryPage() {
                 const sc = STATUS_CFG[r.status]
                 const sameDay = r.start_date.slice(0, 10) === r.end_date.slice(0, 10)
                 return (
-                  <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                  <div key={r.id} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                     <div style={{ width: 44, height: 44, borderRadius: 14, background: `${tc.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <FileText size={20} color={tc.color} />
                     </div>
@@ -502,7 +528,7 @@ export default function HistoryPage() {
               {dayoffMerged.map((item, i) => {
                 if (item.kind === 'holiday') {
                   return (
-                    <div key={`hol-${item.date}`} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                    <div key={`hol-${item.date}`} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                       <div style={{ width: 44, height: 44, borderRadius: 14, background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <PartyPopper size={20} color="#4338ca" />
                       </div>
@@ -518,7 +544,7 @@ export default function HistoryPage() {
                 const r = item.rec
                 const sc = STATUS_CFG[r.status]
                 return (
-                  <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                  <div key={r.id} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                     <div style={{ width: 44, height: 44, borderRadius: 14, background: `${COLOR.primary}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Palmtree size={20} color={COLOR.primary} />
                     </div>
@@ -551,7 +577,7 @@ export default function HistoryPage() {
               {offsiteFiltered.map((r, i) => {
                 const isOpen = !r.check_out_at
                 return (
-                  <div key={r.id} className="glass-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                  <div key={r.id} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
                     <div style={{ width: 44, height: 44, borderRadius: 14, background: '#FAF5FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <MapPin size={20} color="#9333EA" />
                     </div>

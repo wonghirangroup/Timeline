@@ -782,11 +782,11 @@ export default function CheckinPage() {
         <div style={{ position: 'relative', zIndex: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', minHeight: 170 }}>
           <div style={{ paddingBottom: 34, minWidth: 0 }}>
             <div style={{ fontSize: '1.05rem', color: '#1D4ED8', fontWeight: 500, marginBottom: 2 }}>YooNai HR</div>
-            <div style={{ fontWeight: 800, fontSize: '2.05rem', color: '#0F2A5C', lineHeight: 1.15, letterSpacing: '-0.3px' }}>{th}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.75rem', color: '#0F2A5C', lineHeight: 1.15, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>{th}</div>
             <div style={{ fontSize: '1.15rem', color: '#4B5563', marginTop: 2 }}>{en}</div>
           </div>
           <img src="/checkin/owl.webp" alt="" aria-hidden="true" draggable={false} className="ci-owl"
-            style={{ width: 196, height: 196, flexShrink: 0, marginRight: -4, marginBottom: -26, objectFit: 'contain', animation: 'ci-owl 4s ease-in-out infinite', pointerEvents: 'none', userSelect: 'none' }} />
+            style={{ width: 176, height: 176, flexShrink: 0, marginRight: -2, marginBottom: -34, objectFit: 'contain', animation: 'ci-owl 4s ease-in-out infinite', pointerEvents: 'none', userSelect: 'none' }} />
         </div>
 
         {/* การ์ดพนักงาน */}

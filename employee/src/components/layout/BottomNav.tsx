@@ -31,13 +31,14 @@ export default function BottomNav() {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
+      position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+      bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+      width: 'min(406px, calc(100% - 24px))',
       background: COLOR.navBg,
-      borderRadius: '24px 24px 0 0',
-      boxShadow: '0 -6px 24px rgba(36,75,131,0.10)',
-      borderTop: `1px solid ${COLOR.navBorder}`,
+      borderRadius: 30,
+      boxShadow: '0 10px 32px rgba(36,75,131,0.20), 0 0 0 1px rgba(36,75,131,0.06)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '8px 8px calc(8px + env(safe-area-inset-bottom, 0px))',
+      padding: '8px 8px 6px',
       zIndex: 50,
     }}>
       {NAV_ITEMS.map(({ path, label, Icon }) => {
@@ -85,6 +86,7 @@ export default function BottomNav() {
             }}>
               {label}
             </span>
+            <span aria-hidden="true" style={{ width: 20, height: 4, borderRadius: 99, background: active ? COLOR.primary : 'transparent', marginTop: 1 }} />
           </NavLink>
         )
       })}
