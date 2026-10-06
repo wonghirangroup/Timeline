@@ -4,7 +4,7 @@ import {
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2, DoorOpen, FileText,
-  TrendingUp, CalendarOff, MessageCircle,
+  TrendingUp, CalendarOff, MessageCircle, BookOpen,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -305,6 +305,11 @@ function SidebarContent({ onLogout, onNavClick, collapsed, onToggleCollapse }: {
             </div>
           )
         })}
+
+        {/* คู่มือการใช้งาน — ทุกบัญชีเห็น */}
+        <div style={{ marginTop: 8 }}>
+          <NavItem item={{ path: '/manual', label: 'วิธีการใช้งาน', icon: <BookOpen size={16}/> }} accent={SETTINGS_ACCENT} />
+        </div>
 
         {/* Settings */}
         {visible(undefined, undefined, 'settings') && (

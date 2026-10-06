@@ -18,6 +18,7 @@ import LineMessagesReportPage from './pages/report/line-messages'
 import AttendancePage       from './pages/attendance'
 import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
+import ManualPage            from './pages/manual'
 import OffsitePage          from './pages/offsite'
 import ShiftPage            from './pages/shift'
 import AnnouncementPage     from './pages/announcement'
@@ -57,6 +58,7 @@ function AdminRoutes() {
         <Route path="/leave-balance"  element={<Navigate to="/leave" replace />} />
         <Route path="/weekly-off"     element={<Navigate to="/leave" replace />} />
         <Route path="/ot"            element={<OtPage />} />
+        <Route path="/manual"        element={<ManualPage />} />
         <Route path="/offsite"       element={<OffsitePage />} />
         <Route path="/report"        element={<ReportPage />} />
         {/* หมวดรายงานใหม่ (feedback 2026-09-22) — ครบทั้ง 7 หมวดแล้ว */}

@@ -7,6 +7,7 @@ import { PhotoCropModal } from '../../components/ui/PhotoCropModal'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { uploadCroppedImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
+import { GuideCarousel } from '../../components/ui/GuideCarousel'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [switchingToAdmin, setSwitchingToAdmin] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
   // รูปที่เพิ่งเลือกแต่ยังไม่ครอป — เปิด PhotoCropModal ให้ปรับกรอบเองก่อน
   // อัปโหลดจริง (feedback 2026-09-29 "ปรับขนาดที่ต้องการให้แสดงเป็นหน้าโปรไฟล์ได้"
   // — เดิมอัปโหลดตรงแล้วให้ Cloudinary auto-crop ด้วย face-detection เลือกกรอบเองไม่ได้)
@@ -182,6 +184,17 @@ export default function ProfilePage() {
             <span style={{ color: '#A5B4FC', fontSize: '1.1rem' }}>›</span>
           </button>
         )}
+
+        <button onClick={() => setShowGuide(true)}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '13px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#244B83', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.2rem' }}>📖</div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#1A2B3C' }}>คู่มือการใช้งาน</div>
+            <div style={{ fontSize: '0.75rem', color: '#6C89F5', marginTop: 2 }}>วิธีผูกบัญชีและเริ่มเช็คอิน 6 ขั้นตอน</div>
+          </div>
+          <span style={{ color: '#D1D5DB', fontSize: '1.1rem' }}>›</span>
+        </button>
+        {showGuide && <GuideCarousel onClose={() => setShowGuide(false)} />}
 
         <div style={{ textAlign: 'center', paddingTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {import.meta.env.DEV && (

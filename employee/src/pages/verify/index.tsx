@@ -7,6 +7,7 @@ import { api, setJwt } from '../../lib/axios'
 import { PageLoader } from '../../components/ui'
 import { PhotoCropModal } from '../../components/ui/PhotoCropModal'
 import { uploadCroppedImage } from '../../lib/upload'
+import { GuideCarousel, guideSeen } from '../../components/ui/GuideCarousel'
 
 interface EmpItem {
   id: string; first_name: string; last_name: string
@@ -34,6 +35,8 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   const [selected,  setSelected] = useState<EmpItem | null>(null)
   const [linking,   setLinking]  = useState(false)
   const [errMsg,    setErrMsg]   = useState('')
+  // คู่มือเข้าใช้งานครั้งแรก — เล่นอัตโนมัติครั้งเดียว (จำไว้ในเครื่อง) แล้วเปิดดูซ้ำได้จากลิงก์ใต้คำต้อนรับ
+  const [showGuide,  setShowGuide] = useState(() => !guideSeen())
   const [empCode,   setEmpCode]  = useState('')
   // ขั้นตอนรูปโปรไฟล์หลังผูกบัญชี — เลือกอัปโหลดเลย หรือไว้ทีหลัง (ไปทำที่หน้าโปรไฟล์)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -272,12 +275,17 @@ export default function VerifyPage({ onLinked }: { onLinked?: () => void } = {})
   // ── Select ──
   return (
     <div style={{ maxWidth: 430, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-page)' }}>
+      {showGuide && <GuideCarousel onClose={() => setShowGuide(false)} />}
       <div className="header-strip animate-fade-in" style={{ padding: '32px 16px 20px', textAlign: 'center' }}>
         <div style={{ width: 40, height: 4, borderRadius: 99, background: 'var(--accent-primary)', margin: '0 auto 14px' }} />
         <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>ยินดีต้อนรับ 👋</div>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>
           เลือกชื่อของคุณจากรายการด้านล่าง
         </div>
+        <button type="button" onClick={() => setShowGuide(true)}
+          style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-primary)', textDecoration: 'underline', fontFamily: 'inherit' }}>
+          📖 ดูวิธีผูกบัญชี (6 ขั้นตอน)
+        </button>
         {profile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginTop: 10 }}>
             {profile.pictureUrl && <img src={profile.pictureUrl} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} alt="" />}
