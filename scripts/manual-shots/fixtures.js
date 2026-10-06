@@ -92,6 +92,24 @@ const announcements = [
   { id: 'an1', title: 'แจ้งปิดทำการวันหยุดนักขัตฤกษ์', content: 'บริษัทขอแจ้งปิดทำการในวันศุกร์ที่ 23 ตุลาคม เปิดทำการตามปกติวันจันทร์', send_line: true, created_at: iso(ymd(Y, M, 3), '10:00') },
   { id: 'an2', title: 'อบรมความปลอดภัยประจำไตรมาส', content: 'ขอเชิญพนักงานทุกสาขาเข้าร่วมอบรม วันที่ 15 เวลา 13:00 น.', send_line: true, created_at: iso(ymd(Y, M, 1), '09:30') },
 ]
+
+const offsite = [
+  { id: 'of1', check_in_at: iso(today, '09:30'), check_in_lat: '13.7563', check_in_lng: '100.5018', check_in_address: 'ลูกค้า บริษัท ตัวอย่างการค้า ถนนพระราม 4', check_out_at: null, check_out_lat: null, check_out_lng: null, check_out_address: null, note: 'ส่งสินค้าและเก็บเงิน', employee: empLite(employees[4]) },
+  { id: 'of2', check_in_at: iso(ymd(Y, M, D - 1), '10:00'), check_in_lat: '13.7563', check_in_lng: '100.5018', check_in_address: 'งานสัมมนาโรงแรมตัวอย่าง', check_out_at: iso(ymd(Y, M, D - 1), '16:30'), check_out_lat: '13.7563', check_out_lng: '100.5018', check_out_address: 'งานสัมมนาโรงแรมตัวอย่าง', note: 'เข้าร่วมสัมมนา', employee: empLite(employees[1]) },
+  { id: 'of3', check_in_at: iso(ymd(Y, M, D - 2), '09:00'), check_in_lat: '13.7563', check_in_lng: '100.5018', check_in_address: 'คลังสินค้าสาขาย่อย', check_out_at: iso(ymd(Y, M, D - 2), '17:00'), check_out_lat: '13.7563', check_out_lng: '100.5018', check_out_address: 'คลังสินค้าสาขาย่อย', note: 'ตรวจนับสต็อก', employee: empLite(employees[5]) },
+]
+const auditLog = [
+  { id: 'al1', action: 'EMPLOYEE_CREATED', actor_name: 'ผู้ดูแลระบบ (ตัวอย่าง)', entity_name: 'วิภา ตัวอย่างดี', message: 'เพิ่มพนักงาน วิภา ตัวอย่างดี (สาขาสุขุมวิท)', branch_id: 'b1', created_at: iso(today, '09:10') },
+  { id: 'al2', action: 'EMPLOYEE_UPDATED', actor_name: 'ผู้ดูแลระบบ (ตัวอย่าง)', entity_name: 'สมหญิง รักงาน', message: 'แก้ไขข้อมูลพนักงาน สมหญิง รักงาน — เปลี่ยนเบอร์โทร', branch_id: 'b1', created_at: iso(today, '08:45') },
+  { id: 'al3', action: 'NOTIFICATION_SENT', actor_name: 'ระบบ', entity_name: 'ประเสริฐ มั่นคง', message: 'ส่งแจ้งเตือนผลอนุมัติวันลา ถึง ประเสริฐ มั่นคง ทาง LINE', branch_id: 'b1', created_at: iso(ymd(Y, M, D - 1), '16:20') },
+  { id: 'al4', action: 'WEB_USER_CREATED', actor_name: 'ผู้ดูแลระบบ (ตัวอย่าง)', entity_name: 'ผู้จัดการ สาขา', message: 'เพิ่มผู้ใช้งานเว็บ ผู้จัดการ สาขา (MANAGER)', branch_id: null, created_at: iso(ymd(Y, M, D - 2), '11:00') },
+  { id: 'al5', action: 'EMPLOYEE_DELETED', actor_name: 'ผู้ดูแลระบบ (ตัวอย่าง)', entity_name: 'ทดสอบ ระบบ', message: 'ลบพนักงาน ทดสอบ ระบบ', branch_id: 'b2', created_at: iso(ymd(Y, M, D - 3), '14:05') },
+]
+const webUsers = [
+  { id: 'u1', email: 'admin@example.com', first_name: 'ผู้ดูแลระบบ', last_name: '(ตัวอย่าง)', role: 'ADMIN', is_active: true, created_at: '2569-01-10T00:00:00Z', is_root_admin: true },
+  { id: 'u2', email: 'manager@example.com', first_name: 'ผู้จัดการ', last_name: 'สาขา', role: 'MANAGER', is_active: true, created_at: '2569-03-01T00:00:00Z' },
+  { id: 'u3', email: 'exec@example.com', first_name: 'ผู้บริหาร', last_name: 'ตัวอย่าง', role: 'EXECUTIVE', is_active: true, created_at: '2569-04-01T00:00:00Z' },
+]
 const features = ['employee', 'branch', 'attendance', 'leave', 'ot', 'report', 'announcement', 'offsite', 'shift', 'master_data', 'holiday', 'weekly_off', 'resignation', 'document_request', 'leave_management', 'gps_checkin', 'ot_management']
 
 function route(method, path, q) {
@@ -112,13 +130,24 @@ function route(method, path, q) {
   if (p === '/admin/divisions') return divisionsTree.map(({ departments, ...d }) => d)
   if (p === '/admin/departments') return divisionsTree.flatMap(d => d.departments.map(({ positions, ...x }) => x))
   if (p === '/admin/employee-status-types') return statusTypes
+  if (p === '/admin/offsite-checkins') return offsite
+  if (p === '/admin/audit-log/activity') { const mk = (i, m, route, name, mins, body) => ({ id: 'ac' + i, user_id: 'u1', actor_name: 'ผู้ดูแลระบบ (ตัวอย่าง)', actor_role: 'ADMIN', method: m, route, url: route, status_code: 200, duration_ms: 40 + i * 7, ip: '203.0.113.' + (10 + i), user_agent: 'Chrome', body, created_at: iso(today, mins) })
+    return { total: 5, admins: [{ user_id: 'u1', name: 'ผู้ดูแลระบบ (ตัวอย่าง)' }], rows: [
+      mk(1, 'POST', '/api/v1/admin/leave-requests/:id/approve', '', '09:42', null), mk(2, 'PATCH', '/api/v1/admin/employees/:id', '', '09:15', '{"phone":"0812345678"}'),
+      mk(3, 'POST', '/api/v1/admin/announcements', '', '08:55', '{"title":"แจ้งหยุด"}'), mk(4, 'DELETE', '/api/v1/admin/branches/:id', '', '08:20', null), mk(5, 'POST', '/api/v1/admin/weekly-off/:id/reopen', '', '08:05', null) ] } }
+  if (p === '/admin/audit-log') return auditLog
+  if (p === '/super-admin/users') return webUsers
+  if (p === '/admin/permissions/notify-recipients') return []
+  if (p === '/admin/platform-contact') return { name: 'ทีมผู้ดูแลระบบ', phone: '02-000-0000', email: 'support@example.com', line: '@support' }
+  if (p === '/admin/line-message-logs') return []
+  if (p === '/admin/attendance/first-checkin') return []
   if (p === '/admin/ot-requests') return ot
   if (p === '/admin/resignations') return resign
   if (p === '/admin/document-requests') return docReqs
   if (p === '/admin/announcements') return announcements
   if (p === '/admin/announcement-templates') return [{ id: 't1', name: 'แจ้งวันหยุดพิเศษ', title: 'แจ้งวันหยุดพิเศษ', content: 'บริษัทขอแจ้งวันหยุดพิเศษ...' }]
   if (p === '/admin/employees') return employees
-  if (p === '/admin/tenant-settings') return { name: 'บริษัท ตัวอย่าง จำกัด', timezone: 'Asia/Bangkok' }
+  if (p === '/admin/tenant-settings') return { name: 'บริษัท ตัวอย่าง จำกัด', address: null, tax_id: '0000000000000', logo_url: null, primary_color: '#244B83', signer_name: null, signer_title: null, timezone: 'Asia/Bangkok' }
   if (p === '/admin/dashboard/summary') { const lp = employees.filter((_, i) => [2, 4, 10].includes(i)).map(e => ({ id: e.id, first_name: e.first_name, last_name: e.last_name, nickname: e.nickname, employee_code: e.employee_code, branch: { id: e.branch_id, name: e.branch.name }, photo_url: null })); return { totalEmployees: employees.length, late: { count: 3, employees: lp }, resigned: { count: 0, employees: [] }, newHires: { count: 1, employees: lp.slice(0, 1) } } }
   if (p === '/admin/dashboard/off-today') return { count: 0, employees: [] }
   if (p === '/admin/documents/expiring' || p === '/admin/probation/due' || p === '/admin/resignations') return []
@@ -134,7 +163,7 @@ function route(method, path, q) {
   if (p === '/admin/weekly-off/worked-alerts' || p === '/super-admin/holidays/worked-alerts') return []
   if (p === '/admin/leave-balances/employees') return employees.slice(0, 8).map((e, i) => ({ employee_id: e.id, employee_code: e.employee_code, full_name: e.first_name + ' ' + e.last_name, nickname: e.nickname, photo_url: null, branch_id: e.branch_id, branch_name: e.branch.name, hired_at: e.hired_at,
     sick: { total: 30, used: i % 3 }, personal: { total: 3, used: i === 2 ? 4 : i % 3 }, vacation: { total: 6, used: i === 4 ? 5 : i % 4 }, maternity: { total: 0, used: 0 }, compensate: { total: 0, used: 0 } }))
-  if (p === '/admin/offsite-checkins' || p === '/admin/shift-assignments') return []
+  if (p === '/admin/shift-assignments') return []
   if (p === '/admin/holidays' || p === '/super-admin/holidays') return [
     { id: 'h1', date: Y + '-12-05', name: 'วันพ่อแห่งชาติ', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
     { id: 'h2', date: Y + '-12-10', name: 'วันรัฐธรรมนูญ', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
