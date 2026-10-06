@@ -1,4 +1,5 @@
 // admin/src/pages/attendance/index.tsx
+import { showResult } from '../../components/ui/ResultDialog'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -129,6 +130,7 @@ function holidayApplies(
   const deptOk   = depts.length === 0 || depts.some(d => String(d).slice(0, 2).trim() === empDept)
   return branchOk && deptOk
 }
+const fmtThDate = (d?: string) => d ? new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'
 const LEAVE_LABEL_TH: Record<string, string> = {
   SICK: 'ลาป่วย', PERSONAL: 'ลากิจ', VACATION: 'พักร้อน', MATERNITY: 'ลาคลอด', COMPENSATE: 'หยุดชดเชย', OTHER: 'ลา',
 }
@@ -486,9 +488,17 @@ export default function AttendancePage() {
   const manualMutation = useMutation({
     mutationFn: (body: object) =>
       api.post('/api/v1/admin/attendance', body).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (_d, body: any) => {
       qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
       showToast('success', `ลงเวลา ${manualTarget?.first_name} สำเร็จ`)
+      showResult({ type: 'success', title: 'ลงเวลาให้พนักงานแล้ว',
+        details: [
+          { label: 'พนักงาน', value: `${manualTarget?.first_name ?? ''} ${manualTarget?.last_name ?? ''}`.trim() },
+          { label: 'วันที่', value: fmtThDate(body.date) },
+          { label: 'เข้างาน', value: body.check_in_at || '-' },
+          ...(body.check_out_at ? [{ label: 'ออกงาน', value: body.check_out_at }] : []),
+          ...(body.note ? [{ label: 'หมายเหตุ', value: body.note }] : []),
+        ] })
       setManualTarget(null)
     },
     onError: (err: any) => {
@@ -500,10 +510,17 @@ export default function AttendancePage() {
 
   const manualLeaveMut = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/leave-requests', body).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (_d, body: any) => {
       qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
       qc.invalidateQueries({ queryKey: ['admin', 'leave-requests'] })
       showToast('success', `ลงวันลาให้ ${manualTarget?.first_name} แล้ว`)
+      showResult({ type: 'success', title: 'ลงวันลาให้พนักงานแล้ว',
+        details: [
+          { label: 'พนักงาน', value: `${manualTarget?.first_name ?? ''} ${manualTarget?.last_name ?? ''}`.trim() },
+          { label: 'ประเภทลา', value: LEAVE_LABEL_TH[body.leave_type] ?? body.leave_type },
+          { label: 'วันที่', value: fmtThDate(body.start_date) },
+          ...(body.reason ? [{ label: 'เหตุผล', value: body.reason }] : []),
+        ] })
       setManualTarget(null)
     },
     onError: (err: any) => {
@@ -520,6 +537,8 @@ export default function AttendancePage() {
       qc.invalidateQueries({ queryKey: ['admin', 'attendance'] })
       qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
       showToast('success', `ลงวันหยุดให้ ${manualTarget?.first_name} แล้ว`)
+      showResult({ type: 'success', title: 'ลงวันหยุดให้พนักงานแล้ว',
+        details: [{ label: 'พนักงาน', value: `${manualTarget?.first_name ?? ''} ${manualTarget?.last_name ?? ''}`.trim() }] })
       setManualTarget(null)
     },
     onError: (err: any) => {

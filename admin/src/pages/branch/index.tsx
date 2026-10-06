@@ -1,3 +1,4 @@
+import { showResult } from '../../components/ui/ResultDialog'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Building2, Search, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star, Table2, LayoutGrid } from 'lucide-react'
@@ -232,6 +233,14 @@ export default function BranchPage() {
       qc.invalidateQueries({ queryKey: ['shifts'] })
       qc.invalidateQueries({ queryKey: ['plan-usage'] })
       showToast('success', `เพิ่มสาขา "${form.name}" เรียบร้อยแล้ว${pendingShifts.length > 0 ? ` พร้อม ${pendingShifts.length} กะ` : ''}`)
+      showResult({ type: 'success', title: 'เพิ่มสาขาสำเร็จ',
+        details: [
+          { label: 'ชื่อสาขา', value: form.name },
+          ...(form.branch_code.trim() ? [{ label: 'รหัสสาขา', value: form.branch_code.trim().toUpperCase() }] : []),
+          ...(form.location ? [{ label: 'ที่ตั้ง', value: form.location }] : []),
+          { label: 'รัศมี GPS', value: `${parseInt(form.gps_radius) || 200} ม.` },
+          ...(pendingShifts.length > 0 ? [{ label: 'กะทำงาน', value: `${pendingShifts.length} กะ` }] : []),
+        ] })
       setModal(null); setSaving(false); setPendingShifts([])
     },
     onError: (err: any) => {
@@ -245,12 +254,21 @@ export default function BranchPage() {
   })
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => api.patch(`/api/v1/admin/branches/${id}`, body).then(r => r.data.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `บันทึกสาขา "${form.name}" เรียบร้อยแล้ว`); setModal(null); setSaving(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `บันทึกสาขา "${form.name}" เรียบร้อยแล้ว`)
+      showResult({ type: 'success', title: 'บันทึกสาขาแล้ว',
+        details: [
+          { label: 'ชื่อสาขา', value: form.name },
+          ...(form.branch_code.trim() ? [{ label: 'รหัสสาขา', value: form.branch_code.trim().toUpperCase() }] : []),
+          { label: 'รัศมี GPS', value: `${parseInt(form.gps_radius) || 200} ม.` },
+        ] })
+      setModal(null); setSaving(false) },
     onError: (e: any) => { showToast('error', e?.response?.data?.error?.code === 'BRANCH_CODE_DUPLICATE' ? 'รหัสสาขานี้ถูกใช้แล้ว — ใช้รหัสอื่น' : 'บันทึกสาขาไม่สำเร็จ'); setSaving(false) },
   })
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/admin/branches/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `ลบสาขา "${deleteTarget?.name}" เรียบร้อยแล้ว`); setDeleteTarget(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['branches'] }); showToast('success', `ลบสาขา "${deleteTarget?.name}" เรียบร้อยแล้ว`)
+      showResult({ type: 'deleted', title: 'ลบสาขาแล้ว', details: [{ label: 'ชื่อสาขา', value: deleteTarget?.name ?? '-' }] })
+      setDeleteTarget(null) },
     // เดิมโชว์ข้อความเดียว "ลบสาขาไม่สำเร็จ" เสมอ ทิ้งข้อความจริงจาก backend
     // (เช่น "ยังมีพนักงาน N คนสังกัดสาขานี้อยู่") ทิ้งไปเลย — แก้ให้โชว์ข้อความ
     // จริงถ้ามี ไม่งั้นแอดมินไม่รู้ว่าต้องย้ายพนักงานออกก่อนถึงจะลบได้

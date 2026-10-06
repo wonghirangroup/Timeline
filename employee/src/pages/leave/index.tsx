@@ -6,6 +6,7 @@ import {
   Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check,
 } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
+import { showResult } from '../../components/ui/ResultDialog'
 import { ThaiDatePicker, BottomSheet } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -907,6 +908,13 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      const dates = Object.values(picks) as string[]
+      showResult({ type: 'success', title: 'ส่งคำขอจองวันหยุดแล้ว', subtitle: 'รอผู้จัดการพิจารณา',
+        details: [
+          { label: 'เดือน', value: fmtMonthTH(month) },
+          { label: 'จำนวน', value: `${dates.length} วัน` },
+          { label: 'วันที่', value: [...dates].sort().map(fmtDateShort).join(', ') },
+        ] })
       setPicks({}); setErrorMsg(null)
     },
     onError: (err: any) => {
@@ -1285,6 +1293,12 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-history'] })
       qc.invalidateQueries({ queryKey: ['employee', 'weekly-off-view'] })
+      showResult({ type: 'success', title: 'ส่งคำขอจองวันหยุดแล้ว', subtitle: 'รอผู้จัดการพิจารณา',
+        details: [
+          { label: 'สัปดาห์', value: fmtWeekRange(weekStart) },
+          { label: 'จำนวน', value: `${selDows.size} วัน` },
+          { label: 'วันที่', value: [...selDows].map(d => resolveDate(weekStart, d)).sort().map(fmtDateShort).join(', ') },
+        ] })
       setSubmitted(true); setErrorMsg(null); setSelDows(new Set())
     },
     onError: (err: any) => {
@@ -1672,6 +1686,12 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
       qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
+      showResult({ type: 'success', title: 'ส่งคำขอลาแล้ว', subtitle: 'รอผู้จัดการอนุมัติ',
+        details: [
+          { label: 'ประเภทลา', value: String((activeType as any)?.label ?? (activeType as any)?.name ?? activeType?.code ?? '-') },
+          { label: 'จำนวน', value: `${picks.size} วัน` },
+          { label: 'วันที่', value: [...picks].sort().map(fmtDateShort).join(', ') },
+        ] })
       setPicks(new Set()); setErrorMsg(null); setDone(true)
     },
     onError: (err: any) => {
@@ -1878,6 +1898,15 @@ export default function LeavePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
       qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
+      {
+        const sd = form.startDate, ed = form.endDate || form.startDate
+        showResult({ type: 'success', title: 'ส่งคำขอลาแล้ว', subtitle: 'รอผู้จัดการอนุมัติ',
+          details: [
+            { label: 'ช่วงวันที่', value: sd === ed ? fmtDateShort(sd) : `${fmtDateShort(sd)} – ${fmtDateShort(ed)}` },
+            { label: 'จำนวน', value: `${countDays(sd, ed)} วัน` },
+            ...(form.reason ? [{ label: 'เหตุผล', value: form.reason }] : []),
+          ] })
+      }
       setSubmitDone(true)
       setForm({ leaveType: 'SICK', customTypeId: '', startDate: '', endDate: '', reason: '', period: 'FULL', startTime: '', endTime: '' })
     },

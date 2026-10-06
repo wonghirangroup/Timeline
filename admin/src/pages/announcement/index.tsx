@@ -1,4 +1,5 @@
 // admin/src/pages/announcement/index.tsx
+import { showResult } from '../../components/ui/ResultDialog'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -205,10 +206,14 @@ export default function AnnouncementPage() {
       const lineResult = res.data?.line_result
       if (lineResult?.error) {
         showToast('warning', `ส่งประกาศแล้ว แต่ Line ไม่สำเร็จ: ${lineResult.error}`)
+        showResult({ type: 'error', title: 'บันทึกประกาศแล้ว แต่ส่ง Line ไม่สำเร็จ', subtitle: String(lineResult.error), details: [{ label: 'หัวข้อ', value: data.title }] })
       } else if (lineResult?.sent != null) {
         showToast('success', `ส่งประกาศ "${data.title}" ผ่าน Line ถึง ${lineResult.sent} คน สำเร็จ`)
+        showResult({ type: 'success', title: 'ส่งประกาศสำเร็จ',
+          details: [{ label: 'หัวข้อ', value: data.title }, { label: 'ช่องทาง', value: 'Line' }, { label: 'ส่งถึง', value: `${lineResult.sent} คน` }] })
       } else {
         showToast('success', `บันทึกประกาศ "${data.title}" แล้ว`)
+        showResult({ type: 'success', title: 'บันทึกประกาศแล้ว', details: [{ label: 'หัวข้อ', value: data.title }, { label: 'ช่องทาง', value: 'แสดงในระบบ' }] })
       }
     },
     onError: () => showToast('error', 'ส่งประกาศไม่สำเร็จ'),
@@ -259,6 +264,7 @@ export default function AnnouncementPage() {
     onSuccess: (res) => {
       setDEmployee(''); setDMsg('')
       showToast('success', `ส่งข้อความถึง ${res.data?.to ?? 'พนักงาน'} สำเร็จแล้ว`)
+      showResult({ type: 'success', title: 'ส่งข้อความสำเร็จ', details: [{ label: 'ถึง', value: res.data?.to ?? 'พนักงาน' }, { label: 'ช่องทาง', value: 'Line' }] })
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.error?.message ?? 'ส่งข้อความไม่สำเร็จ'

@@ -5,6 +5,7 @@ import App from './App'
 import './index.css'
 import 'leaflet/dist/leaflet.css'
 import { ToastProvider } from './components/ui/Toast'
+import ResultHost from './components/ui/ResultDialog'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <App />
+        <ResultHost />
       </ToastProvider>
     </QueryClientProvider>
   </React.StrictMode>,

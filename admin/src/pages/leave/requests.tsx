@@ -1,4 +1,5 @@
 // admin/src/pages/leave/requests.tsx
+import { showResult } from '../../components/ui/ResultDialog'
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, Check, X, CalendarDays, Search, AlertTriangle, Table2, LayoutGrid } from 'lucide-react'
@@ -293,9 +294,16 @@ export default function LeaveRequestsTab() {
 
   const addMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/leave-requests', body).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (_d, body: any) => {
       invalidate()
       showToast('success', 'สร้างและอนุมัติวันลาสำเร็จ')
+      showResult({ type: 'success', title: 'สร้างวันลาสำเร็จ', subtitle: 'อนุมัติให้เรียบร้อยแล้ว',
+        details: [
+          { label: 'ประเภทลา', value: String(body.leave_type ?? '-') },
+          { label: 'ช่วงวันที่', value: body.start_date === body.end_date ? String(body.start_date) : `${body.start_date} – ${body.end_date}` },
+          { label: 'จำนวน', value: `${body.days ?? 1} วัน` },
+          ...(body.reason ? [{ label: 'เหตุผล', value: body.reason }] : []),
+        ] })
       setAddForm({ employee_id: '', leave_type: 'SICK', custom_type_id: '', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL', start_time: '', end_time: '' })
       setTab('requests')
     },

@@ -1,4 +1,5 @@
 // admin/src/pages/login/index.tsx
+import { showResult } from '../../components/ui/ResultDialog'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail } from 'lucide-react'
@@ -163,6 +164,15 @@ export default function LoginPage() {
       const displayName = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
       setAuth(accessToken, user.role as Role, user.tenant_id ?? '', displayName, user.enabled_features ?? null)
       navigate('/dashboard', { replace: true })
+      showResult({
+        type: 'success', title: 'เข้าสู่ระบบสำเร็จ', subtitle: 'ยินดีต้อนรับกลับ',
+        details: [
+          { label: 'ผู้ใช้', value: displayName },
+          { label: 'สิทธิ์', value: String(user.role) },
+          { label: 'เวลา', value: new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) },
+        ],
+        duration: 2800,
+      })
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.error?.message

@@ -1,3 +1,4 @@
+import { showResult } from '../../components/ui/ResultDialog'
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Trash2, X, Users, Search, Check, User, Upload, Plus, Clock, Building2, ChevronLeft, ChevronRight, CheckCircle2, Smartphone, Phone, MapPin, Network, CalendarDays, Landmark, IdCard, Table2, LayoutGrid, Download } from 'lucide-react'
@@ -361,6 +362,13 @@ export default function EmployeePage() {
       qc.invalidateQueries({ queryKey: ['employees'] })
       qc.invalidateQueries({ queryKey: ['plan-usage'] })
       showToast('success', `เพิ่ม "${vars.first_name} ${vars.last_name}" สำเร็จ — ส่งลิงก์ยืนยัน Line ให้พนักงานด้วย`)
+      showResult({ type: 'success', title: 'เพิ่มพนักงานสำเร็จ', subtitle: 'ส่งลิงก์ยืนยัน Line ให้พนักงานด้วยแล้ว',
+        details: [
+          { label: 'ชื่อ-สกุล', value: `${vars.first_name} ${vars.last_name}` },
+          ...(vars.nickname ? [{ label: 'ชื่อเล่น', value: vars.nickname }] : []),
+          ...(vars.phone ? [{ label: 'เบอร์โทร', value: vars.phone }] : []),
+          ...(vars.hired_at ? [{ label: 'วันเริ่มงาน', value: vars.hired_at }] : []),
+        ] })
       setSaving(false); setModal(null)
     },
     onError: (err: any) => {
@@ -375,6 +383,13 @@ export default function EmployeePage() {
     onSuccess: (_, { body }: any) => {
       qc.invalidateQueries({ queryKey: ['employees'] })
       showToast('success', `บันทึกข้อมูลเรียบร้อย`)
+      showResult({ type: 'success', title: 'บันทึกข้อมูลพนักงานแล้ว',
+        details: [
+          { label: 'ชื่อ-สกุล', value: `${body.first_name ?? ''} ${body.last_name ?? ''}`.trim() || '-' },
+          ...(body.nickname ? [{ label: 'ชื่อเล่น', value: body.nickname }] : []),
+          ...(body.phone ? [{ label: 'เบอร์โทร', value: body.phone }] : []),
+          ...(body.hired_at ? [{ label: 'วันเริ่มงาน', value: body.hired_at }] : []),
+        ] })
       setSaving(false); setModal(null)
     },
     onError: () => { showToast('error', 'บันทึกไม่สำเร็จ'); setSaving(false) },
@@ -384,6 +399,7 @@ export default function EmployeePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] })
       showToast('success', `ลบพนักงาน "${deleteTarget?.first_name} ${deleteTarget?.last_name}" เรียบร้อย`)
+      showResult({ type: 'deleted', title: 'ลบพนักงานแล้ว', details: [{ label: 'ชื่อ-สกุล', value: `${deleteTarget?.first_name ?? ''} ${deleteTarget?.last_name ?? ''}` }] })
       setDeleteTarget(null)
     },
     onError: () => showToast('error', 'ลบพนักงานไม่สำเร็จ'),
