@@ -197,7 +197,10 @@ export default function LeaveRequestsTab() {
   const { focusId, autoApprove, focusRef, rowHighlight } = useFocusHighlight()
   const qc = useQueryClient()
 
-  const [tab, setTab]             = useState<'requests' | 'add' | 'types'>('requests')
+  const [tab, setTab]             = useState<'requests'>('requests')
+  // ฟอร์มสร้างวันลาเปิดเป็น modal (feedback 2026-10-06) — ไม่ใช่แท็บเต็มหน้าแล้ว
+  const [addOpen, setAddOpen]       = useState(false)
+  const [typesOpen, setTypesOpen]     = useState(false)
   const [statusFilter, setStatus] = useState<'' | LeaveStatus>('')
   const [orgFilter, setOrgFilter] = useState<OrgFilterValue>(EMPTY_ORG_FILTER)
   const [search, setSearch]       = useState('')
@@ -305,7 +308,7 @@ export default function LeaveRequestsTab() {
           ...(body.reason ? [{ label: 'เหตุผล', value: body.reason }] : []),
         ] })
       setAddForm({ employee_id: '', leave_type: 'SICK', custom_type_id: '', start_date: '', end_date: '', days: 1, reason: '', leave_period: 'FULL', start_time: '', end_time: '' })
-      setTab('requests')
+      setAddOpen(false)
     },
     onError: (err: any, body: any) => {
       const code = err.response?.data?.error?.code
@@ -498,19 +501,19 @@ export default function LeaveRequestsTab() {
           } />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setTab(tab === 'types' ? 'requests' : 'types')}
-            style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', cursor: 'pointer', background: tab === 'types' ? '#F4F6F9' : '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.875rem' }}>
-            {tab === 'types' ? '← กลับ' : 'ประเภทการลา'}
+          <button onClick={() => setTypesOpen(true)}
+            style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', cursor: 'pointer', background: '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.875rem' }}>
+            ประเภทการลา
           </button>
-          <button onClick={() => setTab(tab === 'add' ? 'requests' : 'add')}
-            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: tab === 'add' ? 'var(--text-muted)' : '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
-            {tab === 'add' ? '← กลับ' : '+ สร้างวันลา'}
+          <button onClick={() => setAddOpen(true)}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>
+            + สร้างวันลา
           </button>
         </div>
       </div>
 
       {/* KPI */}
-      {tab !== 'types' && <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+      {<div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         {[
           { label: 'รอพิจารณา', value: summary.pending,  color: '#d97706', bg: '#fef3c7', filter: 'PENDING'  as LeaveStatus },
           { label: 'อนุมัติ',   value: summary.approved, color: '#16a34a', bg: '#dcfce7', filter: 'APPROVED' as LeaveStatus },
@@ -546,8 +549,9 @@ export default function LeaveRequestsTab() {
       )}
 
       {/* ── Tab: Add Leave ── */}
-      {tab === 'add' && (
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '24px', maxWidth: 560 }}>
+      {addOpen && (
+        <Modal onClose={() => setAddOpen(false)} width={600}>
+        <div style={{ padding: '24px' }}>
           <h3 style={{ margin: '0 0 6px', fontWeight: 700, fontSize: '15px' }}>+ สร้างคำขอวันลา</h3>
           <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>✓ ระบบจะอนุมัติให้ทันทีที่บันทึก (ไม่ต้องกดอนุมัติซ้ำ)</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -642,7 +646,7 @@ export default function LeaveRequestsTab() {
                 placeholder="ระบุเหตุผล (ไม่บังคับ)" style={inp} />
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button onClick={() => setTab('requests')} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>ยกเลิก</button>
+              <button onClick={() => setAddOpen(false)} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>ยกเลิก</button>
               <button onClick={handleAddLeave} disabled={addSaving}
                 style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: addSaving ? 0.7 : 1 }}>
                 {addSaving ? 'กำลังบันทึก...' : 'บันทึก'}
@@ -650,13 +654,16 @@ export default function LeaveRequestsTab() {
             </div>
           </div>
         </div>
+        </Modal>
       )}
 
       {/* ── Tab: ประเภทการลา (ย้ายมาจาก ตั้งค่า → ประเภทการลา — feedback 2026-10-01) ── */}
-      {tab === 'types' && (
-        <div style={{ maxWidth: 720 }}>
-          <LeaveTypesManager />
-        </div>
+      {typesOpen && (
+        <Modal onClose={() => setTypesOpen(false)} width={760}>
+          <div style={{ padding: 24 }}>
+            <LeaveTypesManager />
+          </div>
+        </Modal>
       )}
 
       {/* ── Tab: Requests List ── */}
@@ -709,7 +716,7 @@ export default function LeaveRequestsTab() {
                     requests.length === 0
                       ? <EmptyState icon={<CalendarDays size={22} />} title="ยังไม่มีคำขอวันลา"
                           hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ — หรือกด 'สร้างวันลา' ลงให้เอง"
-                          action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setTab('add') }} />
+                          action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setAddOpen(true) }} />
                       : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" hint="ลองปรับเดือน สถานะ หรือตัวกรอง" compact />
                   )}
                   {paginated.map(r => {
@@ -785,7 +792,7 @@ export default function LeaveRequestsTab() {
                         {requests.length === 0
                           ? <EmptyState icon={<CalendarDays size={22} />} title="ยังไม่มีคำขอวันลา"
                               hint="พนักงานยื่นผ่าน LINE แล้วจะมาโผล่ที่นี่ให้อนุมัติ — หรือกด 'สร้างวันลา' ลงให้เอง"
-                              action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setTab('add') }} />
+                              action={isReadOnly ? undefined : { label: 'สร้างวันลา', onClick: () => setAddOpen(true) }} />
                           : <EmptyState icon={<Search size={22} />} title="ไม่พบรายการที่ตรงกับเงื่อนไข" hint="ลองปรับเดือน สถานะ หรือตัวกรอง" compact />}
                       </td></tr>
                     )}

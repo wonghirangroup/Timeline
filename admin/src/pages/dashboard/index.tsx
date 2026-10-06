@@ -13,6 +13,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { SkeletonCard, SkeletonRows } from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
 import PageLinks from '../../components/ui/PageLinks'
+import StatDetailModal from '../../components/ui/StatDetailModal'
 import { avatarUrl } from '../../lib/upload'
 import { fmtThaiMonth } from '../../lib/format'
 import AttendanceMap from '../attendance/AttendanceMap'
@@ -395,10 +396,12 @@ export default function DashboardPage() {
   // สถานะก่อนถึงเปิดรายชื่อ (feedback 2026-09-15: "กดการ์ดแล้วค่อยขึ้นรายชื่อ")
   const [mobileListRevealed, setMobileListRevealed] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  // กดการ์ด = ตั้งตัวกรองรายชื่อ + เปิด popup รายชื่อของหมวดนั้น (feedback 2026-10-06)
+  const [statPopup, setStatPopup] = useState(false)
   const pickFilter = (f: TodayFilter) => {
-    setTodayFilter(prev => (prev === f ? 'ALL' : f))
+    setTodayFilter(f)
     setMobileListRevealed(true)
-    if (isMobile) setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    setStatPopup(true)
   }
   const showList = !isMobile || mobileListRevealed
   const listFiltered = useMemo(() => {
@@ -513,6 +516,14 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
+
+        {statPopup && (
+          <StatDetailModal title={`${todayFilter === 'ALL' ? 'พนักงานทั้งหมด' : FILTER_LABEL[todayFilter]} · วันนี้`} count={listFiltered.length}
+            color={todayFilter === 'ON_TIME' ? '#10b981' : todayFilter === 'LATE' ? '#f59e0b' : todayFilter === 'PENDING' ? '#64748b' : '#244B83'}
+            empty="ไม่มีคนในหมวดนี้" onClose={() => setStatPopup(false)}
+            rows={listFiltered.map(r => ({ key: r.key, primary: `${r.name}${r.nickname ? ` (${r.nickname})` : ''}`, secondary: r.branch?.name,
+              right: `${fmtTime(r.record?.check_in_at ?? null)} · ${STATUS_CFG[r.status].label}` }))} />
+        )}
 
         {/* ── ไปหน้ากิจกรรม (สลับกลับมาได้จากปุ่ม "ภาพรวม" ในแต่ละหน้า) ──────────── */}
         <PageLinks links={[

@@ -987,9 +987,9 @@ export default function WeeklyOffPage() {
             <Check size={14} /> อนุมัติทั้งหมด ({summary.pending})
           </button>
         )}
-        <button onClick={() => { setShowAdd(s => !s); setShowCalendar(false) }}
-          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: showAdd ? 'var(--text-muted)' : '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Plus size={14} /> {showAdd ? 'ยกเลิก' : 'เพิ่มวันหยุด'}
+        <button onClick={() => { setShowAdd(true); setShowCalendar(false) }}
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Plus size={14} /> เพิ่มวันหยุด
         </button>
       </div>
       )}
@@ -1011,7 +1011,8 @@ export default function WeeklyOffPage() {
 
       {/* Add form */}
       {showAdd && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16, maxWidth: 560 }}>
+        <Modal onClose={() => { setShowAdd(false); setShowCalendar(false) }} width={600}>
+        <div style={{ padding: 24 }}>
           <h3 style={{ margin: '0 0 16px', fontWeight: 700, fontSize: '0.95rem' }}>+ เพิ่มวันหยุดให้พนักงาน</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
@@ -1060,6 +1061,7 @@ export default function WeeklyOffPage() {
             </button>
           </div>
         </div>
+        </Modal>
       )}
 
       {cancelRow && (

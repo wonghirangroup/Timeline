@@ -511,7 +511,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
   return (
     <div style={{
       background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14,
-      padding: 20, width: 340, maxWidth: '100%', maxHeight: '80vh', overflowY: 'auto',
+      padding: 24, width: 560, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto',
       boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
     }}>
       {/* Header */}
