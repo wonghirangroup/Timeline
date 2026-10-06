@@ -21,9 +21,9 @@ const people = [
 const bName = id => branches.find(b => b.id === id).name
 const employees = people.map((p, i) => ({
   id: 'e' + (i + 1), employee_code: `69-0${(i % 3) + 1}-${pad(i + 1).padStart(3, '0')}`, first_name: p[0], last_name: p[1], nickname: p[2], department: null,
-  phone: `08${i % 10}-${100 + i * 7}-${2000 + i * 13}`, hired_at: '2568-05-01', line_user_id: i < 10 ? 'U' + i : null, is_active: true, status: 'ACTIVE', status_reason: null,
+  phone: `08${i % 10}-${100 + i * 7}-${2000 + i * 13}`, hired_at: '2025-05-01', line_user_id: i < 10 ? 'U' + i : null, is_active: true, status: 'ACTIVE', status_reason: null,
   created_at: '2569-01-10T00:00:00Z', branch_id: p[3], branch: { id: p[3], name: bName(p[3]), group_id: 'g1' }, extra_branches: [],
-  weekly_off_mode: 'MONTHLY_BATCH', position_id: 'p' + p[4], position: { id: 'p' + p[4], name: p[4] }, employee_status_type_id: null, employee_status_type: null,
+  weekly_off_mode: 'MONTHLY_BATCH', position_id: 'p' + p[4], position: { id: 'p' + p[4], name: p[4] }, employee_status_type_id: i < 10 ? 'st1' : 'st2', employee_status_type: i < 10 ? { id: 'st1', name: 'พนักงานประจำ', monthly_off_quota: 5 } : { id: 'st2', name: 'พนักงานขนส่ง', monthly_off_quota: 4 },
   photo_url: null, default_shift_id: p[3] === 'b1' ? 's1' : p[3] === 'b2' ? 's3' : 's4',
 }))
 const empLite = e => ({ id: e.id, first_name: e.first_name, last_name: e.last_name, nickname: e.nickname, employee_code: e.employee_code, branch: { id: e.branch_id, name: e.branch.name } })
@@ -55,18 +55,70 @@ const leaves = [
 const leaveTypes = [{ id: 'lt1', code: 'SICK', name: 'ลาป่วย', color: '#16a34a' }, { id: 'lt2', code: 'PERSONAL', name: 'ลากิจ', color: '#2563eb' }, { id: 'lt3', code: 'VACATION', name: 'พักร้อน', color: '#d97706' }]
 const positions = [...new Set(people.map(p => p[4]))].map(n => ({ id: 'p' + n, name: n, department_id: null, department: null }))
 
+
+const base = { booking_enabled: null, leave_enabled: null, is_active: true, saturday_rule: null, sunday_rule: null, booking_quota: null, off_quota_mode: null }
+const divisionsTree = [
+  { id: 'd1', name: 'ฝ่ายปฏิบัติการ', group_id: 'g1', ...base, _count: { departments: 2 }, departments: [
+    { id: 'dp1', name: 'แผนกขายหน้าร้าน', division_id: 'd1', ...base, _count: { positions: 2 }, positions: [
+      { id: 'pผู้จัดการสาขา', name: 'ผู้จัดการสาขา', department_id: 'dp1', ...base, _count: { employees: 3 } },
+      { id: 'pพนักงานขาย', name: 'พนักงานขาย', department_id: 'dp1', ...base, _count: { employees: 5 } } ] },
+    { id: 'dp2', name: 'แผนกขนส่ง', division_id: 'd1', ...base, _count: { positions: 1 }, positions: [
+      { id: 'pพนักงานขนส่ง', name: 'พนักงานขนส่ง', department_id: 'dp2', ...base, _count: { employees: 2 } } ] } ] },
+  { id: 'd2', name: 'ฝ่ายการเงิน', group_id: 'g1', ...base, _count: { departments: 1 }, departments: [
+    { id: 'dp3', name: 'แผนกบัญชี', division_id: 'd2', ...base, _count: { positions: 1 }, positions: [
+      { id: 'pแคชเชียร์', name: 'แคชเชียร์', department_id: 'dp3', ...base, _count: { employees: 2 } } ] } ] },
+]
+const statusTypes = [
+  { id: 'st1', name: 'พนักงานประจำ', monthly_off_quota: 5, off_quota_mode: 'FIXED', saturday_rule: 'WORK', sunday_rule: 'OFF', off_on_public_holiday: true, is_active: true, _count: { employees: 8 } },
+  { id: 'st2', name: 'พนักงานขนส่ง', monthly_off_quota: 4, off_quota_mode: 'WEEKENDS_IN_MONTH', saturday_rule: 'OFF', sunday_rule: 'OFF', off_on_public_holiday: true, is_active: true, _count: { employees: 2 } },
+]
+
+const ot = [
+  { id: 'o1', request_no: 'OT-2569-0031', employee_id: 'e2', date: ymd(Y, M, D), start_time: '18:00', end_time: '21:00', hours: 3, reason: 'ปิดยอดสิ้นเดือน', status: 'PENDING', employee: empLite(employees[1]) },
+  { id: 'o2', request_no: 'OT-2569-0030', employee_id: 'e5', date: ymd(Y, M, D - 1), start_time: '18:00', end_time: '20:00', hours: 2, reason: 'ขนของเข้าคลัง', status: 'APPROVED', employee: empLite(employees[4]) },
+  { id: 'o3', request_no: 'OT-2569-0029', employee_id: 'e4', date: ymd(Y, M, D - 3), start_time: '18:00', end_time: '19:30', hours: 1.5, reason: 'นับสต็อก', status: 'APPROVED', employee: empLite(employees[3]) },
+  { id: 'o4', request_no: 'OT-2569-0028', employee_id: 'e8', date: ymd(Y, M, D - 4), start_time: '18:00', end_time: '22:00', hours: 4, reason: 'งานอีเวนต์', status: 'REJECTED', employee: empLite(employees[7]) },
+]
+const resign = [
+  { id: 'r1', request_no: 'RS-2569-0004', employee_id: 'e3', last_working_date: ymd(Y, M + 1 > 12 ? 1 : M + 1, 15), reason: 'ย้ายไปอยู่ต่างจังหวัด', status: 'PENDING', reject_note: null, created_at: iso(today, '08:10'), employee: empLite(employees[2]) },
+  { id: 'r2', request_no: 'RS-2569-0003', employee_id: 'e9', last_working_date: ymd(Y, M, 30), reason: 'ศึกษาต่อ', status: 'APPROVED', reject_note: null, created_at: iso(ymd(Y, M, 1), '09:00'), employee: empLite(employees[8]) },
+]
+const docReqs = [
+  { id: 'dr1', request_no: 'DC-2569-0012', employee_id: 'e2', type: 'SALARY_CERT', custom_type: null, period: null, note: 'ใช้ประกอบการขอสินเชื่อ', status: 'PENDING', reject_note: null, file_url: null, created_at: iso(today, '07:50'), employee: empLite(employees[1]) },
+  { id: 'dr2', request_no: 'DC-2569-0011', employee_id: 'e4', type: 'PAYSLIP', custom_type: null, period: ymd(Y, M - 1 < 1 ? 12 : M - 1, 1).slice(0, 7), note: null, status: 'COMPLETED', reject_note: null, file_url: null, created_at: iso(ymd(Y, M, 2), '10:00'), employee: empLite(employees[3]) },
+  { id: 'dr3', request_no: 'DC-2569-0010', employee_id: 'e5', type: 'WORK_CERT', custom_type: null, period: null, note: 'ยื่นวีซ่า', status: 'PENDING', reject_note: null, file_url: null, created_at: iso(ymd(Y, M, 3), '11:20'), employee: empLite(employees[4]) },
+]
+const announcements = [
+  { id: 'an1', title: 'แจ้งปิดทำการวันหยุดนักขัตฤกษ์', content: 'บริษัทขอแจ้งปิดทำการในวันศุกร์ที่ 23 ตุลาคม เปิดทำการตามปกติวันจันทร์', send_line: true, created_at: iso(ymd(Y, M, 3), '10:00') },
+  { id: 'an2', title: 'อบรมความปลอดภัยประจำไตรมาส', content: 'ขอเชิญพนักงานทุกสาขาเข้าร่วมอบรม วันที่ 15 เวลา 13:00 น.', send_line: true, created_at: iso(ymd(Y, M, 1), '09:30') },
+]
 const features = ['employee', 'branch', 'attendance', 'leave', 'ot', 'report', 'announcement', 'offsite', 'shift', 'master_data', 'holiday', 'weekly_off', 'resignation', 'document_request', 'leave_management', 'gps_checkin', 'ot_management']
 
 function route(method, path, q) {
   const p = path.replace('/api/v1', '')
   if (method !== 'GET') return { id: 'x' }
   if (p === '/auth/me') return { id: 'u1', role: 'ADMIN', email: 'demo@example.com', first_name: 'ผู้ดูแลระบบ', last_name: '(ตัวอย่าง)', tenant_id: 'demo-tenant', is_root_admin: true, enabled_features: null, permissions: null }
-  if (p === '/admin/plan-usage') return { employees: { used: employees.length, limit: 100 }, branches: { used: branches.length, limit: 10 }, plan: 'Standard' }
+  if (p === '/admin/plan-usage') return { employees: { used: employees.length, limit: 100 }, branches: { used: branches.length, limit: 10 }, groups: { used: 1, limit: 5 }, plan: 'PRO' }
   if (p === '/admin/notifications') return []
   if (p === '/login-ads') return []
+  const mEmp = p.match(/^\/admin\/employees\/(e\d+)$/)
+  if (mEmp) { const e = employees.find(x => x.id === mEmp[1]); return { ...e, prefix: 'นาย', id_card: '0-0000-00000-00-0', birthdate: '1992-03-15', blood_type: 'O', email: 'somchai@example.com', phone_alt: '089-000-0000',
+    emergency_contacts: [{ name: 'สมศรี ใจดี', relation: 'มารดา', phone: '089-111-2222' }], address_id: { house: '99/1', moo: '', soi: '', road: 'ถนนสุขุมวิท', sub: 'คลองเตย', district: 'คลองเตย', province: 'กรุงเทพมหานคร', zip: '10110' },
+    address_current: null, educations: [{ level: 'ปริญญาตรี', institution: 'มหาวิทยาลัยตัวอย่าง', field: 'การจัดการ', year: '2558' }], skills: [{ name: 'ภาษาอังกฤษ', level: 'ดี' }, { name: 'Excel', level: 'ดีมาก' }],
+    emp_type: 'พนักงานประจำ', salary: 18000, notes: null, line_user_id: 'U1234567890abcdef' } }
+
+  if (p === '/admin/groups') return [{ id: 'g1', name: 'กลุ่มบริษัทตัวอย่าง', booking_enabled: true, leave_enabled: true, is_active: true, _count: { branches: 3, divisions: 2, employees: 12 }, saturday_rule: null, sunday_rule: null, booking_quota: null }]
+  if (p === '/admin/org-structure/tree') return divisionsTree
+  if (p === '/admin/divisions') return divisionsTree.map(({ departments, ...d }) => d)
+  if (p === '/admin/departments') return divisionsTree.flatMap(d => d.departments.map(({ positions, ...x }) => x))
+  if (p === '/admin/employee-status-types') return statusTypes
+  if (p === '/admin/ot-requests') return ot
+  if (p === '/admin/resignations') return resign
+  if (p === '/admin/document-requests') return docReqs
+  if (p === '/admin/announcements') return announcements
+  if (p === '/admin/announcement-templates') return [{ id: 't1', name: 'แจ้งวันหยุดพิเศษ', title: 'แจ้งวันหยุดพิเศษ', content: 'บริษัทขอแจ้งวันหยุดพิเศษ...' }]
   if (p === '/admin/employees') return employees
   if (p === '/admin/tenant-settings') return { name: 'บริษัท ตัวอย่าง จำกัด', timezone: 'Asia/Bangkok' }
-  if (p === '/admin/employee-status-types') return []
   if (p === '/admin/dashboard/summary') { const lp = employees.filter((_, i) => [2, 4, 10].includes(i)).map(e => ({ id: e.id, first_name: e.first_name, last_name: e.last_name, nickname: e.nickname, employee_code: e.employee_code, branch: { id: e.branch_id, name: e.branch.name }, photo_url: null })); return { totalEmployees: employees.length, late: { count: 3, employees: lp }, resigned: { count: 0, employees: [] }, newHires: { count: 1, employees: lp.slice(0, 1) } } }
   if (p === '/admin/dashboard/off-today') return { count: 0, employees: [] }
   if (p === '/admin/documents/expiring' || p === '/admin/probation/due' || p === '/admin/resignations') return []
@@ -80,11 +132,15 @@ function route(method, path, q) {
   if (p.startsWith('/admin/weekly-off/periods')) return branches.map(b => ({ id: 'pr' + b.id, branch_id: b.id, month: `${Y}-${pad(M)}`, is_open: b.id !== 'b3', deadline: null, note: null, branch: { id: b.id, name: b.name } }))
   if (p === '/admin/weekly-off/quotas') return []
   if (p === '/admin/weekly-off/worked-alerts' || p === '/super-admin/holidays/worked-alerts') return []
-  if (p === '/admin/leave-balances/employees') return []
+  if (p === '/admin/leave-balances/employees') return employees.slice(0, 8).map((e, i) => ({ employee_id: e.id, employee_code: e.employee_code, full_name: e.first_name + ' ' + e.last_name, nickname: e.nickname, photo_url: null, branch_id: e.branch_id, branch_name: e.branch.name, hired_at: e.hired_at,
+    sick: { total: 30, used: i % 3 }, personal: { total: 3, used: i === 2 ? 4 : i % 3 }, vacation: { total: 6, used: i === 4 ? 5 : i % 4 }, maternity: { total: 0, used: 0 }, compensate: { total: 0, used: 0 } }))
   if (p === '/admin/offsite-checkins' || p === '/admin/shift-assignments') return []
-  if (p === '/admin/holidays' || p === '/super-admin/holidays') return []
-  if (p === '/admin/groups') return [{ id: 'g1', name: 'กลุ่มบริษัทตัวอย่าง' }]
-  if (p === '/admin/departments' || p === '/admin/divisions') return []
+  if (p === '/admin/holidays' || p === '/super-admin/holidays') return [
+    { id: 'h1', date: Y + '-12-05', name: 'วันพ่อแห่งชาติ', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
+    { id: 'h2', date: Y + '-12-10', name: 'วันรัฐธรรมนูญ', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
+    { id: 'h3', date: Y + '-12-31', name: 'วันสิ้นปี', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
+    { id: 'h4', date: Y + '-10-23', name: 'วันปิยมหาราช', type: 'NATIONAL', recurring: true, target_branches: null, compensate_days: 1 },
+    { id: 'h5', date: Y + '-11-15', name: 'วันครบรอบบริษัท', type: 'COMPANY', recurring: true, target_branches: null, compensate_days: 1 } ]
   return undefined
 }
 module.exports = { route, employees, branches }
