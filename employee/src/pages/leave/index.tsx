@@ -210,32 +210,32 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
   return (
     <div>
       {/* ── Calendar ─────────────────────────────────────────── */}
-      <div style={{ background: '#FAFAFA', borderRadius: 20, padding: '16px 12px', marginBottom: 16 }}>
+      <div style={{ padding: '4px 0', marginBottom: 16 }}>
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <button onClick={() => { setMonth(m => addMonths(m, -1)); setSelDay(null) }}
-            style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', display: 'flex', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <ChevronLeft size={16} color="#374151" />
+            style={{ background: '#EEF4FF', border: '1px solid #D5E3FA', borderRadius: 14, width: 46, height: 46, alignItems: 'center', justifyContent: 'center', cursor: 'pointer', display: 'flex', boxShadow: '0 3px 8px rgba(36,75,131,0.10)' }}>
+            <ChevronLeft size={22} color="#1D4ED8" strokeWidth={2.6} />
           </button>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1A2B3C' }}>{fmtMonthTH(month)}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#0B1B4D' }}>{fmtMonthTH(month)}</div>
             {month === thisMonth && (
-              <div style={{ fontSize: '0.68rem', color: '#244B83', fontWeight: 600, marginTop: 1 }}>
+              <div style={{ fontSize: '0.88rem', color: '#1D6FE0', fontWeight: 700, marginTop: 2 }}>
                 หยุดแล้ว {myOffThisMonth} วัน เดือนนี้
               </div>
             )}
           </div>
           <button onClick={() => { setMonth(m => addMonths(m, 1)); setSelDay(null) }}
-            style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', display: 'flex', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <ChevronRight size={16} color="#374151" />
+            style={{ background: '#EEF4FF', border: '1px solid #D5E3FA', borderRadius: 14, width: 46, height: 46, alignItems: 'center', justifyContent: 'center', cursor: 'pointer', display: 'flex', boxShadow: '0 3px 8px rgba(36,75,131,0.10)' }}>
+            <ChevronRight size={22} color="#1D4ED8" strokeWidth={2.6} />
           </button>
         </div>
 
         {/* Day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 6 }}>
           {DAYS_SHORT.map((d, i) => (
-            <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, paddingBottom: 2,
-              color: i === 0 ? '#DC2626' : i === 6 ? '#2563EB' : '#6B7280' }}>{d}</div>
+            <div key={d} style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 800, paddingBottom: 2,
+              color: i === 0 ? '#EF1D2B' : i === 6 ? '#2563EB' : '#475569' }}>{d}</div>
           ))}
         </div>
 
@@ -269,17 +269,17 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             if (isAutoOffsite) cellBg = '#FAF5FF'
             if (isAutoOff)   cellBg = '#F0F9FF'
             if (holiday)     cellBg = '#FFF1F2'
-            if (isApprOff)   cellBg = '#F4F6F9'
+            if (isApprOff)   cellBg = '#EAF2FF'
             if (isPendOff)   cellBg = '#FFFBEB'
 
             return (
               <button key={i} onClick={() => setSelDay(p => p === dateStr ? null : dateStr)}
                 style={{
                   position: 'relative',
-                  height: 72, borderRadius: 12, border: isSel ? '2px solid #244B83'
-                    : isApprOff ? '1.5px solid #B2C0D4'
+                  height: 72, borderRadius: 14, border: isSel ? '2.5px solid #1D6FE0'
+                    : isApprOff ? '1.5px solid #93C5FD'
                     : isPendOff ? '1.5px dashed #FCD34D'
-                    : '1px solid transparent',
+                    : '1px solid #EEF2F9',
                   cursor: 'pointer', background: cellBg,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   paddingTop: 7, paddingBottom: 5, gap: 3,
@@ -290,15 +290,15 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
                 {/* Date number */}
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%', fontSize: '0.82rem', fontWeight: 800,
+                  width: 32, height: 32, borderRadius: '50%', fontSize: '1.05rem', fontWeight: 800,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: isToday ? '#fff' : holiday ? '#dc2626' : isApprOff ? '#244B83' : '#1A2B3C',
-                  background: isToday ? '#244B83' : 'transparent',
+                  color: isToday ? '#fff' : holiday ? '#EF1D2B' : isApprOff ? '#1D4ED8' : '#0B1B4D',
+                  background: isToday ? '#0B2A8A' : 'transparent',
                 }}>{day}</div>
 
                 {/* My day-off mark — big and clear */}
                 {isApprOff && !firstLeave && (
-                  <div style={{ fontSize: '0.7rem', color: '#244B83', fontWeight: 800, lineHeight: 1 }}>หยุด</div>
+                  <div style={{ fontSize: '0.78rem', color: '#1D6FE0', fontWeight: 800, lineHeight: 1 }}>หยุด</div>
                 )}
                 {isPendOff && !firstLeave && (
                   <div style={{ fontSize: '0.62rem', color: '#D97706', fontWeight: 700, lineHeight: 1 }}>รออนุมัติ</div>
@@ -312,15 +312,16 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
                 {/* Leave bar */}
                 {firstLeave && lCfg && (
-                  <div style={{ width: '75%', height: 5, borderRadius: 99, background: lCfg.color, opacity: firstLeave.status === 'PENDING' ? 0.55 : 1 }} />
+                  <div style={{ maxWidth: '92%', padding: '1px 7px', borderRadius: 99, background: `${lCfg.color}1F`, border: `1px solid ${lCfg.color}55`, color: lCfg.color, fontSize: '0.66rem', fontWeight: 800, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: firstLeave.status === 'PENDING' ? 0.7 : 1 }}>
+                    {lCfg.label}{myLeaves.length > 1 ? ` +${myLeaves.length - 1}` : ''}
+                  </div>
                 )}
 
                 {/* เพื่อนร่วมงานหยุด/ลา — คนละสีกับของเรา (เตา/teal) กันสับสนว่าใครหยุด
                     (feedback 2026-09-30: "แยกสีไว้ว่าอันไหนเป็นของเพื่อน อันของเรา") */}
                 {colCount > 0 && (
-                  <div style={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', alignItems: 'center', gap: 2, background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: 99, padding: '1px 5px' }}>
-                    <Users size={8} color="#0D9488" />
-                    <span style={{ fontSize: '0.55rem', fontWeight: 800, color: '#0D9488', lineHeight: 1.3 }}>{colCount}</span>
+                  <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 2, background: '#DDF7EC', border: '1px solid #A7E8CC', borderRadius: 99, padding: '2px 9px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F9D6B', lineHeight: 1.3 }}>ล.{colCount}</span>
                   </div>
                 )}
               </button>
@@ -329,9 +330,9 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
         </div>
 
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px 16px', marginTop: 14, flexWrap: 'wrap', justifyContent: 'center', padding: '14px 12px', borderRadius: 20, background: '#F5F9FF', border: '1.5px solid #DCE8F8' }}>
           {[
-            { bg: '#F4F6F9', border: '1.5px solid #B2C0D4', label: 'วันหยุดของฉัน' },
+            { bg: '#EAF2FF', border: '2px solid #93C5FD', label: 'วันหยุดของฉัน' },
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
@@ -342,8 +343,8 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             ] : []),
           ].map((it, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 14, height: 14, borderRadius: 4, background: it.bg, border: it.border, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.68rem', color: '#6B7280' }}>{it.label}</span>
+              <div style={{ width: 20, height: 20, borderRadius: 6, background: it.bg, border: it.border, flexShrink: 0 }} />
+              <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 500 }}>{it.label}</span>
             </div>
           ))}
         </div>
@@ -351,10 +352,19 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
       {/* Selected day detail card */}
       {selDay && (
-        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 18, padding: '16px', border: '1px solid #E6ECF4', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A2B3C', marginBottom: 12 }}>
-            {fmtDateFull(selDay)}
+        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 26, padding: 8, border: '2px solid #CFE0FA', boxShadow: '0 10px 30px rgba(59,130,246,0.18)' }}>
+          <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 14px', borderRadius: 20, background: 'linear-gradient(180deg, #DDEBFF, #EEF5FF)', marginBottom: 8 }}>
+            <span aria-hidden="true" style={{ position: 'absolute', right: -20, bottom: -26, width: 120, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.8)' }} />
+            <div style={{ position: 'relative', width: 58, height: 58, borderRadius: 16, background: '#fff', boxShadow: '0 4px 12px rgba(29,111,224,0.25)', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ height: 18, background: '#2F7BF0' }} />
+              <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '1.45rem', color: '#1D6FE0', lineHeight: '38px' }}>{Number(selDay.slice(8, 10))}</div>
+            </div>
+            <div style={{ position: 'relative', minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1B4D' }}>{fmtDateFull(selDay)}</div>
+              <div style={{ fontSize: '0.88rem', color: '#1D6FE0', fontWeight: 700, marginTop: 2 }}>{selEmpty ? 'ไม่มีกำหนดการวันนี้' : 'สรุปวันหยุด/ลาของวันนี้'}</div>
+            </div>
           </div>
+          <div style={{ padding: '4px 6px 8px' }}>
 
           {selEmpty && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -421,19 +431,19 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
           {(selColOff.length > 0 || selColLeaves.length > 0) && (
             <div style={{ marginTop: selMyOff || selLeaves.length ? 12 : 0 }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0D9488', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Users size={13} /> เพื่อนร่วมงานหยุด/ลาวันนี้
+                <Users size={15} /> เพื่อนร่วมงานหยุด/ลาวันนี้
               </div>
               {selColOff.map((o, i) => (
-                <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+                <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
                   <ColleagueAvatar name={o.employee.nickname || o.employee.first_name} photoUrl={o.employee.photo_url} seed={i} />
                   <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{o.employee.nickname || `${o.employee.first_name} ${o.employee.last_name}`}</span>
-                  <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>วันหยุดประจำ</span>
+                  <span style={{ fontSize: '0.8rem', color: '#0F9D6B', fontWeight: 800, background: '#DDF7EC', padding: '6px 12px', borderRadius: 99 }}>วันหยุดประจำ</span>
                 </div>
               ))}
               {selColLeaves.map((l, i) => {
                 const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)
                 return (
-                  <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+                  <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
                     <ColleagueAvatar name={l.employee.nickname || l.employee.first_name} photoUrl={l.employee.photo_url} seed={selColOff.length + i} />
                     <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}</span>
                     <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>{cfg?.label ?? l.leave_type}</span>
@@ -442,6 +452,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               })}
             </div>
           )}
+          </div>
         </div>
       )}
 
@@ -1979,50 +1990,69 @@ export default function LeavePage() {
   const canSubmit  = !!form.startDate && (form.period !== 'FULL' || !!form.endDate) && !!form.reason.trim() && days > 0
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div className="page-container lx-page" style={{ maxWidth: 430, margin: '0 auto', background: '#EAF4FF url(/checkin/bg.webp) center top / cover fixed no-repeat' }}>
+      <style>{`
+        @keyframes lx-owl { 0%, 100% { transform: translateY(0) rotate(0) } 50% { transform: translateY(-4px) rotate(-1deg) } }
+        .lx-tab { transition: background .15s, transform .12s }
+        .lx-tab:active { transform: scale(.96) }
+        @media (prefers-reduced-motion: reduce) { .lx-owl { animation: none !important } }
+      `}</style>
+      <div style={{ padding: '16px 16px 120px' }}>
 
-      {/* ── Orange Gradient Header ──────────────────────────────── */}
-      <div className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>วันลา</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>
+        {/* ── แบนเนอร์ชายหาด + นกฮูกนอนพักผ่อน ─────────────────── */}
+        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 30, minHeight: 168,
+          background: 'linear-gradient(180deg, #5BB8FF 0%, #A6DBFF 52%, #3AA9F2 52.5%, #1E8FE0 70%, #F4D9A6 70.5%, #F0CE92 100%)',
+          boxShadow: '0 12px 30px rgba(27,110,240,0.25)' }}>
+          <span aria-hidden="true" style={{ position: 'absolute', left: 130, top: 22, width: 96, height: 34, borderRadius: 99, background: 'rgba(255,255,255,0.85)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: 160, top: 10, width: 56, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.9)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', right: 150, top: 34, width: 70, height: 26, borderRadius: 99, background: 'rgba(255,255,255,0.7)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: '58%', height: 3, background: 'rgba(255,255,255,0.45)' }} />
+          <div style={{ position: 'relative', zIndex: 1, padding: '24px 22px', maxWidth: '62%' }}>
+            <div style={{ fontWeight: 800, fontSize: '2.2rem', color: '#0B2A8A', lineHeight: 1.1 }}>วันลา</div>
+            <div style={{ fontSize: '0.88rem', color: '#0B2A6B', marginTop: 8, lineHeight: 1.45, fontWeight: 600 }}>
               {employee?.first_name} {employee?.last_name} · จัดการวันลา
             </div>
           </div>
+          <img src="/checkin/owl-beach.webp" alt="" aria-hidden="true" draggable={false} className="lx-owl"
+            style={{ position: 'absolute', right: -14, bottom: -10, width: 190, height: 190, objectFit: 'contain', zIndex: 2, animation: 'lx-owl 4.5s ease-in-out infinite', pointerEvents: 'none' }} />
         </div>
 
-        {/* Leave balance stat row — วันลาคงเหลือทุกประเภท (ไม่ตัดแค่ 3 อันแรก) */}
-        <div className="header-stat-row">
+        {/* ── วันลาคงเหลือ (แถบฟ้าแก้ว) ─────────────────────────── */}
+        <div style={{ display: 'flex', marginTop: 14, borderRadius: 26, padding: '16px 6px', background: 'linear-gradient(180deg, #3CB4FF, #1479E0)', boxShadow: '0 10px 24px rgba(20,121,224,0.32), inset 0 1px 0 rgba(255,255,255,0.45)' }}>
           {balances.map((b, i) => {
             const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === b.leave_type)
             return (
-              <div key={b.leave_type} className="header-stat-col">
-                <div className="header-stat-label">{cfg?.label ?? b.leave_type}</div>
-                <div className="header-stat-value">{b.total_days - b.used_days} <span style={{ fontSize: '11px', fontWeight: 500, opacity: 0.7 }}>วัน</span></div>
+              <div key={b.leave_type} style={{ flex: 1, minWidth: 0, textAlign: 'center', padding: '0 4px', borderLeft: i ? '1px solid rgba(255,255,255,0.28)' : 'none' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cfg?.label ?? b.leave_type}</div>
+                <div style={{ marginTop: 4, color: '#fff', fontWeight: 800, fontSize: '1.9rem', lineHeight: 1.1, textShadow: '0 2px 8px rgba(0,60,160,0.35)' }}>
+                  {b.total_days - b.used_days} <span style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.95 }}>วัน</span>
+                </div>
               </div>
             )
           })}
         </div>
-      </div>
 
-      {/* ── White Content Panel ─────────────────────────────────── */}
-      <div className="app-panel" style={{ padding: '20px 16px 100px' }}>
-
-        {/* Tabs */}
-        <div className="fw-tabs">
+        {/* ── แท็บ ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, padding: 7, borderRadius: 26, background: 'rgba(235,243,254,0.96)', border: '1px solid #DCE8F8', boxShadow: '0 6px 20px rgba(36,75,131,0.08)' }}>
           {([
             { id: 'calendar', label: 'ปฏิทิน',   Icon: Calendar },
             { id: 'booking',  label: 'จองหยุด',  Icon: Palmtree },
             { id: 'request',  label: 'ขอลา',     Icon: FileText },
-          ] as { id: Tab; label: string; Icon: typeof Calendar }[]).map(t => (
-            <button key={t.id} className={`fw-tab${tab === t.id ? ' active' : ''}`}
-              onClick={() => { setTab(t.id); setSubmitDone(false); setErrorMsg(null) }}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-              <t.Icon size={14} /> {t.label}
-            </button>
-          ))}
+          ] as { id: Tab; label: string; Icon: typeof Calendar }[]).map(t => {
+            const on = tab === t.id
+            return (
+              <button key={t.id} className="lx-tab" aria-pressed={on}
+                onClick={() => { setTab(t.id); setSubmitDone(false); setErrorMsg(null) }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '14px 4px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1rem', fontWeight: 800,
+                  background: on ? '#fff' : 'transparent', color: on ? '#1D6FE0' : '#64748B', boxShadow: on ? '0 4px 14px rgba(29,111,224,0.18)' : 'none' }}>
+                <t.Icon size={20} strokeWidth={2.2} /> {t.label}
+              </button>
+            )
+          })}
         </div>
+
+      {/* ── เนื้อหา ─────────────────────────────────────────────── */}
+      <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.94)', borderRadius: 28, padding: '18px 14px', border: '1px solid #E3ECF8', boxShadow: '0 6px 22px rgba(36,75,131,0.08)' }}>
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
@@ -2222,6 +2252,7 @@ export default function LeavePage() {
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   )

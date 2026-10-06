@@ -98,44 +98,59 @@ export default function ProfilePage() {
     : null
 
   return (
-    <div className="page-container" style={{ maxWidth: 430, margin: '0 auto' }}>
+    <div className="page-container px-page" style={{ maxWidth: 430, margin: '0 auto', background: '#F3F8FF' }}>
+      <style>{`
+        @keyframes px-owl { 0%, 100% { transform: translateY(0) rotate(0) } 50% { transform: translateY(-5px) rotate(2deg) } }
+        .px-row { transition: transform .12s, box-shadow .12s }
+        .px-row:active { transform: scale(.985) }
+        @media (prefers-reduced-motion: reduce) { .px-owl { animation: none !important } }
+      `}</style>
 
-      {/* ── Orange Gradient Header ──────────────────────────────── */}
-      <div className="app-header" style={{ paddingBottom: 64, paddingTop: 20 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <div style={{ position: 'relative', width: 80, height: 80 }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.25)', border: '3px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+      {/* ── แบนเนอร์โปรไฟล์ (คลื่นฟ้า + นกฮูกโบกมือ) ─────────────── */}
+      <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(180deg, #4FA3FF 0%, #2F86F2 55%, #1F6FE0 100%)', padding: '34px 20px 74px', borderRadius: '0 0 34px 34px' }}>
+        <span aria-hidden="true" style={{ position: 'absolute', left: -60, bottom: -50, width: 240, height: 130, borderRadius: '50%', background: 'rgba(120,185,255,0.45)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', right: -80, bottom: -70, width: 330, height: 150, borderRadius: '50%', background: 'rgba(80,150,250,0.55)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', right: -50, top: -60, width: 170, height: 110, borderRadius: '50%', background: 'rgba(150,200,255,0.35)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', left: -40, top: -70, width: 240, height: 120, borderRadius: '50%', background: 'rgba(150,200,255,0.30)' }} />
+        <div aria-hidden="true" style={{ position: 'absolute', left: 22, top: 44, color: '#fff', fontFamily: "'Segoe Script','Bradley Hand','Comic Sans MS',cursive", fontSize: '1.35rem', lineHeight: 1.15, transform: 'rotate(-8deg)', opacity: 0.95 }}>
+          YooNai<br />Employee<br /><span style={{ fontSize: '1.1rem' }}>♡</span>
+        </div>
+        <img src="/checkin/owl-wave.webp" alt="" aria-hidden="true" draggable={false} className="px-owl"
+          style={{ position: 'absolute', right: -18, top: 6, width: 132, height: 132, objectFit: 'contain', animation: 'px-owl 4s ease-in-out infinite', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div style={{ position: 'relative', width: 104, height: 104 }}>
+            <div style={{ width: 104, height: 104, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.25)', border: '4px solid #fff', boxShadow: '0 8px 22px rgba(0,50,140,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', fontWeight: 800, color: '#fff' }}>
               {employee.photo_url
-                ? <img src={avatarUrl(employee.photo_url, 160) ?? employee.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <img src={avatarUrl(employee.photo_url, 220) ?? employee.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : employee.first_name.charAt(0)}
             </div>
             {cloudinaryEnabled && (
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: '50%', border: '2px solid #fff', background: '#244B83', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                style={{ position: 'absolute', right: -4, bottom: 0, width: 38, height: 38, borderRadius: '50%', border: '3px solid #fff', background: '#1E4FA8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
                 aria-label="เปลี่ยนรูปโปรไฟล์">
-                <Camera size={14} />
+                <Camera size={17} />
               </button>
             )}
-            {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>...</div>}
+            {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem' }}>กำลังอัปโหลด…</div>}
             <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} hidden />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff' }}>{fullName}</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>{employee.nickname || employee.branch.name}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.45rem', color: '#fff', textShadow: '0 2px 8px rgba(0,40,120,0.25)' }}>{fullName}</div>
+            <div style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.88)', marginTop: 2 }}>{employee.nickname || employee.branch.name}</div>
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '5px 14px' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusInfo.dot, display: 'inline-block' }} />
-            <span style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>{statusInfo.label}</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.24)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 99, padding: '8px 20px' }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: statusInfo.dot, display: 'inline-block', boxShadow: '0 0 8px ' + statusInfo.dot }} />
+            <span style={{ fontSize: '1rem', color: '#fff', fontWeight: 700 }}>{statusInfo.label}</span>
           </div>
         </div>
       </div>
 
-      {/* ── White Content Panel ─────────────────────────────────── */}
-      <div className="app-panel" style={{ paddingBottom: 100 }}>
+      <div style={{ padding: '0 14px 120px', marginTop: -44, position: 'relative', zIndex: 3 }}>
 
-        {/* ── Work Info ───────────────────────────────────────── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 4 }}>ข้อมูลการทำงาน</div>
+        {/* ── ข้อมูลการทำงาน ───────────────────────────────────── */}
+        <div style={{ background: '#fff', borderRadius: 28, padding: '20px 18px 8px', boxShadow: '0 8px 28px rgba(36,75,131,0.12)', border: '1.5px solid #E3ECF8', marginBottom: 24 }}>
+          <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#0B1B4D', marginBottom: 10 }}>ข้อมูลการทำงาน</div>
           {[
             { label: 'รหัสพนักงาน', value: employee.employee_code, Icon: IdCard },
             {
@@ -145,28 +160,38 @@ export default function ProfilePage() {
                 : employee.branch.name,
             },
             ...(hiredAtLabel ? [{ label: 'วันที่เข้าทำงาน', value: hiredAtLabel, Icon: CalendarDays }] : []),
-          ].map(row => (
-            <div key={row.label} className="fw-row">
-              <row.Icon size={17} color="#6B7D90" style={{ width: 22, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.82rem', color: '#6B7D90', flex: 1 }}>{row.label}</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1A2B3C', textAlign: 'right' }}>{row.value}</span>
+          ].map((row, i, arr) => (
+            <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderBottom: i < arr.length - 1 ? '1.5px solid #E8F0FC' : 'none' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: '#EAF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <row.Icon size={26} color="#1D4ED8" strokeWidth={2.2} />
+              </div>
+              <span style={{ fontSize: '1rem', color: '#5B6B8C', flex: 1 }}>{row.label}</span>
+              <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0B1B4D', textAlign: 'right', maxWidth: '55%' }}>{row.value}</span>
             </div>
           ))}
         </div>
 
-        {/* ── Menu ────────────────────────────────────────────── */}
+        {/* ── เมนูอื่นๆ ────────────────────────────────────────── */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A2B3C', marginBottom: 4 }}>เมนูอื่นๆ</div>
-          {MENU_ITEMS.map(({ Icon, label, sub, bubbleClass, path }) => (
-            <div key={path} className="fw-row" style={{ cursor: 'pointer' }} onClick={() => navigate(path)}>
-              <div className={`icon-bubble ${bubbleClass}`} style={{ borderRadius: 14 }}><Icon size={20} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#1A2B3C' }}>{label}</div>
-                <div style={{ fontSize: '0.75rem', color: '#6C89F5', marginTop: 2 }}>{sub}</div>
-              </div>
-              <span style={{ color: '#D1D5DB', fontSize: '1.1rem' }}>›</span>
-            </div>
-          ))}
+          <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#0B1B4D', margin: '0 4px 12px' }}>เมนูอื่นๆ</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {MENU_ITEMS.map(({ Icon, label, sub, bubbleClass, path }) => {
+              const tone = ({ 'icon-bubble-blue': ['#E1EEFF', '#1D6FE0'], 'icon-bubble-teal': ['#CFF7E6', '#0F8F63'], 'icon-bubble-orange': ['#E3EAF5', '#10285E'], 'icon-bubble-purple': ['#EDE6FF', '#6D3FD8'] } as Record<string, [string, string]>)[bubbleClass] ?? ['#E1EEFF', '#1D6FE0']
+              return (
+                <div key={path} className="px-row" role="button" tabIndex={0} onClick={() => navigate(path)} onKeyDown={e => { if (e.key === 'Enter') navigate(path) }}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', borderRadius: 24, background: '#fff', border: '1.5px solid #E3ECF8', boxShadow: '0 6px 20px rgba(36,75,131,0.08)' }}>
+                  <div style={{ width: 62, height: 62, borderRadius: 18, background: tone[0], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={30} color={tone[1]} strokeWidth={2.1} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1B4D' }}>{label}</div>
+                    <div style={{ fontSize: '0.95rem', color: '#3B82F6', marginTop: 3 }}>{sub}</div>
+                  </div>
+                  <span style={{ color: '#B8C2D6', fontSize: '1.8rem', lineHeight: 1 }}>›</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {showSwitchToAdmin && (
