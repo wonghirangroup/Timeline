@@ -103,6 +103,7 @@ function buildLeaveByDate(recs: LeaveRecord[]): Map<string, { label: string; off
   }
   return m
 }
+const isOffLeave = (l: LeaveRecord) => !!String(l.reason ?? '').match(/^\[(.+?)\]/) || l.leave_type === 'COMPENSATE'
 function buildOffDates(recs: WeeklyOffRecord[]): Set<string> {
   const s = new Set<string>()
   for (const w of recs) if (w.status === 'APPROVED') s.add(resolveDate(w.week_start, w.day_of_week))
@@ -287,16 +288,32 @@ export default function HistoryPage() {
   const displayMonths = months.length > 0 ? months : [`${now.getFullYear()}-${pad(now.getMonth() + 1)}`]
 
   // ── วันลา / วันหยุด / นอกสถานที่ — กรองตามเดือนที่เลือกเหมือนกัน ──
-  const leaveFiltered   = leaveRecords.filter(r => r.start_date.slice(0, 7) === selectedMonth).sort((a, b) => b.start_date.localeCompare(a.start_date))
+  const leaveFiltered   = leaveRecords.filter(r => !isOffLeave(r) && r.start_date.slice(0, 7) === selectedMonth).sort((a, b) => b.start_date.localeCompare(a.start_date))
   const dayoffFiltered  = dayoffRecords.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === selectedMonth).sort((a, b) => b.week_start.localeCompare(a.week_start))
   const offsiteFiltered = offsiteRecords.filter(r => r.check_in_at.slice(0, 7) === selectedMonth).sort((a, b) => b.check_in_at.localeCompare(a.check_in_at))
   // แท็บ "วันหยุด" รวมทั้งวันหยุดที่จองประจำเดือน + วันหยุดนักขัตฤกษ์ เข้าด้วยกัน
   // (feedback 2026-09-15: เดิมแยกกันคนละที่ ดูยาก) — เรียงตามวันที่ล่าสุดก่อน
   const holidayFiltered = holidayRecs.filter(h => h.date.startsWith(selectedMonth))
-  const dayoffMerged: ({ kind: 'booking'; date: string; rec: WeeklyOffRecord } | { kind: 'holiday'; date: string; name: string })[] = [
-    ...dayoffFiltered.map(r => ({ kind: 'booking' as const, date: resolveDate(r.week_start, r.day_of_week), rec: r })),
-    ...holidayFiltered.map(h => ({ kind: 'holiday' as const, date: h.date, name: h.name })),
-  ].sort((a, b) => b.date.localeCompare(a.date))
+  // แท็บ "วันหยุด" = ทุกอย่างที่เป็นหยุด: วันหยุดที่จอง + นักขัตฤกษ์ + หยุดสุดสัปดาห์ตามสถานะ + วันลาประเภทหยุด (ชดเชย ฯลฯ) — ประเภท "ลา" จริงอยู่แท็บวันลา
+  const dayoffMerged: ({ kind: 'booking'; date: string; rec: WeeklyOffRecord } | { kind: 'holiday'; date: string; name: string } | { kind: 'weekend'; date: string } | { kind: 'offleave'; date: string; rec: LeaveRecord; label: string })[] = (() => {
+    const out: ({ kind: 'booking'; date: string; rec: WeeklyOffRecord } | { kind: 'holiday'; date: string; name: string } | { kind: 'weekend'; date: string } | { kind: 'offleave'; date: string; rec: LeaveRecord; label: string })[] = [
+      ...dayoffFiltered.map(r => ({ kind: 'booking' as const, date: resolveDate(r.week_start, r.day_of_week), rec: r })),
+      ...holidayFiltered.map(h => ({ kind: 'holiday' as const, date: h.date, name: h.name })),
+      ...leaveRecords.filter(r => isOffLeave(r) && r.start_date.slice(0, 7) === selectedMonth).map(r => ({
+        kind: 'offleave' as const, date: r.start_date.slice(0, 10), rec: r,
+        label: String(r.reason ?? '').match(/^\[(.+?)\]/)?.[1] ?? LEAVE_TYPE_CFG[r.leave_type]?.label ?? r.leave_type,
+      })),
+    ]
+    const taken = new Set(out.map(x => x.date))
+    const [yy, mm] = selectedMonth.split('-').map(Number)
+    for (let day = 1; day <= new Date(yy, mm, 0).getDate(); day++) {
+      const date = `${yy}-${pad(mm)}-${pad(day)}`
+      const dow = new Date(date + 'T00:00:00').getDay()
+      if (taken.has(date) || !isWeekendOff(dow, date)) continue
+      out.push({ kind: 'weekend' as const, date })
+    }
+    return out.sort((a, b) => b.date.localeCompare(a.date))
+  })()
 
   const TABS: { id: RecordType; label: string; Icon: typeof CheckCircle2 }[] = [
     { id: 'attendance', label: 'เช็คชื่อ',     Icon: CheckCircle2 },
@@ -538,6 +555,39 @@ export default function HistoryPage() {
                         </div>
                       </div>
                       <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '5px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}>นักขัตฤกษ์</span>
+                    </div>
+                  )
+                }
+                if (item.kind === 'weekend') {
+                  return (
+                    <div key={`we-${item.date}`} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Palmtree size={20} color="#64748B" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary }}>{fmtDateShort(item.date)}</div>
+                        <div style={{ fontSize: '0.8rem', color: COLOR.textMuted, marginTop: 3 }}>{DAYS_TH_FULL[new Date(item.date + 'T00:00:00').getDay()]}</div>
+                      </div>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', background: '#F1F5F9', padding: '5px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}>หยุดสุดสัปดาห์</span>
+                    </div>
+                  )
+                }
+                if (item.kind === 'offleave') {
+                  const lr = item.rec
+                  const sc2 = STATUS_CFG[lr.status]
+                  const sameDay = lr.start_date.slice(0, 10) === lr.end_date.slice(0, 10)
+                  return (
+                    <div key={`ol-${lr.id}`} className="hx-card animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', animationDelay: `${i * 35}ms` }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Palmtree size={20} color="#059669" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: COLOR.textPrimary }}>
+                          {sameDay ? fmtDateShort(lr.start_date) : `${fmtDateShort(lr.start_date)} – ${fmtDateShort(lr.end_date)}`}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#059669', marginTop: 4, fontWeight: 700 }}>{item.label} · {lr.days} วัน</div>
+                      </div>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: sc2.color, background: sc2.bg, padding: '5px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}>{sc2.label}</span>
                     </div>
                   )
                 }
