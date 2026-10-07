@@ -9,7 +9,7 @@ const hideDemo = page => page.evaluate(() => {
 
 module.exports = [
   // ── เริ่มต้นใช้งาน ──
-  { id: 'login', path: 'login', w: 1440, h: 900, clip: { x: 790, y: 200, width: 540, height: 470 },
+  { id: 'login', path: 'login', w: 1440, h: 900, clip: { x: 150, y: 90, width: 1060, height: 720 },
     setup: async (page, { sleep }) => {
       await page.type('input[placeholder="username"]', 'demo.admin')
       await hideDemo(page)

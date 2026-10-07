@@ -1,7 +1,7 @@
 // admin/src/pages/manual/content.ts
 // เนื้อหาคู่มือการใช้งานฝั่งแอดมิน — ข้อมูลล้วน (ไม่มี JSX) หน้า index.tsx แค่ render
 // ภาพ: public/manual/<id>.webp ถ่ายจากแอดมินจริงด้วยข้อมูลสมมติ (ไม่มีชื่อ/เบอร์จริง) วงเลขในภาพ = callouts[].n
-// ข้อความรองรับ **ตัวหนา** แบบง่าย  ·  แก้ภาพใหม่เมื่อหน้าตาเปลี่ยน: ดู docs/manual-screenshots.md
+// ข้อความรองรับ **ตัวหนา** แบบง่าย  ·  แก้หน้าจอ/flow แล้วต้องอัปเดตคู่มือนี้ด้วย: ดู .claude/skills/update-admin-manual/SKILL.md
 export type NoteTone = 'info' | 'tip' | 'warn'
 export interface Callout { n: number; text: string }
 export type Block =
@@ -38,7 +38,7 @@ export const MANUAL: Category[] = [
             { n: 3, text: 'จดจำฉันไว้ — เก็บเฉพาะ "ชื่อผู้ใช้" ไว้ในเครื่อง ระบบไม่เก็บรหัสผ่าน' },
             { n: 4, text: 'ลืมรหัสผ่าน — ตอนนี้ยังรีเซ็ตเองผ่านอีเมลไม่ได้ ให้ติดต่อผู้ดูแลระบบของบริษัท' },
             { n: 5, text: 'ปุ่มเข้าสู่ระบบ' },
-          ], 560),
+          ], 900),
           { type: 'note', tone: 'warn', text: 'บัญชี Super Admin ไม่ได้เข้าที่หน้านี้ — ถ้าลองเข้า ระบบจะแจ้งที่อยู่ของพอร์ทัลแยกให้' },
           { type: 'note', tone: 'tip', text: 'ใช้เครื่องสาธารณะหรือเครื่องที่ใช้ร่วมกัน ไม่ต้องติ๊ก "จดจำฉันไว้"' },
         ],

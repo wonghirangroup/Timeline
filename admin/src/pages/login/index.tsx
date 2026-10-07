@@ -2,7 +2,7 @@
 import { showResult } from '../../components/ui/ResultDialog'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail } from 'lucide-react'
+import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail, User, Lock } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import type { Role } from '../../stores/authStore'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -191,150 +191,128 @@ export default function LoginPage() {
     setUsername(demoUsername); setPassword(demoPassword); setError('')
   }
 
+  const field: React.CSSProperties = { width: '100%', padding: '14px 16px 14px 48px', borderRadius: 16, fontSize: '1rem', border: '1.5px solid #DCE6F5', boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff', color: '#0B1B4D', outline: 'none', transition: 'border-color .15s, box-shadow .15s', boxShadow: '0 3px 10px rgba(36,75,131,0.06)' }
+  const focusOn  = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#2F86F2'; e.target.style.boxShadow = '0 0 0 4px rgba(47,134,242,0.16)' }
+  const focusOff = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#DCE6F5'; e.target.style.boxShadow = '0 3px 10px rgba(36,75,131,0.06)' }
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#fff' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#EAF4FF url(/login/bg.webp) center / cover no-repeat', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : '40px 32px', boxSizing: 'border-box' }}>
       {introPhase !== 'done' && <IntroSplash exiting={introPhase === 'out'} />}
 
-      {/* ── Left — Brand panel — เต็มพาเนลด้วยแบนเนอร์ (login-ads) ถ้ามี ไม่มี
-          padding/โลโก้ซ้อนทับ (feedback 2026-09-28 "เอาโลโก้ตรงฟอร์มออก ให้รูป
-          เต็มจอ") — ถ้ายังไม่มีแบนเนอร์เลยค่อย fallback เป็นพื้นเข้ม + โลโก้/
-          footer แบบเดิม กันพาเนลว่างเปล่าไม่มีอะไรเลย ── */}
-      <div style={{
-        position: 'relative', overflow: 'hidden',
-        width: isMobile ? '100%' : '46%',
-        minHeight: isMobile ? 200 : '100vh',
-        background: ads.length > 0 ? '#131C45' : 'linear-gradient(155deg, #131C45 0%, #1B2557 55%, #244B83 100%)',
-        display: 'flex', flexDirection: 'column',
-        justifyContent: isMobile ? 'center' : 'space-between',
-        padding: (!isMobile && ads.length > 0) ? 0 : (isMobile ? '32px 28px' : '52px 48px'),
-        boxSizing: 'border-box',
-      }}>
-        {!isMobile && ads.length > 0 ? (
-          <div style={{ position: 'absolute', inset: 0 }}>
-            <AdCarousel ads={ads} />
-          </div>
-        ) : (
-          <>
-            {/* decorative glow — brand primary blue, อ่านออกชัดกว่าเดิม (secondary
-                blue กลืนกับพื้นหลัง navy ที่เพิ่งเปลี่ยนมา) */}
-            <div style={{ position: 'absolute', top: -140, right: -100, width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,166,221,0.22), transparent 70%)' }} />
-            <div style={{ position: 'absolute', bottom: -160, left: -100, width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,166,221,0.14), transparent 70%)' }} />
+      <div style={{ width: '100%', maxWidth: 1060, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 18 : 0 }}>
 
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <img src="/yoonai-logo.png" alt="YooNai" style={{ height: 64, borderRadius: 12, flexShrink: 0 }} />
-            </div>
-
-            {!isMobile && (
-              <div style={{ position: 'relative', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.02em' }}>
-                YooNai HR System · Powered by WH Group
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ── Right — Login form ── */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: '#fff' }}>
+        {/* ── การ์ดฟอร์ม (ซ้าย) ── */}
         <div style={{
-          width: '100%', maxWidth: 380,
+          position: 'relative', zIndex: 2, width: '100%', maxWidth: 470, flexShrink: 0, boxSizing: 'border-box', overflow: 'hidden',
+          background: '#fff', borderRadius: 38, padding: isMobile ? '28px 22px' : '40px 40px 36px',
+          boxShadow: '0 24px 60px rgba(36,75,131,0.18), 0 0 0 1px rgba(36,75,131,0.05)',
           opacity: introPhase === 'in' ? 0 : 1,
           transform: introPhase === 'in' ? 'translateY(10px)' : 'translateY(0)',
           transition: 'opacity 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s, transform 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s',
         }}>
-          <div style={{ marginBottom: 32 }}>
-            <h2 style={{ margin: '0 0 7px', fontSize: '1.55rem', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>เข้าสู่ระบบ</h2>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              เข้าสู่ระบบเพื่อจัดการพนักงาน
-            </p>
-          </div>
+          <span aria-hidden="true" style={{ position: 'absolute', left: -90, top: -70, width: 240, height: 150, borderRadius: '50%', background: 'rgba(205,226,252,0.45)' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: -60, bottom: -110, width: 280, height: 220, borderRadius: '50%', background: 'rgba(205,226,252,0.55)' }} />
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 7, display: 'block' }}>ชื่อผู้ใช้</label>
-                <input
-                  type="text" value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="username"
-                  autoComplete="username"
-                  style={{ width: '100%', padding: '12px 15px', borderRadius: 11, fontSize: '0.9rem', border: '1.5px solid #E2E5EA', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.18s, box-shadow 0.18s', outline: 'none' }}
-                  onFocus={e => { e.target.style.borderColor = '#2DA6DD'; e.target.style.boxShadow = '0 0 0 4px rgba(45,166,221,0.14)' }}
-                  onBlur={e => { e.target.style.borderColor = '#E2E5EA'; e.target.style.boxShadow = 'none' }}
-                />
+          <div style={{ position: 'relative' }}>
+            <img src="/login/logo.webp" alt="YooNai" style={{ height: 46, display: 'block', marginBottom: 26 }} />
+            <h2 style={{ margin: '0 0 6px', fontSize: '2rem', fontWeight: 800, color: '#0B1B4D', letterSpacing: '-0.01em' }}>เข้าสู่ระบบ</h2>
+            <p style={{ margin: '0 0 26px', fontSize: '1rem', color: '#6B7A99' }}>เข้าสู่ระบบเพื่อจัดการระบบพนักงาน</p>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <label style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0B1B4D', marginBottom: 8, display: 'block' }}>ชื่อผู้ใช้</label>
+                  <div style={{ position: 'relative' }}>
+                    <User size={20} color="#7A88A6" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="username" autoComplete="username"
+                      style={field} onFocus={focusOn} onBlur={focusOff} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0B1B4D', marginBottom: 8, display: 'block' }}>รหัสผ่าน</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={20} color="#7A88A6" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password"
+                      style={{ ...field, paddingRight: 50 }} onFocus={focusOn} onBlur={focusOff} />
+                    <button type="button" onClick={() => setShowPwd(p => !p)} aria-label={showPwd ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#7A88A6', display: 'flex', padding: 4 }}>
+                      {showPwd ? <EyeOff size={21} /> : <Eye size={21} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -2 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.95rem', color: '#33415C', cursor: 'pointer', userSelect: 'none' }}>
+                    <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ accentColor: '#1D4ED8', width: 20, height: 20, cursor: 'pointer', borderRadius: 6 }} />
+                    จดจำฉันไว้
+                  </label>
+                  <button type="button" onClick={() => setShowForgot(true)}
+                    style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.95rem', color: '#1D6FE0', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    ลืมรหัสผ่าน?
+                  </button>
+                </div>
+
+                {error && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 14, padding: '11px 14px', fontSize: '0.88rem', color: '#b91c1c' }}>
+                    <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} style={{
+                  marginTop: 4, padding: '17px', borderRadius: 16, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                  background: loading ? '#B2C0D4' : 'linear-gradient(180deg, #1F5BD0 0%, #0F2F8F 100%)',
+                  color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontFamily: 'inherit',
+                  boxShadow: loading ? 'none' : '0 12px 26px -8px rgba(15,47,143,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+                  transition: 'transform 0.15s, box-shadow 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                }}
+                  onMouseEnter={e => { if (!loading) e.currentTarget.style.transform = 'translateY(-2px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
+                >
+                  {loading ? <><Loader2 size={20} className="animate-spin" /> กำลังเข้าสู่ระบบ...</> : <><LogIn size={20} /> เข้าสู่ระบบ</>}
+                </button>
               </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 7, display: 'block' }}>รหัสผ่าน</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPwd ? 'text' : 'password'} value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                    style={{ width: '100%', padding: '12px 44px 12px 15px', borderRadius: 11, fontSize: '0.9rem', border: '1.5px solid #E2E5EA', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.18s, box-shadow 0.18s', outline: 'none' }}
-                    onFocus={e => { e.target.style.borderColor = '#2DA6DD'; e.target.style.boxShadow = '0 0 0 4px rgba(45,166,221,0.14)' }}
-                    onBlur={e => { e.target.style.borderColor = '#E2E5EA'; e.target.style.boxShadow = 'none' }}
-                  />
-                  <button type="button" onClick={() => setShowPwd(p => !p)} aria-label={showPwd ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-                    {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
+            </form>
+
+            {/* Demo accounts — เฉพาะตอน dev เท่านั้น (npm run dev) ไม่ต้องขึ้น production build เลย */}
+            {import.meta.env.DEV && (
+              <div style={{ marginTop: 22, borderTop: '1px solid #EEF2F9', paddingTop: 16 }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo (DEV only)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <button type="button" onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, border: '1px solid #E3ECF8', background: '#F7FAFF', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#244B83', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={14} /> Admin</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>wonghi_admin</span>
                   </button>
                 </div>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -4 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
-                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-                    style={{ accentColor: '#244B83', width: 15, height: 15, cursor: 'pointer' }} />
-                  จดจำฉันไว้
-                </label>
-                <button type="button" onClick={() => setShowForgot(true)}
-                  style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.82rem', color: '#244B83', fontWeight: 600, cursor: 'pointer' }}>
-                  ลืมรหัสผ่าน?
-                </button>
-              </div>
-
-              {error && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#dc2626' }}>
-                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
-                </div>
-              )}
-
-              <button type="submit" disabled={loading} style={{
-                marginTop: 6, padding: '14px', borderRadius: 11, border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                background: loading ? '#B2C0D4' : 'linear-gradient(135deg, #2A5695, #131C45)',
-                color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'inherit',
-                boxShadow: loading ? 'none' : '0 10px 24px -6px rgba(19,28,69,0.45)',
-                transition: 'transform 0.18s, box-shadow 0.18s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}
-                onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1.5px)'; e.currentTarget.style.boxShadow = '0 14px 28px -6px rgba(19,28,69,0.55)' } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 10px 24px -6px rgba(19,28,69,0.45)' }}
-              >
-                {loading ? <><Loader2 size={17} className="animate-spin" /> กำลังเข้าสู่ระบบ...</> : <><LogIn size={17} /> เข้าสู่ระบบ</>}
-              </button>
-            </div>
-          </form>
-
-          {/* Demo accounts — เฉพาะตอน dev เท่านั้น (npm run dev) ไม่ต้องขึ้น production build เลย */}
-          {import.meta.env.DEV && (
-            <div style={{ marginTop: 24, borderTop: '1px solid #f3f4f6', paddingTop: 18 }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>บัญชีสำหรับ Demo (DEV only)</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <button type="button" onClick={() => fillDemo('wonghi_admin', 'Password123!')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid #244B8325', background: '#F4F6F9', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#244B83', display: 'flex', alignItems: 'center', gap: 6 }}><Building2 size={14} /> Admin</span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>wonghi_admin</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {isMobile && (
-            <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              YooNai HR System · Powered by WH Group
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* ── ด้านขวา: นกฮูกชะโงก + สโลแกน + จุดเด่น (หรือแบนเนอร์จาก Super Admin ถ้ามี) ── */}
+        {ads.length > 0 ? (
+          <div style={{ position: 'relative', zIndex: 1, flex: 1, width: '100%', minWidth: 0, height: isMobile ? 220 : 560, marginLeft: isMobile ? 0 : 28, borderRadius: 38, overflow: 'hidden', boxShadow: '0 24px 60px rgba(36,75,131,0.18)', background: '#131C45' }}>
+            <AdCarousel ads={ads} />
+          </div>
+        ) : (
+          <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start', marginLeft: isMobile ? 0 : -34 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 6 : 10, width: '100%' }}>
+              <img src="/login/owl.webp" alt="" aria-hidden="true" draggable={false}
+                style={{ width: isMobile ? 130 : 270, height: 'auto', flexShrink: 0, userSelect: 'none', pointerEvents: 'none' }} />
+              <div style={{ transform: 'rotate(-6deg)', textAlign: 'left', paddingTop: isMobile ? 0 : 70 }}>
+                <div style={{ fontWeight: 800, fontStyle: 'italic', fontSize: isMobile ? '1.15rem' : '1.7rem', lineHeight: 1.25, color: '#0F3CC0' }}>
+                  ระบบจัดการพนักงาน<br />ที่เข้าใจธุรกิจของคุณ
+                </div>
+                <div aria-hidden="true" style={{ marginTop: 8, width: isMobile ? 120 : 190, height: 6, borderRadius: 99, background: 'linear-gradient(90deg, #FF8A00, #FFB020)', transform: 'skewX(-18deg)' }} />
+              </div>
+            </div>
+            <img src="/login/features.webp" alt="ครอบคลุมทุกความต้องการ · ใช้งานได้ทุกที่ทุกอุปกรณ์ · ทีมดูแลพร้อมช่วยเหลือ" draggable={false}
+              style={{ width: '100%', maxWidth: isMobile ? 360 : 520, height: 'auto', marginTop: isMobile ? 6 : 30, alignSelf: 'center', userSelect: 'none' }} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: '0.72rem', color: '#6B7A99' }}>
+        YooNai HR System · Powered by WH Group
       </div>
 
       {/* Forgot password — info modal (ยังไม่มีระบบส่งอีเมลจริง) */}
