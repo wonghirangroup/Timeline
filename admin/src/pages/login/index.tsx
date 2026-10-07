@@ -1,6 +1,6 @@
 // admin/src/pages/login/index.tsx
 import { showResult } from '../../components/ui/ResultDialog'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail, User, Lock } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
@@ -49,62 +49,6 @@ function IntroSplash({ exiting }: { exiting: boolean }) {
   )
 }
 
-interface LoginAd { id: string; media_type?: 'IMAGE' | 'VIDEO'; image_url: string; video_url?: string | null; link_url: string | null }
-
-// ── Ad carousel — SuperAdmin จัดการที่ superadmin/pages/login-ads ── แทนที่
-// เนื้อหาแนะนำฟีเจอร์เดิมทั้งหมดถ้ามีแบนเนอร์ตั้งไว้ (ไม่มี = โชว์เนื้อหาเดิม
-// เป็น fallback กันพาเนลว่างเปล่า) — รูปหมุนทุก 5 วิ ส่วนวิดีโอ (feedback
-// 2026-09-28 "อยากทำเป็นวิดิโอด้วย") ปล่อยเล่นจนจบแล้วค่อยเลื่อนต่อเอง (ไม่งั้น
-// วิดีโอ ~15 วิ จะโดนตัดที่ 5 วิเหมือนรูปเสมอ ดูไม่ทันจบ)
-function AdCarousel({ ads }: { ads: LoginAd[] }) {
-  const [idx, setIdx] = useState(0)
-  const ad = ads[idx]
-
-  function next() { setIdx(i => (i + 1) % ads.length) }
-
-  useEffect(() => {
-    if (ads.length < 2 || ad?.media_type === 'VIDEO') return // วิดีโอเลื่อนเองผ่าน onEnded
-    const t = setTimeout(next, 5000)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, ads.length])
-
-  if (!ad) return null
-
-  function openAd() {
-    if (ad.link_url) window.open(ad.link_url, '_blank', 'noopener,noreferrer')
-  }
-
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {ad.media_type === 'VIDEO' && ad.video_url ? (
-        <video
-          key={ad.id} src={ad.video_url} poster={ad.image_url}
-          autoPlay muted playsInline onEnded={ads.length > 1 ? next : undefined} loop={ads.length === 1}
-          onClick={ad.link_url ? openAd : undefined}
-          className="animate-fade-in"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
-        />
-      ) : (
-        <img
-          key={ad.id} src={ad.image_url} alt=""
-          onClick={ad.link_url ? openAd : undefined}
-          className="animate-fade-in"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ad.link_url ? 'pointer' : 'default' }}
-        />
-      )}
-      {ads.length > 1 && (
-        <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
-          {ads.map((a, i) => (
-            <button key={a.id} onClick={() => setIdx(i)} aria-label={`แบนเนอร์ ${i + 1}`}
-              style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 99, border: 'none', cursor: 'pointer', background: i === idx ? '#fff' : 'rgba(255,255,255,0.4)', transition: 'width 0.25s, background 0.25s' }} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function LoginPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile(900)
@@ -125,13 +69,6 @@ export default function LoginPage() {
     const t2 = setTimeout(() => setIntroPhase('done'), 1550)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [introPhase])
-
-  // แบนเนอร์ที่ SuperAdmin ตั้งไว้ (public endpoint, ไม่ต้อง login) — ว่าง =
-  // fallback กลับไปโชว์ข้อความแนะนำฟีเจอร์เดิม
-  const [ads, setAds] = useState<LoginAd[]>([])
-  useEffect(() => {
-    axios.get(`${API_URL}/api/v1/login-ads`).then(res => setAds(res.data.data ?? [])).catch(() => {})
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -191,15 +128,35 @@ export default function LoginPage() {
     setUsername(demoUsername); setPassword(demoPassword); setError('')
   }
 
+  // ย่อทั้งหน้าให้พอดีจอ (ไม่ต้องเลื่อน) — วัดความสูง/กว้างจริงของเนื้อหา แล้วย่อด้วย scale เมื่อจอเตี้ย/แคบกว่า
+  const fitRef = useRef<HTMLDivElement>(null)
+  const [fit, setFit] = useState(1)
+  useLayoutEffect(() => {
+    function measure() {
+      const el = fitRef.current
+      if (!el) return
+      const prev = el.style.transform
+      el.style.transform = 'none'
+      const h = el.offsetHeight, w = el.offsetWidth
+      el.style.transform = prev
+      const k = Math.min(1, (window.innerHeight - 48) / h, (window.innerWidth - 16) / w)
+      setFit(Number.isFinite(k) && k > 0.3 ? k : 1)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    const t = setTimeout(measure, 700)  // หลังรูปโหลด/intro จบ ขนาดอาจเปลี่ยน
+    return () => { window.removeEventListener('resize', measure); clearTimeout(t) }
+  }, [isMobile])
+
   const field: React.CSSProperties = { width: '100%', padding: '14px 16px 14px 48px', borderRadius: 16, fontSize: '1rem', border: '1.5px solid #DCE6F5', boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff', color: '#0B1B4D', outline: 'none', transition: 'border-color .15s, box-shadow .15s', boxShadow: '0 3px 10px rgba(36,75,131,0.06)' }
   const focusOn  = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#2F86F2'; e.target.style.boxShadow = '0 0 0 4px rgba(47,134,242,0.16)' }
   const focusOff = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#DCE6F5'; e.target.style.boxShadow = '0 3px 10px rgba(36,75,131,0.06)' }
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#EAF4FF url(/login/bg.webp) center / cover no-repeat', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : '40px 32px', boxSizing: 'border-box' }}>
+    <div style={{ height: '100dvh', width: '100%', position: 'relative', overflow: 'hidden', background: '#EAF4FF url(/login/bg.webp) center / cover no-repeat', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '12px 8px' : '24px 16px', boxSizing: 'border-box' }}>
       {introPhase !== 'done' && <IntroSplash exiting={introPhase === 'out'} />}
 
-      <div style={{ width: '100%', maxWidth: 1060, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 18 : 0 }}>
+      <div ref={fitRef} style={{ width: '100%', maxWidth: 1060, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 12 : 0, transform: `scale(${fit})`, transformOrigin: 'center center', flexShrink: 0 }}>
 
         {/* ── การ์ดฟอร์ม (ซ้าย) ── */}
         <div style={{
@@ -214,7 +171,7 @@ export default function LoginPage() {
           <span aria-hidden="true" style={{ position: 'absolute', left: -60, bottom: -110, width: 280, height: 220, borderRadius: '50%', background: 'rgba(205,226,252,0.55)' }} />
 
           <div style={{ position: 'relative' }}>
-            <img src="/login/logo.webp" alt="YooNai" style={{ height: 46, display: 'block', marginBottom: 26 }} />
+            <img src="/login/logo.webp" alt="YooNai" style={{ height: 84, width: 84, display: "block", marginBottom: 18, borderRadius: 18 }} />
             <h2 style={{ margin: '0 0 6px', fontSize: '2rem', fontWeight: 800, color: '#0B1B4D', letterSpacing: '-0.01em' }}>เข้าสู่ระบบ</h2>
             <p style={{ margin: '0 0 26px', fontSize: '1rem', color: '#6B7A99' }}>เข้าสู่ระบบเพื่อจัดการระบบพนักงาน</p>
 
@@ -289,29 +246,19 @@ export default function LoginPage() {
         </div>
 
         {/* ── ด้านขวา: นกฮูกชะโงก + สโลแกน + จุดเด่น (หรือแบนเนอร์จาก Super Admin ถ้ามี) ── */}
-        {ads.length > 0 ? (
-          <div style={{ position: 'relative', zIndex: 1, flex: 1, width: '100%', minWidth: 0, height: isMobile ? 220 : 560, marginLeft: isMobile ? 0 : 28, borderRadius: 38, overflow: 'hidden', boxShadow: '0 24px 60px rgba(36,75,131,0.18)', background: '#131C45' }}>
-            <AdCarousel ads={ads} />
-          </div>
-        ) : (
-          <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start', marginLeft: isMobile ? 0 : -34 }}>
+          <div style={{ position: 'relative', zIndex: 3, flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start', marginLeft: isMobile ? 0 : -21, pointerEvents: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 6 : 10, width: '100%' }}>
               <img src="/login/owl.webp" alt="" aria-hidden="true" draggable={false}
-                style={{ width: isMobile ? 130 : 270, height: 'auto', flexShrink: 0, userSelect: 'none', pointerEvents: 'none' }} />
-              <div style={{ transform: 'rotate(-6deg)', textAlign: 'left', paddingTop: isMobile ? 0 : 70 }}>
-                <div style={{ fontWeight: 800, fontStyle: 'italic', fontSize: isMobile ? '1.15rem' : '1.7rem', lineHeight: 1.25, color: '#0F3CC0' }}>
-                  ระบบจัดการพนักงาน<br />ที่เข้าใจธุรกิจของคุณ
-                </div>
-                <div aria-hidden="true" style={{ marginTop: 8, width: isMobile ? 120 : 190, height: 6, borderRadius: 99, background: 'linear-gradient(90deg, #FF8A00, #FFB020)', transform: 'skewX(-18deg)' }} />
-              </div>
+                style={{ width: isMobile ? 120 : 270, height: 'auto', flexShrink: 0, userSelect: 'none', pointerEvents: 'none' }} />
+              <img src="/login/slogan.webp" alt="ระบบจัดการพนักงาน ที่เข้าใจธุรกิจของคุณ" draggable={false}
+                style={{ width: isMobile ? 190 : 330, height: 'auto', flexShrink: 1, minWidth: 0, marginTop: isMobile ? 0 : 60, userSelect: 'none' }} />
             </div>
             <img src="/login/features.webp" alt="ครอบคลุมทุกความต้องการ · ใช้งานได้ทุกที่ทุกอุปกรณ์ · ทีมดูแลพร้อมช่วยเหลือ" draggable={false}
               style={{ width: '100%', maxWidth: isMobile ? 360 : 520, height: 'auto', marginTop: isMobile ? 6 : 30, alignSelf: 'center', userSelect: 'none' }} />
           </div>
-        )}
       </div>
 
-      <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: '0.72rem', color: '#6B7A99' }}>
+      <div style={{ display: isMobile ? 'none' : 'block', position: 'absolute', bottom: 6, left: 0, right: 0, textAlign: 'center', fontSize: '0.72rem', color: '#6B7A99' }}>
         YooNai HR System · Powered by WH Group
       </div>
 
