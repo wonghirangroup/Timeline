@@ -158,8 +158,10 @@ function ColleagueAvatar({ name, photoUrl, seed }: { name: string; photoUrl?: st
 // ═══════════════════════════════════════════════════════════════════════════════
 // Personal Calendar Tab
 // ═══════════════════════════════════════════════════════════════════════════════
-function PersonalCalendar({ employeeId, requests, holidays, statusType, onBooking }: {
+function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules, onBooking }: {
   employeeId: string; requests: LeaveRequest[]; holidays: Holiday[]
+  // กติกาเสาร์/อาทิตย์ที่ server resolve จาก cascade แล้ว (สถานะ→ตำแหน่ง→…→กลุ่ม) + โหมดโควต้า "เสาร์-อาทิตย์ของเดือน"
+  myRules?: { saturday_rule?: string | null; sunday_rule?: string | null; pool?: boolean }
   statusType?: { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE'; off_on_public_holiday?: boolean } | null
   onBooking: () => void
 }) {
@@ -167,6 +169,8 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
   const thisMonth = today.slice(0, 7)
   const [month,  setMonth]  = useState(thisMonth)
   const [selDay, setSelDay] = useState<string | null>(null)
+  // 'all' = ปฏิทินรวมเพื่อนร่วมงาน · 'mine' = เฉพาะวันหยุดของฉัน (หยุดที่จอง + ลา + นักขัตฤกษ์ที่มีสิทธิ์ + เสาร์-อาทิตย์ที่มีสิทธิ์หยุด)
+  const [mode, setMode] = useState<'all' | 'mine'>('all')
 
   const totalDays  = getDaysInMonth(month)
   const firstDow   = getFirstDow(month)
@@ -200,17 +204,41 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
   const myOffThisMonth = own.filter(o => o.status === 'APPROVED').length
 
+  // ── สิทธิ์หยุดของฉันในแต่ละวัน (ใช้ในโหมด "วันหยุดของฉัน") ──
+  // นักขัตฤกษ์: รายการที่ server ส่งมาเป็นของที่ใช้กับฉันอยู่แล้ว (สาขา/แผนก/รายบุคคล) — แต่จะได้หยุดจริงก็ต่อเมื่อสถานะพนักงานไม่ปิด "หยุดวันนักขัตฤกษ์"
+  //   (ไม่มีสถานะ = ได้หยุด ตรงกับ server) · เสาร์/อาทิตย์: ตามกติกาที่ resolve แล้ว ไม่ใช่ WORK = หยุด; โหมดโควต้าเสาร์-อาทิตย์ของเดือน ถ้าเดือนนั้นมีวันหยุดจองที่อนุมัติแล้ว → ใช้วันที่จองแทน ไม่นับเสาร์-อาทิตย์เป็นวันหยุดอัตโนมัติ
+  const holidayEntitled = statusType ? statusType.off_on_public_holiday !== false : true
+  const poolBooked = !!myRules?.pool && own.some(o => o.status === 'APPROVED')
+  const weekendOff = (dow: number) => {
+    if (poolBooked) return false
+    const rule = dow === 6 ? (myRules?.saturday_rule ?? statusType?.saturday_rule ?? 'OFF') : dow === 0 ? (myRules?.sunday_rule ?? statusType?.sunday_rule ?? 'OFF') : 'WORK'
+    return rule === 'OFF'
+  }
+
   const selMyOff   = selDay ? getMyOff(selDay)    : null
   const selLeaves  = selDay ? getMyLeaves(selDay)  : []
   const selHol     = selDay ? getHoliday(selDay)   : null
-  const selColOff  = selDay ? getColleaguesOff(selDay)   : []
-  const selColLeaves = selDay ? getColleagueLeaves(selDay) : []
-  const selEmpty   = !selMyOff && !selLeaves.length && !selHol && !selColOff.length && !selColLeaves.length
+  const selColOff  = selDay && mode === 'all' ? getColleaguesOff(selDay)   : []
+  const selColLeaves = selDay && mode === 'all' ? getColleagueLeaves(selDay) : []
+  const selDow = selDay ? new Date(selDay + 'T00:00:00Z').getUTCDay() : -1
+  const selWeekendOff = selDay ? ((selDow === 6 || selDow === 0) && weekendOff(selDow)) : false
+  const selEmpty   = !selMyOff && !selLeaves.length && !selHol && !selColOff.length && !selColLeaves.length && !(mode === 'mine' && selWeekendOff)
 
   return (
     <div>
       {/* ── Calendar ─────────────────────────────────────────── */}
       <div style={{ padding: '4px 0', marginBottom: 16 }}>
+        {/* สลับโหมด: ปฏิทินรวมเพื่อนร่วมงาน / วันหยุดของฉัน */}
+        <div style={{ display: 'flex', gap: 6, padding: 5, borderRadius: 99, background: '#EAF2FF', marginBottom: 12 }}>
+          {([['all', 'ปฏิทินรวม'], ['mine', 'วันหยุดของฉัน']] as const).map(([k, label]) => (
+            <button key={k} onClick={() => { setMode(k); setSelDay(null) }} aria-pressed={mode === k}
+              style={{ flex: 1, padding: '9px 6px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.92rem', fontWeight: 800,
+                background: mode === k ? '#fff' : 'transparent', color: mode === k ? '#1D6FE0' : '#64748B', boxShadow: mode === k ? '0 3px 10px rgba(29,111,224,0.18)' : 'none' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <button onClick={() => { setMonth(m => addMonths(m, -1)); setSelDay(null) }}
@@ -261,8 +289,13 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             // (ทำงานปกติ/หยุด/นอกสถานที่) เผื่อกรณี office หยุดอาทิตย์แต่เสาร์ต้องออกไปทำงานนอกสถานที่
             const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay()
             const dayRule = dow === 6 ? statusType?.saturday_rule : dow === 0 ? statusType?.sunday_rule : undefined
-            const isAutoOff     = dayRule === 'OFF' || (!!holiday && !!statusType?.off_on_public_holiday)
-            const isAutoOffsite = dayRule === 'OFFSITE'
+            const mine = mode === 'mine'
+            const isAutoOff     = mine
+              ? ((dow === 6 || dow === 0) && weekendOff(dow)) || (!!holiday && holidayEntitled)
+              : dayRule === 'OFF' || (!!holiday && !!statusType?.off_on_public_holiday)
+            const isAutoOffsite = mine ? false : dayRule === 'OFFSITE'
+            // โหมดวันหยุดของฉัน: วันที่ไม่ได้หยุดอะไรเลยจางลง (ไม่ใช่วันหยุด/ลา)
+            const isMyDayOff = isApprOff || isPendOff || !!firstLeave || (mine && isAutoOff)
 
             // Cell background rules — easy to read at a glance
             let cellBg = '#fff'
@@ -283,7 +316,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                   cursor: 'pointer', background: cellBg,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   paddingTop: 7, paddingBottom: 5, gap: 3,
-                  opacity: isPast && !myOff && !myLeaves.length ? 0.45 : 1,
+                  opacity: mine ? (isMyDayOff ? 1 : 0.4) : (isPast && !myOff && !myLeaves.length ? 0.45 : 1),
                   transition: 'all 0.12s', fontFamily: 'inherit',
                   boxShadow: isApprOff || isSel ? '0 2px 8px rgba(36,75,131,0.15)' : 'none',
                 }}>
@@ -307,7 +340,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
                   <div style={{ fontSize: '0.58rem', color: '#9333EA', fontWeight: 700, lineHeight: 1, textAlign: 'center' }}>นอกสถานที่</div>
                 )}
                 {isAutoOff && !isAutoOffsite && !isApprOff && !isPendOff && !firstLeave && (
-                  <div style={{ fontSize: '0.62rem', color: '#0284C7', fontWeight: 700, lineHeight: 1 }}>หยุดประจำ</div>
+                  <div style={{ fontSize: '0.62rem', color: '#0284C7', fontWeight: 700, lineHeight: 1 }}>{mine ? (holiday ? 'นักขัตฯ' : 'หยุด') : 'หยุดประจำ'}</div>
                 )}
 
                 {/* Leave bar */}
@@ -319,7 +352,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
 
                 {/* เพื่อนร่วมงานหยุด/ลา — คนละสีกับของเรา (เตา/teal) กันสับสนว่าใครหยุด
                     (feedback 2026-09-30: "แยกสีไว้ว่าอันไหนเป็นของเพื่อน อันของเรา") */}
-                {colCount > 0 && (
+                {!mine && colCount > 0 && (
                   <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 2, background: '#DDF7EC', border: '1px solid #A7E8CC', borderRadius: 99, padding: '2px 9px' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F9D6B', lineHeight: 1.3 }}>ล.{colCount}</span>
                   </div>
@@ -329,6 +362,46 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
           })}
         </div>
 
+        {mode === 'mine' && (() => {
+          let offFixed = 0, holidayDays = 0, weekendDays = 0, leaveDays = 0
+          for (let d = 1; d <= totalDays; d++) {
+            const ds = toDateStr(month, d)
+            const dw = new Date(ds + 'T00:00:00Z').getUTCDay()
+            const hol = getHoliday(ds)
+            const lv = getMyLeaves(ds).length > 0
+            const booked = getMyOff(ds)?.status === 'APPROVED'
+            if (lv) leaveDays++
+            else if (booked) offFixed++
+            else if (hol && holidayEntitled) holidayDays++
+            else if ((dw === 6 || dw === 0) && weekendOff(dw)) weekendDays++
+          }
+          const chips = [
+            { label: 'หยุดที่จอง', n: offFixed, c: '#1D6FE0', bg: '#EAF2FF' },
+            { label: 'นักขัตฤกษ์', n: holidayDays, c: '#BE123C', bg: '#FFF1F2' },
+            { label: 'เสาร์-อาทิตย์', n: weekendDays, c: '#0284C7', bg: '#F0F9FF' },
+            { label: 'วันลา', n: leaveDays, c: '#7C3AED', bg: '#F5F3FF' },
+          ]
+          return (
+            <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 18, background: '#fff', border: '1.5px solid #DCE8F8' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontWeight: 800, color: '#0B1B4D', fontSize: '1rem' }}>สรุป {fmtMonthTH(month)}</span>
+                <span style={{ fontWeight: 800, color: '#1D6FE0', fontSize: '1rem' }}>หยุด/ลารวม {offFixed + holidayDays + weekendDays + leaveDays} วัน</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {chips.map(c => (
+                  <div key={c.label} style={{ background: c.bg, borderRadius: 12, padding: '8px 4px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: c.c, lineHeight: 1.1 }}>{c.n}</div>
+                    <div style={{ fontSize: '0.68rem', color: c.c, fontWeight: 700, marginTop: 2 }}>{c.label}</div>
+                  </div>
+                ))}
+              </div>
+              {(!holidayEntitled && holidays.some(h => h.date.slice(0, 7) === month)) && (
+                <div style={{ marginTop: 8, fontSize: '0.74rem', color: '#92400E', background: '#FEF3C7', borderRadius: 10, padding: '6px 10px' }}>สถานะพนักงานของคุณไม่ได้หยุดวันนักขัตฤกษ์ — วันนักขัตฤกษ์ไม่นับเป็นวันหยุด</div>
+              )}
+            </div>
+          )
+        })()}
+
         {/* Legend */}
         <div style={{ display: 'flex', gap: '10px 16px', marginTop: 14, flexWrap: 'wrap', justifyContent: 'center', padding: '14px 12px', borderRadius: 20, background: '#F5F9FF', border: '1.5px solid #DCE8F8' }}>
           {[
@@ -336,8 +409,9 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
-            { bg: '#F0FDFA', border: '1.5px solid #99F6E4', label: 'เพื่อนร่วมงานหยุด/ลา' },
-            ...(statusType ? [
+            ...(mode === 'all' ? [{ bg: '#F0FDFA', border: '1.5px solid #99F6E4', label: 'เพื่อนร่วมงานหยุด/ลา' }] : []),
+            ...(mode === 'mine' ? [{ bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดสุดสัปดาห์' }] : []),
+            ...(mode === 'all' && statusType ? [
               { bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดประจำ (ตามสถานะ)' },
               { bg: '#FAF5FF', border: '1.5px solid #E9D5FF', label: 'ทำงานนอกสถานที่ (ตามสถานะ)' },
             ] : []),
@@ -373,6 +447,17 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, onBookin
               <button onClick={onBooking} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 20, border: 'none', background: '#F4F6F9', color: '#244B83', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 จองวันหยุดวันนี้ →
               </button>
+            </div>
+          )}
+
+          {mode === 'mine' && selWeekendOff && (
+            <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 12, background: '#F0F9FF', border: '1px solid #BAE6FD', fontSize: '0.85rem', color: '#0369A1', fontWeight: 700 }}>
+              {selDow === 6 ? 'วันเสาร์' : 'วันอาทิตย์'} — เป็นวันหยุดตามสิทธิ์ของคุณ
+            </div>
+          )}
+          {mode === 'mine' && selHol && !holidayEntitled && (
+            <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D', fontSize: '0.8rem', color: '#92400E', fontWeight: 600 }}>
+              สถานะพนักงานของคุณไม่ได้หยุดวันนักขัตฤกษ์ — วันนี้ไม่นับเป็นวันหยุด
             </div>
           )}
 
@@ -2056,7 +2141,8 @@ export default function LeavePage() {
 
         {/* ── ปฏิทิน ─────────────────────────────────────────── */}
         {tab === 'calendar' && (
-          <PersonalCalendar employeeId={employee?.id ?? ''} requests={requests} holidays={holidays} statusType={employee?.employee_status_type} onBooking={() => setTab('booking')} />
+          <PersonalCalendar employeeId={employee?.id ?? ''} requests={requests} holidays={holidays} statusType={employee?.employee_status_type}
+            myRules={{ saturday_rule: employee?.saturday_rule, sunday_rule: employee?.sunday_rule, pool: employee?.off_quota_mode === 'WEEKENDS_IN_MONTH' }} onBooking={() => setTab('booking')} />
         )}
 
         {/* ── Request ─────────────────────────────────────────── */}

@@ -67,6 +67,17 @@ function useBatchData(month: string) {
   const vacLeftOf = useMemo(() => new Map(balances.map(b => [b.employee_id, b.vacation.total - b.vacation.used])), [balances])
   const quotaOf = useMemo(() => new Map(quotas.map(q => [q.employee_id, q])), [quotas])
   // วันที่จองไว้แล้ว (ไม่นับที่ปฏิเสธ) ต่อพนักงาน → date → สถานะ
+  const bookedIdOf = useMemo(() => {
+    const m = new Map<string, Map<string, string>>()
+    for (const r of requests) {
+      if (r.status === 'REJECTED') continue
+      const d = resolveDate(r.week_start, r.day_of_week)
+      if (d.slice(0, 7) !== month) continue
+      if (!m.has(r.employee_id)) m.set(r.employee_id, new Map())
+      m.get(r.employee_id)!.set(d, r.id)
+    }
+    return m
+  }, [requests, month])
   const bookedOf = useMemo(() => {
     const m = new Map<string, Map<string, 'PENDING' | 'APPROVED'>>()
     for (const r of requests) {
@@ -78,7 +89,7 @@ function useBatchData(month: string) {
     }
     return m
   }, [requests, month])
-  return { employees: [...employees].sort((a, b) => a.first_name.localeCompare(b.first_name, 'th')), quotaOf, bookedOf, vacLeftOf }
+  return { employees: [...employees].sort((a, b) => a.first_name.localeCompare(b.first_name, 'th')), quotaOf, bookedOf, bookedIdOf, vacLeftOf }
 }
 
 // โควต้าที่ยังเลือกเพิ่มได้ = โควต้า − จองไว้แล้ว (ค่าเริ่มต้น 5 ถ้ายังไม่มีข้อมูลโควต้า)
@@ -197,10 +208,15 @@ function forceItems(result: NonNullable<ReturnType<typeof useBatchSave>['result'
 
 // ═════════════════ โหมดรายคน ═════════════════
 function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => void; onDone: () => void }) {
-  const { employees, quotaOf, bookedOf, vacLeftOf } = useBatchData(month)
+  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf } = useBatchData(month)
   const remainingOf = useRemaining(quotaOf, bookedOf)
+  const qc = useQueryClient()
+  const { showToast } = useToast()
   const [empId, setEmpId] = useState('')
   const [picked, setPicked] = useState<string[]>([])
+  // วันที่จองไว้แล้วที่กด "ปล่อย" (คืนโควต้า) เพื่อไปลงวันอื่นแทน — เท่ากับเปลี่ยนวันหยุด; ลบจริงตอนกดบันทึกเท่านั้น
+  const [released, setReleased] = useState<string[]>([])
+  const [releasing, setReleasing] = useState(false)
   const [vac, setVac] = useState<string[]>([])          // วันที่เกินโควต้าแล้วเลือกใช้ลาพักร้อน
   const [ask, setAsk] = useState<VacAsk | null>(null)
   const { mut, result, setResult, success, setSuccess } = useBatchSave(month, onDone)
@@ -209,10 +225,34 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
 
   const info = empId ? remainingOf(empId) : null
   const booked = empId ? bookedOf.get(empId) : undefined
-  const room = info ? info.remaining - picked.length : 0
+  const room = info ? info.remaining + released.length - picked.length : 0
   const total = daysIn(month)
   const lead = dowOf(month, 1)
   const [y, m] = month.split('-').map(Number)
+
+  function toggleRelease(date: string) {
+    setReleased(r => r.includes(date) ? r.filter(d => d !== date) : [...r, date])
+    // ถ้าปล่อยแล้วกลับมาติ๊กคืน แต่ที่เลือกใหม่เกินโควต้า ให้ตัดวันที่เลือกล่าสุดออกให้พอดี
+    setPicked(p => { const cap = (info?.remaining ?? 0) + (released.includes(date) ? released.length - 1 : released.length + 1); return p.length > cap ? p.slice(0, Math.max(0, cap)) : p })
+  }
+
+  async function saveAll() {
+    setSavedName(empById.get(empId) ? nameOf(empById.get(empId)!) : '')
+    const ids = released.map(d => bookedIdOf.get(empId)?.get(d)).filter((x): x is string => !!x)
+    if (ids.length > 0) {
+      setReleasing(true)
+      try {
+        await Promise.all(ids.map(id => api.delete(`/api/v1/admin/weekly-off/${id}`)))
+        await qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
+      } catch {
+        showToast('error', 'ปล่อยวันหยุดเดิมไม่สำเร็จ — ยังไม่ได้ลงวันใหม่ ลองอีกครั้ง')
+        setReleasing(false); return
+      }
+      setReleasing(false)
+    }
+    if (picked.length + vac.length > 0) mut.mutate({ items: [{ employee_id: empId, dates: picked, vacation_dates: vac }] })
+    else { showToast('success', `ยกเลิกวันหยุดเดิม ${ids.length} วันแล้ว`); onDone(); setReleased([]) }
+  }
 
   function toggle(date: string) {
     if (picked.includes(date)) { setPicked(p => p.filter(d => d !== date)); return }
@@ -224,7 +264,7 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
   // บันทึกสำเร็จ → โชว์แอนิเมชัน แล้วกลับมาที่ฟอร์มนี้ (เคลียร์ชื่อ/วันที่ พร้อมลงให้คนต่อไป)
   if (success) {
     return <SuccessView count={success.created} subtitle={savedName} doneLabel="ลงให้คนต่อไป"
-      onDone={() => { setSuccess(null); setEmpId(''); setPicked([]); setVac([]); setResult(null) }} />
+      onDone={() => { setSuccess(null); setEmpId(''); setPicked([]); setVac([]); setReleased([]); setResult(null) }} />
   }
   if (result) {
     return <ResultView result={result} empById={empById} saving={mut.isPending}
@@ -239,16 +279,16 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
       </div>
 
       <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>1. เลือกพนักงาน</label>
-      <SearchSelect value={empId} onChange={v => { setEmpId(v); setPicked([]); setVac([]) }} placeholder="เลือกพนักงาน..."
+      <SearchSelect value={empId} onChange={v => { setEmpId(v); setPicked([]); setVac([]); setReleased([]) }} placeholder="เลือกพนักงาน..."
         options={employees.map(e => ({ value: e.id, label: `${nameOf(e)} · ${e.branch.name}`, keywords: e.employee_code }))}
         style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem' }} />
 
       {info && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '16px 0 8px', flexWrap: 'wrap', gap: 6 }}>
-            <label style={{ fontSize: '12px', fontWeight: 600 }}>2. กดเลือกวันหยุดบนปฏิทิน (หลายวันได้)</label>
+            <label style={{ fontSize: '12px', fontWeight: 600 }}>2. กดเลือกวันหยุดบนปฏิทิน (หลายวันได้) · กดวันที่จองไว้แล้วเพื่อ "ปล่อย" ไปลงวันอื่นแทน</label>
             <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: room > 0 ? '#f0fdf4' : '#fffbeb', color: room > 0 ? '#16a34a' : '#b45309', border: `1px solid ${room > 0 ? '#bbf7d0' : '#fde68a'}` }}>
-              จองแล้ว {info.booked}/{info.quota} · เลือกเพิ่ม {picked.length} · เหลือ {room} วัน
+              จองแล้ว {info.booked - released.length}/{info.quota}{released.length > 0 && <span style={{ color: '#dc2626' }}> · ปล่อย {released.length}</span>} · เลือกเพิ่ม {picked.length} · เหลือ {room} วัน
               {vac.length > 0 && <span style={{ color: ORANGE.fg }}> · ลาพักร้อน {vac.length}</span>}
             </span>
           </div>
@@ -258,18 +298,20 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
             {Array.from({ length: total }, (_, i) => i + 1).map(d => {
               const date = keyOf(month, d)
               const bk = booked?.get(date)
+              const rel = !!bk && released.includes(date)
               const sel = picked.includes(date)
               const vsel = vac.includes(date)
               const full = !sel && !vsel && !bk && room <= 0   // ครบโควต้า — ยังกดได้ (จะถามว่าใช้ลาพักร้อนไหม)
               return (
-                <button key={d} disabled={!!bk} onClick={() => toggle(date)}
-                  title={bk ? (bk === 'APPROVED' ? 'มีวันหยุดแล้ว (อนุมัติ)' : 'มีวันหยุดแล้ว (รอพิจารณา)') : vsel ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
+                <button key={d} onClick={() => bk ? toggleRelease(date) : toggle(date)}
+                  title={bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก — กดอีกครั้งเพื่อยกเลิก' : `มีวันหยุดแล้ว (${bk === 'APPROVED' ? 'อนุมัติ' : 'รอพิจารณา'}) — กดเพื่อปล่อยวันนี้ แล้วเลือกวันอื่นแทน`) : vsel ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
                   style={{
                     height: 40, borderRadius: 9, fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 700,
-                    border: `1.5px solid ${sel ? '#244B83' : vsel ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
-                    background: sel ? '#244B83' : vsel ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
-                    color: sel ? '#fff' : vsel ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : (full ? '#94a3b8' : '#374151'),
-                    cursor: bk ? 'not-allowed' : 'pointer',
+                    border: `1.5px ${rel ? 'dashed' : 'solid'} ${rel ? '#f87171' : sel ? '#244B83' : vsel ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
+                    background: rel ? '#fef2f2' : sel ? '#244B83' : vsel ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
+                    color: rel ? '#dc2626' : sel ? '#fff' : vsel ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : (full ? '#94a3b8' : '#374151'),
+                    textDecoration: rel ? 'line-through' : 'none',
+                    cursor: 'pointer',
                   }}>
                   {d}
                 </button>
@@ -277,17 +319,17 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
             })}
           </div>
           <div style={{ display: 'flex', gap: 12, fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 8, flexWrap: 'wrap' }}>
-            <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
+            <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (จะลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
         <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>
-        <button disabled={!empId || picked.length + vac.length === 0 || mut.isPending}
-          onClick={() => { setSavedName(empById.get(empId) ? nameOf(empById.get(empId)!) : ''); mut.mutate({ items: [{ employee_id: empId, dates: picked, vacation_dates: vac }] }) }}
-          style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: !empId || picked.length + vac.length === 0 ? 0.5 : 1 }}>
-          {mut.isPending ? 'กำลังบันทึก...' : `บันทึก${picked.length + vac.length ? ` (${picked.length + vac.length} วัน)` : ''}`}
+        <button disabled={!empId || picked.length + vac.length + released.length === 0 || mut.isPending || releasing}
+          onClick={saveAll}
+          style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: !empId || picked.length + vac.length + released.length === 0 ? 0.5 : 1 }}>
+          {mut.isPending || releasing ? 'กำลังบันทึก...' : released.length > 0 ? `บันทึก (ปล่อย ${released.length} · เพิ่ม ${picked.length + vac.length})` : `บันทึก${picked.length + vac.length ? ` (${picked.length + vac.length} วัน)` : ''}`}
         </button>
       </div>
 
@@ -299,8 +341,13 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
 
 // ═════════════════ โหมดหลายคน (ตารางเต็มจอ) ═════════════════
 function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => void; onDone: () => void }) {
-  const { employees, quotaOf, bookedOf, vacLeftOf } = useBatchData(month)
+  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf } = useBatchData(month)
   const remainingOf = useRemaining(quotaOf, bookedOf)
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  // วันที่จองไว้แล้วที่กด "ปล่อย" (คืนโควต้า) ต่อพนักงาน — ลบจริงตอนกดบันทึกเท่านั้น
+  const [released, setReleased] = useState<Record<string, string[]>>({})
+  const [releasing, setReleasing] = useState(false)
   const [picked, setPicked] = useState<Record<string, string[]>>({})
   const [vac, setVac] = useState<Record<string, string[]>>({})   // วันที่เกินโควต้าแล้วเลือกใช้ลาพักร้อน
   const [ask, setAsk] = useState<VacAsk | null>(null)
@@ -320,13 +367,46 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
 
   const vacDays = Object.values(vac).reduce((n, a) => n + a.length, 0)
   const totalDays = Object.values(picked).reduce((n, a) => n + a.length, 0) + vacDays
+  const releasedDays = Object.values(released).reduce((n, a) => n + a.length, 0)
   const totalPeople = new Set([...Object.entries(picked), ...Object.entries(vac)].filter(([, a]) => a.length > 0).map(([id]) => id)).size
+
+  const roomOf = (empId: string) => remainingOf(empId).remaining + (released[empId]?.length ?? 0)
+
+  function toggleRelease(empId: string, date: string) {
+    const cur = released[empId] ?? []
+    const nextRel = cur.includes(date) ? cur.filter(d => d !== date) : [...cur, date]
+    setReleased(r => ({ ...r, [empId]: nextRel }))
+    // ถ้าคืนการปล่อยแล้วที่เลือกใหม่เกินโควต้า ตัดวันที่เลือกล่าสุดออกให้พอดี
+    const cap = remainingOf(empId).remaining + nextRel.length
+    setPicked(p => (p[empId]?.length ?? 0) > cap ? { ...p, [empId]: p[empId].slice(0, cap) } : p)
+  }
+
+  async function saveAll() {
+    const delIds: string[] = []
+    for (const [empId, dates] of Object.entries(released)) for (const d of dates) { const id = bookedIdOf.get(empId)?.get(d); if (id) delIds.push(id) }
+    if (delIds.length > 0) {
+      setReleasing(true)
+      try {
+        await Promise.all(delIds.map(id => api.delete(`/api/v1/admin/weekly-off/${id}`)))
+        await qc.invalidateQueries({ queryKey: ['admin', 'weekly-off'] })
+      } catch {
+        showToast('error', 'ปล่อยวันหยุดเดิมไม่สำเร็จ — ยังไม่ได้ลงวันใหม่ ลองอีกครั้ง')
+        setReleasing(false); return
+      }
+      setReleasing(false)
+    }
+    const items = [...new Set([...Object.keys(picked), ...Object.keys(vac)])]
+      .map(employee_id => ({ employee_id, dates: picked[employee_id] ?? [], vacation_dates: vac[employee_id] ?? [] }))
+      .filter(i => i.dates.length + i.vacation_dates.length > 0)
+    if (items.length > 0) mut.mutate({ items })
+    else { showToast('success', `ยกเลิกวันหยุดเดิม ${delIds.length} วันแล้ว`); onDone(); setReleased({}) }
+  }
 
   function toggle(empId: string, date: string) {
     const cur = picked[empId] ?? []
     if (cur.includes(date)) { setPicked(p => ({ ...p, [empId]: cur.filter(d => d !== date) })); return }
     if ((vac[empId] ?? []).includes(date)) { setVac(v => ({ ...v, [empId]: (v[empId] ?? []).filter(d => d !== date) })); return }
-    if (cur.length < remainingOf(empId).remaining) setPicked(p => ({ ...p, [empId]: [...cur, date] }))
+    if (cur.length < roomOf(empId)) setPicked(p => ({ ...p, [empId]: [...cur, date] }))
     else setAsk({ empId, date })   // ครบโควต้าแล้ว → ถามว่าจะใช้ลาพักร้อนไหม
   }
 
@@ -379,7 +459,8 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
               const info = remainingOf(e.id)
               const sel = picked[e.id] ?? []
               const vsel = vac[e.id] ?? []
-              const left = info.remaining - sel.length
+              const rels = released[e.id] ?? []
+              const left = info.remaining + rels.length - sel.length
               const booked = bookedOf.get(e.id)
               return (
                 <tr key={e.id}>
@@ -389,29 +470,30 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
                   </td>
                   <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #e5e7eb', textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: left > 0 ? '#f0fdf4' : '#fffbeb', color: left > 0 ? '#16a34a' : '#b45309' }}>
-                      {info.booked + sel.length}/{info.quota}
+                      {info.booked - rels.length + sel.length}/{info.quota}
                     </span>
                     {vsel.length > 0 && <span title="ลาพักร้อน (เกินโควต้าวันหยุด)" style={{ marginLeft: 4, fontSize: '0.7rem', fontWeight: 800, color: ORANGE.fg }}>+พ{vsel.length}</span>}
                   </td>
                   {Array.from({ length: total }, (_, i) => i + 1).map(d => {
                     const date = keyOf(month, d)
                     const bk = booked?.get(date)
+                    const rel = !!bk && rels.includes(date)
                     const on = sel.includes(date)
                     const von = vsel.includes(date)
                     const full = !on && !von && !bk && left <= 0   // ครบโควต้า — ยังกดได้ (จะถามว่าใช้ลาพักร้อนไหม)
                     const dw = dowOf(month, d)
                     return (
                       <td key={d} style={{ padding: 2, borderBottom: '1px solid #f1f5f9', background: dw === 0 || dw === 6 ? '#fffafa' : undefined }}>
-                        <button disabled={!!bk} onClick={() => toggle(e.id, date)}
-                          title={bk ? 'มีวันหยุดแล้ว' : von ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
+                        <button onClick={() => bk ? toggleRelease(e.id, date) : toggle(e.id, date)}
+                          title={bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก (กดอีกครั้งเพื่อยกเลิก)' : 'มีวันหยุดแล้ว — กดเพื่อปล่อย แล้วเลือกวันอื่นแทน') : von ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
                           style={{
                             width: CELL - 6, height: CELL - 6, borderRadius: 6, padding: 0, fontFamily: 'inherit', fontSize: '0.7rem', fontWeight: 800,
-                            border: `1.5px solid ${on ? '#244B83' : von ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
-                            background: on ? '#244B83' : von ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
-                            color: on ? '#fff' : von ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : 'transparent',
-                            cursor: bk ? 'not-allowed' : 'pointer', opacity: full ? 0.55 : 1,
+                            border: `1.5px ${rel ? 'dashed' : 'solid'} ${rel ? '#f87171' : on ? '#244B83' : von ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
+                            background: rel ? '#fef2f2' : on ? '#244B83' : von ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
+                            color: rel ? '#dc2626' : on ? '#fff' : von ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : 'transparent',
+                            cursor: 'pointer', opacity: full ? 0.55 : 1,
                           }}>
-                          {on ? '✓' : von ? 'พ' : bk ? '•' : ''}
+                          {rel ? '✕' : on ? '✓' : von ? 'พ' : bk ? '•' : ''}
                         </button>
                       </td>
                     )
@@ -426,14 +508,13 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 12, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน (เกินโควต้า)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
+          <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน (เกินโควต้า)</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (กดวันที่จองไว้แล้ว — ลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>เลือกแล้ว {totalDays} วัน{vacDays > 0 ? <span style={{ color: ORANGE.fg }}> (ลาพักร้อน {vacDays})</span> : null} · {totalPeople} คน</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>{releasedDays > 0 && <span style={{ color: '#dc2626' }}>ปล่อย {releasedDays} วัน · </span>}เลือกแล้ว {totalDays} วัน{vacDays > 0 ? <span style={{ color: ORANGE.fg }}> (ลาพักร้อน {vacDays})</span> : null} · {totalPeople} คน</span>
         <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>
-        <button disabled={totalDays === 0 || mut.isPending}
-          onClick={() => mut.mutate({ items: [...new Set([...Object.keys(picked), ...Object.keys(vac)])].map(employee_id => ({ employee_id, dates: picked[employee_id] ?? [], vacation_dates: vac[employee_id] ?? [] })).filter(it => it.dates.length + it.vacation_dates.length > 0) })}
-          style={{ padding: '9px 22px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: totalDays === 0 ? 0.5 : 1 }}>
-          {mut.isPending ? 'กำลังบันทึก...' : `บันทึกทั้งหมด (${totalDays} วัน)`}
+        <button disabled={totalDays + releasedDays === 0 || mut.isPending || releasing} onClick={saveAll}
+          style={{ padding: '9px 22px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: totalDays + releasedDays === 0 ? 0.5 : 1 }}>
+          {mut.isPending || releasing ? 'กำลังบันทึก...' : releasedDays > 0 ? `บันทึกทั้งหมด (ปล่อย ${releasedDays} · เพิ่ม ${totalDays})` : `บันทึกทั้งหมด (${totalDays} วัน)`}
         </button>
       </div>
 
