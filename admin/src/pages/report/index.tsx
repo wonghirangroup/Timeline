@@ -218,6 +218,7 @@ export default function ReportPage() {
     queryFn: () => api.get('/api/v1/admin/positions').then((r: any) => r.data.data),
   })
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(allEmployees, positions), [allEmployees, positions])
+  const exemptIds = useMemo(() => new Set(allEmployees.filter(e => e.checkin_exempt).map(e => e.id)), [allEmployees])
   // branch จัดการฝั่ง server แล้ว (param branchId ข้างบน) — เหลือกรองกลุ่ม/แผนก/
   // ตำแหน่งฝั่ง client เพิ่ม (เหมือน TeamCalendarTab.tsx)
   const orgFilterNoBranch: OrgFilterValue = { ...orgFilter, branchId: '' }
@@ -394,8 +395,6 @@ export default function ReportPage() {
     const workedOff = workedOffKind(recs, empId, dateKey)
     return workedOff ? { ...base, tip: `${base.tip} · มาทำงาน${workedOff}`, workedOff } : { ...base, workedOff: null as 'วันหยุด' | 'วันลา' | null }
   }
-
-  const exemptIds = useMemo(() => new Set(allEmployees.filter(e => e.checkin_exempt).map(e => e.id)), [allEmployees])
 
   function cellInfoBase(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
     if (hiredAt && dateKey < hiredAt.slice(0, 10)) {
