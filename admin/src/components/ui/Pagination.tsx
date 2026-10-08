@@ -18,7 +18,7 @@ interface PaginationProps {
 // ปัดบนมือถือ: ปัดซ้าย = หน้าถัดไป, ปัดขวา = หน้าก่อนหน้า — ฟังที่ระดับเอกสาร แล้วจำกัดให้ตอบสนองเฉพาะการปัดที่เริ่มในพื้นที่เดียวกับแถบนี้
 // (ตัวแม่ของแถบ ขยับขึ้นจนกว่าจะมีลูกมากกว่า 1) จึงใช้ได้กับทุกหน้าที่ใช้ Pagination โดยไม่ต้องผูกมือกับ list แต่ละอัน
 // ข้ามเมื่อ: เริ่มปัดในตารางที่เลื่อนแนวนอนได้ / ช่องกรอก / แผนที่ / ป๊อปอัป (position: fixed) / องค์ประกอบที่ใส่ data-no-swipe
-function startsInSwipeBlocker(el: HTMLElement | null): boolean {
+export function startsInSwipeBlocker(el: HTMLElement | null): boolean {
   if (el?.closest('input, textarea, select, .leaflet-container')) return true
   while (el && el !== document.body) {
     if (el.hasAttribute('data-no-swipe')) return true

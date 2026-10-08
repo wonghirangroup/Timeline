@@ -563,7 +563,7 @@ export default function ShiftSchedulePage() {
       </div>
 
       {/* Table */}
-      <div ref={tableRef} {...(isMobile ? swipeHandlers : {})} style={{ overflowX:'auto', position:'relative', borderRadius:12, border:'1px solid #e5e7eb', background:'#fff' }}>
+      <div ref={tableRef} style={{ overflowX:'auto', position:'relative', borderRadius:12, border:'1px solid #e5e7eb', background:'#fff' }}>
         <table style={{ borderCollapse:'collapse', width:'100%', minWidth: viewMode==='week'?600:900 }}>
           <thead>
             <tr style={{ background:'#f9fafb' }}>

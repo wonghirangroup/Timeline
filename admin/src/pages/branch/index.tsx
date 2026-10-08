@@ -664,7 +664,7 @@ export default function BranchPage() {
 
       {/* Branch cards */}
       {!loading && (isMobile || branchView === 'card') && (
-        <div {...(isMobile ? swipeHandlers : {})} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {branchesFiltered.length === 0 && (
             <div style={{ gridColumn: '1/-1' }}>
               {branches.length === 0
