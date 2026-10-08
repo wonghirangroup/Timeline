@@ -37,7 +37,7 @@ interface AttendanceRecord {
   shift: { id: string; name: string; start_time: string; end_time: string }
 }
 
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
 interface LeaveRequest {
@@ -395,9 +395,15 @@ export default function ReportPage() {
     return workedOff ? { ...base, tip: `${base.tip} · มาทำงาน${workedOff}`, workedOff } : { ...base, workedOff: null as 'วันหยุด' | 'วันลา' | null }
   }
 
+  const exemptIds = useMemo(() => new Set(allEmployees.filter(e => e.checkin_exempt).map(e => e.id)), [allEmployees])
+
   function cellInfoBase(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
     if (hiredAt && dateKey < hiredAt.slice(0, 10)) {
       return { bg: '#fafafa', label: null as ReactNode, color: 'var(--text-muted)', tip: 'ก่อนเริ่มใช้ระบบ', status: 'weekend' as const }
+    }
+    // คนที่ตั้งเป็น "ไม่ต้องเช็คอิน" (เช่น ผู้บริหาร) — วันที่ไม่มีบันทึกเช็คอินไม่นับเป็นขาด (ถ้ามาเช็คอินเองยังนับตามจริงด้านล่าง)
+    if (exemptIds.has(empId) && !recs?.some(r => r.check_in_at)) {
+      return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: 'ไม่ต้องเช็คอิน', status: 'weekend' as const }
     }
     const dow     = new Date(dateKey + 'T00:00:00').getDay()
     const dept    = empCode.split('-')[1] ?? ''

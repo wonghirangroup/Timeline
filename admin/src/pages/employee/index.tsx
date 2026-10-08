@@ -54,6 +54,7 @@ interface ApiEmployee {
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
   offsite_checkin_enabled?: boolean
+  checkin_exempt?: boolean
   photo_url?: string | null
   // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
   prefix?: string | null
@@ -130,6 +131,7 @@ const EMPTY_FORM = {
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
   position_id: '', employee_status_type_id: '',
   booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
+  checkin_exempt: false,           // ไม่ต้องเช็คอิน (เช่น ผู้บริหาร)
   offsite_checkin_enabled: false, // สิทธิ์เช็คอินนอกสถานที่รายคน — default ปิด ต้องเปิดเอง
   extra_branch_ids: [] as string[], // สาขาเสริม นอกเหนือจากสาขาหลัก — เช็คอิน/ขึ้นในรายงานของสาขานี้ได้ด้วย
   // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) — เดิมแก้ไขแล้วข้อมูลพวกนี้
@@ -327,6 +329,7 @@ export default function EmployeePage() {
       employee_status_type_id: e.employee_status_type_id ?? '',
       booking_override: toOverrideVal(e.booking_enabled_override),
       leave_override: toOverrideVal(e.leave_enabled_override),
+      checkin_exempt: e.checkin_exempt ?? false,
       offsite_checkin_enabled: e.offsite_checkin_enabled ?? false,
       extra_branch_ids: (e.extra_branches ?? []).map(b => b.branch.id),
       // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
@@ -463,6 +466,7 @@ export default function EmployeePage() {
         booking_enabled_override: fromOverrideVal(form.booking_override),
         leave_enabled_override: fromOverrideVal(form.leave_override),
         offsite_checkin_enabled: form.offsite_checkin_enabled,
+        checkin_exempt: form.checkin_exempt,
         extra_branch_ids: form.extra_branch_ids,
         // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) — เดิมฟอร์มแก้ไขไม่ส่ง
         // ฟิลด์พวกนี้เลย ทำให้แก้ไขพนักงานแล้วข้อมูลส่วนตัวหายหมด ──
@@ -1431,6 +1435,14 @@ export default function EmployeePage() {
                   </div>
                 </div>
               )}
+              <div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '14px', color: '#374151', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.checkin_exempt}
+                    onChange={e => setForm(f => ({ ...f, checkin_exempt: e.target.checked }))}
+                    style={{ width: 16, height: 16, cursor: 'pointer', marginTop: 2 }} />
+                  <span>ไม่ต้องเช็คอิน (เช่น ผู้บริหาร) — ไม่นับเป็น "ยังไม่เช็ค / ขาด / สาย" ใน Dashboard เช็คอิน และรายงาน · ถ้ามาเช็คอินเองยังบันทึกได้ตามปกติ</span>
+                </label>
+              </div>
               {editTarget && (
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '14px', color: '#374151', cursor: 'pointer' }}>

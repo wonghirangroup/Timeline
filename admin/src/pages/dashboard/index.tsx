@@ -243,11 +243,12 @@ interface ApiRecord {
   shift: { id: string; name: string; branch_id?: string | null; late_threshold_2: string | null }
 }
 interface ApiBranch   { id: string; name: string; lat?: number | string | null; lng?: number | string | null; gps_radius?: number | null }
-interface ApiEmployee { id: string; branch_id: string; photo_url?: string | null; first_name?: string; last_name?: string; nickname?: string | null; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null }
+interface ApiEmployee { id: string; branch_id: string; photo_url?: string | null; first_name?: string; last_name?: string; nickname?: string | null; branch: { id: string; name: string; group_id?: string | null }; position_id?: string | null; checkin_exempt?: boolean }
 interface ApiLeave    { id: string; status: string }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
-type DashStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT' | 'PENDING'
+// OFF = ไม่มีบันทึกเช็คอินและไม่ต้องเช็คอินวันนี้ (ลา/หยุดที่อนุมัติแล้ว หรือถูกตั้งเป็น "ไม่ต้องเช็คอิน" เช่น ผู้บริหาร) — ไม่นับเป็น "ยังไม่เช็ค"
+type DashStatus = 'ON_TIME' | 'LATE_1' | 'LATE_2' | 'ABSENT' | 'PENDING' | 'OFF'
 
 const STATUS_CFG: Record<DashStatus, { label: string; color: string; bg: string; dot: string }> = {
   ON_TIME: { label: 'มาปกติ',    color: '#16a34a', bg: '#dcfce7', dot: '#22c55e' },
@@ -255,6 +256,7 @@ const STATUS_CFG: Record<DashStatus, { label: string; color: string; bg: string;
   LATE_2:  { label: 'สายมาก',   color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
   ABSENT:  { label: 'ขาด',      color: '#7f1d1d', bg: '#fef2f2', dot: '#dc2626' },
   PENDING: { label: 'ยังไม่เช็ค', color: '#64748b', bg: '#E6ECF4', dot: '#94a3b8' },
+  OFF:     { label: 'หยุด/ไม่ต้องเช็ค', color: '#0369a1', bg: '#e0f2fe', dot: '#38bdf8' },
 }
 
 function toMins(hhmm: string): number {
@@ -357,6 +359,7 @@ export default function DashboardPage() {
   // ยังมีข้อมูลเช็คอินของวันนี้ค้างอยู่ (พบ 3 คน) โผล่มานับรวมเป็น "ทั้งหมด" ด้วย
   // ตัวเลขเลยไม่ตรงกับหน้าอื่นๆ ที่กรองเฉพาะพนักงาน active (feedback 2026-09-30:
   // "ทำไม Dashboard มี 30" ในขณะที่หน้าโควต้าวันลาแสดง 28)
+  const offTodayIds = useMemo(() => new Set((offToday?.employees ?? []).map(p => p.id)), [offToday])
   const allRows = useMemo(() => {
     const byEmpId = new Map(records.map(r => [r.employee_id, r]))
 
@@ -368,10 +371,12 @@ export default function DashboardPage() {
         nickname: (e as any).nickname ?? null,
         photo_url: e.photo_url,
         branch: e.branch,
-        record: r, status: deriveStatus(r),
+        record: r,
+        // ไม่มีบันทึกเช็คอิน แต่วันนี้หยุด/ลา หรือเป็นคนที่ไม่ต้องเช็คอิน → ไม่นับเป็น "ยังไม่เช็ค" (ถ้าเช็คอินมาแล้วนับตามจริง)
+        status: (!r?.check_in_at && ((e as any).checkin_exempt || offTodayIds.has(e.id))) ? ('OFF' as DashStatus) : deriveStatus(r),
       }
     })
-  }, [records, employees])
+  }, [records, employees, offTodayIds])
 
   const filtered = useMemo(() =>
     allRows.filter(r => matchesOrgFilter(employeeOrgMap[r.empId], orgFilter)),
@@ -387,10 +392,11 @@ export default function DashboardPage() {
   const onTime  = filtered.filter(r => r.status === 'ON_TIME').length
   const late    = filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2').length
   const pending = filtered.filter(r => r.status === 'PENDING').length
+  const offCount = filtered.filter(r => r.status === 'OFF').length
   const total   = filtered.length
 
   // ── กดการ์ด KPI เพื่อกรอง "รายชื่อวันนี้" ───────────────────────────────
-  type TodayFilter = 'ALL' | 'ON_TIME' | 'LATE' | 'PENDING'
+  type TodayFilter = 'ALL' | 'ON_TIME' | 'LATE' | 'PENDING' | 'OFF'
   const [todayFilter, setTodayFilter] = useState<TodayFilter>('ALL')
   // มือถือ: ไม่โชว์รายชื่อทั้งหมดตั้งแต่แรก (ยาวเกินไป มองว่ายาก) — ต้องแตะการ์ด
   // สถานะก่อนถึงเปิดรายชื่อ (feedback 2026-09-15: "กดการ์ดแล้วค่อยขึ้นรายชื่อ")
@@ -409,7 +415,7 @@ export default function DashboardPage() {
     if (todayFilter === 'LATE') return filtered.filter(r => r.status === 'LATE_1' || r.status === 'LATE_2')
     return filtered.filter(r => r.status === todayFilter)
   }, [filtered, todayFilter])
-  const FILTER_LABEL: Record<Exclude<TodayFilter, 'ALL'>, string> = { ON_TIME: 'เข้างานปกติ', LATE: 'มาสาย', PENDING: 'ยังไม่เช็ค' }
+  const FILTER_LABEL: Record<Exclude<TodayFilter, 'ALL'>, string> = { ON_TIME: 'เข้างานปกติ', LATE: 'มาสาย', PENDING: 'ยังไม่เช็ค', OFF: 'หยุด/ไม่ต้องเช็ค' }
 
   const pendingLeaveCount = pendingLeaves.length
 
@@ -418,7 +424,8 @@ export default function DashboardPage() {
   const greetTh = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'
   const greetEn = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening'
   const todayTh = new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const checkedIn = total - pending
+  const checkedIn = filtered.filter(r => r.record?.check_in_at).length
+  const mustCheckin = total - offCount   // ไม่นับคนที่หยุด/ลา/ไม่ต้องเช็คอิน
 
   return (
     <div className="dash-sky">
@@ -440,7 +447,7 @@ export default function DashboardPage() {
           <div style={{ fontWeight: 800, fontSize: isMobile ? '1.6rem' : '2.2rem', color: '#fff', lineHeight: 1.15, marginTop: 4, textShadow: '0 2px 10px rgba(0,40,120,0.25)' }}>{greetTh}{adminName ? ` ${adminName}` : ''}</div>
           <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{greetEn}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-            <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>เช็คอินแล้ว</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{checkedIn}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> / {total} คน</span></div></div>
+            <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>เช็คอินแล้ว</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{checkedIn}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> / {mustCheckin} คน</span></div></div>
             <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>มาสายวันนี้</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{late}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> คน</span></div></div>
             <div className="dash-hero-stat"><div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>ใบลารออนุมัติ</div><div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{pendingLeaveCount}<span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}> ใบ</span></div></div>
           </div>
@@ -533,6 +540,7 @@ export default function DashboardPage() {
               { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', ring: '#10b981' },
               { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', ring: '#f59e0b' },
               { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: '#64748b', ring: '#94a3b8' },
+              { label: 'หยุด/ไม่ต้องเช็ค', value: offCount, filter: 'OFF' as TodayFilter, icon: <Palmtree size={18}/>, color: '#0891b2', ring: '#38bdf8' },
             ]).map(card => {
               const active = todayFilter === card.filter
               return (

@@ -239,6 +239,7 @@ export async function createEmployee(
     hired_at?: string
     position_id?: string
     employee_status_type_id?: string
+    checkin_exempt?: boolean
     extra_branch_ids?: string[]   // สาขาเสริม นอกเหนือจาก branch_id (สาขาหลัก)
     // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──────────────────────
     prefix?: string
@@ -272,6 +273,7 @@ export async function createEmployee(
       hired_at: data.hired_at ? new Date(data.hired_at) : undefined,
       position_id: data.position_id,
       employee_status_type_id: data.employee_status_type_id,
+      checkin_exempt: data.checkin_exempt ?? false,
       prefix: data.prefix,
       email: data.email,
       id_card: data.id_card ? encryptField(data.id_card) : data.id_card,
@@ -313,6 +315,7 @@ export async function updateEmployee(
     booking_enabled_override?: boolean | null
     leave_enabled_override?: boolean | null
     offsite_checkin_enabled?: boolean
+    checkin_exempt?: boolean
     photo_url?: string | null
     extra_branch_ids?: string[]   // undefined = ไม่แตะ, [] = ล้างสาขาเสริมทั้งหมด
     // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──────────────────────

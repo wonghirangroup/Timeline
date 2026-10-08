@@ -240,6 +240,7 @@ model Employee {
   employee_status_type_id  String? // สถานะพนักงาน (ประจำ/ชั่วคราว/...) กำหนดโควต้าวันหยุดต่อเดือน — nullable = ยังไม่ผูก ใช้ fallback เดิม
   booking_enabled_override Boolean? // override สิทธิ์จองวันหยุดรายบุคคล — null = inherit จาก Position→Department→Division→Branch→Group (ดู resolvePolicyFlag())
   leave_enabled_override   Boolean? // override สิทธิ์ยื่นคำขอลารายบุคคล — null = inherit ลำดับเดียวกับ booking (ดู resolvePolicyFlag())
+  checkin_exempt           Boolean          @default(false) // ไม่ต้องเช็คอิน (เช่น ผู้บริหาร) — ไม่นับเป็น ยังไม่เช็ค/ขาด/สาย ใน Dashboard/เช็คอิน/รายงาน; เช็คอินเองได้ตามปกติ
   offsite_checkin_enabled  Boolean          @default(false) // สิทธิ์เช็คอินนอกสถานที่ — ตั้งรายบุคคลเท่านั้น ไม่ cascade (feedback 2026-09-15: "ใช้ได้สำหรับคนที่มีสิทธิเท่านั้น") default false = ต้องให้แอดมินเปิดให้ทีละคน
   probation_end_date       DateTime?        @db.Date // วันครบทดลองงาน — null = ผ่านโปรแล้ว/ไม่ระบุ (feature: probation)
   probation_result         ProbationResult? // ผลประเมิน — null = ยังไม่ประเมิน

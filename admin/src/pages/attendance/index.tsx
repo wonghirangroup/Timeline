@@ -80,6 +80,7 @@ interface ApiEmployee {
   employee_status_type?: WQNode | null
   position?: (WQNode & { department?: (WQNode & { division?: WQNode | null }) | null }) | null
   default_shift_id?: string | null
+  checkin_exempt?: boolean   // ไม่ต้องเช็คอิน (เช่น ผู้บริหาร) — ไม่นับ ยังไม่เช็ค/ขาด
   photo_url?: string | null
   extra_branches?: { branch: { id: string; name: string } }[]
 }
@@ -599,7 +600,9 @@ export default function AttendancePage() {
         // no record → ลา / หยุดประจำสัปดาห์ / ยังไม่เช็ค / ขาด
         const lv = leaveByEmp.get(emp.id)
         const hol = holidaysToday.find(h => holidayApplies(h, emp))
-        if (lv) {
+        if (emp.checkin_exempt && !lv) {
+          result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'DAY_OFF', subLabel: 'ไม่ต้องเช็คอิน' })
+        } else if (lv) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: lv.off ? 'DAY_OFF' : 'LEAVE', subLabel: lv.label })
         } else if (hol) {
           result.push({ key: `no-${emp.id}`, employee: emp, record: null, status: 'HOLIDAY', subLabel: hol.name })
