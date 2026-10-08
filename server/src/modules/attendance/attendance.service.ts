@@ -4,7 +4,7 @@ import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.se
 import { getEmployeeWeeklyOff, hasApprovedBookingInMonth } from '../weekly-off/weekly-off.service'
 import { resolveWeekendRule } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
-import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn } from './checkin-rules'
+import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn, isGpsRequiredButMissing } from './checkin-rules'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
 
@@ -505,6 +505,7 @@ export async function checkInAuto(tenantId: string, data: {
   if (!isAllowedBranch(employee, data.branch_id)) throw new Error('NOT_IN_BRANCH')
 
   // ตรวจ GPS
+  if (isGpsRequiredButMissing(branch, data)) throw new Error('GPS_REQUIRED')
   let is_outside_area = false
   let detected: { shift: NonNullable<Awaited<ReturnType<typeof autoDetectShift>>>['shift']; isOutsideShift: boolean; attendanceDate: Date } | null
   if (data.shift_id) {
@@ -637,6 +638,11 @@ export async function checkIn(tenantId: string, data: {
 
   // ตรวจสอบ GPS vs geo_mode ของสาขา
   let is_outside_area = false
+
+  if (data.branch_id) {
+    const gpsBranch = await prisma.branch.findFirst({ where: { id: data.branch_id } })
+    if (gpsBranch && isGpsRequiredButMissing(gpsBranch, data)) throw new Error('GPS_REQUIRED')
+  }
 
   if (data.branch_id && data.gps_lat != null && data.gps_lng != null) {
     const branch = await prisma.branch.findFirst({ where: { id: data.branch_id } })
@@ -775,6 +781,7 @@ export async function checkInScan(tenantId: string, data: {
   if (!shift) throw new Error('SHIFT_NOT_FOUND')
 
   // ตรวจ GPS
+  if (isGpsRequiredButMissing(branch, data)) throw new Error('GPS_REQUIRED')
   let is_outside_area = false
   if (branch.lat && branch.lng && data.gps_lat != null && data.gps_lng != null) {
     const radius = branch.gps_radius ?? 200

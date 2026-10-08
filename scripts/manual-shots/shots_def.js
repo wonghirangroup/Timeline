@@ -142,6 +142,7 @@ module.exports = [
       { text: 'ลงวันหยุดหลายคน', tag: 'button', n: 4 },
       { text: 'Excel', tag: 'button', n: 5 },
       { text: 'ตุลาคม 2569', exact: true, tag: 'span, div', n: 6, nth: 0, side: 'l' },
+      { text: 'ดูรายคน', tag: 'button', n: 7, side: 'l' },
     ] },
   { id: 'attendance-manual', path: 'shift',
     setup: async (p, { clickText, sleep }) => { await clickText(p, '+ ลงบันทึก', 'button'); await sleep(1000)

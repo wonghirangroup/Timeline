@@ -1,5 +1,4 @@
 // admin/src/pages/login/index.tsx
-import { showResult } from '../../components/ui/ResultDialog'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, LogIn, AlertCircle, Building2, X, Mail, User, Lock } from 'lucide-react'
@@ -46,6 +45,97 @@ function IntroSplash({ exiting }: { exiting: boolean }) {
         YooNai by Smart Jigsaw
       </p>
     </div>
+  )
+}
+
+// ── ลืมรหัสผ่าน: 3 ขั้น — กรอกอีเมล → กรอก OTP + รหัสใหม่ → สำเร็จ (ส่ง OTP ทางอีเมลผ่าน Resend ฝั่ง server) ──
+function ForgotPasswordModal({ initialEmail, onClose, onDone }: { initialEmail: string; onClose: () => void; onDone: (email: string) => void }) {
+  const [step, setStep] = useState<'email' | 'otp' | 'done'>('email')
+  const [email, setEmail] = useState(initialEmail)
+  const [otp, setOtp] = useState('')
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [cooldown, setCooldown] = useState(0)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
+  async function sendOtp() {
+    if (!email.trim()) { setErr('กรุณากรอกอีเมลที่ใช้เข้าสู่ระบบ'); return }
+    setBusy(true); setErr('')
+    try {
+      await axios.post(`${API_URL}/api/v1/auth/forgot-password`, { username: email.trim() })
+      setStep('otp'); setCooldown(60)
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? 'ส่งรหัสไม่สำเร็จ ลองใหม่อีกครั้ง')
+    } finally { setBusy(false) }
+  }
+
+  async function submitReset() {
+    if (!/^[0-9]{6}$/.test(otp)) { setErr('กรอกรหัส OTP 6 หลักจากอีเมล'); return }
+    if (pw.length < 8) { setErr('รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร'); return }
+    if (pw !== pw2) { setErr('รหัสผ่านทั้งสองช่องไม่ตรงกัน'); return }
+    setBusy(true); setErr('')
+    try {
+      await axios.post(`${API_URL}/api/v1/auth/reset-password`, { username: email.trim(), otp, new_password: pw })
+      setStep('done')
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? 'ตั้งรหัสผ่านไม่สำเร็จ ลองใหม่อีกครั้ง')
+    } finally { setBusy(false) }
+  }
+
+  const inp: React.CSSProperties = { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #DCE6F5', fontSize: '0.95rem', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }
+  const primary: React.CSSProperties = { marginTop: 16, width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: busy ? '#B2C0D4' : 'linear-gradient(180deg, #1F5BD0, #0F2F8F)', color: '#fff', fontWeight: 800, fontSize: '0.95rem', cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }
+
+  return (
+    <Modal onClose={onClose} width={400}>
+      <div style={{ padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: '#EAF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1D4ED8' }}><Mail size={20} /></div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} aria-label="ปิด"><X size={18} /></button>
+        </div>
+
+        {step === 'email' && (<>
+          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#0B1B4D' }}>ลืมรหัสผ่าน?</h3>
+          <p style={{ margin: '0 0 14px', fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>กรอกอีเมลที่ใช้เข้าสู่ระบบ เราจะส่งรหัส OTP 6 หลักไปให้ทางอีเมล (ใช้ได้ 10 นาที)</p>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="อีเมล" autoComplete="email" autoFocus style={inp}
+            onKeyDown={e => { if (e.key === 'Enter') sendOtp() }} />
+          {err && <div style={{ marginTop: 10, fontSize: '0.82rem', color: '#b91c1c' }}>{err}</div>}
+          <button onClick={sendOtp} disabled={busy} style={primary}>{busy ? 'กำลังส่ง...' : 'ส่งรหัส OTP'}</button>
+        </>)}
+
+        {step === 'otp' && (<>
+          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#0B1B4D' }}>ตั้งรหัสผ่านใหม่</h3>
+          <p style={{ margin: '0 0 14px', fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>
+            ถ้าอีเมล <b>{email}</b> มีอยู่ในระบบ เราส่งรหัส OTP ไปแล้ว (เช็คในกล่องสแปมด้วย)
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input inputMode="numeric" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="รหัส OTP 6 หลัก" autoFocus
+              style={{ ...inp, letterSpacing: '0.4em', textAlign: 'center', fontWeight: 800, fontSize: '1.2rem' }} />
+            <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)" autoComplete="new-password" style={inp} />
+            <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} placeholder="ยืนยันรหัสผ่านใหม่" autoComplete="new-password" style={inp}
+              onKeyDown={e => { if (e.key === 'Enter') submitReset() }} />
+          </div>
+          {err && <div style={{ marginTop: 10, fontSize: '0.82rem', color: '#b91c1c' }}>{err}</div>}
+          <button onClick={submitReset} disabled={busy} style={primary}>{busy ? 'กำลังบันทึก...' : 'ตั้งรหัสผ่านใหม่'}</button>
+          <button onClick={sendOtp} disabled={busy || cooldown > 0}
+            style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', color: cooldown > 0 ? '#94A3B8' : '#1D6FE0', fontWeight: 700, fontSize: '0.85rem', cursor: cooldown > 0 ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+            {cooldown > 0 ? `ขอรหัสใหม่ได้ใน ${cooldown} วินาที` : 'ไม่ได้รับรหัส? ขอรหัสใหม่'}
+          </button>
+        </>)}
+
+        {step === 'done' && (<>
+          <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#15803d' }}>ตั้งรหัสผ่านใหม่สำเร็จ</h3>
+          <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย</p>
+          <button onClick={() => onDone(email.trim())} style={primary}>กลับไปเข้าสู่ระบบ</button>
+        </>)}
+      </div>
+    </Modal>
   )
 }
 
@@ -101,15 +191,6 @@ export default function LoginPage() {
       const displayName = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
       setAuth(accessToken, user.role as Role, user.tenant_id ?? '', displayName, user.enabled_features ?? null)
       navigate('/dashboard', { replace: true })
-      showResult({
-        type: 'success', title: 'เข้าสู่ระบบสำเร็จ', subtitle: 'ยินดีต้อนรับกลับ',
-        details: [
-          { label: 'ผู้ใช้', value: displayName },
-          { label: 'สิทธิ์', value: String(user.role) },
-          { label: 'เวลา', value: new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) },
-        ],
-        duration: 2800,
-      })
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.error?.message
@@ -262,27 +343,7 @@ export default function LoginPage() {
         YooNai HR System · Powered by WH Group
       </div>
 
-      {/* Forgot password — info modal (ยังไม่มีระบบส่งอีเมลจริง) */}
-      {showForgot && (
-        <Modal onClose={() => setShowForgot(false)} width={380}>
-          <div style={{ padding: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F4F6F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#244B83' }}>
-                <Mail size={19} />
-              </div>
-              <button onClick={() => setShowForgot(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} aria-label="ปิด"><X size={18} /></button>
-            </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 800, color: '#111827' }}>ลืมรหัสผ่าน?</h3>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              ตอนนี้ระบบยังไม่รองรับการรีเซ็ตรหัสผ่านด้วยตัวเองผ่านอีเมล
-              กรุณาติดต่อ Super Admin หรือทีมผู้ดูแลระบบของบริษัทเพื่อขอตั้งรหัสผ่านใหม่
-            </p>
-            <button onClick={() => setShowForgot(false)} style={{ marginTop: 18, width: '100%', padding: '10px', borderRadius: 9, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
-              เข้าใจแล้ว
-            </button>
-          </div>
-        </Modal>
-      )}
+      {showForgot && <ForgotPasswordModal initialEmail={username} onClose={() => setShowForgot(false)} onDone={email => { setUsername(email); setPassword(''); setShowForgot(false) }} />}
     </div>
   )
 }

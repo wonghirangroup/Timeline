@@ -35,6 +35,9 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      # ส่งอีเมล OTP ลืมรหัสผ่าน (Resend) — ตั้งค่าใน .env บน VPS ไม่ต้อง commit
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       # ซิงค์ระบบเก่า (Firebase) รายวัน — path ในคอนเทนเนอร์ตรงกับที่ volume mount
       # ไว้ด้านล่าง (ไฟล์จริงอยู่นอก git บน VPS เหมือน .env — ห้าม commit)
       FIREBASE_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json

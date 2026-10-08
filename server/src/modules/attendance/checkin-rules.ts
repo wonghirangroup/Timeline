@@ -115,6 +115,15 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+// สาขาโหมด BLOCK + ปักพิกัดไว้ แต่คำขอเช็คอินไม่มีพิกัดมา (พนักงานปิด GPS/ไม่กดอนุญาต/หมดเวลา) → ต้องปฏิเสธ ไม่งั้นข้ามการตรวจรัศมีได้เฉยๆ
+// สาขาโหมด WARN ปล่อยผ่านเหมือนเดิม (ไม่บล็อกคนที่ GPS มีปัญหา)
+export function isGpsRequiredButMissing(
+  branch: { lat: unknown; lng: unknown; geo_mode: 'WARN' | 'BLOCK' },
+  gps: { gps_lat?: number | null; gps_lng?: number | null },
+): boolean {
+  return branch.geo_mode === 'BLOCK' && !!branch.lat && !!branch.lng && (gps.gps_lat == null || gps.gps_lng == null)
+}
+
 export interface GeoCheckResult { blocked: boolean; isOutsideArea: boolean }
 export function resolveGeoCheckIn(distMeters: number, radiusMeters: number, geoMode: 'WARN' | 'BLOCK'): GeoCheckResult {
   if (distMeters <= radiusMeters) return { blocked: false, isOutsideArea: false }

@@ -11,6 +11,7 @@
 // แล้วจัดเข้าสาขาตามกะที่เช็คอินจริง (shift.branch) ไม่ใช่สาขาหลักของพนักงาน
 // (เผื่อเช็คอินที่สาขารอง) ส่วนคนที่ยังไม่เช็คอินเลย ใช้สาขาหลักไปก่อน (ยังไม่รู้
 // ว่าจะมาเช็คอินที่ไหน) — มือถือยังคงเป็นลิสต์เดียวเหมือนเดิม (จอเล็กเกินจะแบ่ง grid)
+import { lockScroll } from '../../lib/scrollLock'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -236,11 +237,10 @@ export default function TodayCheckinsPopup({ onClose }: { onClose: () => void })
   // ตอนย่อ-ขยายจอสลับ mobile/desktop)
   useEffect(() => {
     if (isMobile) return
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prevOverflow; window.removeEventListener('keydown', onKey) }
+    return () => { unlock(); window.removeEventListener('keydown', onKey) }
   }, [isMobile, onClose])
 
   // ── จัดกลุ่มตามสาขา — ตอนค้นหาโชว์เฉพาะสาขาที่มีคนตรงเงื่อนไข กันช่องว่างรก

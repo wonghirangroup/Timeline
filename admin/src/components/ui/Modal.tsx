@@ -6,6 +6,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Z } from './z'
+import { lockScroll } from '../../lib/scrollLock'
 
 interface ModalProps {
   onClose: () => void
@@ -26,8 +27,7 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
 
   useEffect(() => {
     returnFocusRef.current = document.activeElement as HTMLElement | null
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
 
     // โฟกัสตัวแรกที่โฟกัสได้ใน dialog (ไม่งั้นโฟกัสที่ card เอง)
     const first = cardRef.current?.querySelector<HTMLElement>(FOCUSABLE)
@@ -46,7 +46,7 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prevOverflow
+      unlock()
       returnFocusRef.current?.focus?.()
     }
   }, [onClose, dismissable])

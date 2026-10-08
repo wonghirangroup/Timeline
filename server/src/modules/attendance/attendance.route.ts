@@ -224,6 +224,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
+      if (e.message === 'GPS_REQUIRED')       return reply.code(403).send(fail('GPS_REQUIRED', 'สาขานี้ต้องเปิด GPS ก่อนเช็คอิน — เปิดตำแหน่ง (Location) และอนุญาตให้แอปเข้าถึง แล้วลองใหม่'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ สาขานี้บล็อคการเช็คอินนอกพื้นที่'))
       throw e
     }
@@ -324,6 +325,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'ALREADY_CHECKED_IN' || e.code === 'P2002') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
+      if (e.message === 'GPS_REQUIRED')       return reply.code(403).send(fail('GPS_REQUIRED', 'สาขานี้ต้องเปิด GPS ก่อนเช็คอิน — เปิดตำแหน่ง (Location) และอนุญาตให้แอปเข้าถึง แล้วลองใหม่'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
       if (e.message === 'NOT_IN_BRANCH') {
@@ -372,6 +374,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       return reply.code(201).send(ok(result, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'NO_SHIFT_AVAILABLE') return reply.code(400).send(fail('NO_SHIFT_AVAILABLE', 'ไม่มีกะที่เปิดรับเช็คอินในเวลานี้ — อาจเลยเวลาที่กำหนดแล้ว'))
+      if (e.message === 'GPS_REQUIRED')       return reply.code(403).send(fail('GPS_REQUIRED', 'สาขานี้ต้องเปิด GPS ก่อนเช็คอิน — เปิดตำแหน่ง (Location) และอนุญาตให้แอปเข้าถึง แล้วลองใหม่'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่สาขา'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))
       if (e.code === 'P2002')                 return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
@@ -405,6 +408,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       const record = await checkInQR(req.tenantId, req.body)
       return reply.code(201).send(ok(record, 'เช็คอินสำเร็จ'))
     } catch (e: any) {
+      if (e.message === 'GPS_REQUIRED')       return reply.code(403).send(fail('GPS_REQUIRED', 'สาขานี้ต้องเปิด GPS ก่อนเช็คอิน — เปิดตำแหน่ง (Location) และอนุญาตให้แอปเข้าถึง แล้วลองใหม่'))
       if (e.message === 'OUTSIDE_GEOFENCE')   return reply.code(403).send(fail('OUTSIDE_GEOFENCE', 'คุณอยู่นอกพื้นที่ — QR นี้ใช้ได้เฉพาะในสาขา'))
       if (e.message === 'ALREADY_CHECKED_IN') return reply.code(409).send(fail('ALREADY_CHECKED_IN', 'เช็คอินในกะนี้แล้ว'))
       if (e.message === 'BRANCH_NOT_FOUND')   return reply.code(404).send(fail('BRANCH_NOT_FOUND', 'ไม่พบสาขา'))

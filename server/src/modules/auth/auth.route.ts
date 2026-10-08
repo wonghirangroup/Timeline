@@ -17,6 +17,7 @@ import { prisma } from '../../common/utils/prisma'
 import { logActivity } from '../../common/utils/activityLog'
 import { updateUser } from '../tenant/user.service'
 import { getUserPermissions } from '../permissions/permission.service'
+import { requestPasswordResetOtp, resetPasswordWithOtp } from './password-reset.service'
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -267,6 +268,44 @@ export async function authRoutes(app: FastifyInstance) {
     } catch (err) {
       reply.code(401)
       return { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }
+    }
+  })
+
+  // ── ลืมรหัสผ่าน: ขอ OTP ทางอีเมล / ตั้งรหัสใหม่ด้วย OTP (Resend) ──────────────
+  app.post('/forgot-password', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ขอรหัส OTP ตั้งรหัสผ่านใหม่ส่งทางอีเมล (ตอบเหมือนกันเสมอไม่ว่ามีบัญชีหรือไม่)',
+      security: [],
+      body: { type: 'object', required: ['username'], properties: { username: { type: 'string', minLength: 3, maxLength: 191 } } },
+    },
+  }, async (request: any, reply) => {
+    const { configured } = await requestPasswordResetOtp(String(request.body.username))
+    if (!configured) { reply.code(503); return { success: false, error: { code: 'EMAIL_NOT_CONFIGURED', message: 'ระบบยังไม่ได้ตั้งค่าการส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ' } } }
+    return { success: true, message: 'ถ้าอีเมลนี้มีอยู่ในระบบ เราได้ส่งรหัส OTP ไปให้แล้ว (ใช้ได้ 10 นาที)' }
+  })
+
+  app.post('/reset-password', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'ตั้งรหัสผ่านใหม่ด้วยรหัส OTP จากอีเมล',
+      security: [],
+      body: {
+        type: 'object', required: ['username', 'otp', 'new_password'],
+        properties: {
+          username: { type: 'string', minLength: 3, maxLength: 191 },
+          otp: { type: 'string', pattern: '^[0-9]{6}$' },
+          new_password: { type: 'string', minLength: 8, maxLength: 100 },
+        },
+      },
+    },
+  }, async (request: any, reply) => {
+    try {
+      await resetPasswordWithOtp(String(request.body.username), request.body.otp, request.body.new_password)
+      return { success: true, message: 'ตั้งรหัสผ่านใหม่สำเร็จ — เข้าสู่ระบบด้วยรหัสใหม่ได้เลย' }
+    } catch (e: any) {
+      if (e?.message === 'INVALID_OTP') { reply.code(400); return { success: false, error: { code: 'INVALID_OTP', message: 'รหัส OTP ไม่ถูกต้อง หมดอายุ หรือถูกใช้ไปแล้ว — ขอรหัสใหม่อีกครั้ง' } } }
+      throw e
     }
   })
 

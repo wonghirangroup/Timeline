@@ -357,11 +357,17 @@ export default function LeaveRequestsTab() {
   useEffect(() => { setPage(1) }, [monthFilter, statusFilter, orgFilter, search])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const summary = useMemo(() => ({
-    pending:  requests.filter(r => r.status === 'PENDING').length,
-    approved: requests.filter(r => r.status === 'APPROVED').length,
-    rejected: requests.filter(r => r.status === 'REJECTED').length,
-  }), [requests])
+  // การ์ดสรุปนับตามเดือนที่เลือก (และตัวกรององค์กร) — ไม่นับรวมทุกเดือน; ไม่ผูกกับตัวกรองสถานะ/ค้นหา เพื่อให้การ์ดยังบอกภาพรวมครบทั้ง 3 สถานะ
+  const summary = useMemo(() => {
+    const scoped = requests.filter(r =>
+      (!monthFilter || r.start_date.slice(0, 7) === monthFilter) &&
+      matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter))
+    return {
+      pending:  scoped.filter(r => r.status === 'PENDING').length,
+      approved: scoped.filter(r => r.status === 'APPROVED').length,
+      rejected: scoped.filter(r => r.status === 'REJECTED').length,
+    }
+  }, [requests, monthFilter, orgFilter, employeeOrgMap])
 
   // คำขอ PENDING ที่มองเห็นตอนนี้ (ตามฟิลเตอร์) — ฐานของการเลือกหลายรายการ
   // เลือกได้ทุกสถานะ (ลบ/Export ที่เลือกได้ทุกใบ) — อนุมัติ/ปฏิเสธจะทำเฉพาะใบที่ยัง "รอพิจารณา" ในชุดที่เลือก

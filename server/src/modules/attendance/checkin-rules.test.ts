@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { toMins } from './late'
-import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn, type ShiftWindow } from './checkin-rules'
+import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn, isGpsRequiredButMissing, type ShiftWindow } from './checkin-rules'
 
 // ── 1/4. สาขาหลัก/สาขารอง ────────────────────────────────────────────────────
 describe('isAllowedBranch', () => {
@@ -193,5 +193,24 @@ describe('haversineMeters', () => {
     const d = haversineMeters(13.7563, 100.5018, 13.7573, 100.5018)
     expect(d).toBeGreaterThan(105)
     expect(d).toBeLessThan(115)
+  })
+})
+
+describe('isGpsRequiredButMissing', () => {
+  const block = { lat: '13.7', lng: '100.5', geo_mode: 'BLOCK' as const }
+  it('BLOCK + ปักพิกัด + ไม่มี GPS → ต้องปฏิเสธ', () => {
+    expect(isGpsRequiredButMissing(block, {})).toBe(true)
+    expect(isGpsRequiredButMissing(block, { gps_lat: 13.7 })).toBe(true)
+    expect(isGpsRequiredButMissing(block, { gps_lat: null, gps_lng: null })).toBe(true)
+  })
+  it('มี GPS ครบ → ไม่บล็อกที่ขั้นนี้ (ไปตรวจรัศมีต่อ)', () => {
+    expect(isGpsRequiredButMissing(block, { gps_lat: 13.7, gps_lng: 100.5 })).toBe(false)
+    expect(isGpsRequiredButMissing(block, { gps_lat: 0, gps_lng: 0 })).toBe(false)
+  })
+  it('WARN ผ่านเหมือนเดิมแม้ไม่มี GPS', () => {
+    expect(isGpsRequiredButMissing({ ...block, geo_mode: 'WARN' }, {})).toBe(false)
+  })
+  it('สาขาไม่ได้ปักพิกัด → ไม่บล็อก', () => {
+    expect(isGpsRequiredButMissing({ lat: null, lng: null, geo_mode: 'BLOCK' }, {})).toBe(false)
   })
 })

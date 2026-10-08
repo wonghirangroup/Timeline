@@ -11,6 +11,7 @@
 // animation) มันจะกลายเป็น containing block ของลูกที่เป็น position:fixed
 // แทนที่จะอ้างอิง viewport จริง ทำให้ sheet เพี้ยนตำแหน่ง/ความสูงได้ — portal
 // ตัดปัญหานี้ทิ้งไปเลย ไม่ต้องตามหาว่า ancestor ไหนเป็นต้นเหตุ
+import { lockScroll } from '../../lib/scrollLock'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -48,14 +49,13 @@ export function BottomSheet({ children, onClose, maxWidth = 430, zIndex = 200 }:
 
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
     cardRef.current?.querySelector<HTMLElement>('button,a,input,textarea,select,[tabindex]')?.focus()
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current() } }
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prevOverflow
+      unlock()
       prevFocus?.focus?.()
     }
   }, [])

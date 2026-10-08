@@ -679,6 +679,8 @@ export default function TeamCalendarTab() {
   const branchFilter = orgFilter.branchId || 'all'
   const groupFilter   = orgFilter.groupId  || 'all'
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // ดูปฏิทินแบบรายคน — เลือกพนักงานแล้วปฏิทิน/การ์ดสรุปแสดงเฉพาะวันหยุด+วันลาของคนนั้น (feedback 2026-10-08)
+  const [personId, setPersonId] = useState('')
   // popup รายละเอียดจากการ์ดสรุปด้านบน
   const [statPopup, setStatPopup] = useState<null | 'holiday' | 'dayoff' | 'leave' | 'pending'>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
@@ -877,9 +879,14 @@ export default function TeamCalendarTab() {
   // กรองด้วยกลุ่ม/แผนก/ตำแหน่งตรงนี้ — ส่วนสาขากรองแยกด้านล่าง (branchFilter ผ่าน
   // getEventsForDate/DayCell/DayDetailPanel อยู่แล้ว ไม่ปนกันเพื่อไม่ต้องแก้ signature)
   const orgFilterNoBranch: OrgFilterValue = { ...orgFilter, branchId: '' }
-  const dayOffs: DayOff[]    = dayOffsRaw.filter(d => matchesOrgFilter(employeeOrgMap[d.employee_id], orgFilterNoBranch))
-  const leaves: LeaveReq[]   = leavesRaw.filter(l => matchesOrgFilter(employeeOrgMap[l.employee_id], orgFilterNoBranch))
+  const dayOffs: DayOff[]    = dayOffsRaw.filter(d => matchesOrgFilter(employeeOrgMap[d.employee_id], orgFilterNoBranch) && (!personId || d.employee_id === personId))
+  const leaves: LeaveReq[]   = leavesRaw.filter(l => matchesOrgFilter(employeeOrgMap[l.employee_id], orgFilterNoBranch) && (!personId || l.employee_id === personId))
   const holidays: Holiday[]  = rawHolidays.map(h => ({ date: h.date.slice(0, 10), name: h.name, target_branches: h.target_branches }))
+
+  const person = personId ? employeesFull.find(e => e.id === personId) : null
+  const personOptions = employeesFull
+    .filter(e => matchesOrgFilter(employeeOrgMap[e.id], orgFilter))
+    .map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''}`, keywords: `${e.employee_code ?? ''} ${e.branch?.name ?? ''}` }))
 
   const daysInMonth = getDaysInMonth(month)
   const firstDow    = getFirstDow(month)
@@ -1261,6 +1268,13 @@ export default function TeamCalendarTab() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6, flex: isMobile ? '1 1 auto' : 'none', flexWrap: 'wrap' }}>
           <OrgFilterBar value={orgFilter} onChange={setOrgFilter} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: isMobile ? '100%' : 230 }}>
+            <SearchSelect value={personId} onChange={setPersonId} options={personOptions}
+              placeholder="ดูรายคน — เลือกพนักงาน" searchPlaceholder="ค้นหาชื่อ / รหัส" emptyText="ไม่พบพนักงาน"
+              style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: personId ? '1.5px solid #244B83' : '1px solid #e5e7eb', background: personId ? '#F4F6F9' : '#fff', fontSize: '0.85rem', fontWeight: personId ? 700 : 500, color: personId ? '#244B83' : '#374151' }} />
+            {personId && <button onClick={() => setPersonId('')} title="กลับไปดูทุกคน" aria-label="ล้างการดูรายคน"
+              style={{ border: 'none', background: '#E6ECF4', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: '#475569', fontWeight: 800 }}>✕</button>}
+          </div>
         </div>
 
         {/* Month nav */}
@@ -1307,6 +1321,49 @@ export default function TeamCalendarTab() {
       </div>
 
       {batchMode && <DayOffBatchModal mode={batchMode} month={month} onClose={() => setBatchMode(null)} onDone={invalidateCalendar} />}
+
+      {/* สรุปรายคน — วันหยุด/วันลาของคนที่เลือกในเดือนนี้ เรียงตามวัน */}
+      {person && (() => {
+        const items = [
+          ...allDayOffsThisMonth.map(d => ({ key: 'd' + d.id, date: d.date, label: 'หยุด', color: '#244B83', bg: '#EAF2FF', pending: d.status === 'PENDING' })),
+          ...allLeavesThisMonth.flatMap(l => {
+            const out: { key: string; date: string; label: string; color: string; bg: string; pending: boolean }[] = []
+            const cfg = getLeaveCfg(l)
+            for (let day = 1; day <= daysInMonth; day++) {
+              const ds = toDateStr(month, day)
+              if (ds >= l.start_date && ds <= l.end_date) out.push({ key: `l${l.id}${ds}`, date: ds, label: l.display_label, color: cfg.color, bg: cfg.light, pending: l.status === 'PENDING' })
+            }
+            return out
+          }),
+        ].sort((a, b) => a.date.localeCompare(b.date))
+        const offCount = allDayOffsThisMonth.length
+        const leaveDays = items.length - offCount
+        return (
+          <div style={{ background: '#fff', border: '1.5px solid #CFE0FA', borderRadius: 18, padding: '14px 16px', marginBottom: 14, boxShadow: '0 4px 14px rgba(36,75,131,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: items.length ? 10 : 0 }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0B1B4D' }}>{person.first_name} {person.last_name}{person.nickname ? ` (${person.nickname})` : ''}</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmtMonthTH(month)}</span>
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#244B83', background: '#EAF2FF', borderRadius: 99, padding: '3px 12px' }}>หยุด {offCount} วัน</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#7C3AED', background: '#F5F3FF', borderRadius: 99, padding: '3px 12px' }}>ลา {leaveDays} วัน</span>
+              </span>
+            </div>
+            {items.length === 0
+              ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingTop: 6 }}>เดือนนี้ไม่มีวันหยุดหรือวันลา</div>
+              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {items.map(it => {
+                    const d = new Date(it.date + 'T00:00:00')
+                    return (
+                      <button key={it.key} onClick={() => setSelectedDate(it.date)} title="กดเพื่อดูรายละเอียดวันนั้น"
+                        style={{ border: `1px ${it.pending ? 'dashed' : 'solid'} ${it.color}66`, background: it.bg, color: it.color, borderRadius: 10, padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {d.getDate()} {DAYS_SHORT[d.getDay()]} · {it.label}{it.pending ? ' (รอ)' : ''}
+                      </button>
+                    )
+                  })}
+                </div>}
+          </div>
+        )
+      })()}
 
       {/* Calendar grid (always full width) */}
       <div>

@@ -2,6 +2,7 @@
 // คู่มือเข้าใช้งานครั้งแรก (6 ภาพ: ค้นหาชื่อ → เลือกชื่อ → กรอกรหัส → รูปโปรไฟล์ → ยืนยัน → พร้อมใช้งาน)
 // ปัดซ้าย-ขวาได้ (scroll-snap ของเบราว์เซอร์ ไม่ใช้ lib) · ปิดด้วย "ข้าม"/"เริ่มเลย"/Esc
 // ใช้ 2 ที่: หน้าผูกบัญชี (เล่นครั้งแรกครั้งเดียว) และหน้าโปรไฟล์ (เปิดดูซ้ำได้ตลอด)
+import { lockScroll } from '../../lib/scrollLock'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
@@ -23,9 +24,8 @@ export function GuideCarousel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    const unlock = lockScroll()
+    return () => { document.removeEventListener('keydown', onKey); unlock() }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   function go(i: number) {
