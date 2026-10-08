@@ -12,6 +12,30 @@ export const OTP_MAX_ATTEMPTS = 5
 const RESEND_COOLDOWN_SEC = 60
 const MAX_PER_HOUR = 5
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const isEmailLike = (s: string | null | undefined): s is string => !!s && EMAIL_RE.test(s)
+/** ทำความสะอาดอีเมลที่ผู้ใช้กรอก: ว่าง → null · รูปแบบผิด → throw INVALID_EMAIL */
+export function normalizeRecoveryEmail(v: unknown): string | null {
+  const s = String(v ?? '').trim().toLowerCase()
+  if (!s) return null
+  if (s.length > 191 || !EMAIL_RE.test(s)) throw new Error('INVALID_EMAIL')
+  return s
+}
+
+/**
+ * หาบัญชีจากสิ่งที่ผู้ใช้กรอกในหน้าลืมรหัสผ่าน: ชื่อผู้ใช้ (email ที่ใช้ล็อกอิน) หรือ "อีเมลสำหรับกู้รหัสผ่าน" ที่ผูกไว้
+ * ถ้าอีเมลกู้รหัสตรงกับหลายบัญชี (คนเดียวมีหลายบัญชี) → ไม่เลือกให้ ป้องกันส่งรหัสของบัญชีผิด
+ */
+async function findResetUser(identifier: string) {
+  const id = identifier.trim().toLowerCase()
+  if (!id) return null
+  const byUsername = await prisma.user.findFirst({ where: { email: id, is_active: true, deleted_at: null } })
+  if (byUsername) return byUsername
+  if (!isEmailLike(id)) return null
+  const byRecovery = await prisma.user.findMany({ where: { recovery_email: id, is_active: true, deleted_at: null }, take: 2 })
+  return byRecovery.length === 1 ? byRecovery[0] : null
+}
+
 export function generateOtp(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0')
 }
@@ -31,11 +55,13 @@ export function otpEmail(otp: string, name: string) {
 /** ขอ OTP — คืนค่าเดิมเสมอ (ไม่บอกว่ามีบัญชีหรือไม่) */
 export async function requestPasswordResetOtp(identifier: string): Promise<{ configured: boolean }> {
   const configured = isEmailConfigured()
-  const email = identifier.trim().toLowerCase()
-  if (!configured || !email.includes('@')) return { configured }
+  if (!configured) return { configured }
 
-  const user = await prisma.user.findFirst({ where: { email, is_active: true, deleted_at: null } })
+  const user = await findResetUser(identifier)
   if (!user) return { configured }
+  // ส่งไปที่อีเมลกู้รหัสผ่านที่ผูกไว้ · ไม่มี → ใช้ชื่อผู้ใช้ถ้าเป็นอีเมลจริง · ไม่มีเลย → ไม่ส่ง (ตอบเหมือนเดิม ไม่บอกว่าเพราะอะไร)
+  const dest = user.recovery_email || (isEmailLike(user.email) ? user.email : null)
+  if (!dest) return { configured }
 
   const now = Date.now()
   const recent = await prisma.passwordResetOtp.findMany({
@@ -52,14 +78,13 @@ export async function requestPasswordResetOtp(identifier: string): Promise<{ con
   await prisma.passwordResetOtp.create({
     data: { user_id: user.id, otp_hash: await bcrypt.hash(otp, 8), expires_at: new Date(now + OTP_TTL_MIN * 60_000) },
   })
-  await sendEmail({ to: user.email, ...otpEmail(otp, user.first_name || user.email) })
+  await sendEmail({ to: dest, ...otpEmail(otp, user.first_name || user.email) })
   return { configured }
 }
 
 /** ตรวจ OTP แล้วตั้งรหัสใหม่ — throw INVALID_OTP เมื่อโค้ดผิด/หมดอายุ/ใช้แล้ว/ลองเกิน */
 export async function resetPasswordWithOtp(identifier: string, otp: string, newPassword: string): Promise<void> {
-  const email = identifier.trim().toLowerCase()
-  const user = await prisma.user.findFirst({ where: { email, is_active: true, deleted_at: null } })
+  const user = await findResetUser(identifier)
   if (!user) throw new Error('INVALID_OTP')
 
   const rec = await prisma.passwordResetOtp.findFirst({

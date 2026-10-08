@@ -262,6 +262,7 @@ export async function tenantRoutes(app: FastifyInstance) {
           first_name: { type: 'string' },
           last_name:  { type: 'string' },
           role:       { type: 'string', enum: ['ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'] },
+          recovery_email: { type: 'string', maxLength: 191, description: 'อีเมลรับ OTP ลืมรหัสผ่าน (ไม่บังคับ)' },
           // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
           department_ids: { type: 'array', items: { type: 'string' } },
           // ดึงจากพนักงาน — ผูกบัญชีนี้กับพนักงาน เพื่อให้สลับจากแอป LINE เข้าเว็บแอดมินได้
@@ -281,6 +282,7 @@ export async function tenantRoutes(app: FastifyInstance) {
       })
       return reply.code(201).send(ok(user, 'สร้าง User สำเร็จ'))
     } catch (e: any) {
+      if (e.message === 'INVALID_EMAIL') return reply.code(400).send(fail('INVALID_EMAIL', 'รูปแบบอีเมลสำหรับกู้รหัสผ่านไม่ถูกต้อง'))
       if (e.message === 'EMPLOYEE_NOT_FOUND') return reply.code(404).send(fail('EMPLOYEE_NOT_FOUND', 'ไม่พบพนักงานคนนี้'))
       if (e.message === 'EMPLOYEE_ALREADY_LINKED') return reply.code(409).send(fail('EMPLOYEE_ALREADY_LINKED', 'พนักงานคนนี้มีบัญชีเข้าเว็บอยู่แล้ว'))
       if (e.code === 'P2002') return reply.code(409).send(fail('DUPLICATE_EMAIL', 'อีเมลนี้มีอยู่แล้ว'))
@@ -330,11 +332,14 @@ export async function tenantRoutes(app: FastifyInstance) {
           last_name:  { type: 'string' },
           password:   { type: 'string' },
           is_active:  { type: 'boolean' },
+          recovery_email: { type: 'string', maxLength: 191, description: 'อีเมลรับ OTP ลืมรหัสผ่าน — ส่งสตริงว่างเพื่อลบ' },
         },
       },
     },
   }, async (req: any, reply) => {
-    const ok_ = await updateUser(req.tenantId, req.params.id, req.body)
+    let ok_: boolean
+    try { ok_ = await updateUser(req.tenantId, req.params.id, req.body) }
+    catch (e: any) { if (e?.message === 'INVALID_EMAIL') return reply.code(400).send(fail('INVALID_EMAIL', 'รูปแบบอีเมลสำหรับกู้รหัสผ่านไม่ถูกต้อง')); throw e }
     if (!ok_) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบ User'))
     const [actorName, info] = await Promise.all([resolveActorName(req.userId), webUserLogInfo(req.params.id)])
     if (info) {

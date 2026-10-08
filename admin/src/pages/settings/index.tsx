@@ -50,10 +50,10 @@ const ROLE_BADGE: Record<string, { bg: string; color: string }> = {
   EXECUTIVE: { bg: '#eef2ff', color: '#4338ca' }, DEPT_HEAD: { bg: '#ecfeff', color: '#0e7490' },
 }
 interface LinkedEmployee { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null }
-interface WebUser { id: string; email: string; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string; is_root_admin?: boolean; linked_employee?: LinkedEmployee | null }
+interface WebUser { id: string; email: string; recovery_email?: string | null; first_name: string; last_name: string; role: string; is_active: boolean; created_at: string; is_root_admin?: boolean; linked_employee?: LinkedEmployee | null }
 interface Dept { id: string; name: string; division: { id: string; name: string } | null }
 interface EmpOption { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; line_user_id: string | null; email?: string | null; branch?: { name: string } | null; admin_user?: { is_active: boolean } | null }
-const EMPTY_USER_FORM = { email: '', password: '', first_name: '', last_name: '', role: 'ADMIN', department_ids: [] as string[], employee_id: '' }
+const EMPTY_USER_FORM = { email: '', recovery_email: '', password: '', first_name: '', last_name: '', role: 'ADMIN', department_ids: [] as string[], employee_id: '' }
 
 function UserManagementSettings() {
   const qc = useQueryClient()
@@ -121,13 +121,13 @@ function UserManagementSettings() {
       const res = await api.get(`/api/v1/super-admin/users/${u.id}/departments`)
       department_ids = res.data.data.map((d: any) => d.department_id)
     }
-    setForm({ email: u.email, password: '', first_name: u.first_name, last_name: u.last_name, role: u.role, department_ids, employee_id: '' })
+    setForm({ email: u.email, recovery_email: u.recovery_email ?? '', password: '', first_name: u.first_name, last_name: u.last_name, role: u.role, department_ids, employee_id: '' })
     setModal({ edit: u })
   }
   const handleSave = async () => {
     if (!form.first_name.trim() || !form.last_name.trim()) return
     if (modal?.edit) {
-      const body: any = { first_name: form.first_name, last_name: form.last_name }
+      const body: any = { first_name: form.first_name, last_name: form.last_name, recovery_email: form.recovery_email.trim() }
       if (form.password.trim()) body.password = form.password
       await updateMutation.mutateAsync({ id: modal.edit.id, body })
       if (modal.edit.role === 'DEPT_HEAD') await setDeptsMutation.mutateAsync({ id: modal.edit.id, department_ids: form.department_ids })
@@ -183,6 +183,7 @@ function UserManagementSettings() {
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#111827' }}>{u.first_name} {u.last_name}{!u.is_active && ' (ปิดใช้งาน)'}</p>
                   <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: 'var(--text-muted)' }}>{u.email}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: u.recovery_email ? '#15803d' : '#b45309' }}>{u.recovery_email ? `อีเมลกู้รหัสผ่าน: ${u.recovery_email}` : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email) ? 'กู้รหัสผ่านด้วยอีเมลที่ใช้ล็อกอิน' : 'ยังไม่ได้ตั้งอีเมลกู้รหัสผ่าน — ลืมรหัสผ่านเองไม่ได้'}</p>
                   {u.linked_employee && (
                     <p style={{ margin: '3px 0 0', fontSize: '11px', color: u.linked_employee.line_user_id ? '#15803d' : '#b45309' }}>
                       ผูกกับพนักงาน {u.linked_employee.employee_code}
@@ -246,6 +247,9 @@ function UserManagementSettings() {
                 </div>
               </>
             )}
+
+            <label style={{ ...fieldLabel, margin: '10px 0 4px' }}>อีเมลสำหรับกู้รหัสผ่าน (ไม่บังคับ)</label>
+            <input type="email" style={inputStyle} value={form.recovery_email} onChange={e => setForm(f => ({ ...f, recovery_email: e.target.value }))} placeholder="name@company.com — ใช้รับรหัส OTP ตอนลืมรหัสผ่าน" />
 
             <label style={{ ...fieldLabel, margin: '10px 0 4px' }}>ชื่อ</label>
             <input style={inputStyle} value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />

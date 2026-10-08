@@ -66,7 +66,7 @@ function ForgotPasswordModal({ initialEmail, onClose, onDone }: { initialEmail: 
   }, [cooldown])
 
   async function sendOtp() {
-    if (!email.trim()) { setErr('กรุณากรอกอีเมลที่ใช้เข้าสู่ระบบ'); return }
+    if (!email.trim()) { setErr('กรุณากรอกชื่อผู้ใช้หรืออีเมลกู้รหัสผ่าน'); return }
     setBusy(true); setErr('')
     try {
       await axios.post(`${API_URL}/api/v1/auth/forgot-password`, { username: email.trim() })
@@ -102,8 +102,8 @@ function ForgotPasswordModal({ initialEmail, onClose, onDone }: { initialEmail: 
 
         {step === 'email' && (<>
           <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#0B1B4D' }}>ลืมรหัสผ่าน?</h3>
-          <p style={{ margin: '0 0 14px', fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>กรอกอีเมลที่ใช้เข้าสู่ระบบ เราจะส่งรหัส OTP 6 หลักไปให้ทางอีเมล (ใช้ได้ 10 นาที)</p>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="อีเมล" autoComplete="email" autoFocus style={inp}
+          <p style={{ margin: '0 0 14px', fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>กรอก <b>ชื่อผู้ใช้</b> หรือ <b>อีเมลกู้รหัสผ่าน</b> ของคุณ เราจะส่งรหัส OTP 6 หลักไปที่อีเมลที่ผูกไว้กับบัญชี (ใช้ได้ 10 นาที)</p>
+          <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="ชื่อผู้ใช้ หรืออีเมลกู้รหัสผ่าน" autoComplete="username" autoFocus style={inp}
             onKeyDown={e => { if (e.key === 'Enter') sendOtp() }} />
           {err && <div style={{ marginTop: 10, fontSize: '0.82rem', color: '#b91c1c' }}>{err}</div>}
           <button onClick={sendOtp} disabled={busy} style={primary}>{busy ? 'กำลังส่ง...' : 'ส่งรหัส OTP'}</button>
@@ -112,7 +112,7 @@ function ForgotPasswordModal({ initialEmail, onClose, onDone }: { initialEmail: 
         {step === 'otp' && (<>
           <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#0B1B4D' }}>ตั้งรหัสผ่านใหม่</h3>
           <p style={{ margin: '0 0 14px', fontSize: '0.88rem', color: '#64748B', lineHeight: 1.6 }}>
-            ถ้าอีเมล <b>{email}</b> มีอยู่ในระบบ เราส่งรหัส OTP ไปแล้ว (เช็คในกล่องสแปมด้วย)
+            ถ้า <b>{email}</b> ตรงกับบัญชีที่ตั้งอีเมลกู้รหัสผ่านไว้ เราส่งรหัส OTP ไปที่อีเมลนั้นแล้ว (เช็คในกล่องสแปมด้วย) — ถ้าไม่ได้รับ ให้ติดต่อผู้ดูแลระบบเพื่อตั้งอีเมลกู้รหัสผ่านให้บัญชีของคุณ
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input inputMode="numeric" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="รหัส OTP 6 หลัก" autoFocus

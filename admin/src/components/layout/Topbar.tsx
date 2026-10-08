@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown, CalendarCheck2 } from 'lucide-react'
+import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown, CalendarCheck2, Mail } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
 import { api } from '../../lib/axios'
@@ -99,7 +99,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
 
   // Profile panel state
   const [panelOpen, setPanelOpen] = useState(false)
-  const [view, setView] = useState<'profile' | 'reset' | 'name'>('profile')
+  const [view, setView] = useState<'profile' | 'reset' | 'name' | 'recovery'>('profile')
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false })
   const [nameInput, setNameInput] = useState('')
@@ -128,6 +128,18 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   // เดิม 2 ฟังก์ชันนี้ไม่เรียก API เลย แค่โชว์ toast "สำเร็จ" เฉยๆ (แก้ชื่อ
   // เปลี่ยนแค่ localStorage ในเครื่อง ไม่ลงฐานข้อมูล — เปลี่ยนรหัสผ่านไม่เรียก
   // ไปที่ /auth/change-password ที่มีอยู่แล้วด้วยซ้ำ) แก้ให้เรียก API จริงแล้ว
+  // อีเมลกู้รหัสผ่านของตัวเอง (ไว้รับ OTP ตอนลืมรหัสผ่าน)
+  const [recoveryInput, setRecoveryInput] = useState('')
+  const saveRecoveryMut = useMutation({
+    mutationFn: (email: string) => api.post('/api/v1/auth/update-profile', { first_name: me?.first_name || 'Admin', last_name: me?.last_name ?? '', recovery_email: email }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] })
+      showToast('success', 'บันทึกอีเมลกู้รหัสผ่านแล้ว')
+      setView('profile')
+    },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'บันทึกไม่สำเร็จ กรุณาลองใหม่'),
+  })
+
   const saveNameMut = useMutation({
     mutationFn: (fullName: string) => {
       const parts = fullName.split(/\s+/)
@@ -223,6 +235,22 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           </button>
 
           <button
+            onClick={() => { setRecoveryInput(me?.recovery_email ?? ''); setView('recovery') }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Mail size={15} color="#059669" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>อีเมลกู้รหัสผ่าน</div>
+              <div style={{ fontSize: '11px', color: me?.recovery_email ? '#15803d' : '#b45309', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me?.recovery_email ?? 'ยังไม่ได้ตั้ง — ตั้งไว้เพื่อรับ OTP ตอนลืมรหัส'}</div>
+            </div>
+            <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
+          </button>
+
+          <button
             onClick={() => setView('reset')}
             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
             onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
@@ -251,6 +279,23 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             </div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#ef4444' }}>ออกจากระบบ</div>
           </button>
+        </div>
+      ) : view === 'recovery' ? (
+        <div style={{ padding: '16px 20px 20px' }}>
+          <button onClick={() => setView('profile')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', marginBottom: 12 }}>
+            <ChevronLeft size={14} /> กลับ
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 14 }}><Mail size={14} /> อีเมลกู้รหัสผ่าน</div>
+          <label style={labelStyle}>อีเมลที่ใช้รับรหัส OTP</label>
+          <input type="email" value={recoveryInput} onChange={e => setRecoveryInput(e.target.value)} placeholder="name@company.com" maxLength={191} autoFocus
+            onKeyDown={e => e.key === 'Enter' && saveRecoveryMut.mutate(recoveryInput.trim())}
+            style={{ ...inputStyle, padding: '9px 12px' }} />
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>ถ้าลืมรหัสผ่าน ระบบจะส่งรหัส OTP ไปที่อีเมลนี้ · เว้นว่างแล้วบันทึกเพื่อลบ</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button onClick={() => setView('profile')} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>ยกเลิก</button>
+            <button onClick={() => saveRecoveryMut.mutate(recoveryInput.trim())} disabled={saveRecoveryMut.isPending}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>{saveRecoveryMut.isPending ? 'กำลังบันทึก...' : 'บันทึก'}</button>
+          </div>
         </div>
       ) : view === 'reset' ? (
         <div style={{ padding: '16px 20px 20px' }}>

@@ -1,4 +1,5 @@
 // server/src/modules/tenant/user.service.ts
+import { normalizeRecoveryEmail } from '../auth/password-reset.service'
 import { prisma } from '../../common/utils/prisma'
 import bcrypt from 'bcryptjs'
 import { randomInt } from 'crypto'
@@ -24,7 +25,7 @@ export async function listUsers(tenantId: string) {
       ...(tenantId ? { tenant_id: tenantId } : {}),
     },
     select: {
-      id: true, email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true, is_root_admin: true,
+      id: true, email: true, recovery_email: true, first_name: true, last_name: true, role: true, is_active: true, tenant_id: true, created_at: true, is_root_admin: true,
       linked_employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, line_user_id: true } },
     },
     orderBy: { created_at: 'desc' },
@@ -39,6 +40,7 @@ export async function createUser(
     first_name: string
     last_name: string
     role: 'ADMIN' | 'MANAGER' | 'EXECUTIVE' | 'DEPT_HEAD'
+    recovery_email?: string | null   // อีเมลรับ OTP ลืมรหัสผ่าน
     department_ids?: string[] // เฉพาะ role DEPT_HEAD — แผนกที่ดูแล (ดูแลได้หลายแผนก)
     // ดึงจากพนักงาน — ผูก Employee.user_id กับบัญชีใหม่ พนักงานคนนั้นจะเห็นปุ่ม
     // "สลับไปเว็บแอดมิน" ในแอป LINE (LIFF) แล้วเข้าเว็บได้เลยไม่ต้องล็อกอินซ้ำ
@@ -62,6 +64,7 @@ export async function createUser(
     data: {
       tenant_id:  tenantId || null,
       email:      data.email,
+      recovery_email: normalizeRecoveryEmail(data.recovery_email),
       password:   hashed,
       first_name: data.first_name,
       last_name:  data.last_name,
@@ -113,9 +116,10 @@ export async function getUserDepartments(tenantId: string, userId: string) {
 export async function updateUser(
   tenantId: string,
   id: string,
-  data: { first_name?: string; last_name?: string; is_active?: boolean; password?: string },
+  data: { first_name?: string; last_name?: string; is_active?: boolean; password?: string; recovery_email?: string | null },
 ) {
   const updateData: any = { ...data }
+  if (data.recovery_email !== undefined) updateData.recovery_email = normalizeRecoveryEmail(data.recovery_email)
   if (data.password) {
     updateData.password = await bcrypt.hash(data.password, 10)
   }
