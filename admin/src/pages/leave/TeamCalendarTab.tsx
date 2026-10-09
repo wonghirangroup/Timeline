@@ -917,8 +917,8 @@ export default function TeamCalendarTab() {
   const holidayLeaves = allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label))
   const normalLeaves  = allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label))
   const statPopupCfg = statPopup && ({
-    holiday: { title: 'หยุดประจำ', color: '#ef4444', rows: holidayLeaves.map(leaveRow) },
-    dayoff:  { title: 'วันหยุดพิเศษ', color: '#244B83', rows: allDayOffsThisMonth.map(dayOffRow) },
+    holiday: { title: 'หยุดนักขัตฤกษ์/หยุดอื่นๆ', color: '#ef4444', rows: holidayLeaves.map(leaveRow) },
+    dayoff:  { title: 'หยุดประจำ', color: '#244B83', rows: allDayOffsThisMonth.map(dayOffRow) },
     leave:   { title: 'วันลาเดือนนี้', color: '#3b82f6', rows: normalLeaves.map(leaveRow) },
     pending: { title: 'รออนุมัติ', color: '#d97706', rows: [
       ...allDayOffsThisMonth.filter(d => d.status === 'PENDING').map(dayOffRow),
@@ -1245,8 +1245,8 @@ export default function TeamCalendarTab() {
       {/* Stats row — 2×2 on mobile, 4 cols on desktop */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 8 : 12, marginBottom: 16 }}>
         {[
-          { k: 'holiday' as const, label: 'หยุดประจำ',    value: `${allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#ef4444', bg: '#fef2f2' },
-          { k: 'dayoff' as const, label: 'วันหยุดพิเศษ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'คำขอ',  color: '#244B83', bg: '#F4F6F9' },
+          { k: 'dayoff' as const, label: 'หยุดประจำ', value: `${allDayOffsThisMonth.length}`,                                                  unit: 'วัน',  color: '#244B83', bg: '#F4F6F9' },
+          { k: 'holiday' as const, label: 'หยุดนักขัตฤกษ์/อื่นๆ', value: `${allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#ef4444', bg: '#fef2f2' },
           { k: 'leave' as const, label: 'วันลาเดือนนี้', value: `${allLeavesThisMonth.filter(l => !HOLIDAY_LABELS.has(l.display_label)).length}`, unit: 'ครั้ง', color: '#3b82f6', bg: '#eff6ff' },
           { k: 'pending' as const, label: 'รออนุมัติ',    value: `${pendingCount}`,                                                                 unit: 'รายการ', color: '#d97706', bg: '#fffbeb' },
         ].map(s => (
