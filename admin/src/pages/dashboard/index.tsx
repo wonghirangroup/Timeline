@@ -540,7 +540,6 @@ export default function DashboardPage() {
               { label: 'เข้างานปกติ', value: onTime,  filter: 'ON_TIME' as TodayFilter, icon: <CheckCircle2 size={18}/>,  color: 'var(--success)', ring: '#10b981' },
               { label: 'มาสาย',      value: late,    filter: 'LATE' as TodayFilter,    icon: <AlertTriangle size={18}/>, color: 'var(--warning)', ring: '#f59e0b' },
               { label: 'ยังไม่เช็ค', value: pending, filter: 'PENDING' as TodayFilter, icon: <Clock size={18}/>,         color: '#64748b', ring: '#94a3b8' },
-              { label: 'หยุด/ไม่ต้องเช็ค', value: offCount, filter: 'OFF' as TodayFilter, icon: <Palmtree size={18}/>, color: '#0891b2', ring: '#38bdf8' },
             ]).map(card => {
               const active = todayFilter === card.filter
               return (

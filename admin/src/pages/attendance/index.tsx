@@ -113,7 +113,7 @@ const STATUS_CFG: Record<Status, { label: string; color: string; bg: string }> =
   PENDING: { label: 'ยังไม่เช็ค',       color: '#64748b', bg: '#E6ECF4' },
   ABSENT:  { label: 'ขาดงาน',            color: '#7f1d1d', bg: '#fef2f2' },
   LEAVE:   { label: 'ลา',                color: '#0369a1', bg: '#e0f2fe' },
-  DAY_OFF: { label: 'หยุด',              color: '#475569', bg: '#E6ECF4' },
+  DAY_OFF: { label: 'หยุด',              color: '#6d28d9', bg: '#ede9fe' },
   HOLIDAY: { label: 'นักขัตฤกษ์',        color: '#be123c', bg: '#ffe4e6' },
 }
 
@@ -616,7 +616,9 @@ export default function AttendancePage() {
       }
     }
 
-    return result
+    // เรียงตามกลุ่มสถานะ: หยุด/ลา/นักขัตฤกษ์ → เช็คอินแล้ว (ปกติ/สาย/ขาด) → ยังไม่เช็ค — คงลำดับเดิมในกลุ่มเดียวกัน
+    const rank = (st: Status) => (st === 'DAY_OFF' || st === 'LEAVE' || st === 'HOLIDAY') ? 0 : st === 'PENDING' ? 2 : 1
+    return result.sort((x, y) => rank(x.status) - rank(y.status))
   }, [employees, records, date, leaveByEmp, weeklyOffEmps, poolActiveEmps, holidaysToday])
 
   const filtered = useMemo(() => rows.filter(r => {
