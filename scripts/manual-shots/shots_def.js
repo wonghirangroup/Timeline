@@ -136,7 +136,7 @@ module.exports = [
     ] },
   { id: 'team-calendar', path: 'leave', setup: async (p, { clickText, sleep }) => { await clickText(p, 'ปฏิทินรวม', 'button, a, div'); await sleep(1500) },
     marks: [
-      { text: 'วันหยุดพิเศษ', tag: 'div', n: 1, card: true },
+      { text: 'หยุดประจำ', exact: true, tag: 'div', n: 1, card: true },
       { selector: 'select', n: 2, nth: 0 },
       { text: 'ลงวันหยุดรายคน', tag: 'button', n: 3 },
       { text: 'ลงวันหยุดหลายคน', tag: 'button', n: 4 },
