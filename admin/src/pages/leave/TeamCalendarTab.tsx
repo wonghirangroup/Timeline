@@ -911,7 +911,7 @@ export default function TeamCalendarTab() {
     right: l.start_date === l.end_date ? fmtD(l.start_date) : `${fmtD(l.start_date)} – ${fmtD(l.end_date)}`,
   })
   const dayOffRow = (d: DayOff): StatRow => ({
-    key: 'd' + d.id, primary: `${d.name}${d.nickname ? ` (${d.nickname})` : ''}`,
+    key: 'd' + d.id, avatar: { name: d.name, photoUrl: d.photo_url }, primary: `${d.name}${d.nickname ? ` (${d.nickname})` : ''}`,
     secondary: `วันหยุด · ${d.branch_name} · ${STATUS_LABEL_TH[d.status] ?? d.status}`, right: fmtD(d.date),
   })
   const holidayLeaves = allLeavesThisMonth.filter(l => HOLIDAY_LABELS.has(l.display_label))

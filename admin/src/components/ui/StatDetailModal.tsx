@@ -4,8 +4,9 @@
 import { X } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
 import Modal from './Modal'
+import PersonAvatar from './PersonAvatar'
 
-export interface StatRow { key: string; primary: ReactNode; secondary?: ReactNode; right?: ReactNode }
+export interface StatRow { key: string; primary: ReactNode; secondary?: ReactNode; right?: ReactNode; /** รูปโปรไฟล์ซ้ายสุดของแถว (ไม่มีรูปแสดงตัวอักษรแรกของชื่อ) */ avatar?: { name: string; photoUrl?: string | null } }
 
 interface Props {
   title: string
@@ -37,7 +38,8 @@ export default function StatDetailModal({ title, count, color = '#244B83', rows,
           ? <div style={{ ...cell, justifyContent: 'center', color: '#94a3b8', padding: '30px 18px' }}>{empty}</div>
           : rows.map(r => (
             <div key={r.key} style={cell}>
-              <div style={{ minWidth: 0 }}>
+              {r.avatar && <PersonAvatar name={r.avatar.name} photoUrl={r.avatar.photoUrl} size={38} />}
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontWeight: 700, color: '#111827' }}>{r.primary}</div>
                 {r.secondary && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>{r.secondary}</div>}
               </div>

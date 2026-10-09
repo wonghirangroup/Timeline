@@ -15,6 +15,7 @@ import Modal from '../../components/ui/Modal'
 import PageLinks from '../../components/ui/PageLinks'
 import StatDetailModal from '../../components/ui/StatDetailModal'
 import { avatarUrl } from '../../lib/upload'
+import PersonAvatar from '../../components/ui/PersonAvatar'
 import { fmtThaiMonth } from '../../lib/format'
 import AttendanceMap from '../attendance/AttendanceMap'
 import { buildMapData } from '../attendance/mapData'
@@ -22,7 +23,7 @@ import { buildMapData } from '../attendance/mapData'
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
 
-interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null; late_count?: number }
+interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; photo_url?: string | null; branch: { id: string; name: string } | null; late_count?: number }
 interface OffTodayPerson extends RangePerson { label: string }
 interface OffTodayResult { count: number; employees: OffTodayPerson[] }
 interface DashboardSummary {
@@ -105,7 +106,8 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
             ) : people.map((p, i) => {
               const extra = extraLine?.(p)
               return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 20px', borderBottom: i < people.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px', borderBottom: i < people.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <PersonAvatar name={p.first_name || p.nickname || '?'} photoUrl={p.photo_url} size={38} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>{personLabel(p)}</div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}{p.branch ? ` · ${p.branch.name}` : ''}</div>
@@ -563,7 +565,7 @@ export default function DashboardPage() {
           <StatDetailModal title={`${todayFilter === 'ALL' ? 'พนักงานทั้งหมด' : FILTER_LABEL[todayFilter]} · วันนี้`} count={listFiltered.length}
             color={todayFilter === 'ON_TIME' ? '#10b981' : todayFilter === 'LATE' ? '#f59e0b' : todayFilter === 'PENDING' ? '#64748b' : '#244B83'}
             empty="ไม่มีคนในหมวดนี้" onClose={() => setStatPopup(false)}
-            rows={listFiltered.map(r => ({ key: r.key, primary: `${r.name}${r.nickname ? ` (${r.nickname})` : ''}`, secondary: r.branch?.name,
+            rows={listFiltered.map(r => ({ key: r.key, avatar: { name: r.name, photoUrl: r.photo_url }, primary: `${r.name}${r.nickname ? ` (${r.nickname})` : ''}`, secondary: r.branch?.name,
               right: `${fmtTime(r.record?.check_in_at ?? null)} · ${STATUS_CFG[r.status].label}` }))} />
         )}
 

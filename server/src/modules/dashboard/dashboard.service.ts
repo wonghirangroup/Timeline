@@ -30,7 +30,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, photo_url: true, branch: { select: { id: true, name: true } } } },
     },
   })
   const lateByEmployee = new Map<string, { employee: (typeof lateRecords)[number]['employee']; count: number }>()
@@ -51,7 +51,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch_id: true, branch: { select: { id: true, name: true } } } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, photo_url: true, branch_id: true, branch: { select: { id: true, name: true } } } },
     },
     orderBy: { created_at: 'desc' },
   })
@@ -70,7 +70,7 @@ export async function getDashboardSummary(tenantId: string, filters: {
       ...(filters.branchId ? employeeBranchWhere(filters.branchId) : {}),
       ...(filters.scopedEmployeeIds ? { id: { in: filters.scopedEmployeeIds } } : {}),
     },
-    select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, hired_at: true, branch: { select: { id: true, name: true } } },
+    select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, photo_url: true, hired_at: true, branch: { select: { id: true, name: true } } },
     orderBy: { hired_at: 'desc' },
   })
 
@@ -106,7 +106,7 @@ export async function getOffToday(tenantId: string, dateStr: string, filters: {
   const dow  = date.getUTCDay()
   const monday = mondayOf(dateStr)
 
-  const empSelect = { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } } as const
+  const empSelect = { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, photo_url: true, branch: { select: { id: true, name: true } } } as const
 
   const [leaves, dayoffs] = await Promise.all([
     prisma.leaveRequest.findMany({
@@ -128,7 +128,7 @@ export async function getOffToday(tenantId: string, dateStr: string, filters: {
     }),
   ])
 
-  const byEmployee = new Map<string, { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } | null; label: string }>()
+  const byEmployee = new Map<string, { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; photo_url: string | null; branch: { id: string; name: string } | null; label: string }>()
   for (const l of leaves) {
     if (byEmployee.has(l.employee.id)) continue
     byEmployee.set(l.employee.id, { ...l.employee, label: l.custom_type?.name ?? LEAVE_LABEL_TH[l.leave_type] ?? 'ลา' })
