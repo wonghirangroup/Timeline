@@ -501,13 +501,15 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     where:  { id: employeeId, tenant_id: tenantId },
     select: { branch_id: true, position_id: true, extra_branches: { select: { branch_id: true } } },
   })
+  // เห็นวันหยุด/วันลาของ "ทุกคนทุกสาขา" ในบริษัท (feedback 2026-10-14) — แต่ยังติดธง same_branch ไว้ให้ฝั่งแอปใช้
+  // แยกเรื่องที่ผูกกับสาขา (ชนตำแหน่งเดียวกัน, เลือกคนสลับวันหยุด) ไม่ให้ข้ามสาขา
   // เพื่อนร่วมสาขา = แชร์สาขาใดสาขาหนึ่งร่วมกัน (หลักหรือเสริมก็นับ) ไม่ใช่แค่สาขาหลัก
   // ตัวเองอย่างเดียวอีกต่อไป (feedback 2026-09-14: คนมีหลายสาขาต้องเห็นคนจองชนใน
   // ทุกสาขาที่ตัวเองสังกัดด้วย ไม่ใช่แค่สาขาหลัก)
   const myBranchIds = employee ? [employee.branch_id, ...employee.extra_branches.map(b => b.branch_id)] : []
-  const employeeWhere = myBranchIds.length > 0
-    ? { OR: [{ branch_id: { in: myBranchIds } }, { extra_branches: { some: { branch_id: { in: myBranchIds } } } }] }
-    : {}
+  const employeeWhere = { deleted_at: null }
+  const isSameBranch = (e: { branch_id: string | null; extra_branches?: { branch_id: string }[] }) =>
+    (!!e.branch_id && myBranchIds.includes(e.branch_id)) || (e.extra_branches ?? []).some(b => myBranchIds.includes(b.branch_id))
 
   const allRaw = await prisma.weeklyOffRequest.findMany({
     where: {
@@ -516,7 +518,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       employee:   employeeWhere,
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true, photo_url: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true, photo_url: true, branch_id: true, branch: { select: { name: true } }, extra_branches: { select: { branch_id: true } } } },
     },
     orderBy: { week_start: 'asc' },
   })
@@ -565,7 +567,7 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     },
     select: {
       id: true, leave_type: true, start_date: true, end_date: true,
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, photo_url: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, photo_url: true, position_id: true, branch_id: true, branch: { select: { name: true } }, extra_branches: { select: { branch_id: true } } } },
     },
   })
 
@@ -574,9 +576,14 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
     own: ownRecords.map(r => ({ ...r, swapped_with: swapNameByOffId.get(r.id) ?? null })),
     colleagues: all.filter(r => r.employee_id !== employeeId).map(r => ({
       ...r,
-      same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,
+      same_branch: isSameBranch(r.employee),
+      same_position: isSameBranch(r.employee) && !!employee?.position_id && r.employee.position_id === employee.position_id,
     })),
-    colleagueLeaves: colleagueLeavesRaw,
+    colleagueLeaves: colleagueLeavesRaw.map(l => ({
+      ...l,
+      same_branch: isSameBranch(l.employee),
+      same_position: isSameBranch(l.employee) && !!employee?.position_id && l.employee.position_id === employee.position_id,
+    })),
   }
 }
 

@@ -29,12 +29,14 @@ function leavePeriodBadge(r: { leave_period?: string; start_time?: string | null
 }
 interface ColleagueOff {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null }
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null; branch?: { name: string } | null }
+  same_branch?: boolean     // เพื่อนสาขาเดียวกัน (หลัก/เสริม) — ปฏิทินเห็นทุกสาขา แต่การสลับวันหยุด/ชนตำแหน่งนับเฉพาะสาขาเดียวกัน
   same_position?: boolean   // true = เพื่อนร่วมตำแหน่งเดียวกัน (กันจองซ้ำวันหยุดในตำแหน่งเดียวกัน)
 }
 interface ColleagueLeave {
   id: string; leave_type: string; start_date: string; end_date: string
-  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null }
+  employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null; branch?: { name: string } | null }
+  same_branch?: boolean; same_position?: boolean
 }
 interface WeeklyOffRecord {
   id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -521,7 +523,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
               {selColOff.map((o, i) => (
                 <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
                   <ColleagueAvatar name={o.employee.nickname || o.employee.first_name} photoUrl={o.employee.photo_url} seed={i} />
-                  <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{o.employee.nickname || `${o.employee.first_name} ${o.employee.last_name}`}</span>
+                  <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{o.employee.nickname || `${o.employee.first_name} ${o.employee.last_name}`}{o.same_branch === false && o.employee.branch?.name && <small style={{ display: 'block', fontWeight: 500, color: '#5B7F7B' }}>{o.employee.branch.name}</small>}</span>
                   <span style={{ fontSize: '0.8rem', color: '#0F9D6B', fontWeight: 800, background: '#DDF7EC', padding: '6px 12px', borderRadius: 99 }}>วันหยุดประจำ</span>
                 </div>
               ))}
@@ -530,7 +532,7 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
                 return (
                   <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
                     <ColleagueAvatar name={l.employee.nickname || l.employee.first_name} photoUrl={l.employee.photo_url} seed={selColOff.length + i} />
-                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}</span>
+                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}{l.same_branch === false && l.employee.branch?.name && <small style={{ display: 'block', fontWeight: 500, color: '#5B7F7B' }}>{l.employee.branch.name}</small>}</span>
                     <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>{cfg?.label ?? l.leave_type}</span>
                   </div>
                 )
@@ -770,11 +772,11 @@ function SwapPickerSheet({ employeeId, month, requesterOffId, onClose }: {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
 
-  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[]; colleagueLeaves: ColleagueLeave[] }>({
     queryKey: ['employee', 'weekly-off-view', employeeId, month],
     queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
   })
-  const eligible = (colleagueQ.data?.colleagues ?? []).filter(c => c.status === 'APPROVED')
+  const eligible = (colleagueQ.data?.colleagues ?? []).filter(c => c.status === 'APPROVED' && c.same_branch !== false)
 
   const swapMutation = useMutation({
     mutationFn: (targetOffId: string) => api.post('/employee/weekly-off/swap-requests', {
@@ -967,7 +969,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
     queryFn:  () => api.get('/employee/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
   })
-  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[]; colleagueLeaves: ColleagueLeave[] }>({
     queryKey: ['employee', 'weekly-off-view', employeeId, month],
     queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
@@ -979,6 +981,8 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   const pendingChangeOf = new Map(allOwn.filter(r => r.replaces_request_id && r.status === 'PENDING').map(r => [r.replaces_request_id as string, r]))
   const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)) && !(r.replaces_request_id && r.status !== 'APPROVED'))
   const colleagues = colleagueQ.data?.colleagues ?? []
+  const colleagueLeaves = colleagueQ.data?.colleagueLeaves ?? []   // เพื่อนลา/พักร้อน (อนุมัติแล้ว) ทุกสาขา
+  const leavesOnDate = (d: string) => colleagueLeaves.filter(l => l.start_date.slice(0, 10) <= d && l.end_date.slice(0, 10) >= d)
   // รายชื่อเพื่อน "ทุกคน" (ไม่ใช่แค่ร่วมตำแหน่งเดียวกันเหมือนเดิม) ที่จองวันไหน
   // ไปแล้วบ้าง — โชว์ให้เห็นชัดว่า "ใคร" จองวันไหนก่อน เพื่อจะได้ทักไปคุยขอ
   // สลับวันหยุดกันได้ตรงคน ไม่ใช่แค่จุดสีเฉยๆ (feedback 2026-09-15: "จองทีหลัง
@@ -1242,8 +1246,9 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
               const isBooked   = bookedDateSet.has(dateStr)   // จองไปแล้ว (PENDING/APPROVED) — เลือกซ้ำไม่ได้
               const quotaFull  = hasQuota && !isSel && pickedCount >= remainingQuota
               const isPickable = hasQuota ? (inMonth && !isPast && !quotaFull && !isBooked) : (isRequiredWeek && !isPast)
-              const samePosition  = colleagues.some(c => c.same_position && resolveDate(c.week_start, c.day_of_week) === dateStr)
-              const otherColleague = !samePosition && colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr)
+              const dayLeaves = leavesOnDate(dateStr)
+              const samePosition  = colleagues.some(c => c.same_position && resolveDate(c.week_start, c.day_of_week) === dateStr) || dayLeaves.some(l => l.same_position)
+              const otherColleague = !samePosition && (colleagues.some(c => resolveDate(c.week_start, c.day_of_week) === dateStr) || dayLeaves.length > 0)
               return (
                 <button key={i} disabled={(!isPickable && !isSel) || isBooked} onClick={() => toggleDay(dateStr)} title={isBooked ? 'จองไปแล้ว' : undefined} style={{
                   aspectRatio: '1', borderRadius: 10,
@@ -1262,9 +1267,12 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
             })}
           </div>
 
-          {viewDate && conflictsByDate[viewDate] && (() => {
-            const list = conflictsByDate[viewDate]
-            const hasSamePosition = list.some(c => c.same_position)
+          {viewDate && (conflictsByDate[viewDate] || leavesOnDate(viewDate).length > 0) && (() => {
+            const list = conflictsByDate[viewDate] ?? []
+            const leaveList = leavesOnDate(viewDate)
+            const nm = (e: { nickname: string | null; first_name: string; last_name: string; branch?: { name: string } | null }, sameBranch?: boolean) =>
+              (e.nickname || `${e.first_name} ${e.last_name}`) + (sameBranch === false && e.branch?.name ? ` (${e.branch.name})` : '')
+            const hasSamePosition = list.some(c => c.same_position) || leaveList.some(l => l.same_position)
             return (
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: '0.7rem', color: '#6B7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -1275,8 +1283,11 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
                   background: hasSamePosition ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${hasSamePosition ? '#FECACA' : '#FDE68A'}`, borderRadius: 8, padding: '7px 10px',
                 }}>
                   <span style={{ color: hasSamePosition ? '#7C2D12' : '#78350F' }}>
-                    {list.map(c => c.employee.nickname || `${c.employee.first_name} ${c.employee.last_name}`).join(', ')}
-                    {hasSamePosition ? ' (ตำแหน่งเดียวกัน — ต้องรอแอดมินพิจารณา)' : ' หยุดวันนี้ด้วย'}
+                    {[
+                      ...list.map(c => nm(c.employee, c.same_branch)),
+                      ...leaveList.map(l => `${nm(l.employee, l.same_branch)} ${DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)?.label ?? 'ลา'}`),
+                    ].join(', ')}
+                    {hasSamePosition ? ' (ตำแหน่งเดียวกัน — ต้องรอแอดมินพิจารณา)' : ' หยุด/ลาวันนี้ด้วย'}
                   </span>
                 </div>
               </div>
@@ -1359,7 +1370,7 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
     queryFn:  () => api.get('/employee/weekly-off', { params: { employeeId } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
   })
-  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[] }>({
+  const colleagueQ = useQuery<{ own: WeeklyOffRecord[]; colleagues: ColleagueOff[]; colleagueLeaves: ColleagueLeave[] }>({
     queryKey: ['employee', 'weekly-off-view', employeeId, month],
     queryFn:  () => api.get('/employee/weekly-off/month-view', { params: { employeeId, month } }).then((r: any) => r.data.data),
     enabled:  !!employeeId,
@@ -1373,6 +1384,7 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
   const thisWeekOwns = allOwn.filter(r => r.week_start.slice(0, 10) === weekStart).sort((a, b) => DISPLAY_TO_DOW.indexOf(a.day_of_week) - DISPLAY_TO_DOW.indexOf(b.day_of_week))
   const bookedDows   = new Set(thisWeekOwns.map(r => r.day_of_week))
   const colleagues   = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
+  const weekLeaveOn = (dow: number) => (colleagueQ.data?.colleagueLeaves ?? []).filter(l => { const d = resolveDate(weekStart, dow); return l.start_date.slice(0, 10) <= d && l.end_date.slice(0, 10) >= d })
   // โควต้าจอง/เดือน — นับวันที่จองไว้แล้ว (จริง) ในเดือนของสัปดาห์นี้ + วันที่กำลังเลือกเพิ่ม
   const monthUsed  = allOwn.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month && r.status !== 'REJECTED').length
   const remaining  = Math.max(0, quota - monthUsed)
@@ -1546,8 +1558,8 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
               const isSel = selDows.has(dow)
               const isSat = displayIdx === 5
               const isSun = displayIdx === 6
-              const samePosition   = colleagues.some(c => c.same_position && c.day_of_week === dow)
-              const otherColleague = !samePosition && colleagues.some(c => c.day_of_week === dow)
+              const samePosition   = colleagues.some(c => c.same_position && c.day_of_week === dow) || weekLeaveOn(dow).some(l => l.same_position)
+              const otherColleague = !samePosition && (colleagues.some(c => c.day_of_week === dow) || weekLeaveOn(dow).length > 0)
               // ปิดปุ่มถ้า: จองวันนี้ไปแล้ว, หรือยังไม่ได้เลือกวันนี้แต่เลือกครบโควต้าที่เหลือแล้ว
               const disabled = isBooked || (!isSel && selDows.size >= remaining)
 

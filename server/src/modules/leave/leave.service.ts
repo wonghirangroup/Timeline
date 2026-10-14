@@ -272,7 +272,8 @@ export async function createLeaveRequest(
   return created
 }
 
-// พนักงานตำแหน่ง/สาขาเดียวกันที่ลาทับช่วงเดือนนี้ — ใช้แสดงจุดสีบนปฏิทินหน้าจองวันหยุด
+// พนักงาน "ทุกคนทุกสาขา" ที่ลา (อนุมัติแล้ว) ทับช่วงเดือนนี้ (feedback 2026-10-14) — same_position นับเฉพาะสาขาเดียวกัน
+// (เดิม: ตำแหน่ง/สาขาเดียวกัน) — ใช้แสดงจุดสีบนปฏิทินหน้าจองวันหยุด
 // (โหมดพักร้อน/ชดเชย) แบบเดียวกับ colleagues ของวันหยุดประจำ
 export async function getMonthColleagueLeaves(tenantId: string, employeeId: string, month: string) {
   const [y, m] = month.split('-').map(Number)
@@ -281,27 +282,31 @@ export async function getMonthColleagueLeaves(tenantId: string, employeeId: stri
 
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenant_id: tenantId },
-    select: { branch_id: true, position_id: true },
+    select: { branch_id: true, position_id: true, extra_branches: { select: { branch_id: true } } },
   })
+  const myBranchIds = employee ? [employee.branch_id, ...employee.extra_branches.map(b => b.branch_id)] : []
+
+  const sameBranch = (e: { branch_id: string | null; extra_branches: { branch_id: string }[] }) =>
+    (!!e.branch_id && myBranchIds.includes(e.branch_id)) || e.extra_branches.some(b => myBranchIds.includes(b.branch_id))
 
   const requests = await prisma.leaveRequest.findMany({
     where: {
       tenant_id: tenantId,
       employee_id: { not: employeeId },
-      status: { in: ['PENDING', 'APPROVED'] },
+      status: 'APPROVED',
       start_date: { lte: endOfMonth },
       end_date: { gte: startOfMonth },
-      employee: { branch_id: employee?.branch_id ?? undefined },
+      employee: { deleted_at: null },
     },
     include: {
-      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true } },
+      employee: { select: { id: true, first_name: true, last_name: true, nickname: true, position_id: true, branch_id: true, branch: { select: { name: true } }, extra_branches: { select: { branch_id: true } } } },
     },
     orderBy: { start_date: 'asc' },
   })
 
   return requests.map(r => ({
     ...r,
-    same_position: !!employee?.position_id && r.employee.position_id === employee.position_id,
+    same_position: sameBranch(r.employee) && !!employee?.position_id && r.employee.position_id === employee.position_id,
   }))
 }
 
