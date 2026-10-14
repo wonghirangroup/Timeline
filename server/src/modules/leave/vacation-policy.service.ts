@@ -92,6 +92,46 @@ export async function previewVacationPolicy(tenantId: string, employeeId: string
   return { ...elig, entitlement: resolveVacationEntitlementFromChain(e, asOf) }
 }
 
+// วันแรกที่ "อายุงานครบ N ปี" ตามสูตรเดียวกับ yearsOfTenure (365.25 วัน/ปี) — ปัดขึ้นเป็นวัน
+function tenureReachedOn(hiredAt: Date, years: number): Date {
+  const ms = hiredAt.getTime() + years * 365.25 * 24 * 60 * 60 * 1000
+  const day = 24 * 60 * 60 * 1000
+  return new Date(Math.ceil(ms / day) * day)
+}
+const ymd = (d: Date) => d.toISOString().slice(0, 10)
+
+// ความคืบหน้าสิทธิ์พักร้อนของพนักงานคนนี้ (แสดงในแอปพนักงาน "อีกกี่วันจะได้โควต้า")
+// time-based เท่านั้น: eligible_on = วันที่ครบทั้ง "ผ่านโปร" และ "อายุงาน ≥ 1 ปี"
+// เหตุผลที่ไม่เกี่ยวกับเวลา (ไม่ใช่รายเดือน/ตำแหน่งไม่ตั้งค่า/ไม่ active) → eligible_on = null ให้ฝั่งแอปซ่อนการ์ด
+export async function getVacationProgress(tenantId: string, employeeId: string, asOf: Date = bangkokToday()) {
+  const e = await loadVacationEmployee(tenantId, employeeId)
+  const elig = isVacationEligible(e, asOf)
+  const base = { eligible: elig.eligible, reason: elig.reason, years: elig.years, hired_at: e?.hired_at ? ymd(e.hired_at) : null }
+  const timeBased = elig.reason === 'IN_PROBATION' || elig.reason === 'UNDER_1_YEAR'
+  if (!e || (!elig.eligible && !timeBased)) return { ...base, entitlement: 0, eligible_on: null, probation_end: null, next_step_on: null, next_entitlement: null }
+  const probEnd = e.probation_result !== 'PASS' && e.probation_end_date && e.probation_end_date > asOf ? e.probation_end_date : null
+  let eligibleOn: Date | null = null
+  if (!elig.eligible && e.hired_at) {
+    const t = tenureReachedOn(e.hired_at, 1)
+    eligibleOn = probEnd && probEnd > t ? probEnd : t
+  }
+  let nextStepOn: Date | null = null, nextEnt: number | null = null
+  const pos = e.position
+  if (elig.eligible && e.hired_at && pos?.vacation_base_days != null && pos.vacation_increment_years && pos.vacation_increment_years > 0) {
+    const steps = Math.floor((elig.years - 1) / pos.vacation_increment_years)
+    nextStepOn = tenureReachedOn(e.hired_at, 1 + (steps + 1) * pos.vacation_increment_years)
+    nextEnt = pos.vacation_base_days + (pos.vacation_increment_days ?? 1) * (steps + 1)
+  }
+  return {
+    ...base,
+    entitlement: resolveVacationEntitlementFromChain(e, asOf),
+    eligible_on: eligibleOn ? ymd(eligibleOn) : null,
+    probation_end: probEnd ? ymd(probEnd) : null,
+    next_step_on: nextStepOn ? ymd(nextStepOn) : null,
+    next_entitlement: nextEnt,
+  }
+}
+
 // bulk — ใช้กับ cron/รายงาน กันยิง query ต่อคน (N+1) เมื่อต้อง resolve ทั้ง tenant
 export async function resolveVacationEntitlementBulk(
   tenantId: string, asOf: Date = bangkokToday(), employeeIds?: string[],

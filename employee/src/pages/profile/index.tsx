@@ -1,13 +1,36 @@
 // employee/src/pages/profile/index.tsx
 import { useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera, CalendarDays, FileText } from 'lucide-react'
+import { IdCard, Building2, Clock, MessageCircle, Wrench, AlertTriangle, DoorOpen, ExternalLink, Camera, CalendarDays, FileText, Palmtree } from 'lucide-react'
 import { PageLoader } from '../../components/ui'
 import { PhotoCropModal } from '../../components/ui/PhotoCropModal'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/axios'
 import { uploadCroppedImage, cloudinaryEnabled, avatarUrl } from '../../lib/upload'
 import { GuideCarousel } from '../../components/ui/GuideCarousel'
+
+interface VacationProgress {
+  eligible: boolean; reason: string; years: number; entitlement: number
+  eligible_on: string | null; probation_end: string | null
+  next_step_on: string | null; next_entitlement: number | null
+}
+
+// ระยะเวลาจากวันนี้ถึงวันที่เป้าหมาย แบบปฏิทิน → "1 ปี 2 เดือน 5 วัน" (ไม่แสดงหน่วยที่เป็น 0)
+function countdownLabel(targetYmd: string): string {
+  const now = new Date()
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const [ty, tm, td] = targetYmd.split('-').map(Number)
+  const to = new Date(ty, tm - 1, td)
+  if (to <= from) return 'วันนี้'
+  let y = to.getFullYear() - from.getFullYear()
+  let m = to.getMonth() - from.getMonth()
+  let d = to.getDate() - from.getDate()
+  if (d < 0) { m--; d += new Date(to.getFullYear(), to.getMonth(), 0).getDate() }
+  if (m < 0) { y--; m += 12 }
+  return [y && `${y} ปี`, m && `${m} เดือน`, d && `${d} วัน`].filter(Boolean).join(' ')
+}
+const thDate = (ymd: string) => new Date(ymd + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -56,6 +79,12 @@ export default function ProfilePage() {
     if (pendingPhoto) URL.revokeObjectURL(pendingPhoto)
     setPendingPhoto(null)
   }
+
+  const { data: vac } = useQuery<VacationProgress | null>({
+    queryKey: ['employee', 'vacation-progress', employee?.id],
+    queryFn: () => api.get('/employee/vacation-progress', { params: { employeeId: employee?.id } }).then(r => r.data.data).catch(() => null),
+    enabled: !!employee?.id,
+  })
 
   const showSwitchToAdmin = !!employee?.admin_access
 
@@ -170,6 +199,31 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* ── สิทธิ์พักร้อนตามอายุงาน (อีกกี่วันจะได้โควต้า) ─────────── */}
+        {vac && (vac.eligible_on || (vac.eligible && vac.entitlement > 0)) && (
+          <div style={{ background: '#fff', borderRadius: 28, padding: '18px 18px', boxShadow: '0 8px 28px rgba(36,75,131,0.12)', border: '1.5px solid #E3ECF8', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: '#FFF1E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Palmtree size={26} color="#EA6A00" strokeWidth={2.2} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.95rem', color: '#5B6B8C' }}>สิทธิ์วันพักร้อน</div>
+              {vac.eligible_on ? (<>
+                <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1B4D' }}>อีก {countdownLabel(vac.eligible_on)} จะได้รับสิทธิ์</div>
+                <div style={{ fontSize: '0.85rem', color: '#5B6B8C', marginTop: 2 }}>
+                  ได้รับสิทธิ์วันที่ {thDate(vac.eligible_on)}{vac.probation_end && vac.probation_end >= vac.eligible_on ? ' (หลังผ่านโปร)' : ' (ครบ 1 ปี)'}
+                </div>
+              </>) : (<>
+                <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B1B4D' }}>ได้รับสิทธิ์แล้ว {vac.entitlement} วัน/ปี</div>
+                {vac.next_step_on && vac.next_entitlement != null && (
+                  <div style={{ fontSize: '0.85rem', color: '#5B6B8C', marginTop: 2 }}>
+                    อีก {countdownLabel(vac.next_step_on)} เพิ่มเป็น {vac.next_entitlement} วัน ({thDate(vac.next_step_on)})
+                  </div>
+                )}
+              </>)}
+            </div>
+          </div>
+        )}
 
         {/* ── เมนูอื่นๆ ────────────────────────────────────────── */}
         <div style={{ marginBottom: 24 }}>

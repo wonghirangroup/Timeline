@@ -1,5 +1,6 @@
 // server/src/modules/leave/leave.route.ts
 import { capMessage } from './monthly-cap'
+import { getVacationProgress } from './vacation-policy.service'
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
@@ -448,6 +449,20 @@ export async function leaveRoutes(app: FastifyInstance) {
   })
 
   // ── Employee (LIFF): ดูวันลาคงเหลือ ─────────────────────────────
+
+  // GET /api/v1/employee/vacation-progress — อีกกี่วัน/เดือน/ปีจะได้สิทธิ์พักร้อน (ผ่านโปร + ครบ 1 ปี)
+  app.get('/employee/vacation-progress', {
+    preHandler: [tenantMiddleware, requireFeature('leave_balance')],
+    schema: {
+      tags: ['Employee'],
+      summary: 'ความคืบหน้าสิทธิ์พักร้อนตามอายุงานของตัวเอง (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['employeeId'], properties: { employeeId: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await getVacationProgress(req.tenantId, req.employeeId))
+  })
 
   // GET /api/v1/employee/leave-balances
   app.get('/employee/leave-balances', {
