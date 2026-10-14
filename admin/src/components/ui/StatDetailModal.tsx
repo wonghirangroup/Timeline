@@ -6,7 +6,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import Modal from './Modal'
 import PersonAvatar from './PersonAvatar'
 
-export interface StatRow { key: string; primary: ReactNode; secondary?: ReactNode; right?: ReactNode; /** รูปโปรไฟล์ซ้ายสุดของแถว (ไม่มีรูปแสดงตัวอักษรแรกของชื่อ) */ avatar?: { name: string; photoUrl?: string | null } }
+export interface StatRow { key: string; primary: ReactNode; secondary?: ReactNode; right?: ReactNode; /** รูปโปรไฟล์ซ้ายสุดของแถว (ไม่มีรูปแสดงตัวอักษรแรกของชื่อ) */ avatar?: { name: string; photoUrl?: string | null }; /** ชื่อกลุ่ม (เช่น สาขา) — ถ้ามีอย่างน้อย 1 แถว หน้าต่างจะแบ่งหัวข้อตามกลุ่ม */ group?: string }
 
 interface Props {
   title: string
@@ -20,6 +20,16 @@ interface Props {
   footer?: ReactNode
   onClose: () => void
 }
+
+/** แบ่งรายการตามชื่อกลุ่ม — เรียงชื่อกลุ่มตามอักษรไทย ("ไม่ระบุ" ไว้ท้ายสุด) · ใช้ร่วมกับรายชื่อพนักงานในแดชบอร์ด (feedback 2026-10-14 "แบ่งแยกตามสาขา") */
+export function groupRows<T>(items: T[], keyOf: (x: T) => string | null | undefined, fallback = 'ไม่ระบุสาขา'): { name: string; items: T[] }[] {
+  const m = new Map<string, T[]>()
+  for (const it of items) { const k = keyOf(it) || fallback; if (!m.has(k)) m.set(k, []); m.get(k)!.push(it) }
+  return [...m.entries()].map(([name, items]) => ({ name, items }))
+    .sort((a, b) => (a.name === fallback ? 1 : b.name === fallback ? -1 : a.name.localeCompare(b.name, 'th')))
+}
+
+const groupHeader: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 18px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', fontSize: '0.74rem', fontWeight: 800, color: '#334155', position: 'sticky', top: 0, zIndex: 1 }
 
 const cell: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: '1px solid #f1f5f9', fontSize: '0.85rem' }
 
@@ -36,16 +46,24 @@ export default function StatDetailModal({ title, count, color = '#244B83', rows,
       <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
         {rows.length === 0
           ? <div style={{ ...cell, justifyContent: 'center', color: '#94a3b8', padding: '30px 18px' }}>{empty}</div>
-          : rows.map(r => (
-            <div key={r.key} style={cell}>
-              {r.avatar && <PersonAvatar name={r.avatar.name} photoUrl={r.avatar.photoUrl} size={38} />}
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, color: '#111827' }}>{r.primary}</div>
-                {r.secondary && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>{r.secondary}</div>}
+          : (rows.some(r => r.group)
+              ? groupRows(rows, r => r.group)
+              : [{ name: '', items: rows }]
+            ).map(g => (
+              <div key={g.name || '_'}>
+                {g.name && <div style={groupHeader}><span>{g.name}</span><span style={{ color: '#64748b', fontWeight: 700 }}>{g.items.length} คน</span></div>}
+                {g.items.map(r => (
+                  <div key={r.key} style={cell}>
+                    {r.avatar && <PersonAvatar name={r.avatar.name} photoUrl={r.avatar.photoUrl} size={38} />}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: '#111827' }}>{r.primary}</div>
+                      {r.secondary && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>{r.secondary}</div>}
+                    </div>
+                    {r.right && <div style={{ flexShrink: 0, textAlign: 'right', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>{r.right}</div>}
+                  </div>
+                ))}
               </div>
-              {r.right && <div style={{ flexShrink: 0, textAlign: 'right', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>{r.right}</div>}
-            </div>
-          ))}
+            ))}
       </div>
       {footer && <div style={{ ...cell, background: '#f8fafc', fontWeight: 700 }}>{footer}</div>}
     </Modal>

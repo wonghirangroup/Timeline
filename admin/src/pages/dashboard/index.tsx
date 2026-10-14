@@ -16,6 +16,7 @@ import PageLinks from '../../components/ui/PageLinks'
 import StatDetailModal from '../../components/ui/StatDetailModal'
 import { avatarUrl } from '../../lib/upload'
 import PersonAvatar from '../../components/ui/PersonAvatar'
+import { groupRows } from '../../components/ui/StatDetailModal'
 import { fmtThaiMonth } from '../../lib/format'
 import AttendanceMap from '../attendance/AttendanceMap'
 import { buildMapData } from '../attendance/mapData'
@@ -103,19 +104,26 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
           <div>
             {people.length === 0 ? (
               <div style={{ padding: '24px 20px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>{emptyLabel}</div>
-            ) : people.map((p, i) => {
-              const extra = extraLine?.(p)
-              return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px', borderBottom: i < people.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                  <PersonAvatar name={p.first_name || p.nickname || '?'} photoUrl={p.photo_url} size={38} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>{personLabel(p)}</div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}{p.branch ? ` · ${p.branch.name}` : ''}</div>
-                  </div>
-                  {extra && <span style={{ fontSize: '11.5px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '3px 10px', flexShrink: 0 }}>{extra}</span>}
+            ) : groupRows(people, p => p.branch?.name).map(g => (
+              <div key={g.name}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 20px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 800, color: '#334155', position: 'sticky', top: 0, zIndex: 1 }}>
+                  <span>{g.name}</span><span style={{ color: '#64748b', fontWeight: 700 }}>{g.items.length} คน</span>
                 </div>
-              )
-            })}
+                {g.items.map((p, i) => {
+                  const extra = extraLine?.(p)
+                  return (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px', borderBottom: i < g.items.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <PersonAvatar name={p.first_name || p.nickname || '?'} photoUrl={p.photo_url} size={38} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>{personLabel(p)}</div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}</div>
+                      </div>
+                      {extra && <span style={{ fontSize: '11.5px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '3px 10px', flexShrink: 0 }}>{extra}</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </Modal>
       )}
@@ -565,7 +573,7 @@ export default function DashboardPage() {
           <StatDetailModal title={`${todayFilter === 'ALL' ? 'พนักงานทั้งหมด' : FILTER_LABEL[todayFilter]} · วันนี้`} count={listFiltered.length}
             color={todayFilter === 'ON_TIME' ? '#10b981' : todayFilter === 'LATE' ? '#f59e0b' : todayFilter === 'PENDING' ? '#64748b' : '#244B83'}
             empty="ไม่มีคนในหมวดนี้" onClose={() => setStatPopup(false)}
-            rows={listFiltered.map(r => ({ key: r.key, avatar: { name: r.name, photoUrl: r.photo_url }, primary: `${r.name}${r.nickname ? ` (${r.nickname})` : ''}`, secondary: r.branch?.name,
+            rows={listFiltered.map(r => ({ key: r.key, group: r.branch?.name ?? 'ไม่ระบุสาขา', avatar: { name: r.name, photoUrl: r.photo_url }, primary: `${r.name}${r.nickname ? ` (${r.nickname})` : ''}`,
               right: `${fmtTime(r.record?.check_in_at ?? null)} · ${STATUS_CFG[r.status].label}` }))} />
         )}
 
