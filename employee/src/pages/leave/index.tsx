@@ -1991,13 +1991,16 @@ export default function LeavePage() {
   const submitMutation = useMutation({
     mutationFn: (payload: object) =>
       api.post('/employee/leave-requests', payload).then(r => r.data.data),
-    onSuccess: () => {
+    onSuccess: (created: any) => {
       qc.invalidateQueries({ queryKey: ['employee', 'leave-requests'] })
       qc.invalidateQueries({ queryKey: ['employee', 'leave-balances'] })
       {
         const sd = form.startDate, ed = form.endDate || form.startDate
-        showResult({ type: 'success', title: 'ส่งคำขอลาแล้ว', subtitle: 'รอผู้จัดการอนุมัติ',
+        // พักร้อนที่เกินเพดานรวม หยุด+พักร้อน 10 วัน/เดือน — ส่งได้ แต่ต้องรอแอดมินพิจารณา (feedback 2026-10-14)
+        const over = created?.over_limit_note as string | undefined
+        showResult({ type: 'success', title: 'ส่งคำขอลาแล้ว', subtitle: over ? 'เกินเพดานหยุด+พักร้อน 10 วัน/เดือน — รอแอดมินพิจารณา' : 'รอผู้จัดการอนุมัติ',
           details: [
+            ...(over ? [{ label: 'หมายเหตุ', value: over }] : []),
             { label: 'ช่วงวันที่', value: sd === ed ? fmtDateShort(sd) : `${fmtDateShort(sd)} – ${fmtDateShort(ed)}` },
             { label: 'จำนวน', value: `${countDays(sd, ed)} วัน` },
             ...(form.reason ? [{ label: 'เหตุผล', value: form.reason }] : []),

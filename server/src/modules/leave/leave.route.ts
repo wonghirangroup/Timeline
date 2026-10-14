@@ -293,11 +293,11 @@ export async function leaveRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, employee_id, {
         type: 'leave',
         title: 'ใบลารออนุมัติ',
-        detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)${request.request_no ? ` · เลขที่ ${request.request_no}` : ''}`,
+        detail: `${LEAVE_LABEL_TH[leave_type] ?? 'ลา'} ${dateRange} (${days} วัน)${request.request_no ? ` · เลขที่ ${request.request_no}` : ''}${request.over_limit_note ? ' · ⚠ เกินเพดานรวมหยุด+พักร้อน/เดือน' : ''}`,
         color: '#EA580C',
         path: `/leave?tab=requests&approve=${request.id}`,
       })
-      return reply.code(201).send(ok(request, 'ยื่นคำขอวันลาสำเร็จ'))
+      return reply.code(201).send(ok(request, request.over_limit_note ? 'ยื่นคำขอสำเร็จ — เกินเพดานรวมหยุด+พักร้อน/เดือน รอแอดมินพิจารณา' : 'ยื่นคำขอวันลาสำเร็จ'))
     } catch (e: any) {
       if (e.message === 'LEAVE_OVERLAP')       return reply.code(409).send(fail('LEAVE_OVERLAP', 'มีวันลาที่ทับซ้อนกันอยู่แล้ว'))
       if (e.message === 'INSUFFICIENT_BALANCE') return reply.code(400).send(fail('INSUFFICIENT_BALANCE', 'วันลาคงเหลือไม่เพียงพอ'))

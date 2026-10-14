@@ -46,6 +46,7 @@ interface ApiLeaveRequest {
   reviewed_at: string | null
   reject_note: string | null
   created_at: string
+  over_limit_note?: string | null   // พนักงานยื่นพักร้อนเกินเพดานรวม หยุด+พักร้อน/เดือน — ส่งได้ ให้แอดมินตัดสินใจ
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ให้แอดมินตัดสินใจ
   employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 }
@@ -740,6 +741,11 @@ export default function LeaveRequestsTab() {
                             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
                               {r.employee.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({r.employee.nickname})</span>}
+                              {r.over_limit_note && (
+                                <span title={r.over_limit_note} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> เกินเพดานพักร้อน
+                                </span>
+                              )}
                               {r.has_conflict && (
                                 <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
                                   <AlertTriangle size={10} /> ชนตำแหน่ง
@@ -821,6 +827,11 @@ export default function LeaveRequestsTab() {
                             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
                               {r.employee.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({r.employee.nickname})</span>}
+                              {r.over_limit_note && (
+                                <span title={r.over_limit_note} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> เกินเพดานพักร้อน
+                                </span>
+                              )}
                               {r.has_conflict && (
                                 <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
                                   <AlertTriangle size={10} /> ชนตำแหน่ง

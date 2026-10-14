@@ -952,6 +952,7 @@ model LeaveRequest {
   // 1 วันจากโควต้าประเภทไหน (เช่น พักร้อน) — null = ไม่ได้หัก (ค่าเริ่มต้น) เก็บไว้เพื่อ
   // ย้อนกลับได้ตอนลบ/ปฏิเสธทีหลัง (feedback 2026-09-15 ข้อ 1)
   policy_override_by   String? // user_id ของแอดมินที่กด "ยืนยันเพิ่มให้อยู่ดี" ทั้งที่ leave_enabled cascade = ปิด (null = สร้างตามปกติ)
+  over_limit_note      String? @db.VarChar(500) // พนักงานยื่นพักร้อนเกินเพดานรวม หยุด+พักร้อน/เดือน — ส่งได้แต่ติดหมายเหตุนี้ให้แอดมินตัดสินใจ (feedback 2026-10-14)
   custom_type_id       String? // เมื่อ leave_type = OTHER — ชี้ไปที่ TenantLeaveType (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน ฯลฯ)
   created_at           DateTime    @default(now())
   updated_at           DateTime    @updatedAt

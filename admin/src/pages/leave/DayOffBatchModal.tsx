@@ -13,6 +13,7 @@ import Modal from '../../components/ui/Modal'
 import SearchSelect from '../../components/shared/SearchSelect'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/Toast'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface Emp { id: string; first_name: string; last_name: string; nickname?: string | null; employee_code: string; branch: { id: string; name: string } }
 interface QuotaRow { employee_id: string; quota: number; booked: number; remaining: number }
@@ -422,6 +423,8 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
   const [ask, setAsk] = useState<VacAsk | null>(null)
   const [search, setSearch] = useState('')
   const [branchId, setBranchId] = useState('')
+  const isMobile = useIsMobile()
+  const [openEmp, setOpenEmp] = useState<string | null>(null)   // มือถือ: พนักงานที่กางปฏิทินอยู่
   const { mut, result, success } = useBatchSave(month, onDone)
   const empById = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees])
   const total = daysIn(month)
@@ -485,6 +488,116 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
   if (result) {
     return <ResultView result={result} empById={empById} saving={mut.isPending}
       onRetryForce={() => mut.mutate({ items: forceItems(result), force: true })} onClose={onClose} />
+  }
+
+  // ── มือถือ: ตารางกว้างใช้ไม่ได้ → รายการพนักงานเป็นการ์ด แตะแล้วกางปฏิทินเดือนของคนนั้น (feedback 2026-10-14 "ให้จองจากมือถือได้ด้วย") ──
+  if (isMobile) {
+    const lead = dowOf(month, 1)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '88vh' }}>
+        <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#111827' }}>ลงวันหยุดหลายคน · {MONTHS_TH[m - 1]} {y + 543}</div>
+            <button onClick={onClose} aria-label="ปิด" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 4 }}><X size={20} /></button>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={14} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาชื่อ / รหัส"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 10px 9px 28px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit' }} />
+            </div>
+            <select value={branchId} onChange={e => setBranchId(e.target.value)} style={{ padding: '9px 8px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#fff', fontFamily: 'inherit', maxWidth: 130 }}>
+              <option value="">ทุกสาขา</option>
+              {branches.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 6 }}>แตะชื่อพนักงานเพื่อเปิดปฏิทิน แล้วกดวันที่ต้องการ · เลือกได้ไม่เกินโควต้าที่เหลือ</div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', background: '#f8fafc' }}>
+          {shown.map(e => {
+            const info = remainingOf(e.id)
+            const sel = picked[e.id] ?? []
+            const vsel = vac[e.id] ?? []
+            const rels = released[e.id] ?? []
+            const left = info.remaining + rels.length - sel.length
+            const booked = bookedOf.get(e.id)
+            const open = openEmp === e.id
+            return (
+              <div key={e.id} style={{ background: '#fff', border: `1px solid ${open ? '#244B83' : '#e5e7eb'}`, borderRadius: 12, marginBottom: 8, overflow: 'hidden' }}>
+                <button onClick={() => setOpenEmp(open ? null : e.id)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.88rem' }}>{nameOf(e)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{e.employee_code} · {e.branch.name}</div>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 9px', borderRadius: 99, background: left > 0 ? '#f0fdf4' : '#fffbeb', color: left > 0 ? '#16a34a' : '#b45309', whiteSpace: 'nowrap' }}>
+                    {info.booked - rels.length + sel.length}/{info.quota}
+                  </span>
+                  {vsel.length > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 800, color: ORANGE.fg }}>+พ{vsel.length}</span>}
+                  {rels.length > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#dc2626' }}>-{rels.length}</span>}
+                </button>
+                {open && (
+                  <div style={{ padding: '4px 10px 12px', borderTop: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                      {DOW_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: '#94a3b8', padding: '3px 0' }}>{d}</div>)}
+                      {Array.from({ length: lead }).map((_, i) => <div key={`b${i}`} />)}
+                      {Array.from({ length: total }, (_, i) => i + 1).map(d => {
+                        const date = keyOf(month, d)
+                        const bk = booked?.get(date)
+                        const lv = !bk ? leaveOf.get(e.id)?.get(date) : undefined
+                        const rel = !!bk && rels.includes(date)
+                        const on = sel.includes(date)
+                        const von = vsel.includes(date)
+                        const full = !on && !von && !bk && left <= 0
+                        return (
+                          <button key={d} onClick={() => lv ? undefined : bk ? toggleRelease(e.id, date) : toggle(e.id, date)}
+                            title={lv ? lvTitle(lv) : undefined}
+                            style={{
+                              height: 42, borderRadius: 9, fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 700, lineHeight: 1.1, padding: 0,
+                              border: `1.5px ${rel || lv?.pending ? 'dashed' : 'solid'} ${rel ? '#f87171' : lv ? lv.tone.bd : on ? '#244B83' : von ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
+                              background: rel ? '#fef2f2' : lv ? lv.tone.bg : on ? '#244B83' : von ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
+                              color: rel ? '#dc2626' : lv ? lv.tone.fg : on ? '#fff' : von ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : (full ? '#94a3b8' : '#374151'),
+                              textDecoration: rel ? 'line-through' : 'none', cursor: lv ? 'not-allowed' : 'pointer',
+                            }}>
+                            {d}
+                            {lv && <span style={{ display: 'block', fontSize: '0.58rem', fontWeight: 700 }}>{lv.short}{lv.pending ? '?' : ''}</span>}
+                            {!lv && von && <span style={{ display: 'block', fontSize: '0.58rem', fontWeight: 700 }}>พ</span>}
+                            {!lv && bk && !rel && <span style={{ display: 'block', fontSize: '0.58rem', fontWeight: 700 }}>หยุด</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, fontSize: '0.66rem', color: 'var(--text-muted)', marginTop: 8, flexWrap: 'wrap' }}>
+                      <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> พักร้อน (เกินโควต้า)</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย</span>
+                      <span><b style={{ color: '#16a34a' }}>■</b> จองแล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> จองแล้ว (รอ)</span><span><b style={{ color: '#6d28d9' }}>■</b> วันลา (ป/ก/พ/ค/ช/อ)</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {shown.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบพนักงาน</div>}
+        </div>
+
+        <div style={{ padding: '10px 12px', borderTop: '1px solid #e5e7eb', background: '#fff' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 8 }}>
+            {releasedDays > 0 && <span style={{ color: '#dc2626' }}>ปล่อย {releasedDays} วัน · </span>}เลือกแล้ว {totalDays} วัน · {totalPeople} คน{vacDays > 0 && <span style={{ color: ORANGE.fg }}> (พักร้อน {vacDays})</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>
+            <button disabled={totalDays + releasedDays === 0 || mut.isPending || releasing} onClick={saveAll}
+              style={{ flex: 2, padding: '11px 0', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: totalDays + releasedDays === 0 ? 0.5 : 1 }}>
+              {mut.isPending || releasing ? 'กำลังบันทึก...' : releasedDays > 0 ? `บันทึก (ปล่อย ${releasedDays} · เพิ่ม ${totalDays})` : `บันทึกทั้งหมด (${totalDays} วัน)`}
+            </button>
+          </div>
+        </div>
+
+        <VacationAsk ask={ask} name={ask && empById.get(ask.empId) ? nameOf(empById.get(ask.empId)!) : ''} quota={ask ? remainingOf(ask.empId).quota : 5}
+          vacLeft={ask ? vacLeftOf.get(ask.empId) : undefined} vacPicked={ask ? (vac[ask.empId] ?? []).length : 0}
+          onYes={() => { if (ask) setVac(v => ({ ...v, [ask.empId]: [...(v[ask.empId] ?? []), ask.date] })); setAsk(null) }} onNo={() => setAsk(null)} />
+      </div>
+    )
   }
 
   const CELL = 30

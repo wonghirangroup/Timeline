@@ -4,6 +4,7 @@ import { nextRequestNo } from '../../common/utils/requestNo'
 import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
+import { MonthlyCapError, capMessage } from './monthly-cap'
 import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from './vacation-policy.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
@@ -199,10 +200,18 @@ export async function createLeaveRequest(
     throw new Error('INSUFFICIENT_BALANCE')
   }
 
+  let overLimitNote: string | null = null
   // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15 ข้อ 5
   // เฉพาะลาพักร้อน (ประเภทอื่นไม่นับรวมในโควต้านี้) · แอดมิน force ข้ามได้เหมือน LEAVE_DISABLED
   if (data.leave_type === 'VACATION' && !data.force) {
-    await assertMonthlyCap(tenantId, data.employee_id, data.start_date.slice(0, 7), days)
+    try {
+      await assertMonthlyCap(tenantId, data.employee_id, data.start_date.slice(0, 7), days)
+    } catch (e: any) {
+      // พนักงานยื่นเอง (ไม่ใช่แอดมินลงให้): ไม่บล็อก — ส่งคำขอขึ้นไปพร้อมหมายเหตุว่าเกินเพดาน ให้แอดมินพิจารณาอนุมัติ/ปฏิเสธเอง
+      // แอดมินลงให้ (autoApprove) ยังโดนบล็อกตามเดิม และมีปุ่ม "ยืนยันลงให้อยู่ดี" (force)
+      if (e instanceof MonthlyCapError && !data.autoApprove) overLimitNote = capMessage(e.detail, 'เกินเพดานรวม หยุด + พักร้อน/เดือน')
+      else throw e
+    }
   }
 
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
@@ -225,6 +234,7 @@ export async function createLeaveRequest(
       reason: data.reason,
       has_conflict: conflict,
       policy_override_by: leaveOverrideBy,
+      over_limit_note: overLimitNote,
       ...(data.autoApprove ? { status: 'APPROVED', reviewed_by: data.reviewedBy, reviewed_at: new Date() } : {}),
     },
   })
