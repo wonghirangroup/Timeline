@@ -1,6 +1,7 @@
 // admin/src/components/shared/PlanUsage.tsx
 // แสดงการใช้งานเทียบขีดจำกัดแพ็กเกจ (พนักงาน/สาขา/กลุ่ม) + เตือนเมื่อใกล้เต็ม
 // ขีดจำกัดขยายได้จากฝั่ง Super Admin → Tenant Detail (PATCH /super-admin/tenants/:id)
+import { useFeatureEnabled } from '../../hooks/useFeatureEnabled'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Ban } from 'lucide-react'
 import { api } from '../../lib/axios'
@@ -67,8 +68,10 @@ export function PlanMeter({ kind, compact }: { kind: PlanKind; compact?: boolean
 // แถวรวม 3 เมตร — วางบน Dashboard
 export function PlanUsageRow() {
   const { data } = usePlanUsage()
+  const groupsOn = useFeatureEnabled('groups')
   if (!data) return null
-  const anyWarn = (['employees', 'branches', 'groups'] as PlanKind[]).some(k => data[k].used / data[k].limit >= 0.8)
+  const kinds: PlanKind[] = groupsOn ? ['employees', 'branches', 'groups'] : ['employees', 'branches']
+  const anyWarn = kinds.some(k => data[k].used / data[k].limit >= 0.8)
   return (
     <div style={{
       background: '#fff', border: `1px solid ${anyWarn ? '#fcd34d' : '#e5e7eb'}`, borderRadius: 12,
@@ -79,7 +82,7 @@ export function PlanUsageRow() {
       </span>
       <PlanMeter kind="employees" />
       <PlanMeter kind="branches" />
-      <PlanMeter kind="groups" />
+      {groupsOn && <PlanMeter kind="groups" />}
       {anyWarn && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>ใกล้เต็ม — แจ้งผู้ดูแลระบบเพื่อขยายแพ็กเกจ</span>}
     </div>
   )

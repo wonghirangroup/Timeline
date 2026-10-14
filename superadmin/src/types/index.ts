@@ -82,6 +82,8 @@ export interface PlanFeatures {
   leave_accrual: boolean
   document_request: boolean
   vacation_policy: boolean
+  groups: boolean        // กลุ่ม (บริษัท) + ผังองค์กร — ปิด = แพ็กเกจแบบไม่แบ่งกลุ่ม
+  line_notify: boolean   // ส่งข้อความแจ้งเตือนผ่าน LINE
 }
 
 export interface PlanConfig {

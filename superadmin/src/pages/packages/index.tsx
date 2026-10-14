@@ -46,6 +46,8 @@ const FEATURE_META: { key: keyof PlanFeatures; label: string; desc: string; icon
   { key: 'leave_accrual',    label: 'สะสมวันลา',            desc: 'สะสม X วัน/เดือน + ยกยอดข้ามปี', icon: '📈' },
   { key: 'document_request', label: 'ขอเอกสาร HR',          desc: 'สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงานผ่าน LIFF', icon: '🧾' },
   { key: 'vacation_policy',  label: 'นโยบายพักร้อนตามอายุงาน', desc: 'โบนัสรายเดือน + reset ประจำปีตามสูตรอายุงาน', icon: '🏖️' },
+  { key: 'groups',          label: 'กลุ่ม (บริษัท) + ผังองค์กร', desc: 'แบ่งกลุ่มบริษัท/ผังองค์กร — ปิดสำหรับแพ็กเกจเล็ก (เช่น StartUp 1 สาขา) ซ่อนแท็บและบล็อกการสร้างกลุ่ม', icon: '🏢' },
+  { key: 'line_notify',     label: 'แจ้งเตือนผ่าน LINE', desc: 'ส่งประกาศ/แจ้งอนุมัติ/แจ้งเปิดจอง เข้า LINE พนักงานและแอดมิน — ปิดแล้วพนักงานยังเช็คอินผ่าน LINE ได้ตามปกติ', icon: '🔔' },
 ]
 
 const PLAN_ORDER: TenantPlan[] = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']

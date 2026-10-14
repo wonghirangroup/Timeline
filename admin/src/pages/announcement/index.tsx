@@ -1,4 +1,5 @@
 // admin/src/pages/announcement/index.tsx
+import { useFeatureEnabled } from '../../hooks/useFeatureEnabled'
 import { showResult } from '../../components/ui/ResultDialog'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -171,6 +172,7 @@ export default function AnnouncementPage() {
   const { showToast } = useToast()
   const isMobile = useIsMobile()
   const qc = useQueryClient()
+  const lineNotifyOn = useFeatureEnabled('line_notify')
   const [tab, setTab] = useState<'broadcast' | 'direct' | 'feedback'>('broadcast')
   const [feedbackView, setFeedbackView] = useState<'card' | 'table'>('table')
 
@@ -354,6 +356,11 @@ export default function AnnouncementPage() {
           ]} />
       </div>
 
+      {!lineNotifyOn && (
+        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.82rem', lineHeight: 1.5 }}>
+          <b>แพ็กเกจของคุณไม่รวมการแจ้งเตือนผ่าน LINE</b> — ประกาศและข้อความจะไม่ถูกส่งเข้า LINE พนักงาน (พนักงานยังเช็คอินผ่าน LINE ได้ตามปกติ) ติดต่อผู้ให้บริการเพื่ออัปเกรดแพ็กเกจ
+        </div>
+      )}
       <TabBar
         value={tab}
         onChange={setTab}

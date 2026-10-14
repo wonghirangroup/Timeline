@@ -3,6 +3,7 @@
 // ผูกพนักงาน (feedback 2026-09-02) — สาขาผูกกับกลุ่มตรงๆ (Branch.group_id),
 // แผนก/ตำแหน่งผูกกับกลุ่มผ่านฝ่าย (Department.division.group_id) — เป็นแขนงคู่
 // ขนานกันใต้กลุ่ม ไม่ใช่สาขา ⊃ แผนก ⊃ ตำแหน่ง เรียงชั้นเดียวกัน
+import { useFeatureEnabled } from '../../hooks/useFeatureEnabled'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/axios'
 
@@ -43,6 +44,7 @@ export function OrgFilterBar({ value, onChange }: {
   onChange: (v: OrgFilterValue) => void
 }) {
   const { groups, branches, departments, positions } = useOrgFilterOptions()
+  const groupsOn = useFeatureEnabled('groups')
 
   const branchOptions = value.groupId ? branches.filter(b => b.group_id === value.groupId) : branches
   const deptOptions   = value.groupId ? departments.filter(d => d.division?.group_id === value.groupId) : departments
@@ -54,7 +56,7 @@ export function OrgFilterBar({ value, onChange }: {
 
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      {groups.length > 1 && (
+      {groupsOn && groups.length > 1 && (
         <select style={selStyle} value={value.groupId}
           onChange={e => onChange({ groupId: e.target.value, branchId: '', departmentId: '', positionId: '' })}>
           <option value="">ทุกกลุ่ม</option>

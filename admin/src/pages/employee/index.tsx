@@ -1,3 +1,4 @@
+import { useFeatureEnabled } from '../../hooks/useFeatureEnabled'
 import { showResult } from '../../components/ui/ResultDialog'
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -169,8 +170,10 @@ export default function EmployeePage() {
   // feedback 2026-09-15: "เอากลุ่มและสถานะพนักงานมาไว้ Layer เดียวกับ พนักงาน/
   // สิทธิ์วันหยุด/การลา" — เดิมแท็บ "ผังองค์กร" ซ่อนแท็บย่อย 3 อัน (กลุ่ม/ผังองค์กร/
   // สถานะพนักงาน) ไว้ข้างใน ยกขึ้นมาเป็น top-level tab ทั้งหมดแล้ว
+  const groupsOn = useFeatureEnabled('groups')   // แพ็กเกจแบบไม่แบ่งกลุ่ม (เช่น StartUp) = ซ่อนกลุ่ม + ผังองค์กร
   const [activeTab, setActiveTab] = useState<'employee' | 'groups' | 'org' | 'status' | 'policy'>(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
+    if (!groupsOn && (t === 'org' || t === 'groups')) return 'employee'
     return (t === 'org' || t === 'groups' || t === 'status' || t === 'policy') ? t : 'employee'
   })
   const swipeHandlers = useSwipePage(
@@ -523,8 +526,10 @@ export default function EmployeePage() {
       tabs={[
         { key: 'employee', label: 'พนักงาน', icon: <Users size={15}/> },
         { key: 'policy', label: 'สิทธิ์วันหยุด/การลา', icon: <CalendarDays size={15}/> },
-        { key: 'groups', label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/> },
-        { key: 'org', label: 'ผังองค์กร', icon: <Network size={15}/> },
+        ...(groupsOn ? [
+          { key: 'groups' as const, label: 'กลุ่ม (บริษัท)', icon: <Landmark size={15}/> },
+          { key: 'org' as const, label: 'ผังองค์กร', icon: <Network size={15}/> },
+        ] : []),
         { key: 'status', label: 'สถานะพนักงาน', icon: <IdCard size={15}/> },
       ]}
     />
@@ -1161,7 +1166,7 @@ export default function EmployeePage() {
                       <label style={lbl}>เงินเดือน (บาท)</label>
                       <input type="number" value={af.salary} onChange={e => setAf({ salary: e.target.value })} placeholder="18000" style={inp} min="0" />
                     </div>
-                    <div>
+                    {groupsOn && <div>
                       <label style={lbl}>กลุ่ม (บริษัท)</label>
                       <select value={af.group_id}
                         onChange={e => setAf({ group_id: e.target.value, position_id: '' })}
@@ -1169,7 +1174,7 @@ export default function EmployeePage() {
                         <option value="">— เลือกกลุ่ม —</option>
                         {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                       </select>
-                    </div>
+                    </div>}
                     <div>
                       <label style={lbl}>แผนก <span style={required}>*</span></label>
                       <select value={af.department}

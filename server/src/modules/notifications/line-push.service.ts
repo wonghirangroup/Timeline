@@ -6,6 +6,7 @@
 // อีเมล/รหัสผ่านล้วน) จะไม่ได้รับ เพราะระบบยังไม่มีการผูกไลน์แยกสำหรับแอดมิน
 //
 // best-effort เสมอ — พังยังไงก็ห้ามทำให้ flow หลัก (สร้างคำขอ) ล้มตาม จับ error ทั้งหมดในนี้
+import { isLineNotifyEnabled } from '../../common/utils/lineNotify'
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast, linePush } from '../announcement/announcement.service'
 import { isNotificationEnabled, NOTIFICATION_TYPE_TO_FEATURE, type NotificationType } from '../../common/utils/notificationPrefs'
@@ -65,6 +66,7 @@ function buildFlexMessage(empName: string, n: LineNoticeCard, baseUrl: string = 
 
 export async function notifyAdminsLine(tenantId: string, employeeId: string, notice: AdminLineNotice): Promise<void> {
   try {
+    if (!(await isLineNotifyEnabled(tenantId))) return   // แพ็กเกจไม่รวมแจ้งเตือน LINE
     const [tenant, lineConfig, emp] = await Promise.all([
       prisma.tenant.findFirst({ where: { id: tenantId }, select: { notification_prefs: true } }),
       prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true } }),
@@ -161,6 +163,7 @@ export interface EmployeeLineNotice {
 
 export async function notifyEmployeeLine(tenantId: string, employeeId: string, fromName: string, notice: EmployeeLineNotice): Promise<void> {
   try {
+    if (!(await isLineNotifyEnabled(tenantId))) return   // แพ็กเกจไม่รวมแจ้งเตือน LINE
     const [lineConfig, emp] = await Promise.all([
       prisma.tenantLineConfig.findUnique({ where: { tenant_id: tenantId }, select: { line_channel_access_token: true, line_liff_id: true } }),
       prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { line_user_id: true, first_name: true, last_name: true, nickname: true } }),

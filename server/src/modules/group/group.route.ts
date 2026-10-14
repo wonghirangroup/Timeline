@@ -1,5 +1,6 @@
 // server/src/modules/group/group.route.ts
 // กลุ่ม (บริษัท) — ADMIN จัดการ, MANAGER อ่านได้อย่างเดียว
+import { requireFeature } from '../../common/middleware/feature'
 import { FastifyInstance } from 'fastify'
 import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
@@ -33,7 +34,7 @@ export async function groupRoutes(app: FastifyInstance) {
   }, async (req, reply) => ok(await svc.listGroups(req.tenantId)))
 
   app.post('/groups', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'add')],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'add'), requireFeature('groups')],
     schema: {
       tags: [TAG], summary: 'สร้างกลุ่มใหม่ (จำกัดจำนวนตาม package)', security: [{ oauth2: [] }],
       body: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, booking_enabled: { type: 'boolean' }, leave_enabled: { type: 'boolean' }, ...HOLIDAY_POLICY_PROPS } },
@@ -49,7 +50,7 @@ export async function groupRoutes(app: FastifyInstance) {
   })
 
   app.patch('/groups/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit'), requireFeature('groups')],
     schema: {
       tags: [TAG], summary: 'แก้ไขกลุ่ม (booking_enabled/leave_enabled = ค่าเริ่มต้นของทุกสาขา/ฝ่าย/แผนก/คนในกลุ่มนี้)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
@@ -62,7 +63,7 @@ export async function groupRoutes(app: FastifyInstance) {
   })
 
   app.delete('/groups/:id', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'delete')],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'delete'), requireFeature('groups')],
     schema: { tags: [TAG], summary: 'ลบกลุ่ม (soft delete)', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
   }, async (req: any, reply) => {
     try {
@@ -77,7 +78,7 @@ export async function groupRoutes(app: FastifyInstance) {
 
   // ผูก/ย้ายสาขาเข้ากลุ่ม — แยกจาก branch.route.ts เดิม (ไม่อยากแก้ endpoint branch หลักที่มีอยู่แล้ว)
   app.patch('/branches/:id/group', {
-    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit')],
+    preHandler: [tenantMiddleware, requireRole(...ADMIN_ROLES), requirePermission('org_structure', 'edit'), requireFeature('groups')],
     schema: {
       tags: [TAG], summary: 'ผูกสาขาเข้ากลุ่ม (group_id: null = ถอดออกจากกลุ่ม)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },

@@ -1,4 +1,5 @@
 // server/src/modules/announcement/announcement.service.ts
+import { isLineNotifyEnabled, LINE_NOTIFY_OFF_MESSAGE } from '../../common/utils/lineNotify'
 import { prisma } from '../../common/utils/prisma'
 import { employeeBranchWhere } from '../employee/employee.service'
 import { logLineSend } from '../notifications/line-log.service'
@@ -56,19 +57,22 @@ export async function createAnnouncement(
   userId: string,
   data: { title: string; content: string; send_line?: boolean; branch_id?: string; employee_ids?: string[] },
 ) {
+  // แพ็กเกจที่ไม่รวมแจ้งเตือน LINE: บันทึกประกาศไว้ตามปกติ แต่ไม่ส่งเข้า LINE
+  const lineOn = data.send_line ? await isLineNotifyEnabled(tenantId) : false
   const announcement = await prisma.announcement.create({
     data: {
       tenant_id:    tenantId,
       created_by:   userId,
       title:        data.title,
       content:      data.content,
-      send_line:    data.send_line ?? false,
+      send_line:    lineOn,
       branch_id:    data.branch_id ?? null,
       employee_ids: data.employee_ids?.length ? data.employee_ids : undefined,
     },
   })
 
-  if (data.send_line) {
+  if (data.send_line && !lineOn) return { ...announcement, line_result: { error: LINE_NOTIFY_OFF_MESSAGE } }
+  if (lineOn) {
     // ดึง LINE Channel Access Token ของ tenant นี้
     const lineConfig = await prisma.tenantLineConfig.findUnique({
       where: { tenant_id: tenantId },
@@ -138,6 +142,7 @@ export async function deleteTemplate(tenantId: string, id: string) {
 }
 
 export async function sendDirectMessage(tenantId: string, employeeId: string, message: string) {
+  if (!(await isLineNotifyEnabled(tenantId))) throw new Error(LINE_NOTIFY_OFF_MESSAGE)
   const lineConfig = await prisma.tenantLineConfig.findUnique({
     where: { tenant_id: tenantId },
     select: { line_channel_access_token: true },

@@ -252,6 +252,9 @@ export interface PlanFeatures {
   custom_leave_types?: boolean // ประเภทการลากำหนดเอง
   leave_accrual?: boolean      // สะสมวันลา + ยกยอด
   document_request?: boolean   // ขอเอกสาร HR ผ่าน LIFF
+  vacation_policy?: boolean    // นโยบายพักร้อนตามอายุงาน
+  groups?: boolean             // กลุ่ม (บริษัท) + ผังองค์กร — ปิด = แพ็กเกจแบบไม่แบ่งกลุ่ม
+  line_notify?: boolean        // ส่งข้อความแจ้งเตือนผ่าน LINE
 }
 
 export interface PlanConfig {

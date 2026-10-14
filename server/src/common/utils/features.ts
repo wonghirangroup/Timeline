@@ -21,6 +21,8 @@ export const FEATURE_KEYS = [
   'custom_leave_types', // ประเภทการลาที่ tenant กำหนดเอง (ลาบวช/เกณฑ์ทหาร/ไม่รับเงิน)
   'leave_accrual',      // สะสมวันลาต่อเดือน + ยกยอดข้ามปี
   'document_request',   // ขอเอกสาร HR ผ่าน LIFF (สลิปเงินเดือน/หนังสือรับรองเงินเดือน/หนังสือรับรองการทำงาน)
+  'groups',             // กลุ่ม (บริษัท) + ผังองค์กร — ปิด = แพ็กเกจแบบไม่แบ่งกลุ่ม (เช่น StartUp 1 สาขา) ซ่อนแท็บและบล็อกการสร้าง/แก้กลุ่ม
+  'line_notify',        // ส่งข้อความแจ้งเตือนผ่าน LINE (ประกาศ/แจ้งอนุมัติ/แจ้งเปิดจอง) — ปิด = ไม่ส่งเลย แต่พนักงานยังใช้ LINE/LIFF เช็คอินได้ตามปกติ
   'vacation_policy',    // นโยบายพักร้อนตามอายุงาน + โบนัสรายเดือน + reset ประจำปี (feedback 2026-09-15)
 ] as const
 
@@ -44,6 +46,8 @@ export const ENFORCED_FEATURES: FeatureKey[] = [
   'custom_leave_types',
   'leave_accrual',
   'document_request',
+  'groups',
+  'line_notify',
 ]
 
 export function isFeatureEnabled(enabledFeatures: unknown, key: FeatureKey): boolean {

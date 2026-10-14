@@ -1,4 +1,5 @@
 // server/src/modules/weekly-off/weekly-off-period.service.ts
+import { isLineNotifyEnabled, LINE_NOTIFY_OFF_MESSAGE } from '../../common/utils/lineNotify'
 import { prisma } from '../../common/utils/prisma'
 import { lineMulticast } from '../announcement/announcement.service'
 import { logLineSend } from '../notifications/line-log.service'
@@ -75,6 +76,7 @@ export async function openPeriod(tenantId: string, data: {
 // ไม่ throw ออกไปเลย (แค่ log/return error info) กันไม่ให้การเปิดจองล้มเหลวเพราะ Line ส่งไม่ได้
 export async function notifyPeriodOpened(tenantId: string, branchId: string, month: string) {
   console.log(`[notifyPeriodOpened] start tenant=${tenantId} branch=${branchId} month=${month}`)
+  if (!(await isLineNotifyEnabled(tenantId))) return { error: LINE_NOTIFY_OFF_MESSAGE }
   const lineConfig = await prisma.tenantLineConfig.findUnique({
     where: { tenant_id: tenantId },
     select: { line_channel_access_token: true, line_liff_id: true },
