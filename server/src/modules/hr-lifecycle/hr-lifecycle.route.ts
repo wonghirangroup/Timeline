@@ -182,14 +182,29 @@ export async function hrLifecycleRoutes(app: FastifyInstance) {
   app.post('/admin/resignations/:id/review', {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('resignation', 'approve'), resolveDeptScope, requireFeature('resignation')],
     schema: {
-      tags: ['Admin'], summary: 'อนุมัติ/ปฏิเสธคำขอลาออก (อนุมัติ = set สถานะ RESIGNED)', security: [{ oauth2: [] }],
+      tags: ['Admin'], summary: 'อนุมัติ/ปฏิเสธคำขอลาออก (อนุมัติ = สถานะ RESIGNED มีผลหลังวันทำงานสุดท้าย)', security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: { type: 'object', required: ['approve'], properties: { approve: { type: 'boolean' }, reject_note: { type: 'string' } } },
     },
   }, async (req: any, reply) => {
     try {
       const r = await svc.reviewResignation(req.tenantId, req.params.id, { ...req.body, reviewed_by: req.userId }, req.scopedEmployeeIds)
-      return r ? ok(r, req.body.approve ? 'อนุมัติลาออกแล้ว' : 'ปฏิเสธคำขอลาออกแล้ว') : reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือดำเนินการไปแล้ว'))
+      return r ? ok(r, req.body.approve ? (r.applied_at ? 'อนุมัติลาออกแล้ว — สถานะพนักงานเปลี่ยนเป็นลาออกแล้ว' : 'อนุมัติลาออกแล้ว — ยังทำงานและเช็คอินได้ถึงวันทำงานสุดท้าย') : 'ปฏิเสธคำขอลาออกแล้ว') : reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือดำเนินการไปแล้ว'))
+    } catch (e: any) {
+      return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
+    }
+  })
+
+  app.post('/admin/resignations/:id/cancel-approval', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('resignation', 'approve'), resolveDeptScope, requireFeature('resignation')],
+    schema: {
+      tags: ['Admin'], summary: 'ยกเลิกการอนุมัติลาออก (คำขอกลับเป็นรอพิจารณา · ถ้าสถานะลาออกมีผลแล้วคืนพนักงานเป็น ACTIVE)', security: [{ oauth2: [] }],
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+  }, async (req: any, reply) => {
+    try {
+      const r = await svc.cancelResignationApproval(req.tenantId, req.params.id, req.userId, req.scopedEmployeeIds)
+      return r ? ok(r, 'ยกเลิกการอนุมัติแล้ว — คำขอกลับเป็นรอพิจารณา') : reply.code(404).send(fail('NOT_FOUND', 'ไม่พบคำขอ หรือไม่ได้อยู่ในสถานะอนุมัติ'))
     } catch (e: any) {
       return reply.code(403).send(fail('OUT_OF_SCOPE', 'ไม่มีสิทธิ์'))
     }

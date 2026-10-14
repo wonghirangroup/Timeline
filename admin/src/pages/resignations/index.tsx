@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { BarChart2 as ReportIcon, DoorOpen, Check, X, Search, Table2, LayoutGrid } from 'lucide-react'
+import { BarChart2 as ReportIcon, DoorOpen, Check, X, Search, Table2, LayoutGrid, RotateCcw } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useToast } from '../../components/ui/Toast'
 import { useIsReadOnly } from '../../stores/authStore'
@@ -26,6 +26,9 @@ const STATUS_CFG: Record<string, { label: string; c: string; bg: string }> = {
   REJECTED: { label: 'ไม่อนุมัติ', c: '#dc2626', bg: '#fee2e2' },
 }
 function thDate(s: string) { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
+// อนุมัติแล้วแต่สถานะ "ลาออก" ยังไม่มีผล (applied_at ว่าง) = ยังทำงาน/เช็คอินได้จนถึงวันทำงานสุดท้าย แล้วระบบเปลี่ยนให้อัตโนมัติวันถัดไป
+const pendingEffect = (r: any) => r.status === 'APPROVED' && !r.applied_at
+const effectNote = (r: any) => r.status !== 'APPROVED' ? null : r.applied_at ? 'สถานะพนักงานเปลี่ยนเป็น "ลาออก" แล้ว' : `ยังเช็คอินได้ถึง ${thDate(r.last_working_date)} · สถานะลาออกมีผลวันถัดไป`
 
 export default function ResignationsPage() {
   const qc = useQueryClient()
@@ -40,6 +43,7 @@ export default function ResignationsPage() {
   const [approveTarget, setApproveTarget] = useState<any>(null)
   const [rejectTarget, setRejectTarget] = useState<any>(null)
   const [rejectNote, setRejectNote] = useState('')
+  const [cancelTarget, setCancelTarget] = useState<any>(null)
 
   const { data: rows = [], isLoading } = useQuery<any[]>({
     queryKey: ['admin', 'resignations', statusFilter],
@@ -65,10 +69,21 @@ export default function ResignationsPage() {
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ['admin', 'resignations'] })
       qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
-      showToast('success', v.approve ? 'อนุมัติลาออกแล้ว — สถานะพนักงานเปลี่ยนเป็น "ลาออก"' : 'ปฏิเสธคำขอแล้ว')
+      showToast('success', v.approve ? 'อนุมัติลาออกแล้ว — พนักงานยังเช็คอินได้ถึงวันทำงานสุดท้าย' : 'ปฏิเสธคำขอแล้ว')
       setApproveTarget(null); setRejectTarget(null); setRejectNote('')
     },
     onError: () => showToast('error', 'ดำเนินการไม่สำเร็จ'),
+  })
+
+  const cancelMut = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/admin/resignations/${id}/cancel-approval`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'resignations'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'employees'] })
+      showToast('success', 'ยกเลิกการอนุมัติแล้ว — คำขอกลับเป็น "รอพิจารณา"')
+      setCancelTarget(null)
+    },
+    onError: () => showToast('error', 'ยกเลิกการอนุมัติไม่สำเร็จ'),
   })
 
   return (
@@ -79,7 +94,8 @@ export default function ResignationsPage() {
           <InfoTooltip size="md" title="คำขอลาออก" width={310} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li>คำขอที่พนักงานยื่นลาออกผ่าน LINE จะมาโผล่ที่นี่ให้พิจารณา</li>
-              <li><b>อนุมัติลาออก</b> = เปลี่ยนสถานะพนักงานเป็น "ลาออก" ทันที พนักงานจะเข้าใช้แอป/เช็คอินไม่ได้อีก — กดแล้วย้อนกลับไม่ได้ ควรเช็ควันทำงานสุดท้ายให้ถูกก่อน</li>
+              <li><b>อนุมัติลาออก</b> = พนักงานยังทำงานและเช็คอินได้ <b>ถึงวันทำงานสุดท้าย</b> แล้วระบบเปลี่ยนสถานะเป็น "ลาออก" ให้อัตโนมัติในวันถัดไป (ถ้าวันสุดท้ายผ่านไปแล้ว เปลี่ยนทันที)</li>
+              <li>อนุมัติผิด? กด <b>ยกเลิกการอนุมัติ</b> ที่แถวนั้น — คำขอกลับเป็น "รอพิจารณา" และถ้าสถานะลาออกมีผลไปแล้วจะคืนพนักงานเป็น "ใช้งาน" ให้ด้วย</li>
               <li>สถานะ: <b>รอพิจารณา</b> (เหลือง) · <b>อนุมัติ</b> (เขียว) · <b>ไม่อนุมัติ</b> (แดง)</li>
             </ul>
           } />
@@ -137,10 +153,16 @@ export default function ResignationsPage() {
                     วันทำงานสุดท้าย: <b>{thDate(r.last_working_date)}</b>
                   </div>
                   {r.reason && <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: 3 }}>เหตุผล: {r.reason}</div>}
+                  {effectNote(r) && <div style={{ fontSize: '12px', color: pendingEffect(r) ? '#0369a1' : '#64748b', marginTop: 3, background: pendingEffect(r) ? '#e0f2fe' : '#f1f5f9', padding: '5px 9px', borderRadius: 6 }}>{effectNote(r)}</div>}
                   {r.reject_note && <div style={{ fontSize: '12px', color: '#dc2626', marginTop: 3, background: '#fef2f2', padding: '5px 9px', borderRadius: 6 }}>หมายเหตุ: {r.reject_note}</div>}
                 </div>
                 <span style={{ background: sc.bg, color: sc.c, borderRadius: 99, padding: '3px 12px', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
               </div>
+              {r.status === 'APPROVED' && !isReadOnly && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <Button variant="danger-soft" size="sm" icon={<RotateCcw size={13} />} onClick={() => setCancelTarget(r)}>ยกเลิกการอนุมัติ</Button>
+                </div>
+              )}
               {r.status === 'PENDING' && !isReadOnly && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <Button variant="success" size="sm" icon={<Check size={13} />} onClick={() => setApproveTarget(r)}>อนุมัติลาออก</Button>
@@ -182,6 +204,7 @@ export default function ResignationsPage() {
                     </td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       <span style={{ background: sc.bg, color: sc.c, borderRadius: 99, padding: '3px 10px', fontSize: '11.5px', fontWeight: 700 }}>{sc.label}</span>
+                      {effectNote(r) && <div style={{ fontSize: '11px', color: pendingEffect(r) ? '#0369a1' : '#64748b', marginTop: 4, maxWidth: 220 }}>{effectNote(r)}</div>}
                     </td>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                       {r.status === 'PENDING' && !isReadOnly ? (
@@ -193,6 +216,13 @@ export default function ResignationsPage() {
                           <button onClick={() => { setRejectTarget(r); setRejectNote('') }} title="ปฏิเสธ"
                             style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                             <X size={13} />
+                          </button>
+                        </div>
+                      ) : r.status === 'APPROVED' && !isReadOnly ? (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button onClick={() => setCancelTarget(r)} title="ยกเลิกการอนุมัติ"
+                            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                            <RotateCcw size={12} /> ยกเลิกการอนุมัติ
                           </button>
                         </div>
                       ) : <span style={{ color: '#cbd5e1', display: 'block', textAlign: 'right' }}>—</span>}
@@ -212,10 +242,18 @@ export default function ResignationsPage() {
       {approveTarget && (
         <ConfirmDialog variant="warning"
           title="อนุมัติการลาออก?"
-          message={`สถานะของ ${approveTarget.employee.first_name} จะเปลี่ยนเป็น "ลาออก" — พนักงานจะเข้าใช้ LIFF และเช็คอินไม่ได้อีก`}
+          message={`${approveTarget.employee.first_name} ยังทำงานและเช็คอินได้ถึง ${thDate(approveTarget.last_working_date)} (วันทำงานสุดท้าย) — หลังจากนั้นระบบจะเปลี่ยนสถานะเป็น "ลาออก" ให้อัตโนมัติ · เปลี่ยนใจภายหลังกด "ยกเลิกการอนุมัติ" ได้`}
           confirmLabel="อนุมัติลาออก"
           onConfirm={() => reviewMut.mutate({ id: approveTarget.id, approve: true })}
           onCancel={() => setApproveTarget(null)} />
+      )}
+      {cancelTarget && (
+        <ConfirmDialog variant="warning"
+          title="ยกเลิกการอนุมัติลาออก?"
+          message={`คำขอของ ${cancelTarget.employee.first_name} จะกลับเป็น "รอพิจารณา"${cancelTarget.applied_at ? ' และสถานะพนักงานจะกลับเป็น "ใช้งาน" (เช็คอิน/เข้าแอปได้อีกครั้ง)' : ''} — ตัดสินใจใหม่ได้ภายหลัง`}
+          confirmLabel="ยกเลิกการอนุมัติ"
+          onConfirm={() => cancelMut.mutate(cancelTarget.id)}
+          onCancel={() => setCancelTarget(null)} />
       )}
       {rejectTarget && (
         <Modal onClose={() => setRejectTarget(null)} width={400}>

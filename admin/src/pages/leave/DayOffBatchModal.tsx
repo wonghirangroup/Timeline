@@ -17,7 +17,10 @@ import { useToast } from '../../components/ui/Toast'
 interface Emp { id: string; first_name: string; last_name: string; nickname?: string | null; employee_code: string; branch: { id: string; name: string } }
 interface QuotaRow { employee_id: string; quota: number; booked: number; remaining: number }
 interface OffReq { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
-interface BatchFailed { employee_id: string; date: string; code?: string; kind?: 'off' | 'vacation' }
+interface LeaveRow { employee_id: string; leave_type: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string | null; custom_type?: { name?: string } | null }
+interface LeaveCell { label: string; short: string; statusLabel: string; tone: { bg: string; fg: string; bd: string }; pending: boolean }
+interface CapDetail { dayOff: number; vacation: number; total: number; cap: number; adding: number }
+interface BatchFailed { employee_id: string; date: string; code?: string; kind?: 'off' | 'vacation'; detail?: CapDetail }
 interface VacAsk { empId: string; date: string }
 
 const DOW_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
@@ -26,11 +29,29 @@ const REASON_TH: Record<string, string> = {
   BOOKING_DISABLED: 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด',
   OVER_QUOTA: 'เกินโควต้าของเดือน',
   ALREADY_REQUESTED: 'มีวันหยุดวันนี้อยู่แล้ว',
-  MONTHLY_CAP_EXCEEDED: 'หยุด + พักร้อน เกิน 10 วัน/เดือน',
+  MONTHLY_CAP_EXCEEDED: 'รวมหยุด + พักร้อนเกินเพดาน/เดือน (ดูสรุปด้านบน)',
   LEAVE_OVERLAP: 'มีวันลาทับซ้อนอยู่แล้ว',
   LEAVE_DISABLED: 'สาขา/กลุ่มปิดการลาประเภทนี้',
 }
 const ORANGE = { fg: '#c2410c', bg: '#ffedd5', bd: '#fb923c' }
+// วันลาที่มีอยู่แล้วทุกประเภท (ป่วย/กิจ/พักร้อน/คลอด/ชดเชย/อื่นๆ) — แสดงในตารางลงวันหยุดให้เห็นว่าวันไหนของใครลาอยู่ (feedback 2026-10-14)
+const LEAVE_META: Record<string, { label: string; short: string; tone: { bg: string; fg: string; bd: string } }> = {
+  SICK:       { label: 'ลาป่วย',   short: 'ป', tone: { bg: '#fee2e2', fg: '#b91c1c', bd: '#fca5a5' } },
+  PERSONAL:   { label: 'ลากิจ',    short: 'ก', tone: { bg: '#ede9fe', fg: '#6d28d9', bd: '#c4b5fd' } },
+  VACATION:   { label: 'ลาพักร้อน', short: 'พ', tone: { bg: '#ffedd5', fg: '#c2410c', bd: '#fdba74' } },
+  MATERNITY:  { label: 'ลาคลอด',   short: 'ค', tone: { bg: '#fce7f3', fg: '#be185d', bd: '#f9a8d4' } },
+  COMPENSATE: { label: 'ลาชดเชย',  short: 'ช', tone: { bg: '#cffafe', fg: '#0e7490', bd: '#67e8f9' } },
+  OTHER:      { label: 'ลาอื่นๆ',   short: 'อ', tone: { bg: '#e0f2fe', fg: '#0369a1', bd: '#7dd3fc' } },
+}
+function leaveCellOf(l: LeaveRow): LeaveCell {
+  const meta = LEAVE_META[l.leave_type] ?? LEAVE_META.OTHER
+  // ชื่อละเอียดจาก reason แบบ "[ชื่อ]" (convention เดิมของระบบ) หรือชื่อประเภทลาที่ตั้งเอง
+  const fromReason = l.reason?.match(/^\[([^\]]+)\]/)?.[1]
+  const label = fromReason ?? l.custom_type?.name ?? meta.label
+  const pending = l.status === 'PENDING'
+  return { label, short: fromReason || l.custom_type?.name ? label.replace(/^ลา/, '').charAt(0) || meta.short : meta.short, statusLabel: pending ? 'รอพิจารณา' : 'อนุมัติ', tone: meta.tone, pending }
+}
+const lvTitle = (lv: LeaveCell) => `${lv.label} (${lv.statusLabel}) — วันนี้มีการลาอยู่แล้ว ลงวันหยุดซ้ำไม่ได้`
 
 function daysIn(month: string) { const [y, m] = month.split('-').map(Number); return new Date(y, m, 0).getDate() }
 function keyOf(month: string, d: number) { return `${month}-${String(d).padStart(2, '0')}` }
@@ -64,6 +85,29 @@ function useBatchData(month: string) {
     queryFn: () => api.get('/api/v1/admin/leave-balances/employees', { params: { year } }).then(r => r.data.data),
     retry: false,
   })
+  const { data: leaves = [] } = useQuery<LeaveRow[]>({
+    queryKey: ['admin', 'leave-requests', 'batch-overlay'],
+    queryFn: () => api.get('/api/v1/admin/leave-requests').then(r => r.data.data),
+    retry: false,
+  })
+  const leaveOf = useMemo(() => {
+    const m = new Map<string, Map<string, LeaveCell>>()
+    const [yy, mm] = month.split('-').map(Number)
+    const first = Date.UTC(yy, mm - 1, 1), last = Date.UTC(yy, mm, 0)
+    for (const l of leaves) {
+      if (l.status === 'REJECTED') continue
+      const a = Date.parse(l.start_date.slice(0, 10) + 'T00:00:00Z'), b = Date.parse(l.end_date.slice(0, 10) + 'T00:00:00Z')
+      if (Number.isNaN(a) || Number.isNaN(b) || b < first || a > last) continue
+      const cell = leaveCellOf(l)
+      for (let t = Math.max(a, first); t <= Math.min(b, last); t += 86400000) {
+        const d = new Date(t).toISOString().slice(0, 10)
+        if (!m.has(l.employee_id)) m.set(l.employee_id, new Map())
+        const row = m.get(l.employee_id)!
+        if (!row.has(d) || row.get(d)!.pending) row.set(d, cell)   // อนุมัติแล้วชนะรอพิจารณา
+      }
+    }
+    return m
+  }, [leaves, month])
   const vacLeftOf = useMemo(() => new Map(balances.map(b => [b.employee_id, b.vacation.total - b.vacation.used])), [balances])
   const quotaOf = useMemo(() => new Map(quotas.map(q => [q.employee_id, q])), [quotas])
   // วันที่จองไว้แล้ว (ไม่นับที่ปฏิเสธ) ต่อพนักงาน → date → สถานะ
@@ -89,7 +133,7 @@ function useBatchData(month: string) {
     }
     return m
   }, [requests, month])
-  return { employees: [...employees].sort((a, b) => a.first_name.localeCompare(b.first_name, 'th')), quotaOf, bookedOf, bookedIdOf, vacLeftOf }
+  return { employees: [...employees].sort((a, b) => a.first_name.localeCompare(b.first_name, 'th')), quotaOf, bookedOf, bookedIdOf, vacLeftOf, leaveOf }
 }
 
 // โควต้าที่ยังเลือกเพิ่มได้ = โควต้า − จองไว้แล้ว (ค่าเริ่มต้น 5 ถ้ายังไม่มีข้อมูลโควต้า)
@@ -125,11 +169,30 @@ function ResultView({ result, empById, onRetryForce, onClose, saving }: {
   result: NonNullable<ReturnType<typeof useBatchSave>['result']>; empById: Map<string, Emp>
   onRetryForce: () => void; onClose: () => void; saving: boolean
 }) {
-  const canForce = result.failed.some(f => f.code === 'BOOKING_DISABLED' && f.kind !== 'vacation')
+  const bookingFails = result.failed.filter(f => f.code === 'BOOKING_DISABLED' && f.kind !== 'vacation')
+  const capFails = result.failed.filter(f => f.code === 'MONTHLY_CAP_EXCEEDED')
+  const canForce = bookingFails.length > 0 || capFails.length > 0
+  // สรุปเพดานรายคน: ลงเพิ่มกี่วันที่ไม่ผ่านรวมกัน เทียบกับที่มีอยู่แล้วในเดือน
+  const capByEmp = new Map<string, { detail: CapDetail; dates: string[] }>()
+  for (const f of capFails) {
+    const cur = capByEmp.get(f.employee_id)
+    if (cur) cur.dates.push(f.date)
+    else if (f.detail) capByEmp.set(f.employee_id, { detail: f.detail, dates: [f.date] })
+  }
+  const forceLabel = capFails.length > 0 && bookingFails.length === 0 ? 'ยืนยันลงให้อยู่ดี (เกินเพดาน หยุด+พักร้อน/เดือน)' : bookingFails.length > 0 && capFails.length === 0 ? 'ยืนยันเพิ่มให้อยู่ดี (สาขา/กลุ่มปิดสิทธิ์จอง)' : 'ยืนยันลงให้อยู่ดี (ข้ามข้อจำกัดทั้งหมดข้างต้น)'
   return (
     <div style={{ padding: 22 }}>
       <div style={{ fontSize: '1rem', fontWeight: 800, color: '#111827', marginBottom: 4 }}>ลงวันหยุดสำเร็จ {result.created} วัน · ไม่สำเร็จ {result.failed.length} วัน</div>
       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 12 }}>วันที่ผ่านถูกบันทึกแล้ว วันที่ไม่ผ่านมีเหตุผลด้านล่าง</div>
+      {[...capByEmp.entries()].map(([empId, c]) => {
+        const after = c.detail.total + c.dates.length
+        return (
+          <div key={empId} style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: '0.8rem', color: '#9a3412', lineHeight: 1.6 }}>
+            <b>{empById.get(empId) ? nameOf(empById.get(empId)!) : empId}</b> — เดือนนี้มี <b>จองหยุด {c.detail.dayOff} วัน + ลาพักร้อน {c.detail.vacation} วัน = {c.detail.total} วัน</b> (เพดานรวม {c.detail.cap} วัน/เดือน)<br />
+            ลงเพิ่มอีก {c.dates.length} วัน ({c.dates.map(d => `${d.slice(8)}/${d.slice(5, 7)}`).join(', ')}) จะเป็น {after} วัน <b>เกินเพดาน {Math.max(0, after - c.detail.cap)} วัน</b>
+          </div>
+        )
+      })}
       <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
         {result.failed.map((f, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 12px', borderBottom: i < result.failed.length - 1 ? '1px solid #f1f5f9' : 'none', fontSize: '0.8rem' }}>
@@ -142,7 +205,7 @@ function ResultView({ result, empById, onRetryForce, onClose, saving }: {
         {canForce && (
           <button onClick={onRetryForce} disabled={saving}
             style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            ยืนยันเพิ่มให้อยู่ดี (สาขา/กลุ่มปิดสิทธิ์จอง)
+            {forceLabel}
           </button>
         )}
         <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>ปิด</button>
@@ -199,16 +262,21 @@ function VacationAsk({ ask, name, quota, vacLeft, vacPicked, onYes, onNo }: {
   )
 }
 
-// สถานะรอส่ง force ซ้ำ: เอาเฉพาะวันที่ล้มเหลวเพราะ BOOKING_DISABLED
+// รายการที่ส่ง force ซ้ำ: วันจองหยุดที่ล้มเหลวเพราะ BOOKING_DISABLED + วันพักร้อนที่ล้มเหลวเพราะเกินเพดานรวม (MONTHLY_CAP_EXCEEDED)
 function forceItems(result: NonNullable<ReturnType<typeof useBatchSave>['result']>) {
-  const m = new Map<string, string[]>()
-  for (const f of result.failed) if (f.code === 'BOOKING_DISABLED' && f.kind !== 'vacation') m.set(f.employee_id, [...(m.get(f.employee_id) ?? []), f.date])
-  return [...m.entries()].map(([employee_id, dates]) => ({ employee_id, dates }))
+  const off = new Map<string, string[]>()
+  const vac = new Map<string, string[]>()
+  for (const f of result.failed) {
+    if (f.code === 'BOOKING_DISABLED' && f.kind !== 'vacation') off.set(f.employee_id, [...(off.get(f.employee_id) ?? []), f.date])
+    else if (f.code === 'MONTHLY_CAP_EXCEEDED' && f.kind === 'vacation') vac.set(f.employee_id, [...(vac.get(f.employee_id) ?? []), f.date])
+  }
+  const ids = new Set([...off.keys(), ...vac.keys()])
+  return [...ids].map(employee_id => ({ employee_id, dates: off.get(employee_id) ?? [], vacation_dates: vac.get(employee_id) ?? [] }))
 }
 
 // ═════════════════ โหมดรายคน ═════════════════
 function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => void; onDone: () => void }) {
-  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf } = useBatchData(month)
+  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf, leaveOf } = useBatchData(month)
   const remainingOf = useRemaining(quotaOf, bookedOf)
   const qc = useQueryClient()
   const { showToast } = useToast()
@@ -298,28 +366,29 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
             {Array.from({ length: total }, (_, i) => i + 1).map(d => {
               const date = keyOf(month, d)
               const bk = booked?.get(date)
+              const lv = !bk ? leaveOf.get(empId)?.get(date) : undefined
               const rel = !!bk && released.includes(date)
               const sel = picked.includes(date)
               const vsel = vac.includes(date)
               const full = !sel && !vsel && !bk && room <= 0   // ครบโควต้า — ยังกดได้ (จะถามว่าใช้ลาพักร้อนไหม)
               return (
-                <button key={d} onClick={() => bk ? toggleRelease(date) : toggle(date)}
-                  title={bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก — กดอีกครั้งเพื่อยกเลิก' : `มีวันหยุดแล้ว (${bk === 'APPROVED' ? 'อนุมัติ' : 'รอพิจารณา'}) — กดเพื่อปล่อยวันนี้ แล้วเลือกวันอื่นแทน`) : vsel ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
+                <button key={d} onClick={() => lv ? undefined : bk ? toggleRelease(date) : toggle(date)}
+                  title={lv ? lvTitle(lv) : bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก — กดอีกครั้งเพื่อยกเลิก' : `มีวันหยุดแล้ว (${bk === 'APPROVED' ? 'อนุมัติ' : 'รอพิจารณา'}) — กดเพื่อปล่อยวันนี้ แล้วเลือกวันอื่นแทน`) : vsel ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
                   style={{
                     height: 40, borderRadius: 9, fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 700,
-                    border: `1.5px ${rel ? 'dashed' : 'solid'} ${rel ? '#f87171' : sel ? '#244B83' : vsel ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
-                    background: rel ? '#fef2f2' : sel ? '#244B83' : vsel ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
-                    color: rel ? '#dc2626' : sel ? '#fff' : vsel ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : (full ? '#94a3b8' : '#374151'),
+                    border: `1.5px ${rel ? 'dashed' : lv?.pending ? 'dashed' : 'solid'} ${rel ? '#f87171' : lv ? lv.tone.bd : sel ? '#244B83' : vsel ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
+                    background: rel ? '#fef2f2' : lv ? lv.tone.bg : sel ? '#244B83' : vsel ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
+                    color: rel ? '#dc2626' : lv ? lv.tone.fg : sel ? '#fff' : vsel ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : (full ? '#94a3b8' : '#374151'),
                     textDecoration: rel ? 'line-through' : 'none',
-                    cursor: 'pointer',
+                    cursor: lv ? 'not-allowed' : 'pointer', lineHeight: 1.1,
                   }}>
-                  {d}
+                  {d}{lv && <span style={{ display: 'block', fontSize: '0.58rem', fontWeight: 700 }}>{lv.short}{lv.pending ? '?' : ''}</span>}
                 </button>
               )
             })}
           </div>
           <div style={{ display: 'flex', gap: 12, fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 8, flexWrap: 'wrap' }}>
-            <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (จะลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
+            <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (จะลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span title="ป=ป่วย ก=กิจ พ=พักร้อน ค=คลอด ช=ชดเชย อ=อื่นๆ · เครื่องหมาย ? = รอพิจารณา"><b style={{ color: '#6d28d9' }}>■</b> วันลา (ป/ก/พ/ค/ช/อ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
           </div>
         </>
       )}
@@ -341,7 +410,7 @@ function SingleMode({ month, onClose, onDone }: { month: string; onClose: () => 
 
 // ═════════════════ โหมดหลายคน (ตารางเต็มจอ) ═════════════════
 function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => void; onDone: () => void }) {
-  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf } = useBatchData(month)
+  const { employees, quotaOf, bookedOf, bookedIdOf, vacLeftOf, leaveOf } = useBatchData(month)
   const remainingOf = useRemaining(quotaOf, bookedOf)
   const qc = useQueryClient()
   const { showToast } = useToast()
@@ -477,6 +546,7 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
                   {Array.from({ length: total }, (_, i) => i + 1).map(d => {
                     const date = keyOf(month, d)
                     const bk = booked?.get(date)
+                    const lv = !bk ? leaveOf.get(e.id)?.get(date) : undefined
                     const rel = !!bk && rels.includes(date)
                     const on = sel.includes(date)
                     const von = vsel.includes(date)
@@ -484,16 +554,16 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
                     const dw = dowOf(month, d)
                     return (
                       <td key={d} style={{ padding: 2, borderBottom: '1px solid #f1f5f9', background: dw === 0 || dw === 6 ? '#fffafa' : undefined }}>
-                        <button onClick={() => bk ? toggleRelease(e.id, date) : toggle(e.id, date)}
-                          title={bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก (กดอีกครั้งเพื่อยกเลิก)' : 'มีวันหยุดแล้ว — กดเพื่อปล่อย แล้วเลือกวันอื่นแทน') : von ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
+                        <button onClick={() => lv ? undefined : bk ? toggleRelease(e.id, date) : toggle(e.id, date)}
+                          title={lv ? lvTitle(lv) : bk ? (rel ? 'จะปล่อยวันนี้ตอนบันทึก (กดอีกครั้งเพื่อยกเลิก)' : 'มีวันหยุดแล้ว — กดเพื่อปล่อย แล้วเลือกวันอื่นแทน') : von ? 'ลาพักร้อน (กดเพื่อยกเลิก)' : full ? 'ครบโควต้าแล้ว — กดเพื่อใช้ลาพักร้อน' : undefined}
                           style={{
                             width: CELL - 6, height: CELL - 6, borderRadius: 6, padding: 0, fontFamily: 'inherit', fontSize: '0.7rem', fontWeight: 800,
-                            border: `1.5px ${rel ? 'dashed' : 'solid'} ${rel ? '#f87171' : on ? '#244B83' : von ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
-                            background: rel ? '#fef2f2' : on ? '#244B83' : von ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
-                            color: rel ? '#dc2626' : on ? '#fff' : von ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : 'transparent',
-                            cursor: 'pointer', opacity: full ? 0.55 : 1,
+                            border: `1.5px ${rel ? 'dashed' : lv?.pending ? 'dashed' : 'solid'} ${rel ? '#f87171' : lv ? lv.tone.bd : on ? '#244B83' : von ? ORANGE.bd : bk ? (bk === 'APPROVED' ? '#86efac' : '#fde68a') : '#e5e7eb'}`,
+                            background: rel ? '#fef2f2' : lv ? lv.tone.bg : on ? '#244B83' : von ? ORANGE.bg : bk ? (bk === 'APPROVED' ? '#dcfce7' : '#fef9c3') : '#fff',
+                            color: rel ? '#dc2626' : lv ? lv.tone.fg : on ? '#fff' : von ? ORANGE.fg : bk ? (bk === 'APPROVED' ? '#16a34a' : '#b45309') : 'transparent',
+                            cursor: lv ? 'not-allowed' : 'pointer', opacity: full ? 0.55 : 1,
                           }}>
-                          {rel ? '✕' : on ? '✓' : von ? 'พ' : bk ? '•' : ''}
+                          {rel ? '✕' : on ? '✓' : von ? 'พ' : lv ? lv.short : bk ? '•' : ''}
                         </button>
                       </td>
                     )
@@ -508,7 +578,7 @@ function MultiMode({ month, onClose, onDone }: { month: string; onClose: () => v
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 12, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน (เกินโควต้า)</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (กดวันที่จองไว้แล้ว — ลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
+          <span><b style={{ color: '#244B83' }}>■</b> เลือกใหม่</span><span><b style={{ color: '#ea580c' }}>■</b> ใช้ลาพักร้อน (เกินโควต้า)</span><span><b style={{ color: '#dc2626' }}>■</b> ปล่อย (กดวันที่จองไว้แล้ว — ลบตอนบันทึก)</span><span><b style={{ color: '#16a34a' }}>■</b> มีอยู่แล้ว (อนุมัติ)</span><span title="ป=ป่วย ก=กิจ พ=พักร้อน ค=คลอด ช=ชดเชย อ=อื่นๆ · เครื่องหมาย ? = รอพิจารณา"><b style={{ color: '#6d28d9' }}>■</b> วันลา (ป/ก/พ/ค/ช/อ)</span><span><b style={{ color: '#ca8a04' }}>■</b> มีอยู่แล้ว (รอพิจารณา)</span>
         </div>
         <span style={{ marginLeft: 'auto', fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>{releasedDays > 0 && <span style={{ color: '#dc2626' }}>ปล่อย {releasedDays} วัน · </span>}เลือกแล้ว {totalDays} วัน{vacDays > 0 ? <span style={{ color: ORANGE.fg }}> (ลาพักร้อน {vacDays})</span> : null} · {totalPeople} คน</span>
         <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>ยกเลิก</button>

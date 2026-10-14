@@ -5,6 +5,7 @@
 //
 // รูปแบบไฟล์: pure resolver (…FromChain, ไม่แตะ DB — unit test ได้ตรงๆ) + loader (ต่อ DB)
 // ตามแบบ group.service.ts เดิม
+import { MonthlyCapError } from './monthly-cap'
 import { prisma } from '../../common/utils/prisma'
 import { bangkokToday } from '../../common/utils/time'
 import { resolveBookingQuota, usesWeekendPool } from '../group/group.service'
@@ -141,8 +142,8 @@ export async function assertMonthlyCap(
   tenantId: string, employeeId: string, ym: string, adding: number,
   opts: { excludeWeeklyOffId?: string; excludeLeaveId?: string } = {},
 ) {
-  const { total } = await countMonthlyCommitment(tenantId, employeeId, ym, opts)
-  if (total + adding > MONTHLY_TOTAL_CAP) throw new Error('MONTHLY_CAP_EXCEEDED')
+  const { dayOff, vacation, total } = await countMonthlyCommitment(tenantId, employeeId, ym, opts)
+  if (total + adding > MONTHLY_TOTAL_CAP) throw new MonthlyCapError({ dayOff, vacation, total, cap: MONTHLY_TOTAL_CAP, adding })
 }
 
 // ── Grant/deduct primitives — เขียน LeaveBalance + log ทุกครั้งในธุรกรรมเดียว ─────

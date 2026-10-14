@@ -382,6 +382,7 @@ model ResignationRequest {
   reviewed_by       String? // user_id
   reviewed_at       DateTime?
   reject_note       String?
+  applied_at        DateTime? // เวลาที่สถานะ RESIGNED มีผลกับพนักงานจริง — null = อนุมัติแล้วแต่ยังทำงานได้จนถึงวันทำงานสุดท้าย (job รายวันเปลี่ยนให้ภายหลัง)
   created_at        DateTime    @default(now())
   updated_at        DateTime    @updatedAt
 

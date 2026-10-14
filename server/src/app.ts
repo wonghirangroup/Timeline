@@ -47,6 +47,7 @@ import { startFirebaseSyncCron } from './jobs/firebase-sync.job'
 import { startLeaveAccrualCron } from './jobs/leave-accrual.job'
 import { registerAdminActivityLog, startAdminActivityCleanupCron } from './common/utils/adminActivity'
 import { startVacationPolicyCron } from './jobs/vacation-policy.job'
+import { startResignationEffectiveCron } from './jobs/resignation-effective.job'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
@@ -180,6 +181,7 @@ const start = async () => {
     startLeaveAccrualCron()
     startAdminActivityCleanupCron()
     startVacationPolicyCron()
+    startResignationEffectiveCron()
   } catch (err) {
     app.log.error(err)
     process.exit(1)

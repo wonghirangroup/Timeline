@@ -261,6 +261,7 @@ module.exports = [
       { selector: 'button:has(svg.lucide-check)', n: 4, nth: 0 },
       { selector: 'button:has(svg.lucide-x)', n: 5, nth: 0 },
       { text: 'รายงานผู้บริหาร', tag: 'a, button', n: 6 },
+      { text: 'ยกเลิกการอนุมัติ', tag: 'button', n: 7, side: 'l' },
     ] },
   { id: 'document-requests', path: 'document-requests',
     marks: [

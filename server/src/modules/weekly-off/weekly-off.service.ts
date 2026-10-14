@@ -156,7 +156,7 @@ export async function createWeeklyOffBatch(
   items: { employee_id: string; dates?: string[]; vacation_dates?: string[] }[],
   opts: PolicyOpts = {},
 ) {
-  const results: { employee_id: string; date: string; ok: boolean; code?: string; kind: 'off' | 'vacation' }[] = []
+  const results: { employee_id: string; date: string; ok: boolean; code?: string; kind: 'off' | 'vacation'; detail?: unknown }[] = []
   for (const it of items) {
     // เรียงวันที่ก่อน เพื่อให้โควต้านับจากวันแรกๆ ถ้าเกินจะตัดวันท้ายออกเป็นเหตุผล OVER_QUOTA
     for (const date of [...new Set(it.dates ?? [])].sort()) {
@@ -172,11 +172,11 @@ export async function createWeeklyOffBatch(
         await createLeaveRequest(tenantId, {
           employee_id: it.employee_id, leave_type: 'VACATION', start_date: date, end_date: date, days: 1,
           reason: '[พักร้อน] ลงจากปฏิทินรวม — เกินโควต้าวันหยุดจอง/เดือน',
-          autoApprove: true, reviewedBy: opts.actorUserId,
+          autoApprove: true, reviewedBy: opts.actorUserId, force: opts.force === true,
         })
         results.push({ employee_id: it.employee_id, date, ok: true, kind: 'vacation' })
       } catch (e: any) {
-        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'vacation' })
+        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'vacation', ...(e?.detail ? { detail: e.detail } : {}) })
       }
     }
   }

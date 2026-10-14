@@ -684,7 +684,7 @@ export default function TeamCalendarTab() {
   // popup รายละเอียดจากการ์ดสรุปด้านบน
   const [statPopup, setStatPopup] = useState<null | 'holiday' | 'dayoff' | 'leave' | 'pending'>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'dayoff' | 'leave'; id: string; label: string } | null>(null)
-  const [forcePrompt, setForcePrompt] = useState<{ kind: 'dayoff' | 'leave'; vars: any } | null>(null)  // cascade ปิดสิทธิ์ — รอ retry ด้วย force
+  const [forcePrompt, setForcePrompt] = useState<{ kind: 'dayoff' | 'leave'; vars: any; title?: string; message?: string } | null>(null)  // cascade ปิดสิทธิ์ — รอ retry ด้วย force
   const [showRosterSettings, setShowRosterSettings] = useState(false)
   const [rosterCols, setRosterCols] = useState({ code: true, branch: true })
   const [rosterColors, setRosterColors] = useState<Record<string, string>>(() => loadRosterColors())
@@ -813,7 +813,12 @@ export default function TeamCalendarTab() {
     onError: (e: any, vars: any) => {
       const code = e?.response?.data?.error?.code
       if (code === 'LEAVE_DISABLED') { setForcePrompt({ kind: 'leave', vars }); return }
-      showToast('error', code === 'LEAVE_OVERLAP' ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว' : code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่พอ' : 'เพิ่มไม่สำเร็จ')
+      // เกินเพดานรวม หยุด+พักร้อน/เดือน — บอกตัวเลขจากเซิร์ฟเวอร์ แล้วให้แอดมินเลือก "ยืนยันลงให้อยู่ดี" (feedback 2026-10-14)
+      if (code === 'MONTHLY_CAP_EXCEEDED') {
+        setForcePrompt({ kind: 'leave', vars, title: 'รวมหยุด + พักร้อนเกินเพดานของเดือน', message: `${e?.response?.data?.error?.message ?? ''} — ยืนยันลงให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)` })
+        return
+      }
+      showToast('error', code === 'LEAVE_OVERLAP' ? 'มีวันลาที่ทับซ้อนกันอยู่แล้ว' : code === 'INSUFFICIENT_BALANCE' ? 'วันลาคงเหลือไม่พอ' : (e?.response?.data?.error?.message ?? 'เพิ่มไม่สำเร็จ'))
     },
   })
 
@@ -1476,8 +1481,8 @@ export default function TeamCalendarTab() {
 
       {forcePrompt && (
         <ConfirmDialog
-          title={forcePrompt.kind === 'dayoff' ? 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด' : 'สาขา/กลุ่มปิดการลาประเภทนี้'}
-          message="พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์นี้ ยืนยันเพิ่มให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)"
+          title={forcePrompt.title ?? (forcePrompt.kind === 'dayoff' ? 'สาขา/กลุ่มปิดสิทธิ์จองวันหยุด' : 'สาขา/กลุ่มปิดการลาประเภทนี้')}
+          message={forcePrompt.message ?? 'พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดสิทธิ์นี้ ยืนยันเพิ่มให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'}
           confirmLabel="ยืนยันเพิ่มให้"
           variant="warning"
           onConfirm={() => {

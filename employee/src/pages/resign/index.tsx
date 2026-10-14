@@ -66,6 +66,7 @@ export default function ResignPage() {
               {existing.status === 'APPROVED' ? 'อนุมัติการลาออกแล้ว' : 'คำขอถูกปฏิเสธ'}
             </div>
             <div style={{ fontSize: '0.82rem', color: COLOR.textMuted, marginTop: 6 }}>วันทำงานสุดท้าย: {thDate(existing.last_working_date)}</div>
+            {existing.status === 'APPROVED' && <div style={{ fontSize: '0.78rem', color: COLOR.textMuted, marginTop: 4 }}>ยังเช็คอินและใช้งานได้ตามปกติจนถึงวันทำงานสุดท้าย</div>}
             {existing.reject_note && <div style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: 8 }}>{existing.reject_note}</div>}
           </div>
         )}

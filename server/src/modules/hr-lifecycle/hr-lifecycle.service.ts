@@ -1,6 +1,8 @@
 // server/src/modules/hr-lifecycle/hr-lifecycle.service.ts
 // HR lifecycle add-ons (Tier A): เอกสารพนักงาน / ทดลองงาน / หนังสือเตือน / ลาออก
 // แต่ละอันเป็น feature ที่ Super Admin เปิด/ปิดต่อ tenant ได้ (ดู common/utils/features.ts)
+import { isResignationEffective } from './resignation-rules'
+import { bangkokDateStr } from '../../common/utils/time'
 import { prisma } from '../../common/utils/prisma'
 import { nextRequestNo } from '../../common/utils/requestNo'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
@@ -223,8 +225,12 @@ export async function getOwnResignation(tenantId: string, employeeId: string) {
   })
 }
 
-// แอดมินอนุมัติ → set Employee.status = RESIGNED (ใช้กลไก changeEmployeeStatus เดิม
-// ที่เขียน EmployeeStatusLog ให้อยู่แล้ว)
+// แอดมินอนุมัติ — สถานะ RESIGNED มีผล "หลังวันทำงานสุดท้าย" (feedback 2026-10-14: เดิมเปลี่ยนทันที ทำให้พนักงาน
+// เช็คอินวันสุดท้ายไม่ได้) · ถ้าวันสุดท้ายผ่านไปแล้วตอนอนุมัติ → เปลี่ยนทันที · ไม่งั้น job รายวันเปลี่ยนให้ (applyDueResignations)
+// ใช้กลไก changeEmployeeStatus เดิมที่เขียน EmployeeStatusLog ให้อยู่แล้ว
+const resignReason = (req: { last_working_date: Date; reason: string | null }) =>
+  `ลาออก (วันสุดท้าย ${req.last_working_date.toISOString().slice(0, 10)})${req.reason ? ` — ${req.reason}` : ''}`
+
 export async function reviewResignation(tenantId: string, id: string, data: {
   approve: boolean; reviewed_by: string; reject_note?: string
 }, scoped?: string[]) {
@@ -232,22 +238,57 @@ export async function reviewResignation(tenantId: string, id: string, data: {
   if (!req || req.status !== 'PENDING') return null
   if (scoped && !scoped.includes(req.employee_id)) throw new Error('OUT_OF_SCOPE')
 
+  const applyNow = data.approve && isResignationEffective(req.last_working_date, bangkokDateStr())
   const updated = await prisma.resignationRequest.update({
     where: { id },
     data: {
       status: data.approve ? 'APPROVED' : 'REJECTED',
       reviewed_by: data.reviewed_by, reviewed_at: new Date(),
       reject_note: data.approve ? null : (data.reject_note ?? null),
+      applied_at: applyNow ? new Date() : null,
     },
   })
-  if (data.approve) {
-    await changeEmployeeStatus(tenantId, req.employee_id, {
-      to_status: 'RESIGNED',
-      reason: `ลาออก (วันสุดท้าย ${req.last_working_date.toISOString().slice(0, 10)})${req.reason ? ` — ${req.reason}` : ''}`,
-      changed_by: data.reviewed_by,
-    })
+  if (applyNow) {
+    await changeEmployeeStatus(tenantId, req.employee_id, { to_status: 'RESIGNED', reason: resignReason(req), changed_by: data.reviewed_by })
   }
   return updated
+}
+
+// ยกเลิกการอนุมัติ → คำขอกลับเป็น "รอพิจารณา" (ตัดสินใจใหม่ได้) · ถ้าสถานะลาออกมีผลไปแล้ว คืนพนักงานเป็น ACTIVE ให้ด้วย
+export async function cancelResignationApproval(tenantId: string, id: string, by: string, scoped?: string[]) {
+  const req = await prisma.resignationRequest.findFirst({ where: { id, tenant_id: tenantId } })
+  if (!req || req.status !== 'APPROVED') return null
+  if (scoped && !scoped.includes(req.employee_id)) throw new Error('OUT_OF_SCOPE')
+
+  if (req.applied_at) {
+    const emp = await prisma.employee.findFirst({ where: { id: req.employee_id, tenant_id: tenantId, deleted_at: null }, select: { status: true } })
+    if (emp?.status === 'RESIGNED') {
+      await changeEmployeeStatus(tenantId, req.employee_id, { to_status: 'ACTIVE', reason: 'ยกเลิกการอนุมัติลาออก', changed_by: by })
+    }
+  }
+  return prisma.resignationRequest.update({
+    where: { id },
+    data: { status: 'PENDING', reviewed_by: null, reviewed_at: null, applied_at: null, reject_note: null },
+  })
+}
+
+// job รายวัน: อนุมัติแล้ว + วันทำงานสุดท้ายผ่านไปแล้ว + ยังไม่เคยมีผล → เปลี่ยนสถานะเป็นลาออก
+// (ข้ามพนักงานที่ไม่ใช่ ACTIVE แล้ว เช่น แอดมินปิดเองไปก่อน — แต่ยังตีตรา applied_at กันวนซ้ำ)
+export async function applyDueResignations(): Promise<number> {
+  const today = bangkokDateStr()
+  const due = await prisma.resignationRequest.findMany({
+    where: { status: 'APPROVED', applied_at: null, last_working_date: { lt: new Date(`${today}T00:00:00.000Z`) } },
+  })
+  let n = 0
+  for (const req of due) {
+    const emp = await prisma.employee.findFirst({ where: { id: req.employee_id, tenant_id: req.tenant_id, deleted_at: null }, select: { status: true } })
+    if (emp?.status === 'ACTIVE') {
+      await changeEmployeeStatus(req.tenant_id, req.employee_id, { to_status: 'RESIGNED', reason: resignReason(req), changed_by: req.reviewed_by ?? undefined })
+      n++
+    }
+    await prisma.resignationRequest.update({ where: { id: req.id }, data: { applied_at: new Date() } })
+  }
+  return n
 }
 
 // ═══ ขอเอกสาร HR (document_request) ═════════════════════════════════════════
