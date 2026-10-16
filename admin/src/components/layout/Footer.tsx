@@ -70,6 +70,7 @@ export default function Footer() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: '13px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em' }}>POWERED BY</span>
         <img src={PARTNER_LOGO_URL} alt={PARTNER_NAME} style={{ height: 32, objectFit: 'contain' }} />
+        <span style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', letterSpacing: '0.01em' }}>Smart Jigsaw</span>
       </div>
 
       {/* ขวา: ลิงก์นโยบาย/เงื่อนไข (feedback 2026-09-28) — มีหน้าจริงรองรับแล้ว

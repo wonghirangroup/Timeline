@@ -160,10 +160,10 @@ export default function DocumentRequestsPage() {
             </ul>
           } />
         </h1>
-        <PageLinks className="no-print" links={[
-            { to: '/report/employee', label: 'รายงานพนักงาน', icon: <ReportIcon size={14} />, permKey: 'report_employee' }
-          ]} />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <PageLinks className="no-print" links={[
+              { to: '/report/employee', label: 'รายงานพนักงาน', icon: <ReportIcon size={14} />, permKey: 'report_employee' }
+            ]} />
           <Button variant="secondary" size="sm" icon={<Wallet size={14} />} onClick={() => setShowIssuedPanel(true)}>สรุปเงินเดือน/สลิป</Button>
           <InfoTooltip width={290} content="สรุปเอกสารที่ออกแล้วจริง (ไม่ใช่รายการคำขอด้านล่าง) — ใช้ดู/กรอง/Export ยอดสลิปเงินเดือนและหนังสือรับรองเงินเดือนที่สร้างในระบบทั้งหมด แยกตามกลุ่ม/สาขา/แผนก" />
           {!isReadOnly && (

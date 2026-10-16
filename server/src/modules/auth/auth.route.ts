@@ -245,7 +245,7 @@ export async function authRoutes(app: FastifyInstance) {
       // อ่านสดจาก DB — ต้องอัปเดตทันทีหลังผู้ใช้เปลี่ยนรหัส/ชื่อ (JWT ไม่ได้ refresh)
       const fresh = await prisma.user.findUnique({
         where: { id: request.user.id },
-        select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true, recovery_email: true, is_root_admin: true },
+        select: { must_change_password: true, is_active: true, first_name: true, last_name: true, email: true, recovery_email: true, is_root_admin: true, photo_url: true, linked_employee: { select: { photo_url: true } } },
       })
       // สิทธิ์แบบละเอียดของบัญชีตัวเอง — เตรียมไว้ให้ frontend เก็บล่วงหน้า
       // (Phase 1 ยังไม่มีหน้าไหนใช้ซ่อน/แสดงปุ่มจากค่านี้จริง ดู brain log v187)
@@ -260,6 +260,9 @@ export async function authRoutes(app: FastifyInstance) {
           first_name: fresh?.first_name ?? null,
           last_name: fresh?.last_name ?? null,
           recovery_email: fresh?.recovery_email ?? null,
+          // รูปที่ตั้งเองก่อน → ไม่มีก็ใช้รูปโปรไฟล์ของพนักงานที่ผูกบัญชีไว้ (ตัวเดียวกับที่เห็นในแอปมือถือ)
+          photo_url: fresh?.photo_url ?? fresh?.linked_employee?.photo_url ?? null,
+          own_photo: !!fresh?.photo_url,
           enabled_features,
           must_change_password: fresh?.must_change_password ?? false,
           is_root_admin: fresh?.is_root_admin ?? false,
@@ -350,6 +353,7 @@ export async function authRoutes(app: FastifyInstance) {
           first_name: { type: 'string', minLength: 1, maxLength: 100 },
           last_name:  { type: 'string', maxLength: 100 },
           recovery_email: { type: 'string', maxLength: 191, description: 'อีเมลรับ OTP ลืมรหัสผ่าน — ส่งสตริงว่างเพื่อลบ (ไม่ส่ง = ไม่เปลี่ยน)' },
+          photo_url: { type: ['string', 'null'], maxLength: 1000, description: 'URL รูปโปรไฟล์ — null/ว่าง = ลบรูปที่ตั้งเอง (ไม่ส่ง = ไม่เปลี่ยน)' },
         },
       },
     },
@@ -362,7 +366,12 @@ export async function authRoutes(app: FastifyInstance) {
         reply.code(400)
         return { success: false, error: { code: 'INVALID_PAYLOAD', message: 'กรุณากรอกชื่อ' } }
       }
-      const patch: { first_name: string; last_name: string; recovery_email?: string | null } = { first_name, last_name }
+      const patch: { first_name: string; last_name: string; recovery_email?: string | null; photo_url?: string | null } = { first_name, last_name }
+      if (request.body.photo_url !== undefined) {
+        const u = request.body.photo_url ? String(request.body.photo_url).trim() : null
+        if (u && !/^https:\/\//i.test(u)) { reply.code(400); return { success: false, error: { code: 'INVALID_URL', message: 'ลิงก์รูปต้องขึ้นต้นด้วย https://' } } }
+        patch.photo_url = u
+      }
       if (request.body.recovery_email !== undefined) {
         try { patch.recovery_email = normalizeRecoveryEmail(request.body.recovery_email) }
         catch { reply.code(400); return { success: false, error: { code: 'INVALID_EMAIL', message: 'รูปแบบอีเมลไม่ถูกต้อง' } } }

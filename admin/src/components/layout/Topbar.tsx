@@ -1,10 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown, CalendarCheck2, Mail } from 'lucide-react'
+import { Camera, User, ChevronRight, Key, LogOut, ChevronLeft, EyeOff, Eye, Menu, ChevronDown, CalendarCheck2, Mail } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useToast } from '../ui/Toast'
 import { api } from '../../lib/axios'
+import AvatarUpload from '../ui/AvatarUpload'
+import { avatarUrl } from '../../lib/upload'
 import NotificationBell from './NotificationBell'
 import TodayCheckinsPopup from './TodayCheckinsPopup'
 
@@ -99,7 +101,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
 
   // Profile panel state
   const [panelOpen, setPanelOpen] = useState(false)
-  const [view, setView] = useState<'profile' | 'reset' | 'name' | 'recovery'>('profile')
+  const [view, setView] = useState<'profile' | 'reset' | 'name' | 'recovery' | 'photo'>('profile')
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false })
   const [nameInput, setNameInput] = useState('')
@@ -138,6 +140,13 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
       setView('profile')
     },
     onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'บันทึกไม่สำเร็จ กรุณาลองใหม่'),
+  })
+
+  const photoSrc = (px: number) => (me?.photo_url ? (avatarUrl(me.photo_url, px) ?? me.photo_url) : '/mascot-cat.jpg')
+  const savePhotoMut = useMutation({
+    mutationFn: (photo_url: string | null) => api.post('/api/v1/auth/update-profile', { first_name: me?.first_name || 'Admin', last_name: me?.last_name ?? '', photo_url }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['auth', 'me'] }); showToast('success', 'บันทึกรูปโปรไฟล์แล้ว') },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'บันทึกรูปไม่สำเร็จ'),
   })
 
   const saveNameMut = useMutation({
@@ -205,7 +214,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             background: 'linear-gradient(135deg, #244B83, #131C45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={photoSrc(96)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Admin'}</div>
@@ -230,6 +239,22 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>แก้ไขชื่อที่แสดง</div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display Name</div>
+            </div>
+            <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
+          </button>
+
+          <button
+            onClick={() => setView('photo')}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Camera size={15} color="#ea580c" />
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>เปลี่ยนรูปโปรไฟล์</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{me?.own_photo ? 'ใช้รูปที่ตั้งไว้' : me?.photo_url ? 'ใช้รูปจากโปรไฟล์พนักงาน (แอปมือถือ)' : 'Profile Photo'}</div>
             </div>
             <ChevronRight size={14} color="var(--text-muted)" style={{ marginLeft: 'auto' }} />
           </button>
@@ -381,6 +406,23 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             </button>
           </div>
         </div>
+      ) : view === 'photo' ? (
+        <div style={{ padding: '16px 20px 20px' }}>
+          <button onClick={() => setView('profile')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', marginBottom: 16, padding: 0 }}>
+            <ChevronLeft size={14} /> กลับ
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: 16 }}><Camera size={14} /> เปลี่ยนรูปโปรไฟล์</div>
+          <AvatarUpload value={me?.photo_url} fallback={(name || 'A').slice(0, 2)} size={88} onChange={url => savePhotoMut.mutate(url)} />
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 14, lineHeight: 1.6 }}>
+            ถ้าบัญชีนี้ผูกกับพนักงานและมีรูปในแอปมือถือ ระบบจะใช้รูปนั้นให้อัตโนมัติ — อัปโหลดที่นี่เพื่อใช้รูปอื่นเฉพาะฝั่งแอดมิน
+          </div>
+          {me?.own_photo && (
+            <button onClick={() => savePhotoMut.mutate(null)} disabled={savePhotoMut.isPending}
+              style={{ marginTop: 12, width: '100%', padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+              ล้างรูปที่ตั้งเอง (กลับไปใช้รูปจากพนักงาน/มาสคอต)
+            </button>
+          )}
+        </div>
       ) : view === 'name' ? (
         <div style={{ padding: '16px 20px 20px' }}>
           {/* Back */}
@@ -508,7 +550,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
                 background: 'var(--accent-light)', border: '2px solid #e5e7eb',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                <img src="/mascot-cat.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={photoSrc(56)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               {!isMobile && (
                 <>

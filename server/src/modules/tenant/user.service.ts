@@ -116,7 +116,7 @@ export async function getUserDepartments(tenantId: string, userId: string) {
 export async function updateUser(
   tenantId: string,
   id: string,
-  data: { first_name?: string; last_name?: string; is_active?: boolean; password?: string; recovery_email?: string | null },
+  data: { first_name?: string; last_name?: string; is_active?: boolean; password?: string; recovery_email?: string | null; photo_url?: string | null },
 ) {
   const updateData: any = { ...data }
   if (data.recovery_email !== undefined) updateData.recovery_email = normalizeRecoveryEmail(data.recovery_email)
