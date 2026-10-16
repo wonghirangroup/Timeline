@@ -207,7 +207,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
   const panelContent = (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E6ECF4' }}>
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #FED7AA', background: 'linear-gradient(135deg, #FFEDD5, #FFD9B0)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
@@ -564,8 +564,8 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
             {!isMobile && panelOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 12px)', right: 0,
-                width: 320, background: '#FFF8F2', borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(0,0,0,0.05)',
+                width: 320, background: '#fff', borderRadius: 'var(--radius-lg)',
+                boxShadow: '0 18px 44px rgba(15,23,42,0.22), 0 2px 6px rgba(15,23,42,0.08)', border: '1px solid #B2C0D4',
                 zIndex: 300, overflow: 'hidden',
                 animation: 'fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               }}>
@@ -583,7 +583,7 @@ export default function Topbar({ isMobile, sidebarW, onMenuClick }: TopbarProps)
           onClick={() => setPanelOpen(false)}
         >
           <div
-            style={{ width: '100%', background: '#FFF8F2', borderRadius: '24px 24px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-float)' }}
+            style={{ width: '100%', background: '#fff', borderRadius: '24px 24px 0 0', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-float)' }}
             onClick={e => e.stopPropagation()}
             className="animate-fade-in-up"
           >
