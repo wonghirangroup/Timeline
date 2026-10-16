@@ -5,7 +5,7 @@
 // เท่านั้น ถ้าเป็นขั้นตอนทำงานหลายสเต็ป ให้ใช้ GuidedTour แทน (เหมือนปุ่ม "วิธีใช้"
 // เดิมที่มีอยู่แล้วในหน้าสาขา/กะ) ไม่ใช่ตัวนี้
 // บนมือถือไม่มี hover เลยรองรับ tap-to-toggle ด้วย (onClick)
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Info } from 'lucide-react'
 import { Z } from './z'
 
@@ -20,9 +20,26 @@ interface InfoTooltipProps {
 export default function InfoTooltip({ content, title, size = 'sm', placement = 'bottom-start', width = 260 }: InfoTooltipProps) {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  // ตำแหน่งแบบ fixed คำนวณจากปุ่ม แล้วหนีบให้อยู่ในจอเสมอ (เดิม absolute ตกขอบจอเมื่อปุ่มอยู่ชิดขวา/ซ้าย)
+  const [pos, setPos] = useState<{ top: number; left: number; w: number } | null>(null)
   const iconSize = size === 'md' ? 14 : 11
   const btnSize  = size === 'md' ? 20 : 16
 
+  function place() {
+    const r = btnRef.current?.getBoundingClientRect(); if (!r) return
+    const margin = 8, w = Math.min(width, window.innerWidth * 0.82, window.innerWidth - margin * 2)
+    const wantLeft = placement === 'bottom-end' ? r.right - w : r.left
+    setPos({ top: r.bottom + 6, left: Math.max(margin, Math.min(wantLeft, window.innerWidth - w - margin)), w })
+  }
+  useEffect(() => {
+    if (!open) return
+    place()
+    const close = () => setOpen(false)
+    window.addEventListener('scroll', close, true); window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   function show() { if (closeTimer.current) clearTimeout(closeTimer.current); setOpen(true) }
   function hideSoon() { closeTimer.current = setTimeout(() => setOpen(false), 120) }
 
@@ -33,6 +50,7 @@ export default function InfoTooltip({ content, title, size = 'sm', placement = '
       onMouseLeave={hideSoon}
     >
       <button
+        ref={btnRef}
         type="button"
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         onFocus={show}
@@ -49,19 +67,18 @@ export default function InfoTooltip({ content, title, size = 'sm', placement = '
       >
         <Info size={iconSize} />
       </button>
-      {open && (
+      {open && pos && (
         <div
           role="tooltip"
           onMouseEnter={show}
           onMouseLeave={hideSoon}
           style={{
-            position: 'absolute', top: 'calc(100% + 6px)',
-            ...(placement === 'bottom-end' ? { right: 0 } : { left: 0 }),
+            position: 'fixed', top: pos.top, left: pos.left,
             zIndex: Z.tooltip,
             background: '#1f2937', color: '#f9fafb',
             borderRadius: 10, padding: '11px 14px',
             boxShadow: '0 14px 34px rgba(15,23,42,0.28)',
-            width, maxWidth: '82vw',
+            width: pos.w,
             fontSize: '0.78rem', lineHeight: 1.6,
             fontWeight: 400, textTransform: 'none', letterSpacing: 'normal',
             pointerEvents: 'auto',
