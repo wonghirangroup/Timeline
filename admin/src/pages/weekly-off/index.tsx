@@ -1515,6 +1515,17 @@ export default function WeeklyOffPage() {
 }
 
 // ─── แจ้งเตือน "เช็คอินวันที่จองไว้เอง" + สลับวันหยุดกัน 2 คน ──────────────────
+// 3 ทางเลือกเมื่อพนักงานเช็คอินในวันที่จองวันหยุดไว้เอง (feedback 2026-10-16) — ลำดับ = ลำดับปุ่ม
+type ResolveAction = 'REPLACE' | 'VACATION' | 'RESCHEDULE'
+const RESOLVE_CFG: Record<ResolveAction, { btn: string; title: string; desc: string; done: string; icon: typeof Gift; color: string; bg: string; border: string }> = {
+  REPLACE:    { btn: 'ลงวันหยุดใหม่ให้', title: 'ลงวันหยุดใหม่ให้พนักงาน', icon: CalendarDays, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4',
+    desc: 'เลือกวันหยุดใหม่ให้พนักงานเลย — ระบบย้ายวันหยุดที่จองไว้วันนี้ไปวันที่เลือก (อนุมัติทันที)', done: 'ย้ายวันหยุดให้พนักงานเรียบร้อย' },
+  VACATION:   { btn: 'เก็บเป็นพักร้อนสะสม', title: 'เก็บเป็นวันลาพักร้อนสะสม', icon: Gift, color: '#16a34a', bg: '#f0fdf4', border: '#86efac',
+    desc: 'คุยกับพนักงานแล้ว — ระบบเพิ่มวันลาพักร้อน 1 วันเข้าโควต้าของปีนี้ (วันหยุดเดิมถือว่าใช้ไปแล้ว ไม่คืนให้จองใหม่)', done: 'เก็บเป็นวันลาพักร้อนสะสมเรียบร้อย' },
+  RESCHEDULE: { btn: 'คืนวันจองให้', title: 'คืนวันจองให้พนักงานจองเอง', icon: RotateCcw, color: '#d97706', bg: '#fffbeb', border: '#fcd34d',
+    desc: 'ระบบจะยกเลิกวันหยุดเดิมที่จองไว้วันนี้ — พนักงานไปจองวันหยุดใหม่เองได้เลย', done: 'คืนวันจองให้พนักงานแล้ว จองวันใหม่ได้เลย' },
+}
+
 function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHighlight }: {
   requests: WeeklyOffRequest[]; workedAlerts: WorkedOffAlert[]; month: string
   focusId: string | null
@@ -1524,8 +1535,9 @@ function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHi
   const { showToast } = useToast()
   const isReadOnly = useIsReadOnly()
   const qc = useQueryClient()
-  const [resolveTarget, setResolveTarget] = useState<{ alert: WorkedOffAlert; action: 'RESCHEDULE' | 'COMPENSATE' } | null>(null)
+  const [resolveTarget, setResolveTarget] = useState<{ alert: WorkedOffAlert; action: ResolveAction } | null>(null)
   const [resolveNote, setResolveNote] = useState('')
+  const [replaceDate, setReplaceDate] = useState('')
   const [swapAId, setSwapAId] = useState('')
   const [swapBId, setSwapBId] = useState('')
 
@@ -1533,14 +1545,14 @@ function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHi
   const invalidateOff = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
 
   const resolveMutation = useMutation({
-    mutationFn: ({ id, action, note }: { id: string; action: 'RESCHEDULE' | 'COMPENSATE'; note: string }) =>
-      api.post(`/api/v1/admin/weekly-off/worked-alerts/${id}/resolve`, { action, note: note || undefined }),
+    mutationFn: ({ id, action, note, replacement_date }: { id: string; action: ResolveAction; note: string; replacement_date?: string }) =>
+      api.post(`/api/v1/admin/weekly-off/worked-alerts/${id}/resolve`, { action, note: note || undefined, replacement_date }),
     onSuccess: (_, { action }) => {
-      invalidateAlerts()
-      showToast('success', action === 'RESCHEDULE' ? 'ยกเลิกวันหยุดเดิมแล้ว พนักงานจองวันใหม่ได้' : 'ให้วันหยุดชดเชยเรียบร้อย')
-      setResolveTarget(null); setResolveNote('')
+      invalidateAlerts(); if (action === 'REPLACE') invalidateOff()
+      showToast('success', RESOLVE_CFG[action].done)
+      setResolveTarget(null); setResolveNote(''); setReplaceDate('')
     },
-    onError: () => showToast('error', 'ไม่สำเร็จ'),
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'ไม่สำเร็จ'),
   })
 
   const swapMutation = useMutation({
@@ -1588,14 +1600,15 @@ function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHi
                 </div>
                 {!isReadOnly && (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setResolveTarget({ alert: a, action: 'RESCHEDULE' })}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#244B83', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <CalendarClock size={13} /> เลื่อนวันหยุด
-                    </button>
-                    <button onClick={() => setResolveTarget({ alert: a, action: 'COMPENSATE' })}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#16a34a', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Gift size={13} /> ให้วันชดเชย
-                    </button>
+                    {(Object.keys(RESOLVE_CFG) as ResolveAction[]).map(k => {
+                      const c = RESOLVE_CFG[k]; const Icon = c.icon
+                      return (
+                        <button key={k} onClick={() => { setResolveTarget({ alert: a, action: k }); setReplaceDate('') }}
+                          style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.color, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Icon size={13} /> {c.btn}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -1658,25 +1671,28 @@ function ExceptionsTab({ requests, workedAlerts, month, focusId, focusRef, rowHi
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 400, maxWidth: '100%', padding: 22, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              {resolveTarget.action === 'RESCHEDULE' ? <CalendarClock size={18} color="#244B83" /> : <Gift size={18} color="#16a34a" />}
-              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>
-                {resolveTarget.action === 'RESCHEDULE' ? 'เลื่อนวันหยุด' : 'ให้วันหยุดชดเชย'}
-              </div>
+              {(() => { const c = RESOLVE_CFG[resolveTarget.action]; const Icon = c.icon; return <Icon size={18} color={c.color} /> })()}
+              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{RESOLVE_CFG[resolveTarget.action].title}</div>
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.6 }}>
               <strong>{empName(resolveTarget.alert.employee)}</strong> เช็คอินวันที่ {fmtDate(resolveTarget.alert.date.slice(0, 10))} ทั้งที่จองวันหยุดไว้เอง<br />
-              {resolveTarget.action === 'RESCHEDULE'
-                ? 'ระบบจะยกเลิกวันหยุดเดิมที่จองไว้วันนี้ — พนักงานไปจองวันหยุดใหม่แทนได้เลย'
-                : 'ระบบจะให้วันหยุดชดเชย 1 วันเข้าโควต้า "ชดเชย" เหมือนมาทำงานในวันหยุดนักขัตฤกษ์'}
+              {RESOLVE_CFG[resolveTarget.action].desc}
             </div>
+            {resolveTarget.action === 'REPLACE' && (
+              <>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>วันหยุดใหม่ของพนักงาน</label>
+                <input type="date" value={replaceDate} onChange={e => setReplaceDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12 }} />
+              </>
+            )}
             <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 5 }}>หมายเหตุ (ไม่บังคับ)</label>
             <input value={resolveNote} onChange={e => setResolveNote(e.target.value)} placeholder="เช่น คุยกับพนักงานแล้ว ลืมว่าวันนี้หยุด"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 16 }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setResolveTarget(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>ยกเลิก</button>
-              <button onClick={() => resolveMutation.mutate({ id: resolveTarget.alert.id, action: resolveTarget.action, note: resolveNote })}
-                disabled={resolveMutation.isPending}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: resolveTarget.action === 'RESCHEDULE' ? '#244B83' : '#16a34a', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+              <button onClick={() => resolveMutation.mutate({ id: resolveTarget.alert.id, action: resolveTarget.action, note: resolveNote, replacement_date: replaceDate || undefined })}
+                disabled={resolveMutation.isPending || (resolveTarget.action === 'REPLACE' && !replaceDate)}
+                style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: RESOLVE_CFG[resolveTarget.action].color, opacity: (resolveTarget.action === 'REPLACE' && !replaceDate) ? 0.5 : 1, color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
                 {resolveMutation.isPending ? 'กำลังบันทึก...' : 'ยืนยัน'}
               </button>
             </div>

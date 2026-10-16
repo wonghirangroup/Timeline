@@ -689,10 +689,11 @@ export async function listWorkedOnOwnDayOffAlerts(tenantId: string, scopedEmploy
 }
 
 export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendanceId: string, data: {
-  action: 'RESCHEDULE' | 'COMPENSATE'
+  action: 'RESCHEDULE' | 'COMPENSATE' | 'VACATION' | 'REPLACE'
   resolvedBy: string
   note?: string
   compensateDays?: number
+  replacementDate?: string // YYYY-MM-DD — ใช้กับ REPLACE
 }, scopedEmployeeIds?: string[]) {
   const record = await prisma.attendanceRecord.findFirst({
     where: {
@@ -709,6 +710,27 @@ export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendance
     await prisma.weeklyOffRequest.deleteMany({
       where: { tenant_id: tenantId, employee_id: record.employee_id, week_start: monday, day_of_week: record.date.getUTCDay() },
     })
+  } else if (data.action === 'REPLACE') {
+    // แอดมินเลือกวันหยุดใหม่ให้เลย — ย้ายแถววันหยุดเดิมของวันนี้ไปวันใหม่ (APPROVED ทันที)
+    const rd = data.replacementDate
+    if (!rd || !/^d{4}-d{2}-d{2}$/.test(rd) || Number.isNaN(Date.parse(rd + 'T00:00:00Z'))) throw new Error('INVALID_DATE')
+    const oldDate = record.date.toISOString().slice(0, 10)
+    if (rd === oldDate) throw new Error('INVALID_DATE')
+    const newWeek = getMondayOf(rd), newDow = new Date(rd + 'T00:00:00Z').getUTCDay()
+    const clash = await prisma.weeklyOffRequest.findFirst({ where: { employee_id: record.employee_id, week_start: newWeek, day_of_week: newDow } })
+    if (clash) throw new Error('REPLACEMENT_CLASH')
+    const now = new Date()
+    const old = await prisma.weeklyOffRequest.findFirst({
+      where: { tenant_id: tenantId, employee_id: record.employee_id, week_start: getMondayOf(oldDate), day_of_week: record.date.getUTCDay() },
+    })
+    if (old) {
+      await prisma.weeklyOffRequest.update({ where: { id: old.id }, data: { week_start: newWeek, day_of_week: newDow, status: 'APPROVED', reviewed_by: data.resolvedBy, reviewed_at: now, has_conflict: false } })
+    } else {
+      await prisma.weeklyOffRequest.create({ data: { tenant_id: tenantId, employee_id: record.employee_id, week_start: newWeek, day_of_week: newDow, status: 'APPROVED', reviewed_by: data.resolvedBy, reviewed_at: now } })
+    }
+  } else if (data.action === 'VACATION') {
+    // คุยกับพนักงานแล้ว — เก็บเป็นวันลาพักร้อนสะสม (feedback 2026-10-16)
+    await grantHolidayCompensation(tenantId, record.employee_id, data.compensateDays ?? 1, record.date.getUTCFullYear(), 'VACATION')
   } else {
     // ตั้งใจมาทำ — ให้วันชดเชยเพิ่ม เหมือนกลไกวันหยุดนักขัตฤกษ์ — จงใจไม่ส่ง leaveType
     // (คงเป็น COMPENSATE เสมอ) เพราะกรณีนี้คือ "มาทำงานทั้งที่จองวันหยุดตัวเองไว้"

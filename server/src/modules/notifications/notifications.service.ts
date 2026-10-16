@@ -161,7 +161,7 @@ export async function listAdminNotifications(tenantId: string, scopedEmployeeIds
     items.push({
       id: `workedoff:${a.id}`, kind: 'worked_on_own_day_off', severity: 'action',
       title: 'เช็คอินในวันที่จองวันหยุดไว้เอง',
-      detail: `${empName(a.employee)} · ${d(a.date)} — เลือกเลื่อนวันหยุด หรือให้วันชดเชย`,
+      detail: `${empName(a.employee)} · ${d(a.date)} — เลือกย้ายวันหยุดให้ / เก็บเป็นพักร้อนสะสม / คืนให้จองเอง`,
       link: `/leave?tab=time-off&worked=${a.id}`,
       employee_id: a.employee.id, employee_name: empName(a.employee),
       at: a.date.toISOString(),

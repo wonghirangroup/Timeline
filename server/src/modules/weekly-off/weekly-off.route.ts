@@ -312,14 +312,15 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DEPT_HEAD'), requirePermission('leave', 'edit'), resolveDeptScope],
     schema: {
       tags: ['Admin'],
-      summary: 'Resolve alert เช็คอินวันหยุดที่จองเอง — เลือก RESCHEDULE (เลื่อนไปจองใหม่) หรือ COMPENSATE (ให้วันชดเชย)',
+      summary: 'Resolve alert เช็คอินวันหยุดที่จองเอง — REPLACE (แอดมินเลือกวันหยุดใหม่ให้, ส่ง replacement_date), VACATION (เก็บเป็นพักร้อนสะสม), RESCHEDULE (คืนให้พนักงานจองเอง) หรือ COMPENSATE (เดิม)',
       security: [{ oauth2: [] }],
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: {
         type: 'object',
         required: ['action'],
         properties: {
-          action:          { type: 'string', enum: ['RESCHEDULE', 'COMPENSATE'] },
+          action:          { type: 'string', enum: ['RESCHEDULE', 'COMPENSATE', 'VACATION', 'REPLACE'] },
+          replacement_date: { type: 'string' },
           note:            { type: 'string' },
           compensate_days: { type: 'integer', minimum: 0, maximum: 5 },
         },
@@ -329,11 +330,14 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     try {
       const result = await resolveWorkedOnOwnDayOffAlert(req.tenantId, req.params.id, {
         action: req.body.action, resolvedBy: req.userId, note: req.body.note, compensateDays: req.body.compensate_days,
+        replacementDate: req.body.replacement_date,
       }, req.scopedEmployeeIds)
       if (!result) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
-      return ok(result, req.body.action === 'RESCHEDULE' ? 'ยกเลิกวันหยุดเดิม พนักงานจองวันใหม่ได้แล้ว' : 'ให้วันหยุดชดเชยเรียบร้อย')
+      return ok(result, ({ RESCHEDULE: 'คืนวันจองให้พนักงานแล้ว จองวันใหม่ได้เลย', REPLACE: 'ย้ายวันหยุดให้พนักงานเรียบร้อย', VACATION: 'เก็บเป็นวันลาพักร้อนสะสมเรียบร้อย', COMPENSATE: 'ให้วันหยุดชดเชยเรียบร้อย' } as Record<string, string>)[req.body.action])
     } catch (e: any) {
       if (e.message === 'ALREADY_RESOLVED') return reply.code(409).send(fail('ALREADY_RESOLVED', 'รายการนี้ resolve ไปแล้ว'))
+      if (e.message === 'INVALID_DATE') return reply.code(400).send(fail('INVALID_DATE', 'เลือกวันหยุดใหม่ที่ไม่ใช่วันเดิม'))
+      if (e.message === 'REPLACEMENT_CLASH') return reply.code(409).send(fail('REPLACEMENT_CLASH', 'พนักงานมีวันหยุดวันที่เลือกอยู่แล้ว'))
       throw e
     }
   })

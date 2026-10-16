@@ -292,7 +292,7 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
   })
   const notReallyOff = new Set(
     worked
-      .filter(w => !(w.weekly_off_resolved && w.weekly_off_resolution === 'COMPENSATE'))
+      .filter(w => !(w.weekly_off_resolved && (w.weekly_off_resolution === 'COMPENSATE' || w.weekly_off_resolution === 'VACATION')))
       .map(w => w.date.toISOString().slice(0, 10)),
   )
   return bookedDates.length - notReallyOff.size
