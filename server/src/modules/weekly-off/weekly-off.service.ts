@@ -713,7 +713,7 @@ export async function resolveWorkedOnOwnDayOffAlert(tenantId: string, attendance
   } else if (data.action === 'REPLACE') {
     // แอดมินเลือกวันหยุดใหม่ให้เลย — ย้ายแถววันหยุดเดิมของวันนี้ไปวันใหม่ (APPROVED ทันที)
     const rd = data.replacementDate
-    if (!rd || !/^d{4}-d{2}-d{2}$/.test(rd) || Number.isNaN(Date.parse(rd + 'T00:00:00Z'))) throw new Error('INVALID_DATE')
+    if (!rd || !/^\d{4}-\d{2}-\d{2}$/.test(rd) || Number.isNaN(Date.parse(rd + 'T00:00:00Z'))) throw new Error('INVALID_DATE')
     const oldDate = record.date.toISOString().slice(0, 10)
     if (rd === oldDate) throw new Error('INVALID_DATE')
     const newWeek = getMondayOf(rd), newDow = new Date(rd + 'T00:00:00Z').getUTCDay()
