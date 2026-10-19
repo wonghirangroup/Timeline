@@ -5,6 +5,7 @@ import { resolveLeaveEnabled } from '../group/group.service'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
 import { MonthlyCapError, capMessage } from './monthly-cap'
+import { computeLeaveConflict } from './leave-conflict'
 import { assertMonthlyCap, applyConflictDeduction, reverseConflictDeduction } from './vacation-policy.service'
 
 type LeavePeriod = 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'
@@ -216,7 +217,8 @@ export async function createLeaveRequest(
 
   const employee = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId }, select: { position_id: true } })
   const startDate = new Date(data.start_date), endDate = new Date(data.end_date)
-  const conflict = await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, startDate, endDate)
+  const conflictInfo = await computeLeaveConflict(tenantId, data.employee_id, data.start_date, data.end_date)
+  const conflict = conflictInfo.has_conflict || await hasPositionConflict(tenantId, data.employee_id, employee?.position_id ?? null, startDate, endDate)
 
   const created = await prisma.leaveRequest.create({
     data: {
@@ -233,6 +235,7 @@ export async function createLeaveRequest(
       end_time:   period === 'CUSTOM' ? (data.end_time ?? null)   : null,
       reason: data.reason,
       has_conflict: conflict,
+      conflict_fee: conflictInfo.fee,
       policy_override_by: leaveOverrideBy,
       over_limit_note: overLimitNote,
       ...(data.autoApprove ? { status: 'APPROVED', reviewed_by: data.reviewedBy, reviewed_at: new Date() } : {}),

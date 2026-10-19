@@ -2087,6 +2087,15 @@ export default function LeavePage() {
 
   const days      = calcLeaveDays()
   const submitting = submitMutation.isPending
+
+  // พรีวิวก่อนกดยื่น: ลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกันไหม + ถูกหักกี่บาท (ตั้งอัตราที่หน้าแอดมิน → นโยบายการลา)
+  const previewEnd = form.period === 'FULL' ? form.endDate : form.startDate
+  const { data: conflictPreview } = useQuery<{ enabled: boolean; has_conflict: boolean; fee: number; days: { date: string; fee: number; with: string[] }[] }>({
+    queryKey: ['employee', 'leave-conflict-preview', employee?.id, form.startDate, previewEnd],
+    queryFn: () => api.get('/employee/leave-requests/conflict-preview', { params: { start_date: form.startDate, end_date: previewEnd } }).then((r: any) => r.data.data),
+    enabled: !!employee?.id && !!form.startDate && !!previewEnd && previewEnd >= form.startDate,
+    staleTime: 30_000,
+  })
   const canSubmit  = !!form.startDate && (form.period !== 'FULL' || !!form.endDate) && !!form.reason.trim() && days > 0
 
   return (
@@ -2287,6 +2296,23 @@ export default function LeavePage() {
               {days > 0 && (
                 <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: `${COLOR.primary}08`, fontSize: '0.82rem', color: COLOR.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Calendar size={14} /> {form.period === 'FULL' ? `รวม ${days} วันทำงาน` : `หักโควต้า ${days} วัน`}
+                </div>
+              )}
+              {conflictPreview?.has_conflict && (
+                <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: conflictPreview.fee > 0 ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${conflictPreview.fee > 0 ? '#FECACA' : '#FDE68A'}`, color: conflictPreview.fee > 0 ? '#B91C1C' : '#B45309', fontSize: '0.8rem', lineHeight: 1.6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, marginBottom: 4 }}>
+                    <AlertTriangle size={14} />
+                    {conflictPreview.fee > 0 ? `ลาทับวันหยุดเพื่อนร่วมตำแหน่ง — ถูกหัก ${conflictPreview.fee.toLocaleString()} บาท` : 'มีเพื่อนตำแหน่งเดียวกันหยุด/ลาในวันนี้'}
+                  </div>
+                  {conflictPreview.days.map(d => (
+                    <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <span>{new Date(d.date + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', weekday: 'short' })} · {d.with.join(', ')}</span>
+                      {d.fee > 0 && <strong>{d.fee.toLocaleString()} บ.</strong>}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 4, fontSize: '0.74rem', opacity: 0.85 }}>
+                    {conflictPreview.fee > 0 ? 'ถ้าไม่ต้องการถูกหัก เลือกวันอื่นที่ไม่ตรงกับเพื่อนได้ — ยังกดยื่นได้ตามปกติ แอดมินจะเห็นยอดหักในคำขอ' : 'ยังยื่นได้ตามปกติ แอดมินจะพิจารณาตอนอนุมัติ'}
+                  </div>
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>

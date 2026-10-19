@@ -9,6 +9,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok, fail }         from '../../common/utils/response'
 import { listLeaveRequests, getLeaveRequest, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest, getMonthColleagueLeaves } from './leave.service'
+import { computeLeaveConflict } from './leave-conflict'
 import { listLeaveBalances, upsertLeaveBalance, batchUpsertLeaveBalances, listEmployeesWithBalances } from './leave-balance.service'
 import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
@@ -310,6 +311,24 @@ export async function leaveRoutes(app: FastifyInstance) {
       if (e.message === 'MONTHLY_CAP_EXCEEDED') return reply.code(400).send(fail('MONTHLY_CAP_EXCEEDED', capMessage(e.detail, 'รวมวันหยุด + พักร้อนเดือนนี้เกิน 10 วันแล้ว')))
       throw e
     }
+  })
+
+  // ── Employee (LIFF): พรีวิวก่อนกดยื่น — ลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกันไหม + ยอดหักกี่บาท ────
+  app.get('/employee/leave-requests/conflict-preview', {
+    preHandler: [tenantMiddleware, requireFeature('leave_management')],
+    schema: {
+      tags: ['Employee'],
+      summary: 'พรีวิวการลาทับวันหยุด/วันลาคนตำแหน่งเดียวกัน + ยอดหักเป็นเงิน (LIFF)',
+      security: [{ oauth2: [] }],
+      querystring: {
+        type: 'object',
+        required: ['start_date', 'end_date'],
+        properties: { start_date: { type: 'string', description: 'YYYY-MM-DD' }, end_date: { type: 'string', description: 'YYYY-MM-DD' } },
+      },
+    },
+  }, async (req: any, reply) => {
+    if (!requireOwnEmployeeId(req, reply)) return
+    return ok(await computeLeaveConflict(req.tenantId, req.employeeId, req.query.start_date, req.query.end_date))
   })
 
   // ── Employee (LIFF): เพื่อนตำแหน่ง/สาขาเดียวกันที่ลาทับเดือนนี้ ────

@@ -48,6 +48,7 @@ interface ApiLeaveRequest {
   created_at: string
   over_limit_note?: string | null   // พนักงานยื่นพักร้อนเกินเพดานรวม หยุด+พักร้อน/เดือน — ส่งได้ ให้แอดมินตัดสินใจ
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ให้แอดมินตัดสินใจ
+  conflict_fee?: number    // ยอดหักเป็นเงิน (บาท) จากการลาทับวันหยุด/วันลาคนตำแหน่งเดียวกัน (0 = ไม่หัก)
   employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
 }
 
@@ -748,7 +749,7 @@ export default function LeaveRequestsTab() {
                               )}
                               {r.has_conflict && (
                                 <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
-                                  <AlertTriangle size={10} /> ชนตำแหน่ง
+                                  <AlertTriangle size={10} /> ชนตำแหน่ง{(r.conflict_fee ?? 0) > 0 ? ` · หัก ${r.conflict_fee!.toLocaleString()} บ.` : ''}
                                 </span>
                               )}
                             </div>
@@ -834,7 +835,7 @@ export default function LeaveRequestsTab() {
                               )}
                               {r.has_conflict && (
                                 <span title="มีพนักงานตำแหน่งเดียวกันลาทับวันนี้ไว้แล้ว" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
-                                  <AlertTriangle size={10} /> ชนตำแหน่ง
+                                  <AlertTriangle size={10} /> ชนตำแหน่ง{(r.conflict_fee ?? 0) > 0 ? ` · หัก ${r.conflict_fee!.toLocaleString()} บ.` : ''}
                                 </span>
                               )}
                             </div>
@@ -1093,7 +1094,13 @@ export default function LeaveRequestsTab() {
                 </p>
               </div>
             </div>
-            {approveTarget.has_conflict && (
+            {(approveTarget.conflict_fee ?? 0) > 0 && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px', marginBottom: 16, fontSize: '12.5px', color: '#b91c1c', lineHeight: 1.6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><AlertTriangle size={13} /> ลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกัน — หักเงิน {approveTarget.conflict_fee!.toLocaleString()} บาท</div>
+                ยอดนี้คำนวณตอนพนักงานยื่น (จันทร์–ศุกร์/เสาร์–อาทิตย์ตามอัตราในนโยบายการลา) และบันทึกไว้ที่คำขอแล้ว
+              </div>
+            )}
+            {approveTarget.has_conflict && !((approveTarget.conflict_fee ?? 0) > 0) && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', fontWeight: 700, color: '#b45309', marginBottom: 8 }}>
                   <AlertTriangle size={13} /> ชนตำแหน่งเดียวกัน — เลือกว่าจะหัก 1 วันจากโควต้าไหน

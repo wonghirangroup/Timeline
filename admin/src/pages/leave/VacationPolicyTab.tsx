@@ -40,6 +40,9 @@ interface TenantSettings {
   leave_backdate_days: number | null
   self_resignation_enabled: boolean
   vacation_count_worked_off_days: boolean
+  leave_conflict_fee_enabled: boolean
+  leave_conflict_fee_weekday: number
+  leave_conflict_fee_weekend: number
 }
 
 const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: '#92400e', background: '#fef3c7' }
@@ -68,12 +71,18 @@ function LeavePolicyCard() {
   const [days, setDays] = useState(3)
   const [selfResign, setSelfResign] = useState(true)
   const [countWorkedOffDays, setCountWorkedOffDays] = useState(true)
+  const [feeOn, setFeeOn] = useState(false)
+  const [feeWeekday, setFeeWeekday] = useState(50)
+  const [feeWeekend, setFeeWeekend] = useState(100)
   useEffect(() => {
     if (!data) return
     setUnlimited(data.leave_backdate_days == null)
     setDays(data.leave_backdate_days ?? 3)
     setSelfResign(data.self_resignation_enabled !== false)
     setCountWorkedOffDays(data.vacation_count_worked_off_days !== false)
+    setFeeOn(data.leave_conflict_fee_enabled === true)
+    setFeeWeekday(data.leave_conflict_fee_weekday ?? 50)
+    setFeeWeekend(data.leave_conflict_fee_weekend ?? 100)
   }, [data])
 
   const mut = useMutation({
@@ -81,6 +90,9 @@ function LeavePolicyCard() {
       leave_backdate_days: unlimited ? null : Math.max(0, days),
       self_resignation_enabled: selfResign,
       vacation_count_worked_off_days: countWorkedOffDays,
+      leave_conflict_fee_enabled: feeOn,
+      leave_conflict_fee_weekday: Math.max(0, feeWeekday),
+      leave_conflict_fee_weekend: Math.max(0, feeWeekend),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกนโยบายการลาแล้ว') },
     onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
@@ -126,6 +138,27 @@ function LeavePolicyCard() {
           </span>
           <Toggle checked={countWorkedOffDays} disabled={readOnly} onChange={setCountWorkedOffDays} aria-label="นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็นไม่ได้พักจริง" />
         </div>
+      </div>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, marginLeft: 42 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>หักเงินเมื่อลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกัน</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
+              ถ้าพนักงานยื่นลาในวันที่คนตำแหน่งเดียวกันหยุดประจำ (อนุมัติแล้ว) หรือลาอยู่แล้ว คนที่ยื่นทีหลังจะถูกหักตามอัตราด้านล่าง (ทุกประเภทการลา) — แอปพนักงานจะแจ้งยอดหักก่อนกดยื่น และแอดมินเห็นยอดในรายการคำขอลา
+            </span>
+          </span>
+          <Toggle checked={feeOn} disabled={readOnly} onChange={setFeeOn} aria-label="หักเงินเมื่อลาทับวันหยุดคนตำแหน่งเดียวกัน" />
+        </div>
+        {feeOn && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 12, fontSize: '13px', color: '#374151' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>จันทร์–ศุกร์
+              <input type="number" min={0} value={feeWeekday} disabled={readOnly} onChange={e => setFeeWeekday(Math.max(0, parseInt(e.target.value) || 0))} style={{ ...inputStyle, width: 84, textAlign: 'center' }} /> บาท/วัน
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>เสาร์–อาทิตย์
+              <input type="number" min={0} value={feeWeekend} disabled={readOnly} onChange={e => setFeeWeekend(Math.max(0, parseInt(e.target.value) || 0))} style={{ ...inputStyle, width: 84, textAlign: 'center' }} /> บาท/วัน
+            </label>
+          </div>
+        )}
       </div>
       {!readOnly && (
         <div style={{ marginLeft: 42 }}>

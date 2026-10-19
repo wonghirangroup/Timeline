@@ -345,7 +345,7 @@ function SelfPasswordCard() {
 }
 
 // ── ข้อมูลบริษัท & แบรนด์ ───────────────────────────────────────────────────
-interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; vacation_count_worked_off_days: boolean; plan: string; notification_prefs: Record<string, boolean> | null; enabled_features: Record<string, boolean> | null }
+interface TenantSettings { name: string; address: string | null; tax_id: string | null; logo_url: string | null; primary_color: string | null; signer_name: string | null; signer_title: string | null; leave_backdate_days: number | null; self_resignation_enabled: boolean; vacation_count_worked_off_days: boolean; leave_conflict_fee_enabled: boolean; leave_conflict_fee_weekday: number; leave_conflict_fee_weekend: number; plan: string; notification_prefs: Record<string, boolean> | null; enabled_features: Record<string, boolean> | null }
 
 function CompanyProfileTab() {
   const qc = useQueryClient()

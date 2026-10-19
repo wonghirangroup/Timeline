@@ -145,6 +145,7 @@ const TENANT_SETTINGS_SELECT = {
   signer_name: true, signer_title: true,
   leave_backdate_days: true, self_resignation_enabled: true, plan: true,
   notification_prefs: true, enabled_features: true, vacation_count_worked_off_days: true,
+  leave_conflict_fee_enabled: true, leave_conflict_fee_weekday: true, leave_conflict_fee_weekend: true,
 } as const
 
 export async function getTenantSettings(tenantId: string) {
@@ -162,6 +163,9 @@ export async function updateTenantSettings(tenantId: string, data: {
   leave_backdate_days?: number | null
   self_resignation_enabled?: boolean
   vacation_count_worked_off_days?: boolean
+  leave_conflict_fee_enabled?: boolean
+  leave_conflict_fee_weekday?: number
+  leave_conflict_fee_weekend?: number
 }) {
   const count = await prisma.tenant.updateMany({ where: { id: tenantId, deleted_at: null }, data })
   if (count.count === 0) return null
