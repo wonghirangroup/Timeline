@@ -2,7 +2,7 @@
 import { useState, useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3, Clock, ArrowLeft } from 'lucide-react'
+import { CalendarDays, CalendarOff, Palmtree, Thermometer, Baby, ClipboardList, X, Check, AlertTriangle, AlertOctagon, Search, Wallet, Download, MapPin, LayoutGrid, Table2, BarChart3, Clock, ArrowLeft, Flag, Landmark, Building2, Gift } from 'lucide-react'
 import { api } from '../../lib/axios'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import InfoTooltip from '../../components/ui/InfoTooltip'
@@ -38,7 +38,7 @@ interface AttendanceRecord {
 }
 
 interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean; branch_id?: string; department?: string | null }
-interface HolidayRow { id: string; name: string; date: string; target_branches?: string[] | null; target_departments?: string[] | null; employee_includes?: string[] | null; employee_excludes?: string[] | null }
+interface HolidayRow { id: string; name: string; date: string; type?: string; target_branches?: string[] | null; target_departments?: string[] | null; employee_includes?: string[] | null; employee_excludes?: string[] | null }
 // วันหยุดแถวนี้ใช้กับพนักงานคนนี้ไหม (mirror holidayAppliesTo ฝั่ง server: ยกเว้นรายคน > รวมรายคน > สาขา/แผนก; ว่าง = ทุกคน)
 function holidayApplies(h: HolidayRow, emp: { id: string; branchId: string; department?: string | null }): boolean {
   if ((h.employee_excludes ?? []).includes(emp.id)) return false
@@ -47,6 +47,12 @@ function holidayApplies(h: HolidayRow, emp: { id: string; branchId: string; depa
   const deptCode = (emp.department ?? '').slice(0, 2).trim()
   return (branches.length === 0 || branches.includes(emp.branchId)) && (depts.length === 0 || depts.some(d => String(d).slice(0, 2).trim() === deptCode))
 }
+const HOLIDAY_KIND: Record<string, { label: string; bg: string; color: string; Icon: typeof Flag }> = {
+  NATIONAL:  { label: 'วันหยุดนักขัตฤกษ์',  bg: '#ccfbf1', color: '#0f766e', Icon: Flag },
+  RELIGIOUS: { label: 'วันสำคัญทางศาสนา',   bg: '#e0e7ff', color: '#4338ca', Icon: Landmark },
+  COMPANY:   { label: 'วันหยุดบริษัท',      bg: '#e2e8f0', color: '#334155', Icon: Building2 },
+}
+const COMP_STYLE = { label: 'วันหยุดชดเชย', bg: '#cffafe', color: '#0e7490' }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
 interface LeaveRequest {
@@ -444,8 +450,12 @@ export default function ReportPage() {
 
     if (leaveType && !hasRealCheckin) {
       const lf = leaveEntry!.fraction
-      if (leaveType === 'หยุด' || leaveType === 'หยุดนักขัตฤกษ์' || leaveType === 'COMPENSATE')
-        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: (leaveType === 'COMPENSATE' ? 'วันหยุดนักขัตฤกษ์' : leaveType) + halfSuffix, status: 'leave', leaveFraction: lf }
+      if (leaveType === 'COMPENSATE')
+        return { bg: COMP_STYLE.bg, label: <Gift size={13} />, color: COMP_STYLE.color, tip: COMP_STYLE.label + halfSuffix, status: 'leave', leaveFraction: lf }
+      if (leaveType === 'หยุดนักขัตฤกษ์')
+        return { bg: HOLIDAY_KIND.NATIONAL.bg, label: <Flag size={13} />, color: HOLIDAY_KIND.NATIONAL.color, tip: HOLIDAY_KIND.NATIONAL.label + halfSuffix, status: 'leave', leaveFraction: lf }
+      if (leaveType === 'หยุด')
+        return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุดประจำ (จองไว้)' + halfSuffix, status: 'leave', leaveFraction: lf }
       if (leaveType === 'SICK' || leaveType === 'ลาป่วย')
         return { bg: '#fee2e2', label: <Thermometer size={13} />, color: '#dc2626', tip: 'ลาป่วย' + halfSuffix, status: 'sick', leaveFraction: lf }
       if (leaveType === 'VACATION' || leaveType === 'พักร้อน' || leaveType === 'ลาพักร้อน')
@@ -458,10 +468,13 @@ export default function ReportPage() {
     }
 
     if (!hasRealCheckin && dayoffMap.get(empId)?.has(dateKey)) {
-      return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
+      return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'หยุดประจำ (จองไว้)', status: 'holiday' }
     }
     const hol = !hasRealCheckin ? holidayFor(empId, dateKey) : null
-    if (hol) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: hol.name, status: 'holiday' }
+    if (hol) {
+      const k = HOLIDAY_KIND[hol.type ?? 'NATIONAL'] ?? HOLIDAY_KIND.NATIONAL
+      return { bg: k.bg, label: <k.Icon size={13} />, color: k.color, tip: `${k.label} · ${hol.name}`, status: 'holiday' }
+    }
     if (!hasRealCheckin && offsiteMap.get(empId)?.has(dateKey)) {
       return { bg: '#f3e8ff', label: <MapPin size={13} />, color: '#9333ea', tip: 'นอกสถานที่', status: 'offsite' }
     }
@@ -1020,7 +1033,11 @@ export default function ReportPage() {
               { bg: '#fef3c7', sym: <AlertTriangle size={11} />, label: 'มาสาย 1' },
               { bg: '#fde8d8', sym: <AlertOctagon size={11} />,  label: 'มาสาย 2' },
               { bg: '#fee2e2', sym: <X size={11} />,             label: 'ขาด' },
-              { bg: '#e0f2fe', sym: <CalendarOff size={11} />,   label: 'หยุด' },
+              { bg: '#e0f2fe', sym: <CalendarOff size={11} />,   label: 'หยุดประจำ (จองไว้)' },
+              { bg: HOLIDAY_KIND.NATIONAL.bg,  sym: <Flag size={11} color={HOLIDAY_KIND.NATIONAL.color} />,       label: 'นักขัตฤกษ์' },
+              { bg: HOLIDAY_KIND.RELIGIOUS.bg, sym: <Landmark size={11} color={HOLIDAY_KIND.RELIGIOUS.color} />,  label: 'ศาสนา' },
+              { bg: HOLIDAY_KIND.COMPANY.bg,   sym: <Building2 size={11} color={HOLIDAY_KIND.COMPANY.color} />,   label: 'หยุดบริษัท' },
+              { bg: COMP_STYLE.bg,             sym: <Gift size={11} color={COMP_STYLE.color} />,                  label: 'ชดเชย' },
               { bg: '#ede9fe', sym: <ClipboardList size={11} />, label: 'ลากิจ' },
               { bg: '#fef9c3', sym: <Palmtree size={11} />,      label: 'พักร้อน' },
               { bg: '#fee2e2', sym: <Thermometer size={11} />,   label: 'ป่วย' },
