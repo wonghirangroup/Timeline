@@ -37,7 +37,16 @@ interface AttendanceRecord {
   shift: { id: string; name: string; start_time: string; end_time: string }
 }
 
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean; branch_id?: string; department?: string | null }
+interface HolidayRow { id: string; name: string; date: string; target_branches?: string[] | null; target_departments?: string[] | null; employee_includes?: string[] | null; employee_excludes?: string[] | null }
+// วันหยุดแถวนี้ใช้กับพนักงานคนนี้ไหม (mirror holidayAppliesTo ฝั่ง server: ยกเว้นรายคน > รวมรายคน > สาขา/แผนก; ว่าง = ทุกคน)
+function holidayApplies(h: HolidayRow, emp: { id: string; branchId: string; department?: string | null }): boolean {
+  if ((h.employee_excludes ?? []).includes(emp.id)) return false
+  if ((h.employee_includes ?? []).includes(emp.id)) return true
+  const branches = h.target_branches ?? [], depts = h.target_departments ?? []
+  const deptCode = (emp.department ?? '').slice(0, 2).trim()
+  return (branches.length === 0 || branches.includes(emp.branchId)) && (depts.length === 0 || depts.some(d => String(d).slice(0, 2).trim() === deptCode))
+}
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 
 interface LeaveRequest {
@@ -205,6 +214,12 @@ export default function ReportPage() {
     queryFn:  () => api.get('/api/v1/admin/offsite-checkins', { params: { ...(branch ? { branchId: branch } : {}) } }).then((r: any) => r.data.data),
   })
 
+  const holidayYears = useMemo(() => [...new Set([queryStartDate, queryEndDate].map(d => Number(d.slice(0, 4))))], [queryStartDate, queryEndDate])
+  const { data: holidayRows = [] } = useQuery<HolidayRow[]>({
+    queryKey: ['admin', 'holidays-report', holidayYears.join(',')],
+    queryFn: async () => (await Promise.all(holidayYears.map(y => api.get('/api/v1/super-admin/holidays', { params: { year: y } }).then((r: any) => r.data.data as HolidayRow[])))).flat(),
+  })
+
   const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
     queryKey: ['admin', 'employees', branch],
     // เฉพาะพนักงานที่ยังใช้งานอยู่ — คนที่ลาออก/เลิกจ้างไปแล้วไม่ต้องขึ้นในรายงาน
@@ -218,6 +233,18 @@ export default function ReportPage() {
     queryFn: () => api.get('/api/v1/admin/positions').then((r: any) => r.data.data),
   })
   const employeeOrgMap = useMemo(() => buildEmployeeOrgMap(allEmployees, positions), [allEmployees, positions])
+  const empById = useMemo(() => new Map(allEmployees.map(e => [e.id, e])), [allEmployees])
+  const holidaysByDate = useMemo(() => {
+    const m = new Map<string, HolidayRow[]>()
+    for (const h of holidayRows) { const k = String(h.date).slice(0, 10); if (!m.has(k)) m.set(k, []); m.get(k)!.push(h) }
+    return m
+  }, [holidayRows])
+  // วันหยุดนักขัตฤกษ์ที่ใช้กับพนักงานคนนี้ในวันนั้น (null = ไม่ใช่วันหยุดของคนนี้)
+  function holidayFor(empId: string, dateKey: string): HolidayRow | null {
+    const list = holidaysByDate.get(dateKey); if (!list) return null
+    const e = empById.get(empId); if (!e) return null
+    return list.find(h => holidayApplies(h, { id: e.id, branchId: e.branch?.id ?? e.branch_id ?? '', department: e.department })) ?? null
+  }
   const exemptIds = useMemo(() => new Set(allEmployees.filter(e => e.checkin_exempt).map(e => e.id)), [allEmployees])
   // branch จัดการฝั่ง server แล้ว (param branchId ข้างบน) — เหลือกรองกลุ่ม/แผนก/
   // ตำแหน่งฝั่ง client เพิ่ม (เหมือน TeamCalendarTab.tsx)
@@ -331,7 +358,7 @@ export default function ReportPage() {
       if (missing.length > 0) m.set(info.id, missing)
     }
     return m
-  }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap, firstCheckinMap])
+  }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap, firstCheckinMap, holidaysByDate, empById])
 
   // จำนวนวันที่ "มาทำงานในวันหยุด/วันลา" ต่อคน ในช่วง/เดือนที่เลือก (ใช้เกณฑ์เดียวกับแท็กส้ม)
   const workedOffByEmp = useMemo(() => {
@@ -342,7 +369,7 @@ export default function ReportPage() {
       if (n > 0) m.set(info.id, n)
     }
     return m
-  }, [employees, activeDateKeys, leaveMap, dayoffMap])
+  }, [employees, activeDateKeys, leaveMap, dayoffMap, holidaysByDate, empById])
 
   const filteredEmployees = onlyNoData ? employees.filter(e => noDataByEmp.has(e.info.id)) : employees
 
@@ -384,6 +411,7 @@ export default function ReportPage() {
     const leaveType = leaveMap.get(empId)?.get(dateKey)?.label
     if (leaveType) return ['หยุด', 'หยุดนักขัตฤกษ์', 'COMPENSATE'].includes(leaveType) ? 'วันหยุด' : 'วันลา'
     if (dayoffMap.get(empId)?.has(dateKey)) return 'วันหยุด'
+    if (holidayFor(empId, dateKey)) return 'วันหยุด'
     const note = recs.map(r => r.note ?? '').join(' ')
     if (note.includes('วันหยุด')) return 'วันหยุด'
     if (note.includes('พักร้อน') || note.includes('ลากิจ')) return 'วันลา'
@@ -432,6 +460,8 @@ export default function ReportPage() {
     if (!hasRealCheckin && dayoffMap.get(empId)?.has(dateKey)) {
       return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: 'วันหยุด', status: 'holiday' }
     }
+    const hol = !hasRealCheckin ? holidayFor(empId, dateKey) : null
+    if (hol) return { bg: '#e0f2fe', label: <CalendarOff size={13} />, color: '#0369a1', tip: hol.name, status: 'holiday' }
     if (!hasRealCheckin && offsiteMap.get(empId)?.has(dateKey)) {
       return { bg: '#f3e8ff', label: <MapPin size={13} />, color: '#9333ea', tip: 'นอกสถานที่', status: 'offsite' }
     }
