@@ -1,6 +1,6 @@
 import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailModal'
 import { showResult } from '../../components/ui/ResultDialog'
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Building2, Search, QrCode, X, Check, MapPin, Map, ChevronLeft, ChevronRight, CheckCircle2, Users, HelpCircle, Clock, ChevronsRight, Pencil, Trash2, AlarmClock, Globe, AlertTriangle, Ban, Wrench, Printer, Radio, Bot, Loader2, Download, MousePointerClick, AlertOctagon, Lock, Star, Table2, LayoutGrid } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -225,6 +225,19 @@ export default function BranchPage() {
     queryFn: () => api.get('/api/v1/admin/employees').then(r => r.data.data),
   })
 
+  // พนักงาน 1 คนอยู่ได้หลายกะ (employee_shifts) — คู่ (พนักงาน, กะ) ที่เก็บไว้; ข้อมูลเก่าที่ตั้งผ่าน default_shift_id อย่างเดียวก็นับว่าอยู่กะนั้นด้วย
+  const { data: shiftLinks = [] } = useQuery<{ employee_id: string; shift_id: string }[]>({
+    queryKey: ['employee-shifts'],
+    queryFn: () => api.get('/api/v1/admin/employee-shifts').then(r => r.data.data),
+  })
+  const linkSet = useMemo(() => new Set(shiftLinks.map(l => l.employee_id + ':' + l.shift_id)), [shiftLinks])
+  const isInShift = (e: { id: string; default_shift_id: string | null }, shiftId: string) => linkSet.has(e.id + ':' + shiftId) || e.default_shift_id === shiftId
+  const shiftIdsOf = (e: { id: string; default_shift_id: string | null }) => {
+    const ids = new Set(shiftLinks.filter(l => l.employee_id === e.id).map(l => l.shift_id))
+    if (e.default_shift_id) ids.add(e.default_shift_id)
+    return [...ids]
+  }
+
   const createMutation = useMutation({
     mutationFn: (body: object) => api.post('/api/v1/admin/branches', body).then(r => r.data.data),
     onSuccess: async (branch: any) => {
@@ -299,16 +312,21 @@ export default function BranchPage() {
   })
 
   // ตั้ง/ถอด "กะที่สังกัด" ของพนักงาน — informational เท่านั้น ไม่กระทบการเช็คอินจริง
+  // ย้ายออกจาก "กะนี้" เท่านั้น — กะอื่นของคนเดิมไม่กระทบ (ล้าง default_shift_id ด้วยถ้าชี้มาที่กะนี้ เพราะข้อมูลเก่าเก็บแบบนั้น)
   const assignShiftMutation = useMutation({
-    mutationFn: ({ employeeId, shiftId }: { employeeId: string; shiftId: string | null }) =>
-      api.patch(`/api/v1/admin/employees/${employeeId}`, { default_shift_id: shiftId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
-    onError: () => showToast('error', 'อัปเดตพนักงานไม่สำเร็จ'),
+    mutationFn: async ({ employeeId, shiftId, clearDefault }: { employeeId: string; shiftId: string; clearDefault: boolean }) => {
+      await api.delete(`/api/v1/admin/shifts/${shiftId}/employees/${employeeId}`).catch((e: any) => { if (e?.response?.status !== 404) throw e })
+      if (clearDefault) await api.patch(`/api/v1/admin/employees/${employeeId}`, { default_shift_id: null })
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employee-shifts'] }); qc.invalidateQueries({ queryKey: ['employees'] }) },
+    onError: () => showToast('error', 'ย้ายพนักงานออกจากกะไม่สำเร็จ'),
   })
+  // เพิ่มเข้ากะนี้ — ไม่เอาออกจากกะอื่น (1 คนอยู่ได้หลายกะ)
   const bulkAssignShiftMutation = useMutation({
     mutationFn: ({ employeeIds, shiftId }: { employeeIds: string[]; shiftId: string }) =>
-      Promise.all(employeeIds.map(id => api.patch(`/api/v1/admin/employees/${id}`, { default_shift_id: shiftId }))),
+      Promise.all(employeeIds.map(id => api.post(`/api/v1/admin/shifts/${shiftId}/employees`, { employee_id: id }))),
     onSuccess: (_, { employeeIds }) => {
+      qc.invalidateQueries({ queryKey: ['employee-shifts'] })
       qc.invalidateQueries({ queryKey: ['employees'] })
       showToast('success', `เพิ่ม ${employeeIds.length} คนเข้ากะแล้ว`)
       setSelectedAddIds(new Set())
@@ -644,7 +662,7 @@ export default function BranchPage() {
         {[
           { k: 'all' as const, label: 'ทั้งหมด',     value: branchesFiltered.length,                               icon: <Building2 size={15}/>,   color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
           { k: 'active' as const, label: 'เปิดใช้งาน', value: branchesFiltered.filter(b => b.is_active).length,       icon: <CheckCircle2 size={15}/>, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-          { k: 'emp' as const, label: 'พนักงานรวม',  value: branchesFiltered.reduce((s, b) => s + b._count.employees, 0), icon: <Users size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
+          { k: 'emp' as const, label: 'พนักงานรวม',  value: allEmployees.filter(e => branchesFiltered.some(b => b.id === e.branch_id || e.extra_branches?.some(eb => eb.branch.id === b.id))).length, icon: <Users size={15}/>, color: '#244B83', bg: '#F4F6F9', border: '#B2C0D4' },
         ].map(k => (
           <div key={k.label} role="button" tabIndex={0} title={`กดเพื่อดูรายละเอียด "${k.label}"`}
             onClick={() => setKpiPopup(k.k)}
@@ -738,7 +756,7 @@ export default function BranchPage() {
                       {branchShifts.map(s => {
                         const st = getShiftStatus(s)
                         const cfg = STATUS_CFG[st]
-                        const assignedCount = allEmployees.filter(e => e.default_shift_id === s.id).length
+                        const assignedCount = allEmployees.filter(e => isInShift(e, s.id)).length
                         return (
                           <button
                             key={s.id}
@@ -1639,13 +1657,13 @@ export default function BranchPage() {
 
                 {/* Employee assignment — informational เท่านั้น ไม่กระทบการเช็คอินจริง */}
                 {(() => {
-                  const inShiftEmps  = branchEmps.filter(e => e.default_shift_id === s.id)
-                  const otherEmps    = branchEmps.filter(e => e.default_shift_id !== s.id)
+                  const inShiftEmps  = branchEmps.filter(e => isInShift(e, s.id))
+                  const otherEmps    = branchEmps.filter(e => !isInShift(e, s.id))
                   const q            = shiftEmpSearch.trim().toLowerCase()
                   const searchedOtherEmps = q
                     ? otherEmps.filter(e => `${e.first_name} ${e.last_name} ${e.nickname ?? ''}`.toLowerCase().includes(q))
                     : otherEmps
-                  const shiftNameOf = (shiftId: string | null) => shiftId ? (allShifts.find(sh => sh.id === shiftId)?.name ?? null) : null
+                  const shiftNamesOf = (e: { id: string; default_shift_id: string | null }) => shiftIdsOf(e).map(id => allShifts.find(sh => sh.id === id)?.name).filter(Boolean).join(', ') || null
 
                   return (
                     <div style={{ padding:'16px 20px' }}>
@@ -1688,7 +1706,7 @@ export default function BranchPage() {
                                 </div>
                               </div>
                               <button
-                                onClick={() => assignShiftMutation.mutate({ employeeId: e.id, shiftId: null })}
+                                onClick={() => assignShiftMutation.mutate({ employeeId: e.id, shiftId: s.id, clearDefault: e.default_shift_id === s.id })}
                                 disabled={assignShiftMutation.isPending}
                                 style={{ padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', fontSize:'11px', fontWeight:700, cursor:'pointer', flexShrink:0 }}>
                                 ย้ายออก
@@ -1730,7 +1748,7 @@ export default function BranchPage() {
                                 </label>
                                 <div style={{ display:'flex',flexDirection:'column',gap:2, maxHeight:220, overflowY:'auto' }}>
                                   {searchedOtherEmps.map((e, idx) => {
-                                    const curShiftName = shiftNameOf(e.default_shift_id)
+                                    const curShiftName = shiftNamesOf(e)
                                     const checked = selectedAddIds.has(e.id)
                                     return (
                                       <div key={e.id} onClick={() => toggleOne(e.id)}

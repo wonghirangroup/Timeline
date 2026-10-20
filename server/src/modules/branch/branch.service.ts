@@ -3,19 +3,30 @@ import { prisma } from '../../common/utils/prisma'
 import { assertPlanCapacity } from '../tenant/tenant.service'
 
 export async function listBranches(tenantId: string) {
-  return prisma.branch.findMany({
+  const branches = await prisma.branch.findMany({
     where: {
       deleted_at: null,
       ...(tenantId ? { tenant_id: tenantId } : {}),
     },
     include: {
-      // นับเฉพาะพนักงานที่ยังใช้งานอยู่จริง (is_active=true ผูกกับ status=ACTIVE
-      // เท่านั้น) — เดิมนับรวมพนักงานลาออก/ปิดใช้งาน/soft-delete ด้วย ทำให้ตัวเลข
-      // "พนักงานรวม" สูงเกินจริง (feedback 2026-09-16)
-      _count: { select: { employees: { where: { deleted_at: null, is_active: true } }, shifts: true } },
+      _count: { select: { shifts: true } },
     },
     orderBy: { created_at: 'asc' },
   })
+
+  // จำนวนพนักงานของแต่ละสาขา = คนที่ "ทำงานอยู่สาขานั้น" ไม่สนว่าเป็นสาขาหลักหรือสาขาเสริม (feedback 2026-10-20)
+  // นับเฉพาะพนักงานที่ยังใช้งานอยู่จริง (is_active=true ผูกกับ status=ACTIVE เท่านั้น — feedback 2026-09-16)
+  // คนเดียวอยู่ได้หลายสาขา จึงนับซ้ำข้ามสาขาได้ (ผลรวมทุกสาขา ≠ จำนวนพนักงานทั้งบริษัท) แต่ไม่นับซ้ำในสาขาเดียวกัน
+  const emps = await prisma.employee.findMany({
+    where: { deleted_at: null, is_active: true, ...(tenantId ? { tenant_id: tenantId } : {}) },
+    select: { branch_id: true, extra_branches: { select: { branch_id: true } } },
+  })
+  const counts = new Map<string, number>()
+  for (const e of emps) {
+    const ids = new Set<string>([e.branch_id, ...e.extra_branches.map(x => x.branch_id)].filter(Boolean) as string[])
+    for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return branches.map(b => ({ ...b, _count: { employees: counts.get(b.id) ?? 0, shifts: b._count.shifts } }))
 }
 
 export async function getBranch(tenantId: string, id: string) {
