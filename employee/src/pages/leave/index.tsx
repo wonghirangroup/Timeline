@@ -3,10 +3,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
-  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check,
+  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check, BookOpen,
 } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
 import { showResult } from '../../components/ui/ResultDialog'
+import { DayOffGuide } from '../../components/ui/DayOffGuide'
 import { ThaiDatePicker, BottomSheet } from '../../components/ui'
 import { api } from '../../lib/axios'
 import { useAuthStore } from '../../stores/authStore'
@@ -1025,7 +1026,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
         code === 'INCOMPLETE_QUOTA'  ? `ต้องจองวันหยุดให้ครบ ${quota} วัน (เท่าจำนวนเสาร์-อาทิตย์ของเดือนนี้) ก่อนส่ง` :
         code === 'OVER_QUOTA'        ? `เลือกวันหยุดเกินโควต้า (สูงสุด ${quota} วัน/เดือน)` :
         code === 'DUPLICATE_DATE'    ? 'เลือกวันที่ซ้ำกัน' :
-        code === 'MONTHLY_CAP_EXCEEDED' ? 'รวมวันหยุด + พักร้อนเดือนนี้ครบ 10 วันแล้ว' :
+        code === 'MONTHLY_CAP_EXCEEDED' ? (err.response?.data?.error?.message ?? 'รวมวันหยุด + พักร้อนเดือนนี้ครบเพดานแล้ว') :
         'เกิดข้อผิดพลาด กรุณาลองใหม่'
       )
     },
@@ -1969,6 +1970,7 @@ export default function LeavePage() {
   const [submitDone, setSubmitDone] = useState(false)
   const [errorMsg,   setErrorMsg]  = useState<string | null>(null)
   const [bookingMode, setBookingMode] = useState<'off' | 'leave'>('off')
+  const [showDayOffGuide, setShowDayOffGuide] = useState(false)   // คู่มือจองหยุด/สลับ/แก้ไข
 
   const { data: balances = [] } = useQuery<LeaveBalance[]>({
     queryKey: ['employee', 'leave-balances', employee?.id],
@@ -2347,6 +2349,16 @@ export default function LeavePage() {
                 )
               })}
             </div>
+
+            {bookingMode === 'off' && (
+              <button onClick={() => setShowDayOffGuide(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', marginBottom: 14, borderRadius: 14, border: '1px solid #D5E3FA', background: '#EEF4FF', color: '#1D4ED8', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <BookOpen size={18} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>ดูวิธีจองหยุด · สลับกับเพื่อน · ขอเปลี่ยนวัน</span>
+                <ChevronRight size={16} style={{ flexShrink: 0 }} />
+              </button>
+            )}
+            {showDayOffGuide && <DayOffGuide onClose={() => setShowDayOffGuide(false)} />}
 
             {bookingMode === 'off' && employee?.id && <SwapRequestsPanel employeeId={employee.id} />}
 
