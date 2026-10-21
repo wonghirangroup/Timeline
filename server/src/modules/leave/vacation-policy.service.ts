@@ -149,7 +149,12 @@ export async function resolveVacationEntitlementBulk(
 }
 
 // ── โควต้ารวม 10 วัน/เดือน (ข้อ 5) ─────────────────────────────────────────
-export const MONTHLY_TOTAL_CAP = 10
+export const MONTHLY_TOTAL_CAP = 10 // ค่าเริ่มต้น — ใช้จริงคือ Tenant.monthly_total_cap (ปรับได้ใน นโยบายการลา)
+
+export async function getMonthlyTotalCap(tenantId: string): Promise<number> {
+  const t = await prisma.tenant.findFirst({ where: { id: tenantId }, select: { monthly_total_cap: true } })
+  return t?.monthly_total_cap ?? MONTHLY_TOTAL_CAP
+}
 
 // นับวันหยุดที่จอง (PENDING+APPROVED) เดือนนั้น — ใช้ query เดียวกับ countMonthOffRequests
 // เดิมใน weekly-off.service.ts (export มาจากที่นั่นเพื่อไม่ fork ตรรกะ ±6 วัน)
@@ -182,8 +187,8 @@ export async function assertMonthlyCap(
   tenantId: string, employeeId: string, ym: string, adding: number,
   opts: { excludeWeeklyOffId?: string; excludeLeaveId?: string } = {},
 ) {
-  const { dayOff, vacation, total } = await countMonthlyCommitment(tenantId, employeeId, ym, opts)
-  if (total + adding > MONTHLY_TOTAL_CAP) throw new MonthlyCapError({ dayOff, vacation, total, cap: MONTHLY_TOTAL_CAP, adding })
+  const [{ dayOff, vacation, total }, cap] = await Promise.all([countMonthlyCommitment(tenantId, employeeId, ym, opts), getMonthlyTotalCap(tenantId)])
+  if (total + adding > cap) throw new MonthlyCapError({ dayOff, vacation, total, cap, adding })
 }
 
 // ── Grant/deduct primitives — เขียน LeaveBalance + log ทุกครั้งในธุรกรรมเดียว ─────

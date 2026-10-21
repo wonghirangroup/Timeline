@@ -40,6 +40,7 @@ interface TenantSettings {
   leave_backdate_days: number | null
   self_resignation_enabled: boolean
   vacation_count_worked_off_days: boolean
+  monthly_total_cap: number
   leave_conflict_fee_enabled: boolean
   leave_conflict_fee_weekday: number
   leave_conflict_fee_weekend: number
@@ -71,6 +72,7 @@ function LeavePolicyCard() {
   const [days, setDays] = useState(3)
   const [selfResign, setSelfResign] = useState(true)
   const [countWorkedOffDays, setCountWorkedOffDays] = useState(true)
+  const [cap, setCap] = useState(10)
   const [feeOn, setFeeOn] = useState(false)
   const [feeWeekday, setFeeWeekday] = useState(50)
   const [feeWeekend, setFeeWeekend] = useState(100)
@@ -80,6 +82,7 @@ function LeavePolicyCard() {
     setDays(data.leave_backdate_days ?? 3)
     setSelfResign(data.self_resignation_enabled !== false)
     setCountWorkedOffDays(data.vacation_count_worked_off_days !== false)
+    setCap(data.monthly_total_cap ?? 10)
     setFeeOn(data.leave_conflict_fee_enabled === true)
     setFeeWeekday(data.leave_conflict_fee_weekday ?? 50)
     setFeeWeekend(data.leave_conflict_fee_weekend ?? 100)
@@ -90,6 +93,7 @@ function LeavePolicyCard() {
       leave_backdate_days: unlimited ? null : Math.max(0, days),
       self_resignation_enabled: selfResign,
       vacation_count_worked_off_days: countWorkedOffDays,
+      monthly_total_cap: Math.min(62, Math.max(1, cap)),
       leave_conflict_fee_enabled: feeOn,
       leave_conflict_fee_weekday: Math.max(0, feeWeekday),
       leave_conflict_fee_weekend: Math.max(0, feeWeekend),
@@ -137,6 +141,17 @@ function LeavePolicyCard() {
             </span>
           </span>
           <Toggle checked={countWorkedOffDays} disabled={readOnly} onChange={setCountWorkedOffDays} aria-label="นับวันที่จองหยุดไว้แต่มาทำงานจริง เป็นไม่ได้พักจริง" />
+        </div>
+      </div>
+      <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, marginLeft: 42 }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>เพดานรวม "วันหยุดจอง + ลาพักร้อน" ต่อคนต่อเดือน</span>
+        <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginTop: 2 }}>
+          พนักงานจองหรือลาเกินเพดานนี้ไม่ได้ (แอดมินกด "ยืนยันลงให้อยู่ดี" ข้ามได้) — สถานะที่ได้โควต้าวันหยุดเยอะ เช่น "เท่ากับเสาร์-อาทิตย์ของเดือน" (เดือนละ 8–10 วัน) ควรตั้งให้สูงกว่าโควต้าวันหยุด + พักร้อนที่ใช้จริง
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: '13px', color: '#374151' }}>
+          ไม่เกิน
+          <input type="number" min={1} max={62} value={cap} disabled={readOnly} onChange={e => setCap(Math.min(62, Math.max(1, parseInt(e.target.value) || 1)))} style={{ ...inputStyle, width: 84, textAlign: 'center' }} />
+          วัน/เดือน <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>(ค่าเริ่มต้น 10)</span>
         </div>
       </div>
       <div style={{ borderTop: '1px solid #E6ECF4', margin: '16px 0 0', paddingTop: 16, marginLeft: 42 }}>

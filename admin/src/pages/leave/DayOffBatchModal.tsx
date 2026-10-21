@@ -263,12 +263,13 @@ function VacationAsk({ ask, name, quota, vacLeft, vacPicked, onYes, onNo }: {
   )
 }
 
-// รายการที่ส่ง force ซ้ำ: วันจองหยุดที่ล้มเหลวเพราะ BOOKING_DISABLED + วันพักร้อนที่ล้มเหลวเพราะเกินเพดานรวม (MONTHLY_CAP_EXCEEDED)
+// รายการที่ส่ง force ซ้ำ: วันจองหยุดที่ล้มเหลวเพราะ BOOKING_DISABLED หรือเกินเพดานรวม (MONTHLY_CAP_EXCEEDED) + วันพักร้อนที่ล้มเหลวเพราะเกินเพดานรวม
 function forceItems(result: NonNullable<ReturnType<typeof useBatchSave>['result']>) {
   const off = new Map<string, string[]>()
   const vac = new Map<string, string[]>()
   for (const f of result.failed) {
-    if (f.code === 'BOOKING_DISABLED' && f.kind !== 'vacation') off.set(f.employee_id, [...(off.get(f.employee_id) ?? []), f.date])
+    // วันหยุดจอง (off) ที่ตกเพราะสิทธิ์จองปิด หรือเกินเพดานรวม หยุด+พักร้อน/เดือน — ส่ง force ซ้ำได้ทั้งคู่ (เดิมขาดกรณีเพดาน → รายการว่าง → API ตอบ 400)
+    if ((f.code === 'BOOKING_DISABLED' || f.code === 'MONTHLY_CAP_EXCEEDED') && f.kind !== 'vacation') off.set(f.employee_id, [...(off.get(f.employee_id) ?? []), f.date])
     else if (f.code === 'MONTHLY_CAP_EXCEEDED' && f.kind === 'vacation') vac.set(f.employee_id, [...(vac.get(f.employee_id) ?? []), f.date])
   }
   const ids = new Set([...off.keys(), ...vac.keys()])

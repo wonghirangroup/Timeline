@@ -25,6 +25,7 @@ model Tenant {
   signer_title             String? // ตำแหน่งผู้ลงนาม (เช่น "กรรมการผู้จัดการ") คู่กับ signer_name
   leave_backdate_days      Int? // พนักงานยื่นลาย้อนหลังได้ไม่เกินกี่วัน (null = ไม่จำกัด) — บังคับเฉพาะพนักงานยื่นเอง ไม่บังคับตอนแอดมินลงให้
   self_resignation_enabled Boolean    @default(true) // Admin เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF ได้เอง (ต่างจาก feat_resignation ที่เป็นของ Super Admin) — ต้องเปิดทั้งคู่พนักงานถึงเห็น
+  monthly_total_cap Int @default(10) // เพดานรวม (วันหยุดจอง + ลาพักร้อน) ต่อคนต่อเดือน — ปรับได้ที่ ลา → นโยบายการลา (เดิมฝังไว้ 10)
   leave_conflict_fee_enabled Boolean @default(false) // เปิดหักเงินเมื่อยื่นลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกัน (feedback 2026-10-19)
   leave_conflict_fee_weekday Int @default(50) // บาท/วัน ที่ทับ จันทร์–ศุกร์
   leave_conflict_fee_weekend Int @default(100) // บาท/วัน ที่ทับ เสาร์–อาทิตย์
