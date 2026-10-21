@@ -164,7 +164,7 @@ export async function createWeeklyOffBatch(
         await createWeeklyOff(tenantId, { employee_id: it.employee_id, week_start: date, day_of_week: new Date(date + 'T00:00:00Z').getUTCDay() }, opts)
         results.push({ employee_id: it.employee_id, date, ok: true, kind: 'off' })
       } catch (e: any) {
-        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'off' })
+        results.push({ employee_id: it.employee_id, date, ok: false, code: String(e?.message ?? 'ERROR'), kind: 'off', ...(e?.detail ? { detail: e.detail } : {}) })
       }
     }
     for (const date of [...new Set(it.vacation_dates ?? [])].sort()) {

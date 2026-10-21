@@ -797,7 +797,15 @@ export default function TeamCalendarTab() {
     onError: (e: any, vars: any) => {
       const code = e?.response?.data?.error?.code
       if (code === 'BOOKING_DISABLED') { setForcePrompt({ kind: 'dayoff', vars }); return }
-      showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : 'เพิ่มไม่สำเร็จ')
+      if (code === 'OVER_QUOTA' || code === 'MONTHLY_CAP_EXCEEDED') {
+        setForcePrompt({
+          kind: 'dayoff', vars,
+          title: code === 'OVER_QUOTA' ? 'จองวันหยุดครบโควต้าของเดือนแล้ว' : 'รวมหยุด + พักร้อนเกินเพดานของเดือน',
+          message: `${e?.response?.data?.error?.message ?? ''} — ยืนยันเพิ่มให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)`,
+        })
+        return
+      }
+      showToast('error', code === 'ALREADY_REQUESTED' ? 'พนักงานนี้มีวันหยุดในสัปดาห์นี้แล้ว' : (e?.response?.data?.error?.message ?? 'เพิ่มไม่สำเร็จ'))
     },
   })
   const addLeaveMutation = useMutation({
