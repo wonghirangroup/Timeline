@@ -1302,31 +1302,31 @@ export default function TeamCalendarTab() {
         </div>
 
         {/* Export */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', ...(isMobile ? { width: '100%' } : {}) }}>
           <button onClick={exportExcel} title="Export Excel (CSV)"
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
             <FileSpreadsheet size={14} /> Excel
           </button>
           <button onClick={exportPdf} title="Export PDF (Print)"
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
             <Printer size={14} /> PDF
           </button>
           {!isReadOnly && (
             <>
-              <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
+              {!isMobile && <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />}
               <button onClick={() => setBatchMode('single')} title="เลือกพนักงาน 1 คน แล้วกดวันหยุดบนปฏิทินได้หลายวัน"
-                style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <Plus size={14} /> ลงวันหยุดรายคน
               </button>
               <button onClick={() => setBatchMode('multi')} title="ตารางเต็มจอ ติ๊กวันหยุดให้หลายคนพร้อมกัน (ไม่เกินโควต้าที่เหลือของแต่ละคน)"
-                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #244B83', background: '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #244B83', background: '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <Table2 size={14} /> ลงวันหยุดหลายคน
               </button>
             </>
           )}
-          <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />
+          {!isMobile && <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />}
           <button onClick={() => setShowRosterSettings(true)} title="ตั้งค่า + Export ตารางแยกกลุ่ม — เลือกคอลัมน์ / สีต่อคนเอง"
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#131C45', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#F4F6F9', color: '#131C45', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
             <Table2 size={14} /> ตารางแยกกลุ่ม
           </button>
           <InfoTooltip width={280} content="ตารางรูปแบบ roster แยกเป็นกลุ่มเอง ปรับคอลัมน์ สีและกลุ่มของแต่ละคนได้อิสระ รวมถึงซ่อนบางคนออกจากตารางได้ — ต่างจาก Excel/PDF ด้านซ้ายที่ export ตามปฏิทินปกติ" />
