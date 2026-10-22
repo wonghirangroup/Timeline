@@ -30,6 +30,11 @@ interface ApiBranch {
 
 type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINATED'
 
+// "15 ต.ค. 69" วันที่มีผลของสถานะที่ไม่ใช่ใช้งาน (ลาออก/เลิกจ้าง/ไม่ใช้งาน) — ว่างถ้าไม่มี
+function leftOnText(e: { status: string; status_effective_date?: string | null }): string {
+  if (e.status === 'ACTIVE' || !e.status_effective_date) return ''
+  return new Date(e.status_effective_date.slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+}
 interface ApiEmployee {
   id: string
   employee_code: string
@@ -43,6 +48,7 @@ interface ApiEmployee {
   is_active: boolean
   status: EmployeeStatusValue
   status_reason: string | null
+  status_effective_date?: string | null   // วันที่สถานะปัจจุบันมีผล (วันทำงานสุดท้ายตอนลาออก)
   created_at: string
   branch_id: string
   branch: { id: string; name: string; group_id?: string | null }
@@ -777,6 +783,7 @@ export default function EmployeePage() {
                         style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         ● {STATUS_CFG[e.status].label}
                       </button>
+                      {leftOnText(e) && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 3 }}>{e.status === 'INACTIVE' ? 'ตั้งแต่' : 'วันสุดท้าย'} {leftOnText(e)}</div>}
                     </div>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
@@ -843,7 +850,7 @@ export default function EmployeePage() {
                     <button
                       onClick={() => setStatusModalTarget(e)}
                       style={{ background: STATUS_CFG[e.status].bg, color: STATUS_CFG[e.status].color, borderRadius: 99, padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, border: `1px solid ${STATUS_CFG[e.status].border}`, cursor: 'pointer' }}>
-                      ● {STATUS_CFG[e.status].label}
+                      ● {STATUS_CFG[e.status].label}{leftOnText(e) ? ` · ${leftOnText(e)}` : ''}
                     </button>
                     {e.line_user_id
                       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>Line <CheckCircle2 size={11} /></span>
@@ -1750,6 +1757,7 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
               <span style={{ background: STATUS_CFG[employee.status].bg, color: STATUS_CFG[employee.status].color, borderRadius: 99, padding: '2px 10px', fontWeight: 700, fontSize: '12px' }}>
                 {STATUS_CFG[employee.status].label}
               </span>
+              {leftOnText(employee) && <span>{employee.status === 'INACTIVE' ? 'มีผลตั้งแต่' : 'วันทำงานสุดท้าย'} <b style={{ color: '#374151' }}>{leftOnText(employee)}</b></span>}
             </div>
           </div>
 
