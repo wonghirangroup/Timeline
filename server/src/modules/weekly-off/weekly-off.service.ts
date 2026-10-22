@@ -116,10 +116,54 @@ export async function listWeeklyOff(tenantId: string, filters: {
     orderBy: [{ week_start: 'asc' }, { day_of_week: 'asc' }],
   })
 
-  if (filters.month) {
-    return results.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === filters.month)
-  }
-  return results
+  const rows = filters.month
+    ? results.filter(r => resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7) === filters.month)
+    : results
+  return attachConflictWith(tenantId, rows)
+}
+
+// รายการที่ติดธง has_conflict → ใส่ conflict_with = ชื่อเพื่อน "ตำแหน่งเดียวกัน" ที่หยุด/ลาวันเดียวกันอยู่จริง ณ ตอนนี้ (หยุด=จองไว้, ลา=ใบลา)
+// คำนวณสดทุกครั้งจากข้อมูลปัจจุบัน (ธง has_conflict ถูกตั้งตอนสร้างคำขอ อาจค้างถ้าเพื่อนลบวันหยุดไปแล้ว → conflict_with ว่าง)
+async function attachConflictWith<T extends { id: string; employee_id: string; week_start: Date; day_of_week: number; has_conflict: boolean }>(tenantId: string, rows: T[]) {
+  const flagged = rows.filter(r => r.has_conflict)
+  if (flagged.length === 0) return rows.map(r => ({ ...r, conflict_with: [] as { name: string; kind: 'off' | 'leave' }[] }))
+
+  const emps = await prisma.employee.findMany({ where: { id: { in: [...new Set(flagged.map(r => r.employee_id))] } }, select: { id: true, position_id: true } })
+  const posOf = new Map(emps.map(e => [e.id, e.position_id]))
+  const positionIds = [...new Set(emps.map(e => e.position_id).filter((x): x is string => !!x))]
+  const none = rows.map(r => ({ ...r, conflict_with: [] as { name: string; kind: 'off' | 'leave' }[] }))
+  if (positionIds.length === 0) return none
+
+  const weekStarts = [...new Set(flagged.map(r => r.week_start.getTime()))].map(t => new Date(t))
+  const dates = flagged.map(r => resolveActualDateStr(r.week_start, r.day_of_week))
+  const minD = new Date(dates.reduce((a, b) => (a < b ? a : b)) + 'T00:00:00Z'), maxD = new Date(dates.reduce((a, b) => (a > b ? a : b)) + 'T00:00:00Z')
+  const empSel = { select: { first_name: true, nickname: true, position_id: true } } as const
+  const [offs, leaves] = await Promise.all([
+    prisma.weeklyOffRequest.findMany({
+      where: { tenant_id: tenantId, status: { in: ['PENDING', 'APPROVED'] }, week_start: { in: weekStarts }, employee: { position_id: { in: positionIds }, deleted_at: null } },
+      select: { employee_id: true, week_start: true, day_of_week: true, employee: empSel },
+    }),
+    prisma.leaveRequest.findMany({
+      where: { tenant_id: tenantId, status: { in: ['PENDING', 'APPROVED'] }, start_date: { lte: maxD }, end_date: { gte: minD }, employee: { position_id: { in: positionIds }, deleted_at: null } },
+      select: { employee_id: true, start_date: true, end_date: true, employee: empSel },
+    }),
+  ])
+  const nm = (e: { first_name: string; nickname: string | null }) => e.nickname || e.first_name
+
+  return rows.map(r => {
+    if (!r.has_conflict) return { ...r, conflict_with: [] as { name: string; kind: 'off' | 'leave' }[] }
+    const pos = posOf.get(r.employee_id), date = resolveActualDateStr(r.week_start, r.day_of_week)
+    const seen = new Set<string>(), out: { name: string; kind: 'off' | 'leave' }[] = []
+    for (const o of offs) {
+      if (o.employee_id === r.employee_id || o.employee.position_id !== pos || o.week_start.getTime() !== r.week_start.getTime() || o.day_of_week !== r.day_of_week) continue
+      if (!seen.has('o' + o.employee_id)) { seen.add('o' + o.employee_id); out.push({ name: nm(o.employee), kind: 'off' }) }
+    }
+    for (const l of leaves) {
+      if (l.employee_id === r.employee_id || l.employee.position_id !== pos) continue
+      if (date >= l.start_date.toISOString().slice(0, 10) && date <= l.end_date.toISOString().slice(0, 10) && !seen.has('l' + l.employee_id)) { seen.add('l' + l.employee_id); out.push({ name: nm(l.employee), kind: 'leave' }) }
+    }
+    return { ...r, conflict_with: out }
+  })
 }
 
 // โควต้าวันหยุดจอง/เดือน ของพนักงานทุกคนที่มีรายการจองในเดือนนี้ — จองไปแล้วกี่วัน (รอพิจารณา+อนุมัติ นับแบบเดียวกับตอนบล็อก OVER_QUOTA)

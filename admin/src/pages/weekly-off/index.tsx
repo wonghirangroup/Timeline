@@ -37,6 +37,7 @@ interface WeeklyOffRequest {
   created_at?: string   // เวลาที่ส่งคำขอ — ใช้เรียง "ขอมาล่าสุดก่อน"
   replaces_request_id?: string | null   // คำขอ "เปลี่ยนวัน" จากพนักงาน: ชี้ไปหาวันเดิมที่อนุมัติแล้ว (อนุมัติ = แทนที่วันเดิม)
   employee: ApiEmployee
+  conflict_with?: { name: string; kind: 'off' | 'leave' }[]   // ชื่อเพื่อนตำแหน่งเดียวกันที่หยุด/ลาวันเดียวกัน (คำนวณสดจากเซิร์ฟเวอร์)
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันจองวันเดียวกันไว้แล้ว — ให้แอดมินตัดสินใจ
 }
 interface ApiBranch { id: string; name: string }
@@ -129,6 +130,17 @@ interface OffBlock {
 // รวมวันที่ต่อเนื่องกัน (สถานะเดียวกัน) เป็นแถวเดียว — feedback 2026-09-15: "ถ้ามี
 // ขอหยุดมากกว่า 1 วัน ให้นับเป็นแถวเดียว เช่น 2-4 พ.ย. ไม่ใช่ 2 พ.ย. 3 พ.ย. 4 พ.ย."
 // (ต้องรับ items ที่ sort ตามวันที่มาก่อนแล้ว)
+// "ชนกับ ปราย, ใบเตย (ลา)" — วันเดียวแสดงแค่ชื่อ · หลายวันใส่วันที่กำกับ (ปราย 25, ใบเตย 26)
+function conflictText(items: WeeklyOffRequest[]): string {
+  const parts: string[] = []
+  for (const it of items) {
+    const list = it.conflict_with ?? []
+    if (list.length === 0) continue
+    const d = resolveDate(it.week_start, it.day_of_week).slice(8).replace(/^0/, '')
+    for (const c of list) parts.push(`${c.name}${c.kind === 'leave' ? ' (ลา)' : ''}${items.length > 1 ? ` ${d}` : ''}`)
+  }
+  return parts.length ? 'ชนกับ ' + parts.join(', ') : ''
+}
 function groupConsecutiveDays(items: WeeklyOffRequest[]): OffBlock[] {
   const blocks: OffBlock[] = []
   for (const r of items) {
@@ -1324,7 +1336,7 @@ export default function WeeklyOffPage() {
                               </span>
                               {block.hasConflict && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 700 }}>
-                                  <AlertTriangle size={10} /> ชนตำแหน่ง
+                                  <AlertTriangle size={10} /> ชนตำแหน่ง{conflictText(block.items) ? ` · ${conflictText(block.items)}` : ''}
                                 </span>
                               )}
                               <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '2px 9px', fontSize: '0.72rem', fontWeight: 600 }}>{sc.label}</span>
@@ -1438,7 +1450,7 @@ export default function WeeklyOffPage() {
                                       <input type="checkbox" checked={checked} onChange={() => setSplitSel(sel => checked ? sel.filter(x => x !== it.id) : [...sel, it.id])} />
                                       <span style={{ fontWeight: 700, fontSize: '0.84rem', color: '#111827' }}>{fmtDate(resolveDate(it.week_start, it.day_of_week))}</span>
                                       <span style={{ fontSize: '0.7rem', background: '#f3f4f6', color: 'var(--text-muted)', borderRadius: 4, padding: '1px 6px' }}>{DAYS_TH[it.day_of_week]}</span>
-                                      {it.has_conflict && <span style={{ fontSize: '0.66rem', background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontWeight: 700 }}>ชนตำแหน่ง</span>}
+                                      {it.has_conflict && <span style={{ fontSize: '0.66rem', background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '1px 6px', fontWeight: 700 }}>ชนตำแหน่ง{conflictText([it]) ? ` · ${conflictText([it])}` : ''}</span>}
                                     </label>
                                   )
                                 })}

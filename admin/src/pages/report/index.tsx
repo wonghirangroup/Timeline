@@ -424,6 +424,29 @@ export default function ReportPage() {
     return null
   }
 
+  // สรุปเดือนของพนักงาน 1 คน จากสถานะของแต่ละช่อง (นับถึงวันนี้ ไม่นับเสาร์-อาทิตย์ที่ไม่มีข้อมูล/วันที่ยังไม่ถึง)
+  // เดิมคอลัมน์ "รวม" นับแค่จำนวนวันที่มีบันทึกเช็คอินช่วงจันทร์-ศุกร์ ไม่แยกลา/หยุด/ขาด ทำให้ตัวเลขไม่ตรงกับช่องสีที่เห็น (feedback 2026-10-22)
+  function monthTally(info: Employee, byDate: Map<string, AttendanceRecord[]>) {
+    const t = { ok: 0, late: 0, leave: 0, off: 0, absent: 0, offsite: 0 }
+    for (const d of days) {
+      const dateKey = toYMD(year, month, d)
+      if (dateKey > todayStr) continue
+      const ci = cellInfo(byDate.get(dateKey), info.employee_code, info.id, dateKey, startBoundOf(info))
+      const st = ci.status as string
+      if (st === 'ok') t.ok++
+      else if (st === 'late' || st === 'late2') t.late++
+      else if (st === 'absent') t.absent++
+      else if (st === 'offsite') t.offsite++
+      else if (st === 'holiday') t.off++
+      else if (st === 'leave' || st === 'sick' || st === 'vacation' || st === 'personal') {
+        // 'leave' รวมทั้งใบลาทั่วไป และวันหยุด (หยุดประจำ/นักขัตฤกษ์/ชดเชย) — แยกด้วยคำว่า "หยุด" ในป้าย
+        if (st === 'leave' && String(ci.tip).includes('หยุด')) t.off++
+        else t.leave++
+      }
+    }
+    return { ...t, total: t.ok + t.late + t.leave + t.off + t.absent + t.offsite }
+  }
+
   function cellInfo(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
     const base = cellInfoBase(recs, empCode, empId, dateKey, hiredAt)
     const workedOff = workedOffKind(recs, empId, dateKey)
@@ -837,11 +860,9 @@ export default function ReportPage() {
       {!isLoading && filteredEmployees.length > 0 && (isMobile || view === 'card') && viewMode === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredEmployees.map(({ info, byDate }) => {
-            const presentDays = [...byDate.entries()].filter(([dk]) => {
-              const dow = new Date(dk + 'T00:00:00Z').getUTCDay()
-              return dow !== 0 && dow !== 6
-            }).length
-            const lateDays    = [...byDate.values()].flat().filter(r => r.is_late).length
+            const tally       = monthTally(info, byDate)
+            const presentDays = tally.ok + tally.late
+            const lateDays    = tally.late
             const workingDays = days.filter(d => {
               const dow = new Date(year, month - 1, d).getDay()
               return dow !== 0 && dow !== 6
@@ -880,9 +901,8 @@ export default function ReportPage() {
                     {/* Progress bar */}
                     <div style={{ marginTop: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>มา {presentDays}/{workingDays} วัน</span>
-                        {lateDays > 0 && <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><AlertTriangle size={11} /> สาย {lateDays} วัน</span>}
-                        {workedOffByEmp.has(info.id) && <span title="มาทำงานในวันหยุด/วันลา" style={{ fontSize: '0.68rem', color: '#c2410c', fontWeight: 700 }}>มาวันหยุด/ลา {workedOffByEmp.get(info.id)} วัน</span>}
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }} title="รวม = มาตรง + สาย + ลา + หยุด + ขาด + นอกสถานที่ (นับถึงวันนี้)">รวม {tally.total} · <b style={{ color: '#15803d' }}>มาตรง {tally.ok}</b> · <b style={{ color: '#92400e' }}>สาย {tally.late}</b> · <b style={{ color: '#6d28d9' }}>ลา {tally.leave}</b> · <b style={{ color: '#0369a1' }}>หยุด {tally.off}</b>{tally.absent > 0 && <> · <b style={{ color: '#dc2626' }}>ขาด {tally.absent}</b></>}{tally.offsite > 0 && <> · <b style={{ color: '#9333ea' }}>นอก {tally.offsite}</b></>}</span>
+                                                {workedOffByEmp.has(info.id) && <span title="มาทำงานในวันหยุด/วันลา" style={{ fontSize: '0.68rem', color: '#c2410c', fontWeight: 700 }}>มาวันหยุด/ลา {workedOffByEmp.get(info.id)} วัน</span>}
                       </div>
                       <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
@@ -1071,16 +1091,12 @@ export default function ReportPage() {
                       </th>
                     )
                   })}
-                  <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e5e7eb', minWidth: 56, fontWeight: 700, borderLeft: '1px solid #e5e7eb' }}>รวม</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e5e7eb', minWidth: 84, fontWeight: 700, borderLeft: '1px solid #e5e7eb' }}>รวม</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEmployees.map(({ info, byDate }) => {
-                  const presentDays = [...byDate.entries()].filter(([dk]) => {
-                    const dow = new Date(dk + 'T00:00:00Z').getUTCDay()
-                    return dow !== 0 && dow !== 6
-                  }).length
-                  const lateDays = [...byDate.values()].flat().filter(r => r.is_late).length
+                  const tally = monthTally(info, byDate)
 
                   return (
                     <tr key={info.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -1122,9 +1138,16 @@ export default function ReportPage() {
                       })}
 
                       <td style={{ padding: '8px 4px', textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>
-                        <div style={{ fontWeight: 700, color: '#15803d' }}>{presentDays}</div>
-                        {lateDays > 0 && <div style={{ fontSize: '0.62rem', color: '#92400e' }}>สาย {lateDays}</div>}
-                        {workedOffByEmp.has(info.id) && <div title="มาทำงานในวันหยุด/วันลา" style={{ fontSize: '0.62rem', color: '#c2410c', fontWeight: 700 }}>วันหยุด {workedOffByEmp.get(info.id)}</div>}
+                        <div title="รวม = มาตรง + สาย + ลา + หยุด + ขาด + นอกสถานที่ (นับถึงวันนี้)" style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>รวม {tally.total}</div>
+                        <div style={{ display: 'grid', gap: 1, marginTop: 3, fontSize: '0.64rem', lineHeight: 1.35, textAlign: 'left', paddingLeft: 6 }}>
+                          <span style={{ color: '#15803d', fontWeight: 700 }}>มาตรง {tally.ok}</span>
+                          <span style={{ color: '#92400e', fontWeight: 700 }}>สาย {tally.late}</span>
+                          <span style={{ color: '#6d28d9', fontWeight: 700 }}>ลา {tally.leave}</span>
+                          <span style={{ color: '#0369a1', fontWeight: 700 }}>หยุด {tally.off}</span>
+                          {tally.absent > 0 && <span style={{ color: '#dc2626', fontWeight: 700 }}>ขาด {tally.absent}</span>}
+                          {tally.offsite > 0 && <span style={{ color: '#9333ea', fontWeight: 700 }}>นอกสถานที่ {tally.offsite}</span>}
+                          {workedOffByEmp.has(info.id) && <span title="มาทำงานในวันหยุด/วันลา (นับอยู่ใน มาตรง/สาย แล้ว)" style={{ color: '#c2410c', fontWeight: 700 }}>● มาวันหยุด {workedOffByEmp.get(info.id)}</span>}
+                        </div>
                       </td>
                     </tr>
                   )
