@@ -37,7 +37,7 @@ interface AttendanceRecord {
   shift: { id: string; name: string; start_time: string; end_time: string }
 }
 
-interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean; branch_id?: string; department?: string | null }
+interface Employee { id: string; first_name: string; last_name: string; nickname: string | null; photo_url: string | null; employee_code: string; branch: { id: string; name: string; group_id?: string | null }; hired_at?: string | null; position_id?: string | null; checkin_exempt?: boolean; branch_id?: string; department?: string | null; status?: string; status_effective_date?: string | null }
 interface HolidayRow { id: string; name: string; date: string; type?: string; target_branches?: string[] | null; target_departments?: string[] | null; employee_includes?: string[] | null; employee_excludes?: string[] | null }
 // วันหยุดแถวนี้ใช้กับพนักงานคนนี้ไหม (mirror holidayAppliesTo ฝั่ง server: ยกเว้นรายคน > รวมรายคน > สาขา/แผนก; ว่าง = ทุกคน)
 function holidayApplies(h: HolidayRow, emp: { id: string; branchId: string; department?: string | null }): boolean {
@@ -226,14 +226,22 @@ export default function ReportPage() {
     queryFn: async () => (await Promise.all(holidayYears.map(y => api.get('/api/v1/super-admin/holidays', { params: { year: y } }).then((r: any) => r.data.data as HolidayRow[])))).flat(),
   })
 
-  const { data: allEmployees = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
-    queryKey: ['admin', 'employees', branch],
+  const { data: allEmployeesRaw = [], isLoading: loadingEmployees } = useQuery<Employee[]>({
+    queryKey: ['admin', 'employees', 'report-incl-left', branch],
     // เฉพาะพนักงานที่ยังใช้งานอยู่ — คนที่ลาออก/เลิกจ้างไปแล้วไม่ต้องขึ้นในรายงาน
     // (ดูประวัติของคนที่ออกไปแล้วได้ที่หน้าพนักงาน → ตั้งสถานะ "ทั้งหมด")
     queryFn:  () => api.get('/api/v1/admin/employees', {
-      params: { ...(branch ? { branchId: branch } : {}) },
+      params: { ...(branch ? { branchId: branch } : {}), includeInactive: true },
     }).then((r: any) => r.data.data),
   })
+  // พนักงานในรายงาน: ใช้งานอยู่ + ที่พ้นสภาพ (ลาออก/เลิกจ้าง/ไม่ใช้งาน) แต่ "วันที่มีผล" อยู่ในหรือหลังช่วงที่ดู — ยังทำงานบางส่วนของช่วงนี้ จึงต้องโชว์
+  // (เดิมซ่อนทันทีที่เปลี่ยนสถานะ ทำให้เดือนที่เพิ่งลาออกหายไปทั้งแถว) · คนที่ไม่เคยระบุวันที่มีผล (ข้อมูลเก่า) ยังซ่อนเหมือนเดิม
+  const allEmployees = useMemo(
+    () => allEmployeesRaw.filter(e => !e.status || e.status === 'ACTIVE' || (!!e.status_effective_date && e.status_effective_date.slice(0, 10) >= queryStartDate)),
+    [allEmployeesRaw, queryStartDate],
+  )
+  // วันที่มีผลของคนที่พ้นสภาพ → ช่องหลังวันนั้นเป็นสีเทา "พ้นสภาพแล้ว" ไม่นับขาด/ไม่มีข้อมูล
+  const leftOnById = useMemo(() => new Map(allEmployees.filter(e => e.status && e.status !== 'ACTIVE' && e.status_effective_date).map(e => [e.id, e.status_effective_date!.slice(0, 10)])), [allEmployees])
   const { data: positions = [] } = useQuery<ApiPosition[]>({
     queryKey: ['positions'],
     queryFn: () => api.get('/api/v1/admin/positions').then((r: any) => r.data.data),
@@ -364,7 +372,7 @@ export default function ReportPage() {
       if (missing.length > 0) m.set(info.id, missing)
     }
     return m
-  }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap, firstCheckinMap, holidaysByDate, empById])
+  }, [employees, activeDateKeys, todayStr, leaveMap, dayoffMap, offsiteMap, firstCheckinMap, holidaysByDate, empById, leftOnById])
 
   // จำนวนวันที่ "มาทำงานในวันหยุด/วันลา" ต่อคน ในช่วง/เดือนที่เลือก (ใช้เกณฑ์เดียวกับแท็กส้ม)
   const workedOffByEmp = useMemo(() => {
@@ -375,7 +383,7 @@ export default function ReportPage() {
       if (n > 0) m.set(info.id, n)
     }
     return m
-  }, [employees, activeDateKeys, leaveMap, dayoffMap, holidaysByDate, empById])
+  }, [employees, activeDateKeys, leaveMap, dayoffMap, holidaysByDate, empById, leftOnById])
 
   const filteredEmployees = onlyNoData ? employees.filter(e => noDataByEmp.has(e.info.id)) : employees
 
@@ -456,6 +464,11 @@ export default function ReportPage() {
   function cellInfoBase(recs: AttendanceRecord[] | undefined, empCode: string, empId: string, dateKey: string, hiredAt?: string | null) {
     if (hiredAt && dateKey < hiredAt.slice(0, 10)) {
       return { bg: '#fafafa', label: null as ReactNode, color: 'var(--text-muted)', tip: 'ก่อนเริ่มใช้ระบบ', status: 'weekend' as const }
+    }
+    // พ้นสภาพแล้ว (วันที่มีผลผ่านไปแล้ว) และไม่มีเช็คอินจริง → เทา ไม่นับขาด/ไม่มีข้อมูล
+    const leftOn = leftOnById.get(empId)
+    if (leftOn && dateKey > leftOn && !recs?.some(r => r.check_in_at)) {
+      return { bg: '#f3f4f6', label: null as ReactNode, color: 'var(--text-muted)', tip: 'พ้นสภาพแล้ว', status: 'weekend' as const }
     }
     // คนที่ตั้งเป็น "ไม่ต้องเช็คอิน" (เช่น ผู้บริหาร) — วันที่ไม่มีบันทึกเช็คอินไม่นับเป็นขาด (ถ้ามาเช็คอินเองยังนับตามจริงด้านล่าง)
     if (exemptIds.has(empId) && !recs?.some(r => r.check_in_at)) {

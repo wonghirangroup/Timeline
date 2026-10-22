@@ -2,6 +2,7 @@
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../common/utils/prisma'
+import { bangkokDateStr } from '../../common/utils/time'
 import { assertPlanCapacity } from '../tenant/tenant.service'
 import { generateTempPassword, setUserDepartments } from '../tenant/user.service'
 import { seedPermissionsFromTemplate } from '../permissions/permission.service'
@@ -382,10 +383,19 @@ export type EmployeeStatusValue = 'ACTIVE' | 'INACTIVE' | 'RESIGNED' | 'TERMINAT
 export async function changeEmployeeStatus(
   tenantId: string,
   id: string,
-  data: { to_status: EmployeeStatusValue; reason: string; changed_by?: string },
+  data: { to_status: EmployeeStatusValue; reason: string; changed_by?: string; effective_date?: string },
 ) {
   const employee = await prisma.employee.findFirst({ where: { id, tenant_id: tenantId, deleted_at: null } })
   if (!employee) return null
+
+  // วันที่มีผล: สถานะที่ไม่ใช่ ACTIVE ระบุได้ (ย้อนหลังได้ ถึงวันนี้เท่านั้น) · ไม่ระบุ = วันนี้ · ACTIVE = ล้างค่า
+  let effective: Date | null = null
+  if (data.to_status !== 'ACTIVE') {
+    const today = bangkokDateStr()
+    const eff = data.effective_date ?? today
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eff) || Number.isNaN(Date.parse(eff + 'T00:00:00Z')) || eff > today) throw new Error('INVALID_EFFECTIVE_DATE')
+    effective = new Date(eff + 'T00:00:00Z')
+  }
 
   const [updated] = await prisma.$transaction([
     prisma.employee.update({
@@ -393,6 +403,7 @@ export async function changeEmployeeStatus(
       data: {
         status:        data.to_status,
         status_reason: data.reason,
+        status_effective_date: effective,
         is_active:     data.to_status === 'ACTIVE',
       },
     }),
@@ -403,6 +414,7 @@ export async function changeEmployeeStatus(
         from_status: employee.status,
         to_status:   data.to_status,
         reason:      data.reason,
+        effective_date: effective,
         changed_by:  data.changed_by,
       },
     }),

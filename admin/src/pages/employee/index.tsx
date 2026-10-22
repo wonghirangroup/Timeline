@@ -94,6 +94,7 @@ interface ApiStatusType { id: string; name: string; monthly_off_quota: number }
 
 interface StatusLogEntry {
   id: string
+  effective_date?: string | null
   from_status: EmployeeStatusValue | null
   to_status: EmployeeStatusValue
   reason: string
@@ -1689,6 +1690,8 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
   const qc = useQueryClient()
   const [newStatus, setNewStatus] = useState<EmployeeStatusValue>(employee.status)
   const [reason, setReason] = useState('')
+  const todayYmd = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)   // วันนี้ตามปฏิทินไทย
+  const [effectiveDate, setEffectiveDate] = useState(todayYmd)
   const [showHistory, setShowHistory] = useState(false)
 
   const historyQ = useQuery<StatusLogEntry[]>({
@@ -1698,16 +1701,17 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
   })
 
   const saveMutation = useMutation({
-    mutationFn: () => api.patch(`/api/v1/admin/employees/${employee.id}/status`, { status: newStatus, reason: reason.trim() }),
+    mutationFn: () => api.patch(`/api/v1/admin/employees/${employee.id}/status`, { status: newStatus, reason: reason.trim(), ...(newStatus !== 'ACTIVE' ? { effective_date: effectiveDate } : {}) }),
     onSuccess: () => {
       showToast('success', `เปลี่ยนสถานะ "${employee.first_name} ${employee.last_name}" เป็น "${STATUS_CFG[newStatus].label}" แล้ว`)
       onSaved(); onClose()
     },
-    onError: () => showToast('error', 'เปลี่ยนสถานะไม่สำเร็จ'),
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'เปลี่ยนสถานะไม่สำเร็จ'),
   })
 
   function handleSubmit() {
     if (!reason.trim()) { showToast('error', 'กรุณาระบุหมายเหตุ'); return }
+    if (newStatus !== 'ACTIVE' && (!effectiveDate || effectiveDate > todayYmd)) { showToast('error', 'เลือกวันที่มีผลไม่เกินวันนี้'); return }
     saveMutation.mutate()
   }
 
@@ -1759,6 +1763,17 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
             </select>
           </div>
 
+          {/* วันที่มีผล — สถานะที่ไม่ใช่ "ใช้งาน" (ลาออก/เลิกจ้าง/ไม่ใช้งาน) เลือกย้อนหลังได้ */}
+          {newStatus !== 'ACTIVE' && (
+            <div>
+              <label style={fieldLabel}>{newStatus === 'INACTIVE' ? 'มีผลตั้งแต่วันที่' : 'วันทำงานสุดท้าย'} <span style={required}>*</span></label>
+              <input type="date" value={effectiveDate} max={todayYmd} onChange={e => setEffectiveDate(e.target.value)} style={input} />
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                ย้อนหลังได้ — รายงานเข้างานจะถือว่าพ้นสภาพหลังวันนี้ ไม่นับ "ขาด/ไม่มีข้อมูล" ของวันถัดไป (ข้อมูลเช็คอินเดิมไม่ถูกลบ)
+              </div>
+            </div>
+          )}
+
           {/* Reason */}
           <div>
             <label style={fieldLabel}>หมายเหตุ <span style={required}>*</span></label>
@@ -1783,6 +1798,7 @@ function ChangeStatusModal({ employee, onClose, onSaved }: {
                       {log.from_status ? STATUS_CFG[log.from_status].label : '—'} → {STATUS_CFG[log.to_status].label}
                     </div>
                     <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{log.reason}</div>
+                    {log.effective_date && <div style={{ color: '#244B83', marginTop: 2, fontWeight: 600 }}>มีผลวันที่ {new Date(String(log.effective_date).slice(0, 10) + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>}
                     <div style={{ color: 'var(--text-muted)', marginTop: 2, fontSize: '11px' }}>
                       {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
                     </div>

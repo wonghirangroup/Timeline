@@ -213,13 +213,20 @@ export async function employeeRoutes(app: FastifyInstance) {
         properties: {
           status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'RESIGNED', 'TERMINATED'] },
           reason: { type: 'string', minLength: 1 },
+          effective_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$', description: 'วันที่มีผล (วันทำงานสุดท้าย) ย้อนหลังได้ ไม่เกินวันนี้ — ใช้กับสถานะที่ไม่ใช่ ACTIVE ไม่ส่ง = วันนี้' },
         },
       },
     },
   }, async (req: any, reply) => {
-    const employee = await changeEmployeeStatus(req.tenantId, req.params.id, {
-      to_status: req.body.status, reason: req.body.reason, changed_by: req.userId,
-    })
+    let employee
+    try {
+      employee = await changeEmployeeStatus(req.tenantId, req.params.id, {
+        to_status: req.body.status, reason: req.body.reason, changed_by: req.userId, effective_date: req.body.effective_date,
+      })
+    } catch (e: any) {
+      if (e.message === 'INVALID_EFFECTIVE_DATE') return reply.code(400).send(fail('INVALID_EFFECTIVE_DATE', 'วันที่มีผลต้องไม่เกินวันนี้'))
+      throw e
+    }
     if (!employee) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
     return ok(employee, 'เปลี่ยนสถานะสำเร็จ')
   })

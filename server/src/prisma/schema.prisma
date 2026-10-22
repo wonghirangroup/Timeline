@@ -237,6 +237,7 @@ model Employee {
   line_user_id             String? // mapped after Line verify
   is_active                Boolean          @default(true) // derived จาก status — status=ACTIVE เท่านั้นที่ is_active=true (คง field นี้ไว้เพราะมีที่เช็คตรงๆ อยู่หลายจุด เช่น LIFF login gate)
   status                   EmployeeStatus   @default(ACTIVE)
+  status_effective_date DateTime? @db.Date // วันที่สถานะปัจจุบันมีผล (ลาออก/เลิกจ้าง/ไม่ใช้งาน) — รายงานเข้างานไม่นับขาด/ไม่มีข้อมูลหลังวันนี้ · null เมื่อสถานะ ACTIVE
   status_reason            String? // เหตุผลล่าสุด (ประวัติเต็มอยู่ใน EmployeeStatusLog)
   weekly_off_mode          WeeklyOffMode    @default(WEEKLY) // WEEKLY = จองทีละสัปดาห์ (เดิม), MONTHLY_BATCH = ต้องจองครบทุกสัปดาห์ในเดือนรวดเดียว
   default_shift_id         String? // กะที่สังกัด — informational เท่านั้น ไม่ได้บังคับตอนเช็คอิน (auto-detect จากเวลาเหมือนเดิม)
@@ -489,6 +490,7 @@ model EmployeeStatusLog {
   from_status EmployeeStatus?
   to_status   EmployeeStatus
   reason      String
+  effective_date DateTime? @db.Date // วันที่มีผลของสถานะ (เช่น วันทำงานสุดท้ายตอนลาออก — ย้อนหลังได้) null = มีผลวันที่บันทึก
   changed_by  String? // user_id ของ admin ที่เปลี่ยน
   created_at  DateTime        @default(now())
 
