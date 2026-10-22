@@ -17,6 +17,19 @@ import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push
 
 const DOW_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์']
 
+// ข้อความวันที่ในแจ้งเตือนไลน์ถึงแอดมิน (เดิมโชว์แค่ "2026-10 รวม 1 วัน" ไม่บอกว่าวันไหน — feedback 2026-10-22)
+// "ส. 24, อ. 27, ศ. 30 ต.ค. 2569" (เดือนเดียวกันรวมเป็นชุดเดียว) · ข้ามเดือนจะใส่เดือนกำกับทุกวัน
+const DOW_ABBR = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
+const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+function thaiDayList(dates: string[]): string {
+  const ds = [...new Set(dates.map(d => d.slice(0, 10)))].sort()
+  if (ds.length === 0) return ''
+  const p = (d: string) => { const [y, m, day] = d.split('-').map(Number); return { y: y + 543, m: m - 1, d: day, dow: new Date(Date.UTC(y, m - 1, day)).getUTCDay() } }
+  const sameMonth = ds.every(d => d.slice(0, 7) === ds[0].slice(0, 7))
+  if (sameMonth) { const f = p(ds[0]); return `${ds.map(d => { const x = p(d); return `${DOW_ABBR[x.dow]} ${x.d}` }).join(', ')} ${MONTH_ABBR[f.m]} ${f.y}` }
+  return ds.map(d => { const x = p(d); return `${DOW_ABBR[x.dow]} ${x.d} ${MONTH_ABBR[x.m]} ${x.y}` }).join(', ')
+}
+
 // endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
 // tenantMiddleware) เสมอ ห้ามเชื่อ employee_id/employeeId ที่ client ส่งมาตรงๆ —
 // ไม่งั้นพนักงานคนหนึ่งจะจอง/ยกเลิก/ตอบรับสลับวันหยุดแทนคนอื่นได้
@@ -453,7 +466,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
         type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
-        detail: `หยุดวัน${DOW_TH[req.body.day_of_week]} สัปดาห์ ${req.body.week_start}`,
+        detail: `หยุด ${thaiDayList([(() => { const d = new Date(req.body.week_start.slice(0, 10) + 'T00:00:00Z'); const off = req.body.day_of_week === 0 ? 6 : req.body.day_of_week - 1; if (d.getUTCDay() === req.body.day_of_week) return d.toISOString().slice(0, 10); d.setUTCDate(d.getUTCDate() + off); return d.toISOString().slice(0, 10) })()])}`,
         color: '#2563EB',
         // ต้องส่ง month มาด้วยเสมอ ไม่งั้นแอดมินกดจากไลน์แล้วหน้า weekly-off จะโชว์
         // เดือนปัจจุบันตามค่า default เฉยๆ ไม่ใช่เดือนที่พนักงานจองจริง (feedback
@@ -514,7 +527,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
         type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
-        detail: `วันหยุดประจำเดือน ${req.body.date}`,
+        detail: `วันหยุดประจำเดือน ${thaiDayList([req.body.date])}`,
         color: '#2563EB',
         path: `/leave?tab=time-off&month=${req.body.date.slice(0, 7)}&focus=${result.id}`,
         buttonLabel: 'เปิดดู',
@@ -552,7 +565,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
         type: 'weekly_off',
         title: 'จองวันหยุดรออนุมัติ',
-        detail: `วันหยุดประจำเดือน ${req.body.month} รวม ${(req.body.dates ?? []).length} วัน`,
+        detail: `วันหยุด ${thaiDayList(req.body.dates ?? [])} (รวม ${(req.body.dates ?? []).length} วัน)`,
         color: '#2563EB',
         // เดิมไม่ส่ง month/focus มาเลย — กดจากไลน์แล้วเจอหน้าเดือนปัจจุบัน (ไม่ใช่
         // เดือนที่จอง) ไม่มีวันไหนให้โฟกัส มองเหมือนกดแล้วไม่ไปไหน (feedback 2026-09-15)
@@ -641,7 +654,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       notifyAdminsLine(req.tenantId, req.employeeId, {
         type: 'weekly_off',
         title: 'ขอเปลี่ยนวันหยุด รออนุมัติ',
-        detail: `ขอเปลี่ยนวันหยุดเป็น ${req.body.new_date}`,
+        detail: `ขอเปลี่ยนวันหยุดเป็น ${thaiDayList([req.body.new_date])}`,
         color: '#2563EB',
         path: `/leave?tab=time-off&month=${req.body.new_date.slice(0, 7)}&focus=${created.id}`,
         buttonLabel: 'เปิดดู',
@@ -699,7 +712,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
       if (reqOff && targetOff) {
         notifyEmployeeLine(req.tenantId, result.target_employee_id, requesterName, {
           title: 'ขอสลับวันหยุด',
-          detail: `${requesterName} ขอสลับวันหยุด ${resolveActualDateStr(targetOff.week_start, targetOff.day_of_week)} ของคุณ กับวันหยุด ${resolveActualDateStr(reqOff.week_start, reqOff.day_of_week)} ของเขา`,
+          detail: `${requesterName} ขอสลับวันหยุด ${thaiDayList([resolveActualDateStr(targetOff.week_start, targetOff.day_of_week)])} ของคุณ กับวันหยุด ${thaiDayList([resolveActualDateStr(reqOff.week_start, reqOff.day_of_week)])} ของเขา`,
           color: '#7C3AED',
           path: `/leave?tab=booking&swap=${result.id}`,
           buttonLabel: 'ดูคำขอ',
@@ -756,13 +769,13 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
         const newTargetDate = resolveActualDateStr(swapped.b.week_start, swapped.b.day_of_week)
         notifyEmployeeLine(req.tenantId, swapReq.requester_employee_id, targetName, {
           title: 'เพื่อนยอมรับคำขอสลับแล้ว',
-          detail: `${targetName} ยอมรับการสลับวันหยุดแล้ว — ตอนนี้คุณหยุดวันที่ ${newReqDate} แทน`,
+          detail: `${targetName} ยอมรับการสลับวันหยุดแล้ว — ตอนนี้คุณหยุด ${thaiDayList([newReqDate])} แทน`,
           color: '#16A34A',
         })
         notifyAdminsLine(req.tenantId, swapReq.requester_employee_id, {
           type: 'weekly_off_swap',
           title: 'พนักงานสลับวันหยุดกันเอง',
-          detail: `${requesterName} ↔ ${targetName}: ${requesterName} เปลี่ยนไปหยุด ${newReqDate}, ${targetName} เปลี่ยนไปหยุด ${newTargetDate}`,
+          detail: `${requesterName} ↔ ${targetName}: ${requesterName} เปลี่ยนไปหยุด ${thaiDayList([newReqDate])}, ${targetName} เปลี่ยนไปหยุด ${thaiDayList([newTargetDate])}`,
           color: '#7C3AED',
           path: `/leave?tab=time-off&month=${newReqDate.slice(0, 7)}&focus=${swapped.a.id}`,
           buttonLabel: 'เปิดดู',
