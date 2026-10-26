@@ -212,7 +212,7 @@ function BonusReviewCard() {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState(false)
 
-  const { data, isLoading, isError } = useQuery<{ ym: string; month_ended: boolean; skip_ids: string[]; ineligible_reasons?: Record<string, number>; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
+  const { data, isLoading, isError } = useQuery<{ ym: string; month_ended: boolean; skip_ids: string[]; ineligible_reasons?: Record<string, number>; ineligible_details?: Record<string, { name: string; position: string | null }[]>; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
     queryKey: ['vacation-bonus-review', ym],
     queryFn: () => api.get('/api/v1/admin/vacation-policy/bonus-review', { params: { ym } }).then(r => r.data.data),
     enabled: /^\d{4}-\d{2}$/.test(ym),
@@ -288,6 +288,26 @@ function BonusReviewCard() {
               {data && data.ineligible > 0 && data.ineligible_reasons && (
                 <div style={{ marginTop: 6, fontSize: '12px' }}>
                   สาเหตุที่ไม่อยู่ในโปรแกรม: {Object.entries(data.ineligible_reasons).map(([k, n]) => `${INELIGIBLE_TH[k] ?? k} ${n} คน`).join(' · ')}
+                  {(() => {
+                    const det = data.ineligible_details ?? {}
+                    const pos = det.POSITION_NOT_CONFIGURED ?? []
+                    const byPos = new Map<string, string[]>()
+                    for (const p of pos) { const k = p.position ?? 'ไม่ได้กำหนดตำแหน่ง'; byPos.set(k, [...(byPos.get(k) ?? []), p.name]) }
+                    const under = det.UNDER_1_YEAR ?? []
+                    return (
+                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {byPos.size > 0 && (
+                          <div>
+                            <b>ตำแหน่งที่ต้องตั้ง "วันพักร้อนพื้นฐาน" (การ์ดนโยบายพักร้อนตามตำแหน่ง ด้านล่าง):</b>
+                            <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                              {[...byPos.entries()].map(([p, names]) => <li key={p}><b>{p}</b> — {names.length} คน ({names.join(', ')})</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {under.length > 0 && <div><b>อายุงานไม่ถึง 1 ปี (ยังไม่เข้าเกณฑ์):</b> {under.map(u => u.name).join(', ')}</div>}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
