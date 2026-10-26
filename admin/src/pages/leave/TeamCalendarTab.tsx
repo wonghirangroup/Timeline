@@ -19,7 +19,7 @@ import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailMod
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
-interface ApiEmployeeFull extends ApiEmployee { hired_at?: string | null; position_id?: string | null; position?: { name?: string; department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiEmployeeFull extends ApiEmployee { employee_status_type?: { off_quota_mode?: string | null } | null; hired_at?: string | null; position_id?: string | null; position?: { name?: string; department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
@@ -1106,6 +1106,13 @@ export default function TeamCalendarTab() {
     if (off) return { label: 'หยุด', pending: off.status === 'PENDING' }
     const leave = leavesRaw.find(l => l.employee_id === employeeId && l.start_date <= dateStr && l.end_date >= dateStr && l.status !== 'REJECTED')
     if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, pending: leave.status === 'PENDING' } }
+    // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" (เช่น สถานะพิเศษ): ถ้าเดือนนั้นยังไม่ได้จองวันหยุดเลย ถือว่าหยุดเสาร์-อาทิตย์ทุกวัน — ให้ตารางแยกกลุ่มโชว์วันหยุดของคนนี้ด้วย
+    // (ถ้าจองแล้ว นับเฉพาะวันที่จอง · ตรรกะเดียวกับการนับโบนัสพักร้อนสิ้นเดือน)
+    const emp = employeesFull.find(e => e.id === employeeId)
+    if (emp?.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH') {
+      const wd = new Date(dateStr + 'T00:00:00').getDay()
+      if ((wd === 0 || wd === 6) && !dayOffsRaw.some(d => d.employee_id === employeeId && d.date.startsWith(dateStr.slice(0, 7)) && d.status !== 'REJECTED')) return { label: 'หยุด', pending: false }
+    }
     return null
   }
 
