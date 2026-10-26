@@ -1240,7 +1240,7 @@ export default function TeamCalendarTab() {
             if (cell.label !== 'หยุด') xlCell.note = cell.label + (cell.pending ? ' (รออนุมัติ)' : '')
             else if (cell.pending) xlCell.note = 'หยุด (รออนุมัติ)'
             if (cell.label === 'หยุด') offDays++
-            if (cell.label === 'พักร้อน') { const wd = new Date(yNum, mNum - 1, i + 1).getDay(); if (wd !== 0 && wd !== 6) vacDays++ }
+            if (cell.label === 'พักร้อน') vacDays++   // นับทุกวันที่ลงพักร้อน (รวมเสาร์-อาทิตย์) ให้ตรงกับสรุปรายคนในปฏิทิน
           }
         }
         const sumOff = row.getCell(dayStart + daysInMonth), sumVac = row.getCell(dayStart + daysInMonth + 1)
