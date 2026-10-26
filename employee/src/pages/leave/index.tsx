@@ -980,7 +980,9 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
   const allOwn     = historyQ.data ?? []
   // "คำขอเปลี่ยนวัน" (แถวที่ชี้ไปหาวันเดิม): ที่ยังรออนุมัติ แสดงเป็นหมายเหตุใต้วันเดิม ไม่นับเป็นวันจองเพิ่ม / ที่ไม่อนุมัติ ซ่อน
   const pendingChangeOf = new Map(allOwn.filter(r => r.replaces_request_id && r.status === 'PENDING').map(r => [r.replaces_request_id as string, r]))
-  const ownThisMonth = allOwn.filter(r => getAllWeeksOfMonth(month).includes(r.week_start.slice(0, 10)) && !(r.replaces_request_id && r.status !== 'APPROVED'))
+  // นับตาม "วันที่หยุดจริง" ของเดือนที่ดูอยู่ ไม่ใช่ตามสัปดาห์ที่คาบเกี่ยวเดือน — เดิมวันที่ 30 ต.ค. (สัปดาห์เดียวกับ 1 พ.ย.) ถูกนับเป็นโควต้าของ พ.ย. ด้วย
+  // ทำให้พนักงานใหม่จอง ต.ค. 1 วันแล้วเหลือจอง พ.ย. ได้แค่ 3 จากโควต้า 4 (เซิร์ฟเวอร์นับตามวันจริงอยู่แล้ว)
+  const ownThisMonth = allOwn.filter(r => resolveDate(r.week_start, r.day_of_week).slice(0, 7) === month && !(r.replaces_request_id && r.status !== 'APPROVED'))
   const colleagues = colleagueQ.data?.colleagues ?? []
   const colleagueLeaves = colleagueQ.data?.colleagueLeaves ?? []   // เพื่อนลา/พักร้อน (อนุมัติแล้ว) ทุกสาขา
   const leavesOnDate = (d: string) => colleagueLeaves.filter(l => l.start_date.slice(0, 10) <= d && l.end_date.slice(0, 10) >= d)
