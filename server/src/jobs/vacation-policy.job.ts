@@ -27,10 +27,12 @@ async function runBonusForEnabledTenants() {
     const ym = prevYm()
     const tenants = await prisma.tenant.findMany({
       where: { deleted_at: null, is_active: true },
-      select: { id: true, name: true, enabled_features: true },
+      select: { id: true, name: true, enabled_features: true, vacation_bonus_auto: true },
     })
     for (const t of tenants) {
       if (!isFeatureEnabled(t.enabled_features, 'vacation_policy')) continue
+      // ตั้งเป็น "รอตรวจ" (ค่าเริ่มต้น) → ไม่ให้เอง แอดมินตรวจและเลือกรายคนที่ ลา → นโยบายพักร้อน
+      if (!t.vacation_bonus_auto) { console.log(`[vacation-policy] โบนัส "${t.name}": รอแอดมินตรวจ (${ym}) ข้ามการให้อัตโนมัติ`); continue }
       try {
         const res = await grantUnderQuotaBonus(t.id, ym)
         console.log(`[vacation-policy] โบนัส "${t.name}" (${t.id}):`, JSON.stringify(res))

@@ -41,6 +41,7 @@ interface TenantSettings {
   self_resignation_enabled: boolean
   vacation_count_worked_off_days: boolean
   monthly_total_cap: number
+  vacation_bonus_auto?: boolean
   leave_conflict_fee_enabled: boolean
   leave_conflict_fee_weekday: number
   leave_conflict_fee_weekend: number
@@ -184,6 +185,144 @@ function LeavePolicyCard() {
   )
 }
 
+// ── ตรวจโบนัสพักร้อนสิ้นเดือน ("หยุดไม่ครบโควต้า") — ดูรายชื่อ + เลือกรายคนก่อนให้จริง ──────────────────────
+interface BonusRow {
+  employee_id: string; employee_code: string; full_name: string; nickname: string | null; branch_name: string | null
+  quota: number; booked: number; effective_off: number; shortfall: number; granted_days: number | null
+}
+function prevMonthYm(): string {
+  const d = new Date(Date.now() + 7 * 3600_000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1)
+  return d.toISOString().slice(0, 7)
+}
+function BonusReviewCard() {
+  const qc = useQueryClient()
+  const { showToast } = useToast()
+  const readOnly = useIsReadOnly()
+  const [ym, setYm] = useState(prevMonthYm())
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [confirm, setConfirm] = useState(false)
+
+  const { data, isLoading, isError } = useQuery<{ ym: string; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
+    queryKey: ['vacation-bonus-review', ym],
+    queryFn: () => api.get('/api/v1/admin/vacation-policy/bonus-review', { params: { ym } }).then(r => r.data.data),
+    enabled: /^\d{4}-\d{2}$/.test(ym),
+  })
+  const rows = data?.rows ?? []
+  // ค่าเริ่มต้น: ติ๊กทุกคนที่ยังไม่ได้รับของเดือนนี้ (เอาออกเองได้ทีละคน)
+  useEffect(() => { setPicked(new Set(rows.filter(r => r.granted_days == null).map(r => r.employee_id))) }, [data])
+
+  const grantMut = useMutation({
+    mutationFn: () => api.post('/api/v1/admin/vacation-policy/bonus-review/grant', { ym, employee_ids: [...picked] }).then(r => r.data),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['vacation-bonus-review'] }); qc.invalidateQueries({ queryKey: ['admin', 'vacation-remaining'] })
+      showToast('success', res?.message ?? 'ให้โบนัสพักร้อนแล้ว'); setConfirm(false)
+    },
+    onError: (e: any) => { showToast('error', e?.response?.data?.error?.message ?? 'ให้โบนัสไม่สำเร็จ'); setConfirm(false) },
+  })
+  const autoMut = useMutation({
+    mutationFn: (v: boolean) => api.patch('/api/v1/admin/tenant-settings', { vacation_bonus_auto: v }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-bonus-review'] }); qc.invalidateQueries({ queryKey: ['tenant-settings'] }); showToast('success', 'บันทึกแล้ว') },
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
+
+  const pending = rows.filter(r => r.granted_days == null)
+  const selectedRows = rows.filter(r => picked.has(r.employee_id) && r.granted_days == null)
+  const selectedDays = selectedRows.reduce((n, r) => n + r.shortfall, 0)
+  const toggle = (id: string) => setPicked(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const cell: React.CSSProperties = { padding: '8px 10px', fontSize: '0.82rem', borderBottom: '1px solid #f3f4f6', textAlign: 'center' }
+
+  return (
+    <div style={cardBox}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}><Gift size={15} /></div>
+        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>ตรวจโบนัสพักร้อนสิ้นเดือน (หยุดไม่ครบโควต้า)</div>
+        <InfoTooltip size="md" title="โบนัสพักร้อนสิ้นเดือน" width={320} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>คนที่ <b>หยุดจริงไม่ครบโควต้า</b> ของเดือนจะได้พักร้อนเพิ่มเท่ากับส่วนที่ขาด (โควต้า − วันที่หยุดได้จริง)</li>
+            <li>วันที่จองไว้แต่ <b>มาเช็คอินทำงานจริง</b> นับว่าไม่ได้หยุด (ตั้งเปิด/ปิดได้ที่การ์ด "นโยบายการลา")</li>
+            <li>ติ๊กเลือกรายคนก่อนกด "ให้โบนัส" · เดือนเดียวกันให้ซ้ำคนเดิมไม่ได้</li>
+          </ul>
+        } />
+        <input type="month" value={ym} onChange={e => setYm(e.target.value)} max={prevMonthYm()}
+          style={{ marginLeft: 'auto', padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit' }} />
+      </div>
+      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px 42px' }}>
+        เลือกเดือนที่จบแล้ว ระบบคำนวณให้ว่าใครควรได้กี่วัน คุณติ๊กเฉพาะคนที่จะให้ ส่วนคนที่ไม่ติ๊กจะไม่ได้ (กลับมาให้ทีหลังได้)
+      </p>
+
+      <div style={{ marginLeft: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '9px 12px', marginBottom: 12 }}>
+        <span style={{ fontSize: '12.5px', color: '#374151' }}>
+          <b>ให้ระบบเพิ่มโบนัสอัตโนมัติ</b> ทุกวันที่ 1 {data?.auto ? '(เปิดอยู่ — ไม่ผ่านการตรวจ)' : '(ปิดอยู่ — รอให้คุณตรวจและกดให้เอง)'}
+        </span>
+        <Toggle checked={!!data?.auto} disabled={readOnly || autoMut.isPending} onChange={v => autoMut.mutate(v)} aria-label="ให้ระบบเพิ่มโบนัสพักร้อนอัตโนมัติ" />
+      </div>
+
+      <div style={{ marginLeft: 42 }}>
+        {isLoading ? <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กำลังคำนวณ...</div>
+          : isError ? <div style={{ fontSize: '13px', color: '#dc2626' }}>โหลดไม่สำเร็จ</div>
+          : rows.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '14px 0' }}>เดือนนี้ไม่มีใครหยุดไม่ครบโควต้า (ข้าม {data?.skipped ?? 0} คนที่หยุดครบแล้ว · {data?.ineligible ?? 0} คนไม่อยู่ในโปรแกรมพักร้อน)</div>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb' }}>
+                      <th style={{ ...cell, width: 36 }}>
+                        <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || pending.length === 0}
+                          checked={pending.length > 0 && selectedRows.length === pending.length}
+                          onChange={e => setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set())} />
+                      </th>
+                      <th style={{ ...cell, textAlign: 'left' }}>พนักงาน</th>
+                      <th style={cell}>โควต้า</th>
+                      <th style={cell}>จองอนุมัติ</th>
+                      <th style={cell}>หยุดได้จริง</th>
+                      <th style={cell}>จะได้</th>
+                      <th style={cell}>สถานะ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => {
+                      const done = r.granted_days != null
+                      return (
+                        <tr key={r.employee_id} style={{ background: done ? '#f0fdf4' : picked.has(r.employee_id) ? '#fff' : '#fafafa', opacity: !done && !picked.has(r.employee_id) ? 0.7 : 1 }}>
+                          <td style={cell}><input type="checkbox" disabled={readOnly || done} checked={!done && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} /></td>
+                          <td style={{ ...cell, textAlign: 'left' }}>
+                            <div style={{ fontWeight: 600 }}>{r.full_name}{r.nickname ? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> ({r.nickname})</span> : null}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{r.employee_code}{r.branch_name ? ` · ${r.branch_name}` : ''}</div>
+                          </td>
+                          <td style={cell}>{r.quota}</td>
+                          <td style={cell}>{r.booked}</td>
+                          <td style={{ ...cell, color: r.effective_off < r.booked ? '#c2410c' : undefined, fontWeight: r.effective_off < r.booked ? 700 : 400 }} title={r.effective_off < r.booked ? `จองไว้ ${r.booked} แต่มาทำงานในวันหยุด ${r.booked - r.effective_off} วัน` : undefined}>{r.effective_off}</td>
+                          <td style={{ ...cell, fontWeight: 800, color: '#15803d' }}>+{r.shortfall} วัน</td>
+                          <td style={cell}>{done ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '2px 9px' }}>ให้แล้ว +{r.granted_days}</span> : <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: 99, padding: '2px 9px' }}>รอตรวจ</span>}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                <span style={{ fontSize: '12.5px', color: '#374151' }}>เลือก <b>{selectedRows.length}</b> จาก {pending.length} คนที่รอ · รวม <b>{selectedDays}</b> วัน{data && data.skipped > 0 ? ` · (ข้าม ${data.skipped} คนที่หยุดครบแล้ว)` : ''}</span>
+                {!readOnly && <Button variant="primary" disabled={selectedRows.length === 0} onClick={() => setConfirm(true)}>ให้โบนัส {selectedRows.length} คน</Button>}
+              </div>
+            </>
+          )}
+      </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title="ให้โบนัสพักร้อน?"
+          message={`ให้โบนัสพักร้อนของเดือน ${ym} แก่ ${selectedRows.length} คน รวม ${selectedDays} วัน — เพิ่มเข้าโควต้าพักร้อนของแต่ละคนทันที และให้เดือนเดียวกันซ้ำไม่ได้`}
+          confirmLabel="ให้โบนัส"
+          onConfirm={() => grantMut.mutate()}
+          onCancel={() => setConfirm(false)}
+        />
+      )}
+    </div>
+  )
+}
+
 export default function VacationPolicyTab() {
   const navigate = useNavigate()
   const { showToast } = useToast()
@@ -263,6 +402,8 @@ export default function VacationPolicyTab() {
       </div>
 
       <LeavePolicyCard />
+
+      <BonusReviewCard />
 
       {/* ── สูตรพักร้อนตามอายุงาน ── */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 18px' }}>

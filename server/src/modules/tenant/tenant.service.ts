@@ -145,7 +145,7 @@ const TENANT_SETTINGS_SELECT = {
   signer_name: true, signer_title: true,
   leave_backdate_days: true, self_resignation_enabled: true, plan: true,
   notification_prefs: true, enabled_features: true, vacation_count_worked_off_days: true,
-  leave_conflict_fee_enabled: true, leave_conflict_fee_weekday: true, leave_conflict_fee_weekend: true, monthly_total_cap: true,
+  leave_conflict_fee_enabled: true, leave_conflict_fee_weekday: true, leave_conflict_fee_weekend: true, monthly_total_cap: true, vacation_bonus_auto: true,
 } as const
 
 export async function getTenantSettings(tenantId: string) {
@@ -164,6 +164,7 @@ export async function updateTenantSettings(tenantId: string, data: {
   self_resignation_enabled?: boolean
   vacation_count_worked_off_days?: boolean
   monthly_total_cap?: number
+  vacation_bonus_auto?: boolean
   leave_conflict_fee_enabled?: boolean
   leave_conflict_fee_weekday?: number
   leave_conflict_fee_weekend?: number

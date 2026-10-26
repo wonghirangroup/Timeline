@@ -309,37 +309,58 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
 // ครอบคลุมทั้งจองไม่ครบโควต้า และจองครบแต่ดันมาทำงานในวันที่จองไว้ (ดู
 // countEffectiveOffDays ด้านบน) — เฉพาะคนที่ "อยู่ในโปรแกรมพักร้อนจริง"
 // (isVacationEligible) ไม่ให้คนที่ไม่มีสิทธิ์พักร้อนเลยจู่ๆมี balance โผล่มา
-export async function grantUnderQuotaBonus(tenantId: string, ym: string) {
-  const [y] = ym.split('-').map(Number)
+export interface BonusReviewRow {
+  employee_id: string; employee_code: string; full_name: string; nickname: string | null; branch_name: string | null
+  quota: number; booked: number; effective_off: number; shortfall: number
+  granted_days: number | null   // ถ้าเดือนนี้ให้โบนัสไปแล้ว = จำนวนวันที่ให้ (กดให้ซ้ำไม่ได้)
+}
+
+// คำนวณว่าเดือน ym ใครควรได้โบนัสกี่วัน (ยังไม่ให้จริง) — ใช้ทั้งหน้า "ตรวจโบนัสสิ้นเดือน" และตอนให้จริง ให้ตัวเลขตรงกันเสมอ
+// onlyIds: จำกัดเฉพาะพนักงานที่ระบุ (ให้เฉพาะคนที่แอดมินติ๊กเลือก)
+async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: string[]) {
   const asOf = bangkokToday()
-  // ไม่ใช่ทุกบริษัทอยากนับ "จองครบแต่มาทำงานจริง" เป็นไม่ได้พักจริง — ให้ Admin
-  // เลือกเองได้ที่ตั้งค่า → นโยบายการลา (feedback 2026-10-01) ปิด = กลับไปนับแค่
-  // จำนวนที่จองอนุมัติเฉยๆ เหมือนพฤติกรรมเดิมก่อนหน้านี้
   const { countMonthOffRequests } = await import('../weekly-off/weekly-off.service')
   const tenant = await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_count_worked_off_days: true } })
   const countWorkedDays = tenant?.vacation_count_worked_off_days ?? true
   const employees = await prisma.employee.findMany({
-    where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE' },
-    select: { id: true, ...VACATION_EMPLOYEE_SELECT },
+    where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE', ...(onlyIds ? { id: { in: onlyIds } } : {}) },
+    select: { id: true, employee_code: true, first_name: true, last_name: true, nickname: true, branch: { select: { name: true } }, ...VACATION_EMPLOYEE_SELECT },
+    orderBy: { employee_code: 'asc' },
   })
-  let granted = 0, skipped = 0, ineligible = 0, totalDays = 0
+  const rows: Omit<BonusReviewRow, 'granted_days'>[] = []
+  let skipped = 0, ineligible = 0
   for (const e of employees) {
     const elig = isVacationEligible(e, asOf)
     if (!elig.eligible) { ineligible++; continue }
-    // โควต้าของเดือนนั้น (สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" = จำนวนเสาร์+อาทิตย์ของเดือน เช่น 8) — โบนัส = โควต้า − วันที่หยุดได้จริง
-    // เช่น โควต้า 8 จอง 7 → +1 · จอง 7 แต่ตอนสิ้นเดือนเช็คอินจริงในวันที่จองไว้ 1 วัน (หยุดจริง 6) → ส่วนต่างเพิ่มตามวันที่มาทำงาน
     const quota = await resolveBookingQuota(tenantId, e.id, ym)
     const pool = await usesWeekendPool(tenantId, e.id)
-    const hasBooking = (await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])) > 0
+    const booked = await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
     const effectiveOff = countWorkedDays
       ? await countEffectiveOffDays(tenantId, e.id, ym)
-      : (pool && !hasBooking ? quota : await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED']))
+      : (pool && booked === 0 ? quota : booked)
     const shortfall = quota - effectiveOff
-    if (shortfall > 0) {
-      await writeVacationGrant(tenantId, e.id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: shortfall, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${effectiveOff}/${quota}) ได้รับ +${shortfall} วัน` })
-      granted++
-      totalDays += shortfall
-    } else skipped++
+    if (shortfall > 0) rows.push({ employee_id: e.id, employee_code: e.employee_code, full_name: `${e.first_name} ${e.last_name}`, nickname: e.nickname, branch_name: e.branch?.name ?? null, quota, booked, effective_off: effectiveOff, shortfall })
+    else skipped++
+  }
+  return { rows, skipped, ineligible }
+}
+
+// หน้า "ตรวจโบนัสพักร้อนสิ้นเดือน": รายชื่อที่จะได้โบนัส + สถานะว่าให้ไปแล้วหรือยัง
+export async function listUnderQuotaBonusReview(tenantId: string, ym: string) {
+  const { rows, skipped, ineligible } = await computeUnderQuotaRows(tenantId, ym)
+  const logs = await prisma.vacationGrantLog.findMany({ where: { tenant_id: tenantId, source: 'UNDER_QUOTA_BONUS', ym }, select: { employee_id: true, days: true } })
+  const grantedBy = new Map(logs.map(l => [l.employee_id, l.days]))
+  const out: BonusReviewRow[] = rows.map(r => ({ ...r, granted_days: grantedBy.get(r.employee_id) ?? null }))
+  return { ym, rows: out, skipped, ineligible, auto: (await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_bonus_auto: true } }))?.vacation_bonus_auto ?? false }
+}
+
+export async function grantUnderQuotaBonus(tenantId: string, ym: string, onlyEmployeeIds?: string[]) {
+  const [y] = ym.split('-').map(Number)
+  const { rows, skipped, ineligible } = await computeUnderQuotaRows(tenantId, ym, onlyEmployeeIds)
+  let granted = 0, totalDays = 0
+  for (const r of rows) {
+    await writeVacationGrant(tenantId, r.employee_id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: r.shortfall, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${r.effective_off}/${r.quota}) ได้รับ +${r.shortfall} วัน` })
+    granted++; totalDays += r.shortfall
   }
   return { ym, granted, skipped, ineligible, totalDays }
 }

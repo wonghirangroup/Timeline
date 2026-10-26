@@ -38,6 +38,7 @@ export async function settingsRoutes(app: FastifyInstance) {
           signer_title:  { type: ['string', 'null'], description: 'ตำแหน่งผู้ลงนาม เช่น "กรรมการผู้จัดการ"' },
           leave_backdate_days: { type: ['integer', 'null'], minimum: 0, description: 'null = ยื่นลาย้อนหลังได้ไม่จำกัด' },
           self_resignation_enabled: { type: 'boolean', description: 'เปิด/ปิดเมนู "ยื่นลาออก" ใน LIFF' },
+          vacation_bonus_auto: { type: 'boolean', description: 'true = ระบบให้โบนัสพักร้อนหยุดไม่ครบโควต้าให้ทุกคนเองวันที่ 1 · false = รอแอดมินตรวจและเลือกรายคน' },
           monthly_total_cap: { type: 'integer', minimum: 1, maximum: 62, description: 'เพดานรวมวันหยุดจอง + ลาพักร้อน ต่อคนต่อเดือน' },
           leave_conflict_fee_enabled: { type: 'boolean', description: 'หักเงินเมื่อยื่นลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกัน' },
           leave_conflict_fee_weekday: { type: 'integer', minimum: 0, maximum: 100000, description: 'บาท/วัน จันทร์–ศุกร์' },

@@ -7,7 +7,7 @@ import { requireRole }      from '../../common/middleware/rbac'
 import { requirePermission } from '../../common/middleware/permission'
 import { requireFeature }   from '../../common/middleware/feature'
 import { ok }               from '../../common/utils/response'
-import { previewVacationPolicy, grantUnderQuotaBonus, runVacationAnnualReset, listVacationRemainingReport } from './vacation-policy.service'
+import { previewVacationPolicy, grantUnderQuotaBonus, listUnderQuotaBonusReview, runVacationAnnualReset, listVacationRemainingReport } from './vacation-policy.service'
 
 export async function vacationPolicyRoutes(app: FastifyInstance) {
 
@@ -31,6 +31,27 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
     const ym = req.body?.ym ?? defaultPrevYm()
     const r = await grantUnderQuotaBonus(req.tenantId, ym)
     return ok(r, `เดือน ${r.ym} — ให้โบนัสรวม ${r.totalDays} วัน แก่ ${r.granted} คน (ข้าม ${r.skipped} คนที่หยุดครบแล้ว, ${r.ineligible} คนไม่อยู่ในโปรแกรมพักร้อน)`)
+  })
+
+  // ตรวจโบนัส "หยุดไม่ครบโควต้า" ของเดือนที่เลือก — รายชื่อที่จะได้ + กี่วัน + ให้ไปแล้วหรือยัง (ยังไม่ให้จริง)
+  app.get('/admin/vacation-policy/bonus-review', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'view'), requireFeature('vacation_policy')],
+    schema: {
+      tags: ['Admin'], summary: 'ตรวจรายชื่อที่จะได้โบนัสพักร้อน (หยุดไม่ครบโควต้า) ของเดือน — ยังไม่ให้จริง', security: [{ oauth2: [] }],
+      querystring: { type: 'object', properties: { ym: { type: 'string', description: 'YYYY-MM (default = เดือนที่แล้ว)' } } },
+    },
+  }, async (req: any) => ok(await listUnderQuotaBonusReview(req.tenantId, req.query?.ym ?? defaultPrevYm())))
+
+  // ให้โบนัสเฉพาะพนักงานที่แอดมินเลือก (คำนวณจำนวนวันใหม่ฝั่งเซิร์ฟเวอร์เสมอ · ให้เดือนเดียวกันซ้ำไม่ได้)
+  app.post('/admin/vacation-policy/bonus-review/grant', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('vacation_policy')],
+    schema: {
+      tags: ['Admin'], summary: 'ให้โบนัสพักร้อนเฉพาะพนักงานที่เลือก', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['ym', 'employee_ids'], properties: { ym: { type: 'string', pattern: '^\\d{4}-\\d{2}$' }, employee_ids: { type: 'array', minItems: 1, maxItems: 500, items: { type: 'string' } } } },
+    },
+  }, async (req: any) => {
+    const r = await grantUnderQuotaBonus(req.tenantId, req.body.ym, req.body.employee_ids)
+    return ok(r, `ให้โบนัสพักร้อนเดือน ${r.ym} รวม ${r.totalDays} วัน แก่ ${r.granted} คน`)
   })
 
   // รัน reset ประจำปี (default = ปีนี้) ด้วยมือ — ตั้ง total_days ใหม่ตามสูตรอายุงาน
