@@ -311,6 +311,7 @@ async function countEffectiveOffDays(tenantId: string, employeeId: string, ym: s
 // (isVacationEligible) ไม่ให้คนที่ไม่มีสิทธิ์พักร้อนเลยจู่ๆมี balance โผล่มา
 export interface BonusReviewRow {
   employee_id: string; employee_code: string; full_name: string; nickname: string | null; branch_name: string | null
+  photo_url: string | null
   quota: number; booked: number; effective_off: number; shortfall: number
   granted_days: number | null   // ถ้าเดือนนี้ให้โบนัสไปแล้ว = จำนวนวันที่ให้ (กดให้ซ้ำไม่ได้)
 }
@@ -324,7 +325,7 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
   const countWorkedDays = tenant?.vacation_count_worked_off_days ?? true
   const employees = await prisma.employee.findMany({
     where: { tenant_id: tenantId, deleted_at: null, status: 'ACTIVE', ...(onlyIds ? { id: { in: onlyIds } } : {}) },
-    select: { id: true, employee_code: true, first_name: true, last_name: true, nickname: true, branch: { select: { name: true } }, ...VACATION_EMPLOYEE_SELECT },
+    select: { id: true, employee_code: true, first_name: true, last_name: true, nickname: true, photo_url: true, branch: { select: { name: true } }, ...VACATION_EMPLOYEE_SELECT },
     orderBy: { employee_code: 'asc' },
   })
   const rows: Omit<BonusReviewRow, 'granted_days'>[] = []
@@ -340,7 +341,7 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
       ? await countEffectiveOffDays(tenantId, e.id, ym)
       : (pool && booked === 0 ? quota : booked)
     const shortfall = quota - effectiveOff
-    if (shortfall > 0) rows.push({ employee_id: e.id, employee_code: e.employee_code, full_name: `${e.first_name} ${e.last_name}`, nickname: e.nickname, branch_name: e.branch?.name ?? null, quota, booked, effective_off: effectiveOff, shortfall })
+    if (shortfall > 0) rows.push({ employee_id: e.id, employee_code: e.employee_code, full_name: `${e.first_name} ${e.last_name}`, nickname: e.nickname, photo_url: e.photo_url ?? null, branch_name: e.branch?.name ?? null, quota, booked, effective_off: effectiveOff, shortfall })
     else skipped++
   }
   return { rows, skipped, ineligible, ineligibleReasons }

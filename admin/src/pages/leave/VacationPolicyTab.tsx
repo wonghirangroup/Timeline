@@ -188,6 +188,7 @@ function LeavePolicyCard() {
 // ── ตรวจโบนัสพักร้อนสิ้นเดือน ("หยุดไม่ครบโควต้า") — ดูรายชื่อ + เลือกรายคนก่อนให้จริง ──────────────────────
 interface BonusRow {
   employee_id: string; employee_code: string; full_name: string; nickname: string | null; branch_name: string | null
+  photo_url?: string | null
   quota: number; booked: number; effective_off: number; shortfall: number; granted_days: number | null
 }
 function prevMonthYm(): string {
@@ -292,51 +293,59 @@ function BonusReviewCard() {
             </div>
           ) : (
             <>
-              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
-                  <thead>
-                    <tr style={{ background: '#f9fafb' }}>
-                      <th style={{ ...cell, width: 36 }}>
-                        <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || preview || pending.length === 0}
-                          checked={pending.length > 0 && selectedRows.length === pending.length}
-                          onChange={e => setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set())} />
-                      </th>
-                      <th style={{ ...cell, textAlign: 'left' }}>พนักงาน</th>
-                      <th style={cell}>โควต้า</th>
-                      <th style={cell}>จองอนุมัติ</th>
-                      <th style={cell}>หยุดได้จริง</th>
-                      <th style={cell}>จะได้</th>
-                      <th style={cell}>สถานะ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(r => {
-                      const done = r.granted_days != null
-                      return (
-                        <tr key={r.employee_id} style={{ background: done ? '#f0fdf4' : skipIds.has(r.employee_id) ? '#fef2f2' : (preview || picked.has(r.employee_id)) ? '#fff' : '#fafafa', opacity: !done && !preview && !picked.has(r.employee_id) ? 0.7 : 1 }}>
-                          <td style={cell}><input type="checkbox" disabled={readOnly || done || preview} checked={!done && !preview && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} /></td>
-                          <td style={{ ...cell, textAlign: 'left' }}>
-                            <div style={{ fontWeight: 600 }}>{r.full_name}{r.nickname ? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> ({r.nickname})</span> : null}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{r.employee_code}{r.branch_name ? ` · ${r.branch_name}` : ''}</div>
-                          </td>
-                          <td style={cell}>{r.quota}</td>
-                          <td style={cell}>{r.booked}</td>
-                          <td style={{ ...cell, color: r.effective_off < r.booked ? '#c2410c' : undefined, fontWeight: r.effective_off < r.booked ? 700 : 400 }} title={r.effective_off < r.booked ? `จองไว้ ${r.booked} แต่มาทำงานในวันหยุด ${r.booked - r.effective_off} วัน` : undefined}>{r.effective_off}</td>
-                          <td style={{ ...cell, fontWeight: 800, color: '#15803d' }}>+{r.shortfall} วัน</td>
-                          <td style={cell}>{done ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '2px 9px' }}>ให้แล้ว +{r.granted_days}</span> : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                            {skipIds.has(r.employee_id)
-                              ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', borderRadius: 99, padding: '2px 9px' }}>ตั้งไว้ไม่ให้</span>
-                              : <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: 99, padding: '2px 9px' }}>{preview ? 'ประมาณการ' : 'รอตรวจ'}</span>}
-                            {!readOnly && <button disabled={skipMut.isPending} onClick={() => skipMut.mutate({ employee_id: r.employee_id, skip: !skipIds.has(r.employee_id) })}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#2563eb', textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}>
-                              {skipIds.has(r.employee_id) ? 'ยกเลิก (ให้ตามปกติ)' : 'ไม่ให้เดือนนี้'}
-                            </button>}
-                          </div>}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              {/* การ์ดแยกตามสาขา หน้าตาเหมือนหน้า "เช็คอินวันนี้": รูป + ชื่อ + จะได้กี่วัน + สถานะ */}
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: '#374151', marginBottom: 10, cursor: readOnly || preview || pending.length === 0 ? 'default' : 'pointer' }}>
+                <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || preview || pending.length === 0}
+                  checked={pending.length > 0 && selectedRows.length === pending.length}
+                  onChange={e => setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set())} />
+                เลือกทั้งหมด
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, alignItems: 'start' }}>
+                {(() => {
+                  const byBranch = new Map<string, BonusRow[]>()
+                  for (const r of rows) { const k = r.branch_name ?? 'ไม่ระบุสาขา'; byBranch.set(k, [...(byBranch.get(k) ?? []), r]) }
+                  return [...byBranch.entries()].map(([branch, list]) => (
+                    <div key={branch} style={{ border: '1px solid #e5e7eb', borderRadius: 14, background: '#fff', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>
+                        <span>{branch}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '2px 9px' }}>{list.length} คน</span>
+                      </div>
+                      {list.map(r => {
+                        const done = r.granted_days != null
+                        const skipped = skipIds.has(r.employee_id)
+                        const worked = r.booked - r.effective_off
+                        return (
+                          <div key={r.employee_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid #f8fafc', background: done ? '#f0fdf4' : skipped ? '#fef2f2' : '#fff', opacity: !done && !preview && !skipped && !picked.has(r.employee_id) ? 0.6 : 1 }}>
+                            <input type="checkbox" disabled={readOnly || done || preview} checked={!done && !preview && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} />
+                            {r.photo_url
+                              ? <img src={r.photo_url} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                              : <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(r.nickname || r.full_name).slice(0, 1)}</div>}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.full_name}{r.nickname ? ` (${r.nickname})` : ''}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                โควต้า {r.quota} · หยุดได้จริง {r.effective_off}{worked > 0 ? ` (มาทำงานวันหยุด ${worked})` : ''}
+                              </div>
+                              {!readOnly && !done && (
+                                <button disabled={skipMut.isPending} onClick={() => skipMut.mutate({ employee_id: r.employee_id, skip: !skipped })}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#2563eb', textDecoration: 'underline', fontFamily: 'inherit', padding: 0, marginTop: 2 }}>
+                                  {skipped ? 'ยกเลิก (ให้ตามปกติ)' : 'ไม่ให้เดือนนี้'}
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#15803d' }}>+{r.shortfall} วัน</div>
+                              {done
+                                ? <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '1px 8px' }}>ให้แล้ว +{r.granted_days}</span>
+                                : skipped
+                                  ? <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', borderRadius: 99, padding: '1px 8px' }}>ตั้งไว้ไม่ให้</span>
+                                  : <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: 99, padding: '1px 8px' }}>{preview ? 'ประมาณการ' : 'รอตรวจ'}</span>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))
+                })()}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                 <span style={{ fontSize: '12.5px', color: '#374151' }}>เลือก <b>{selectedRows.length}</b> จาก {pending.length} คนที่รอ · รวม <b>{selectedDays}</b> วัน{data && data.skipped > 0 ? ` · (ข้าม ${data.skipped} คนที่หยุดครบแล้ว)` : ''}</span>
