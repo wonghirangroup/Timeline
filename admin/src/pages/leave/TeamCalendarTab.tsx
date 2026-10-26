@@ -23,13 +23,13 @@ interface ApiEmployeeFull extends ApiEmployee { employee_status_type?: { off_quo
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
-interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'; start_time?: string | null; end_time?: string | null; employee: ApiEmployee }
+interface ApiLeave { id: string; employee_id: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reason?: string; leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'; days?: number; start_time?: string | null; end_time?: string | null; employee: ApiEmployee }
 interface ApiHoliday { id: string; date: string; name: string; target_branches: string[] | null; target_departments: string[] | null }
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
 interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; photo_url: string | null; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
-interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; period_label: string }
+interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; period_label: string; day_fraction: number }
 interface Holiday { date: string; name: string; target_branches: string[] | null }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -174,6 +174,8 @@ function toDisplayLeave(l: ApiLeave): LeaveReq {
     start_date:    l.start_date.slice(0, 10),
     end_date:      l.end_date.slice(0, 10),
     status:        l.status,
+    // ลาครึ่งวัน/รายชั่วโมง (วันเดียว) นับเป็น 0.5 ตามที่ server คำนวณ (days) · ลาหลายวันนับวันละ 1
+    day_fraction:  l.start_date.slice(0, 10) === l.end_date.slice(0, 10) && l.days && l.days > 0 && l.days < 1 + 1e-9 ? l.days : 1,
     period_label:  l.leave_period === 'MORNING' ? 'ครึ่งเช้า'
                  : l.leave_period === 'AFTERNOON' ? 'ครึ่งบ่าย'
                  : l.leave_period === 'CUSTOM' ? (l.start_time && l.end_time ? `${l.start_time}–${l.end_time}` : 'ระบุเวลา')
@@ -1123,11 +1125,11 @@ export default function TeamCalendarTab() {
   // สถานะของพนักงานคนหนึ่งในวันที่หนึ่ง — ไม่ผ่าน groupFilter/branchFilter (ดูทุกคนเสมอ)
   // สีแยกตามคน (ตั้งเองได้ ดู rosterColors ด้านบน) ไม่ใช่ตามประเภทเหมือนปฏิทินหลัก
   // — ใช้ label ข้อความแยกประเภท (หยุด/ป่วย/กิจ/...) แทน
-  function rosterCellFor(employeeId: string, dateStr: string): { label: string; pending: boolean } | null {
+  function rosterCellFor(employeeId: string, dateStr: string): { label: string; pending: boolean; frac?: number } | null {
     const off = dayOffsRaw.find(d => d.employee_id === employeeId && d.date === dateStr && d.status !== 'REJECTED')
     if (off) return { label: 'หยุด', pending: off.status === 'PENDING' }
     const leave = leavesRaw.find(l => l.employee_id === employeeId && l.start_date <= dateStr && l.end_date >= dateStr && l.status !== 'REJECTED')
-    if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, pending: leave.status === 'PENDING' } }
+    if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, pending: leave.status === 'PENDING', frac: leave.day_fraction } }
     // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" (เช่น สถานะพิเศษ): ถ้าเดือนนั้นยังไม่ได้จองวันหยุดเลย ถือว่าหยุดเสาร์-อาทิตย์ทุกวัน — ให้ตารางแยกกลุ่มโชว์วันหยุดของคนนี้ด้วย
     // (ถ้าจองแล้ว นับเฉพาะวันที่จอง · ตรรกะเดียวกับการนับโบนัสพักร้อนสิ้นเดือน)
     const emp = employeesFull.find(e => e.id === employeeId)
@@ -1237,10 +1239,10 @@ export default function TeamCalendarTab() {
           if (cell) {
             xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${fill}` } }
             xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FF111827' } }
-            if (cell.label !== 'หยุด') xlCell.note = cell.label + (cell.pending ? ' (รออนุมัติ)' : '')
+            if (cell.label !== 'หยุด') xlCell.note = cell.label + (cell.frac && cell.frac < 1 ? ' (ครึ่งวัน)' : '') + (cell.pending ? ' (รออนุมัติ)' : '')
             else if (cell.pending) xlCell.note = 'หยุด (รออนุมัติ)'
             if (cell.label === 'หยุด') offDays++
-            if (cell.label === 'พักร้อน') vacDays++   // นับทุกวันที่ลงพักร้อน (รวมเสาร์-อาทิตย์) ให้ตรงกับสรุปรายคนในปฏิทิน
+            if (cell.label === 'พักร้อน') vacDays += cell.frac ?? 1   // นับทุกวันที่ลงพักร้อน (รวมเสาร์-อาทิตย์) ให้ตรงกับสรุปรายคนในปฏิทิน
           }
         }
         const sumOff = row.getCell(dayStart + daysInMonth), sumVac = row.getCell(dayStart + daysInMonth + 1)
@@ -1420,19 +1422,19 @@ export default function TeamCalendarTab() {
       {/* สรุปรายคน — วันหยุด/วันลาของคนที่เลือกในเดือนนี้ เรียงตามวัน */}
       {person && (() => {
         const items = [
-          ...allDayOffsThisMonth.map(d => ({ key: 'd' + d.id, date: d.date, label: 'หยุด', color: '#244B83', bg: '#EAF2FF', pending: d.status === 'PENDING' })),
+          ...allDayOffsThisMonth.map(d => ({ key: 'd' + d.id, date: d.date, label: 'หยุด', color: '#244B83', bg: '#EAF2FF', pending: d.status === 'PENDING', frac: 0 })),
           ...allLeavesThisMonth.flatMap(l => {
-            const out: { key: string; date: string; label: string; color: string; bg: string; pending: boolean }[] = []
+            const out: { key: string; date: string; label: string; color: string; bg: string; pending: boolean; frac?: number }[] = []
             const cfg = getLeaveCfg(l)
             for (let day = 1; day <= daysInMonth; day++) {
               const ds = toDateStr(month, day)
-              if (ds >= l.start_date && ds <= l.end_date) out.push({ key: `l${l.id}${ds}`, date: ds, label: l.display_label, color: cfg.color, bg: cfg.light, pending: l.status === 'PENDING' })
+              if (ds >= l.start_date && ds <= l.end_date) out.push({ key: `l${l.id}${ds}`, date: ds, label: l.period_label ? `${l.display_label} (${l.period_label})` : l.display_label, color: cfg.color, bg: cfg.light, pending: l.status === 'PENDING', frac: l.day_fraction })
             }
             return out
           }),
         ].sort((a, b) => a.date.localeCompare(b.date))
         const offCount = allDayOffsThisMonth.length
-        const leaveDays = items.length - offCount
+        const leaveDays = Math.round(items.reduce((n, it) => n + (it.frac ?? 0), 0) * 100) / 100
         return (
           <div style={{ background: '#fff', border: '1.5px solid #CFE0FA', borderRadius: 18, padding: '14px 16px', marginBottom: 14, boxShadow: '0 4px 14px rgba(36,75,131,0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: items.length ? 10 : 0 }}>
