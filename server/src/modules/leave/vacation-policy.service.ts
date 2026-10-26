@@ -329,9 +329,10 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
   })
   const rows: Omit<BonusReviewRow, 'granted_days'>[] = []
   let skipped = 0, ineligible = 0
+  const ineligibleReasons: Record<string, number> = {}   // เหตุผลที่ไม่อยู่ในโปรแกรม (ให้แอดมินรู้ว่าต้องแก้อะไร)
   for (const e of employees) {
     const elig = isVacationEligible(e, asOf)
-    if (!elig.eligible) { ineligible++; continue }
+    if (!elig.eligible) { ineligible++; ineligibleReasons[elig.reason] = (ineligibleReasons[elig.reason] ?? 0) + 1; continue }
     const quota = await resolveBookingQuota(tenantId, e.id, ym)
     const pool = await usesWeekendPool(tenantId, e.id)
     const booked = await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
@@ -342,7 +343,7 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
     if (shortfall > 0) rows.push({ employee_id: e.id, employee_code: e.employee_code, full_name: `${e.first_name} ${e.last_name}`, nickname: e.nickname, branch_name: e.branch?.name ?? null, quota, booked, effective_off: effectiveOff, shortfall })
     else skipped++
   }
-  return { rows, skipped, ineligible }
+  return { rows, skipped, ineligible, ineligibleReasons }
 }
 
 // หน้า "ตรวจโบนัสพักร้อนสิ้นเดือน": รายชื่อที่จะได้โบนัส + สถานะว่าให้ไปแล้วหรือยัง
@@ -364,12 +365,12 @@ export async function setBonusSkip(tenantId: string, employeeId: string, ym: str
 }
 
 export async function listUnderQuotaBonusReview(tenantId: string, ym: string) {
-  const { rows, skipped, ineligible } = await computeUnderQuotaRows(tenantId, ym)
+  const { rows, skipped, ineligible, ineligibleReasons } = await computeUnderQuotaRows(tenantId, ym)
   const skipRows = await prisma.vacationBonusSkip.findMany({ where: { tenant_id: tenantId, ym }, select: { employee_id: true } })
   const logs = await prisma.vacationGrantLog.findMany({ where: { tenant_id: tenantId, source: 'UNDER_QUOTA_BONUS', ym }, select: { employee_id: true, days: true } })
   const grantedBy = new Map(logs.map(l => [l.employee_id, l.days]))
   const out: BonusReviewRow[] = rows.map(r => ({ ...r, granted_days: grantedBy.get(r.employee_id) ?? null }))
-  return { ym, month_ended: isMonthEnded(ym), skip_ids: skipRows.map(s => s.employee_id), rows: out, skipped, ineligible, auto: (await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_bonus_auto: true } }))?.vacation_bonus_auto ?? false }
+  return { ym, month_ended: isMonthEnded(ym), skip_ids: skipRows.map(s => s.employee_id), rows: out, skipped, ineligible, ineligible_reasons: ineligibleReasons, auto: (await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_bonus_auto: true } }))?.vacation_bonus_auto ?? false }
 }
 
 export async function grantUnderQuotaBonus(tenantId: string, ym: string, onlyEmployeeIds?: string[]) {

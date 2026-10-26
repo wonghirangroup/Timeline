@@ -194,6 +194,14 @@ function prevMonthYm(): string {
   const d = new Date(Date.now() + 7 * 3600_000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1)
   return d.toISOString().slice(0, 7)
 }
+const INELIGIBLE_TH: Record<string, string> = {
+  POSITION_NOT_CONFIGURED: 'ตำแหน่งยังไม่ตั้งวันพักร้อนพื้นฐาน',
+  NOT_MONTHLY_BATCH: 'ไม่ได้ตั้งจองวันหยุดแบบรายเดือน',
+  UNDER_1_YEAR: 'อายุงานไม่ถึง 1 ปี',
+  IN_PROBATION: 'ยังไม่ผ่านโปร',
+  NO_HIRED_AT: 'ไม่มีวันเริ่มงาน',
+  NOT_ACTIVE: 'ไม่ได้ใช้งานอยู่',
+}
 function currentYm(): string { return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 7) }
 function BonusReviewCard() {
   const qc = useQueryClient()
@@ -203,7 +211,7 @@ function BonusReviewCard() {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState(false)
 
-  const { data, isLoading, isError } = useQuery<{ ym: string; month_ended: boolean; skip_ids: string[]; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
+  const { data, isLoading, isError } = useQuery<{ ym: string; month_ended: boolean; skip_ids: string[]; ineligible_reasons?: Record<string, number>; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
     queryKey: ['vacation-bonus-review', ym],
     queryFn: () => api.get('/api/v1/admin/vacation-policy/bonus-review', { params: { ym } }).then(r => r.data.data),
     enabled: /^\d{4}-\d{2}$/.test(ym),
@@ -275,7 +283,13 @@ function BonusReviewCard() {
         {isLoading ? <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กำลังคำนวณ...</div>
           : isError ? <div style={{ fontSize: '13px', color: '#dc2626' }}>โหลดไม่สำเร็จ</div>
           : rows.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '14px 0' }}>เดือนนี้ไม่มีใครหยุดไม่ครบโควต้า (ข้าม {data?.skipped ?? 0} คนที่หยุดครบแล้ว · {data?.ineligible ?? 0} คนไม่อยู่ในโปรแกรมพักร้อน)</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '14px 0' }}>เดือนนี้ไม่มีใครหยุดไม่ครบโควต้า (ข้าม {data?.skipped ?? 0} คนที่หยุดครบแล้ว · {data?.ineligible ?? 0} คนไม่อยู่ในโปรแกรมพักร้อน)
+              {data && data.ineligible > 0 && data.ineligible_reasons && (
+                <div style={{ marginTop: 6, fontSize: '12px' }}>
+                  สาเหตุที่ไม่อยู่ในโปรแกรม: {Object.entries(data.ineligible_reasons).map(([k, n]) => `${INELIGIBLE_TH[k] ?? k} ${n} คน`).join(' · ')}
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
