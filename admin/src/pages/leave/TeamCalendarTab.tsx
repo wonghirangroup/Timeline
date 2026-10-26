@@ -729,6 +729,19 @@ export default function TeamCalendarTab() {
       const next = [...prev, employeeId]; saveRosterHidden(next); return next
     })
   }
+  const ROSTER_HIDE_VALUE = '__hide__'
+  function rosterMoveSelect(employeeId: string, hidden: boolean) {
+    const names = buildRosterGroups().map(g => g.groupName)
+    return (
+      <select value="" title="ย้ายไปกลุ่มอื่น / ไม่แสดง"
+        onChange={ev => { const v = ev.target.value; if (!v) return; if (v === ROSTER_HIDE_VALUE) hideFromRosterExport(employeeId); else moveEmployeeToRosterGroup(employeeId, v) }}
+        style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '2px 4px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#475569', cursor: 'pointer', fontFamily: 'inherit', maxWidth: 110 }}>
+        <option value="">{hidden ? 'นำกลับไป…' : 'ย้ายไป…'}</option>
+        {names.map(n => <option key={n} value={n}>{n}</option>)}
+        {!hidden && <option value={ROSTER_HIDE_VALUE}>🚫 ไม่แสดง</option>}
+      </select>
+    )
+  }
   function addRosterCustomGroup(name: string) {
     const trimmed = name.trim()
     if (!trimmed) return
@@ -1691,7 +1704,13 @@ export default function TeamCalendarTab() {
                     </button>
                   </div>
 
-                  <div data-tour="roster-groups" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 280, overflowY: 'auto' }}>
+                  <div data-tour="roster-groups"
+                    onDragOver={ev => {
+                      const el = ev.currentTarget, r = el.getBoundingClientRect(), edge = 44
+                      if (ev.clientY < r.top + edge) el.scrollTop -= 14
+                      else if (ev.clientY > r.bottom - edge) el.scrollTop += 14
+                    }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 260, overflowY: 'auto' }}>
                     {rosterGroups.map(grp => {
                       const isCustom = rosterCustomGroups.includes(grp.groupName)
                       const isDragOver = dragOverGroupName === grp.groupName
@@ -1728,6 +1747,7 @@ export default function TeamCalendarTab() {
                                   style={{ width: 22, height: 22, padding: 0, border: 'none', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }} />
                                 <span style={{ fontSize: '0.8rem', color: '#374151' }}>{e.nickname || `${e.first_name} ${e.last_name}`}</span>
                                 {e.employee_code && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{e.employee_code}</span>}
+                                {rosterMoveSelect(e.id, false)}
                               </div>
                             )
                           })}
@@ -1740,7 +1760,9 @@ export default function TeamCalendarTab() {
                     })}
                     {rosterGroups.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>ยังไม่มีพนักงานที่อยู่ในกลุ่ม</div>}
 
-                    {/* โซน "ไม่แสดง" — ลากคนมาตัดออกจากตาราง export ไปเลย (โซนตายตัว ลบไม่ได้ ต่างจากกลุ่มที่สร้างเอง) */}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    {/* โซน "ไม่แสดง" — อยู่นอกกรอบที่เลื่อน เพื่อให้ลากมาวางได้เสมอไม่ต้องเลื่อนลงไป (โซนตายตัว ลบไม่ได้ ต่างจากกลุ่มที่สร้างเอง) */}
                     {(() => {
                       const hiddenEmps = rosterHiddenEmployees()
                       const isDragOver = dragOverGroupName === ROSTER_HIDDEN_ZONE
@@ -1760,7 +1782,7 @@ export default function TeamCalendarTab() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', marginBottom: 5 }}>
                             <EyeOff size={12} /> ไม่แสดง (ตัดออกจากตาราง export)
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 28 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 28, maxHeight: 120, overflowY: 'auto' }}>
                             {hiddenEmps.map(e => (
                               <div key={e.id} draggable
                                 onDragStart={ev => { ev.dataTransfer.setData(ROSTER_DND_MIME, e.id); ev.dataTransfer.effectAllowed = 'move' }}
@@ -1768,6 +1790,7 @@ export default function TeamCalendarTab() {
                                 <GripVertical size={13} color="#cbd5e1" style={{ flexShrink: 0 }} />
                                 <span style={{ fontSize: '0.8rem', color: '#6b7280', textDecoration: 'line-through' }}>{e.nickname || `${e.first_name} ${e.last_name}`}</span>
                                 {e.employee_code && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{e.employee_code}</span>}
+                                {rosterMoveSelect(e.id, true)}
                               </div>
                             ))}
                             {hiddenEmps.length === 0 && (
