@@ -19,7 +19,7 @@ import StatDetailModal, { type StatRow } from '../../components/ui/StatDetailMod
 
 // ─── API types ────────────────────────────────────────────────────────────────
 interface ApiEmployee { id: string; first_name: string; last_name: string; nickname: string; photo_url: string | null; employee_code?: string; branch: { id: string; name: string; group_id?: string | null } }
-interface ApiEmployeeFull extends ApiEmployee { position_id?: string | null; position?: { name?: string; department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
+interface ApiEmployeeFull extends ApiEmployee { hired_at?: string | null; position_id?: string | null; position?: { name?: string; department?: { division?: { group?: { id: string; name: string } | null } | null } | null } | null }
 interface ApiPosition { id: string; department?: { id: string; division?: { group_id?: string | null } | null } | null }
 interface ApiGroup { id: string; name: string }
 interface ApiWeeklyOff { id: string; employee_id: string; week_start: string; day_of_week: number; status: 'PENDING' | 'APPROVED' | 'REJECTED'; employee: ApiEmployee }
@@ -1127,51 +1127,104 @@ export default function TeamCalendarTab() {
     const THIN = { style: 'thin' as const, color: { argb: 'FF6B7280' } }
     const CELL_BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
+    // ── หน้าตาเหมือนตารางที่ติดผนัง: แถวชื่อเดือน/ปี + แถววันในสัปดาห์ + แถว "วันที่" · ทุกช่องมีเลขวันที่ · วันหยุด/ลา = ระบายสีประจำตัว · ชื่อต่อท้ายด้วยวันเริ่มงาน (ววดดปป พ.ศ.) ·
+    // คอลัมน์ท้ายสรุป หยุด / ใช้พักร้อน · ตั้งหน้ากระดาษแนวนอนพอดี 1 หน้ากว้าง (feedback 2026-10-26: "อยาก export ออกมาแบบนี้เลย")
+    const MON_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+    const DOW_ABBR = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
+    const [yNum, mNum] = month.split('-').map(Number)
+    const yy = String(yNum % 100).padStart(2, '0'), yyBE = String((yNum + 543) % 100).padStart(2, '0')
+    const hiredCode = (iso?: string | null) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? ''); if (!m) return ''
+      return `${m[3]}${m[2]}${String((Number(m[1]) + 543) % 100).padStart(2, '0')}`
+    }
+    // ผสมสีประจำตัวกับขาวให้เป็นพาสเทล + เลือกสีตัวอักษรเข้ม/ขาวจากความสว่าง
+    const pastel = (hex: string, mix = 0.5) => {
+      const n = parseInt(hex.replace('#', ''), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+      const m = (c: number) => Math.round(c + (255 - c) * mix)
+      return [m(r), m(g), m(b)].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase()
+    }
+
     const fixedCols = ['ชื่อ', ...(rosterCols.code ? ['รหัส'] : []), ...(rosterCols.branch ? ['สาขา'] : [])]
-    const totalCols = fixedCols.length + daysInMonth
-    const headerRow = ws.addRow([...fixedCols, ...Array.from({ length: daysInMonth }, (_, i) => i + 1)])
-    headerRow.eachCell({ includeEmpty: true }, c => { c.font = { bold: true, color: { argb: 'FF6B7280' } }; c.alignment = { horizontal: 'center' }; c.border = CELL_BORDER })
+    const dayStart = fixedCols.length + 1
+    const totalCols = fixedCols.length + daysInMonth + 2   // + หยุด + ใช้พักร้อน
+    const dow0 = new Date(yNum, mNum - 1, 1).getDay()
+
+    // แถว 1: ชื่อตาราง
+    const titleRow = ws.addRow([`ตารางวันหยุด ${MON_ABBR[mNum - 1]}${yyBE}`])
+    ws.mergeCells(titleRow.number, 1, titleRow.number, totalCols)
+    titleRow.getCell(1).font = { bold: true, size: 15 }
+    titleRow.getCell(1).alignment = { horizontal: 'center' }
+    titleRow.height = 24
+
+    // แถว 2: เดือน-ปี + วันในสัปดาห์ · แถว 3: "วันที่" + 1..N
+    const dowRow = ws.addRow([`${MON_ABBR[mNum - 1]}-${yy}`, ...fixedCols.slice(1).map(() => ''), ...Array.from({ length: daysInMonth }, (_, i) => DOW_ABBR[(dow0 + i) % 7]), '', ''])
+    const dateRow = ws.addRow(['วันที่', ...fixedCols.slice(1).map(() => ''), ...Array.from({ length: daysInMonth }, (_, i) => i + 1), 'หยุด', 'ใช้พักร้อน'])
+    for (const r of [dowRow, dateRow]) {
+      r.eachCell({ includeEmpty: true }, (c, col) => {
+        c.font = { bold: true, color: { argb: 'FF111827' } }; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = CELL_BORDER
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+        if (r === dowRow && col >= dayStart && col < dayStart + daysInMonth) {
+          const d = (dow0 + (col - dayStart)) % 7
+          if (d === 0) c.font = { bold: true, color: { argb: 'FFDC2626' } }
+          if (d === 6) c.font = { bold: true, color: { argb: 'FF2563EB' } }
+        }
+      })
+    }
     ws.getColumn(1).width = 22
     for (let i = 0; i < fixedCols.length - 1; i++) ws.getColumn(2 + i).width = 12
-    for (let i = 0; i < daysInMonth; i++) ws.getColumn(fixedCols.length + 1 + i).width = 6
+    for (let i = 0; i < daysInMonth; i++) ws.getColumn(dayStart + i).width = 5
+    ws.getColumn(dayStart + daysInMonth).width = 6
+    ws.getColumn(dayStart + daysInMonth + 1).width = 11
 
     for (const grp of rosterGroups) {
-      const groupRow = ws.addRow([`${grp.groupName} (${grp.employees.length} คน)`])
-      // ใส่กรอบทุกช่องของแถวหัวกลุ่มก่อนรวมช่อง — ช่องที่ถูกรวมต้องมีกรอบของตัวเองด้วย ไม่งั้นเส้นขอบขวาของแถวหาย
+      const groupRow = ws.addRow([grp.groupName])
       for (let c = 1; c <= totalCols; c++) groupRow.getCell(c).border = CELL_BORDER
       ws.mergeCells(groupRow.number, 1, groupRow.number, totalCols)
-      groupRow.getCell(1).font = { bold: true, size: 12 }
-      groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+      groupRow.getCell(1).font = { bold: true, size: 13 }
+      groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
       groupRow.getCell(1).border = CELL_BORDER
 
       for (const e of grp.employees) {
-        const color = colorForEmployee(e.id, orderedIds).replace('#', '').toUpperCase()
+        const color = colorForEmployee(e.id, orderedIds)
+        const fill = pastel(color)
+        const code = hiredCode(e.hired_at)
         const rowValues = [
-          `${e.nickname || e.first_name} ${e.last_name}`,
+          `${e.nickname || e.first_name}${code ? ` ${code}` : ''}`,
           ...(rosterCols.code ? [e.employee_code ?? ''] : []),
           ...(rosterCols.branch ? [e.branch.name] : []),
         ]
         const row = ws.addRow(rowValues)
         row.getCell(1).font = { bold: true }
-        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `20${color}` } }
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${fill}` } }
 
+        let offDays = 0, vacDays = 0
         for (let i = 0; i < daysInMonth; i++) {
-          const cell = rosterCellFor(e.id, toDateStr(month, i + 1))
-          const xlCell = row.getCell(fixedCols.length + 1 + i)
+          const dateStr = toDateStr(month, i + 1)
+          const cell = rosterCellFor(e.id, dateStr)
+          const xlCell = row.getCell(dayStart + i)
+          xlCell.value = i + 1
           xlCell.alignment = { horizontal: 'center' }
+          xlCell.font = { color: { argb: 'FF111827' } }
           if (cell) {
-            xlCell.value = cell.label
-            xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${color}` } }
-            xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FFFFFFFF' } }
-          } else {
-            // ช่องว่างใส่เลขวันที่จางๆ ไว้ด้วย (feedback 2026-10-01)
-            xlCell.value = i + 1
-            xlCell.font = { color: { argb: 'FFD1D5DB' } }
+            xlCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${fill}` } }
+            xlCell.font = { bold: !cell.pending, italic: cell.pending, color: { argb: 'FF111827' } }
+            if (cell.label !== 'หยุด') xlCell.note = cell.label + (cell.pending ? ' (รออนุมัติ)' : '')
+            else if (cell.pending) xlCell.note = 'หยุด (รออนุมัติ)'
+            if (cell.label === 'หยุด') offDays++
+            if (cell.label === 'พักร้อน') { const wd = new Date(yNum, mNum - 1, i + 1).getDay(); if (wd !== 0 && wd !== 6) vacDays++ }
           }
         }
+        const sumOff = row.getCell(dayStart + daysInMonth), sumVac = row.getCell(dayStart + daysInMonth + 1)
+        sumOff.value = offDays || null; sumVac.value = vacDays || null
+        for (const c of [sumOff, sumVac]) { c.alignment = { horizontal: 'center' }; c.font = { bold: true } }
         row.eachCell({ includeEmpty: true }, c => { c.border = CELL_BORDER })
+        for (let c = 1; c <= totalCols; c++) row.getCell(c).border = CELL_BORDER
       }
     }
+
+    // พิมพ์: A4 แนวนอน พอดี 1 หน้ากว้าง + ตรึงหัวตาราง/คอลัมน์ชื่อ
+    ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }
+    ws.views = [{ state: 'frozen', xSplit: fixedCols.length, ySplit: 3 }]
 
     const buf = await wb.xlsx.writeBuffer()
     const a = document.createElement('a')
