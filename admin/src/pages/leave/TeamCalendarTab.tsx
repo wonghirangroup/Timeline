@@ -1,8 +1,9 @@
 // admin/src/pages/leave/TeamCalendarTab.tsx
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical, EyeOff, HelpCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CalendarDays, Stethoscope, Briefcase, Sun, Heart, Printer, FileSpreadsheet, Flag, Pencil, Trash2, Move, Plus, Table2, RefreshCw, GripVertical, EyeOff, HelpCircle, Gift } from 'lucide-react'
 import { api } from '../../lib/axios'
+import BonusReviewModal from './BonusReviewModal'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useToast } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -666,6 +667,7 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function TeamCalendarTab() {
   const isReadOnly = useIsReadOnly()
+  const [showBonusReview, setShowBonusReview] = useState(false)   // ตรวจคนหยุดไม่ครบ → ให้พักร้อนสะสม
   const [batchMode, setBatchMode] = useState<null | 'single' | 'multi'>(null)   // ลงวันหยุดรายคน / หลายคน (modal)
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayYM  = todayStr.slice(0, 7)
@@ -1419,6 +1421,10 @@ export default function TeamCalendarTab() {
                 style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #244B83', background: '#fff', color: '#244B83', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <Table2 size={14} /> ลงวันหยุดหลายคน
               </button>
+              <button onClick={() => setShowBonusReview(true)} title="ดูว่าใครจองวันหยุดไม่ครบโควต้าของเดือน (หรือมาทำงานในวันหยุดที่จอง) แล้วให้พักร้อนสะสมเป็นรายคน"
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #16a34a', background: '#f0fdf4', color: '#15803d', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <Gift size={14} /> หยุดไม่ครบ → ให้พักร้อน
+              </button>
             </>
           )}
           {!isMobile && <div style={{ width: 1, background: '#e5e7eb', margin: '2px 2px' }} />}
@@ -1430,6 +1436,7 @@ export default function TeamCalendarTab() {
         </div>
       </div>
 
+      {showBonusReview && <BonusReviewModal onClose={() => setShowBonusReview(false)} />}
       {batchMode && <DayOffBatchModal mode={batchMode} month={month} onClose={() => setBatchMode(null)} onDone={invalidateCalendar} />}
 
       {/* สรุปรายคน — วันหยุด/วันลาของคนที่เลือกในเดือนนี้ เรียงตามวัน */}

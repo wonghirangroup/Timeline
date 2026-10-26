@@ -31,7 +31,7 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
     const ym = req.body?.ym ?? defaultPrevYm()
     if (!isMonthEnded(ym)) return reply.code(400).send(fail('MONTH_NOT_ENDED', 'เดือนนี้ยังไม่จบ ให้โบนัสได้หลังสิ้นเดือน'))
     const r = await grantUnderQuotaBonus(req.tenantId, ym)
-    return ok(r, `เดือน ${r.ym} — ให้โบนัสรวม ${r.totalDays} วัน แก่ ${r.granted} คน (ข้าม ${r.skipped} คนที่หยุดครบแล้ว, ${r.ineligible} คนไม่อยู่ในโปรแกรมพักร้อน)`)
+    return ok(r, `เดือน ${r.ym} — ให้โบนัสรวม ${r.totalDays} วัน แก่ ${r.granted} คน (หยุดครบแล้ว ${r.skipped} คน)`)
   })
 
   // ตรวจโบนัส "หยุดไม่ครบโควต้า" ของเดือนที่เลือก — รายชื่อที่จะได้ + กี่วัน + ให้ไปแล้วหรือยัง (ยังไม่ให้จริง)
