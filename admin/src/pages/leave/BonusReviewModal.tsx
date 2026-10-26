@@ -110,9 +110,15 @@ function BonusReviewCard() {
             <>
               {/* การ์ดแยกตามสาขา หน้าตาเหมือนหน้า "เช็คอินวันนี้": รูป + ชื่อ + จะได้กี่วัน + สถานะ */}
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: '#374151', marginBottom: 10, cursor: readOnly || preview || pending.length === 0 ? 'default' : 'pointer' }}>
-                <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || preview || pending.length === 0}
-                  checked={pending.length > 0 && selectedRows.length === pending.length}
-                  onChange={e => setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set())} />
+                <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || pending.length === 0 || skipMut.isPending}
+                  checked={pending.length > 0 && (preview ? pending.every(r => !skipIds.has(r.employee_id)) : selectedRows.length === pending.length)}
+                  onChange={e => {
+                    if (!preview) { setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set()); return }
+                    // ประมาณการ: ติ๊ก = ให้ตามปกติ · เอาติ๊กออก = ตั้ง "ไม่ให้เดือนนี้" ไว้ล่วงหน้า (บันทึกทันที)
+                    const want = e.target.checked
+                    Promise.all(pending.filter(r => skipIds.has(r.employee_id) === want).map(r => api.put('/api/v1/admin/vacation-policy/bonus-review/skip', { ym, employee_id: r.employee_id, skip: !want })))
+                      .then(() => qc.invalidateQueries({ queryKey: ['vacation-bonus-review'] })).catch(() => showToast('error', 'บันทึกไม่สำเร็จ'))
+                  }} />
                 เลือกทั้งหมด
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14, alignItems: 'start' }}>
@@ -131,12 +137,15 @@ function BonusReviewCard() {
                         const worked = r.booked - r.effective_off
                         return (
                           <div key={r.employee_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid #f8fafc', background: done ? '#f0fdf4' : skipped ? '#fef2f2' : '#fff', opacity: !done && !preview && !skipped && !picked.has(r.employee_id) ? 0.6 : 1 }}>
-                            <input type="checkbox" disabled={readOnly || done || preview} checked={!done && !preview && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} />
+                            <input type="checkbox" disabled={readOnly || done || skipMut.isPending}
+                              checked={!done && (preview ? !skipIds.has(r.employee_id) : picked.has(r.employee_id))}
+                              onChange={() => preview ? skipMut.mutate({ employee_id: r.employee_id, skip: !skipIds.has(r.employee_id) }) : toggle(r.employee_id)}
+                              title={preview ? 'เอาติ๊กออก = ตั้งไม่ให้เดือนนี้ไว้ล่วงหน้า (บันทึกทันที)' : undefined} aria-label={`เลือก ${r.full_name}`} />
                             {r.photo_url
                               ? <img src={r.photo_url} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                               : <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(r.nickname || r.full_name).slice(0, 1)}</div>}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.full_name}{r.nickname ? ` (${r.nickname})` : ''}</div>
+                              <div title={`${r.full_name}${r.nickname ? ` (${r.nickname})` : ''}`} style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nickname || r.full_name}</div>
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 โควต้า {r.quota} · หยุดได้จริง {r.effective_off}{worked > 0 ? ` (มาทำงานวันหยุด ${worked})` : ''}
                               </div>
