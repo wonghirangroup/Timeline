@@ -301,6 +301,7 @@ model Employee {
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
   weekly_off_opens       WeeklyOffEmployeeOpen[]
+  vacation_bonus_skips   VacationBonusSkip[]
   extra_branches         EmployeeBranch[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch_id (สาขาหลัก) — ดู model EmployeeBranch
 
   @@unique([tenant_id, employee_code])
@@ -1268,6 +1269,22 @@ model WeeklyOffEmployeeOpen {
   @@unique([employee_id, month])
   @@index([tenant_id, month])
   @@map("weekly_off_employee_opens")
+}
+
+// แอดมินกำหนดล่วงหน้าว่า "ไม่ให้" โบนัสพักร้อนสิ้นเดือนของใครในเดือนไหน (หน้าตรวจโบนัสจะไม่ติ๊กให้ + cron อัตโนมัติข้ามคนนี้)
+model VacationBonusSkip {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  ym          String // YYYY-MM
+  created_by  String?
+  created_at  DateTime @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, ym])
+  @@index([tenant_id, ym])
+  @@map("vacation_bonus_skips")
 }
 
 model WeeklyOffPeriod {

@@ -240,7 +240,7 @@ export default function OtPage() {
   const filtered = rows.filter(r =>
     (!statusFilter || r.status === statusFilter) &&
     matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter) &&
-    (!search.trim() || `${r.full_name} ${r.request_no ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+    (!search.trim() || `${r.full_name} ${r.nickname ?? ''} ${r.request_no ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
   )
   // Export CSV (feedback 2026-09-24: "ระบบ Export กลุ่ม/สาขา/แผนก/ฝ่าย") — dump
   // `filtered` ตรงๆ (กรองด้วย OrgFilterBar/สถานะ/ค้นหาที่ตั้งไว้บนจอแล้ว) ไม่ใช่

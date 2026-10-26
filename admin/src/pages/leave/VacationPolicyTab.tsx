@@ -194,6 +194,7 @@ function prevMonthYm(): string {
   const d = new Date(Date.now() + 7 * 3600_000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1)
   return d.toISOString().slice(0, 7)
 }
+function currentYm(): string { return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 7) }
 function BonusReviewCard() {
   const qc = useQueryClient()
   const { showToast } = useToast()
@@ -202,14 +203,22 @@ function BonusReviewCard() {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState(false)
 
-  const { data, isLoading, isError } = useQuery<{ ym: string; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
+  const { data, isLoading, isError } = useQuery<{ ym: string; month_ended: boolean; skip_ids: string[]; rows: BonusRow[]; skipped: number; ineligible: number; auto: boolean }>({
     queryKey: ['vacation-bonus-review', ym],
     queryFn: () => api.get('/api/v1/admin/vacation-policy/bonus-review', { params: { ym } }).then(r => r.data.data),
     enabled: /^\d{4}-\d{2}$/.test(ym),
   })
   const rows = data?.rows ?? []
   // ค่าเริ่มต้น: ติ๊กทุกคนที่ยังไม่ได้รับของเดือนนี้ (เอาออกเองได้ทีละคน)
-  useEffect(() => { setPicked(new Set(rows.filter(r => r.granted_days == null).map(r => r.employee_id))) }, [data])
+  const skipIds = new Set(data?.skip_ids ?? [])
+  const preview = data ? !data.month_ended : false   // เดือนที่ยังไม่จบ = ดูประมาณการอย่างเดียว (ให้จริงไม่ได้ แต่ตั้ง "ไม่ให้" ล่วงหน้าได้)
+  // ค่าเริ่มต้น: ติ๊กทุกคนที่ยังไม่ได้รับของเดือนนี้ ยกเว้นคนที่ตั้ง "ไม่ให้" ไว้ (เอาออกเองได้ทีละคน)
+  useEffect(() => { setPicked(new Set(rows.filter(r => r.granted_days == null && !skipIds.has(r.employee_id)).map(r => r.employee_id))) }, [data])
+  const skipMut = useMutation({
+    mutationFn: (v: { employee_id: string; skip: boolean }) => api.put('/api/v1/admin/vacation-policy/bonus-review/skip', { ym, ...v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-bonus-review'] }),
+    onError: () => showToast('error', 'บันทึกไม่สำเร็จ'),
+  })
 
   const grantMut = useMutation({
     mutationFn: () => api.post('/api/v1/admin/vacation-policy/bonus-review/grant', { ym, employee_ids: [...picked] }).then(r => r.data),
@@ -243,12 +252,17 @@ function BonusReviewCard() {
             <li>ติ๊กเลือกรายคนก่อนกด "ให้โบนัส" · เดือนเดียวกันให้ซ้ำคนเดิมไม่ได้</li>
           </ul>
         } />
-        <input type="month" value={ym} onChange={e => setYm(e.target.value)} max={prevMonthYm()}
+        <input type="month" value={ym} onChange={e => setYm(e.target.value)} max={currentYm()}
           style={{ marginLeft: 'auto', padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit' }} />
       </div>
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px 42px' }}>
-        เลือกเดือนที่จบแล้ว ระบบคำนวณให้ว่าใครควรได้กี่วัน คุณติ๊กเฉพาะคนที่จะให้ ส่วนคนที่ไม่ติ๊กจะไม่ได้ (กลับมาให้ทีหลังได้)
+        เลือกเดือนที่จบแล้ว ระบบคำนวณให้ว่าใครควรได้กี่วัน คุณติ๊กเฉพาะคนที่จะให้ ส่วนคนที่ไม่ติ๊กจะไม่ได้ (กลับมาให้ทีหลังได้) · เลือกเดือนปัจจุบันเพื่อดูประมาณการล่วงหน้า และกด "ไม่ให้" ไว้ก่อนได้
       </p>
+      {preview && (
+        <div style={{ marginLeft: 42, marginBottom: 12, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '9px 12px', fontSize: '12.5px', color: '#92400e' }}>
+          <b>ประมาณการ</b> — เดือนนี้ยังไม่จบ ระบบนับวันที่จองไว้เป็นวันหยุดตามปกติ ตัวเลขอาจเปลี่ยนถ้ามีการจอง/เช็คอินเพิ่ม · ให้โบนัสจริงได้หลังสิ้นเดือน · กด <b>"ไม่ให้เดือนนี้"</b> ข้างชื่อ เพื่อกันไว้ล่วงหน้า (ระบบอัตโนมัติจะข้ามคนนี้ด้วย)
+        </div>
+      )}
 
       <div style={{ marginLeft: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '9px 12px', marginBottom: 12 }}>
         <span style={{ fontSize: '12.5px', color: '#374151' }}>
@@ -269,7 +283,7 @@ function BonusReviewCard() {
                   <thead>
                     <tr style={{ background: '#f9fafb' }}>
                       <th style={{ ...cell, width: 36 }}>
-                        <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || pending.length === 0}
+                        <input type="checkbox" aria-label="เลือกทั้งหมด" disabled={readOnly || preview || pending.length === 0}
                           checked={pending.length > 0 && selectedRows.length === pending.length}
                           onChange={e => setPicked(e.target.checked ? new Set(pending.map(r => r.employee_id)) : new Set())} />
                       </th>
@@ -285,8 +299,8 @@ function BonusReviewCard() {
                     {rows.map(r => {
                       const done = r.granted_days != null
                       return (
-                        <tr key={r.employee_id} style={{ background: done ? '#f0fdf4' : picked.has(r.employee_id) ? '#fff' : '#fafafa', opacity: !done && !picked.has(r.employee_id) ? 0.7 : 1 }}>
-                          <td style={cell}><input type="checkbox" disabled={readOnly || done} checked={!done && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} /></td>
+                        <tr key={r.employee_id} style={{ background: done ? '#f0fdf4' : skipIds.has(r.employee_id) ? '#fef2f2' : (preview || picked.has(r.employee_id)) ? '#fff' : '#fafafa', opacity: !done && !preview && !picked.has(r.employee_id) ? 0.7 : 1 }}>
+                          <td style={cell}><input type="checkbox" disabled={readOnly || done || preview} checked={!done && !preview && picked.has(r.employee_id)} onChange={() => toggle(r.employee_id)} aria-label={`เลือก ${r.full_name}`} /></td>
                           <td style={{ ...cell, textAlign: 'left' }}>
                             <div style={{ fontWeight: 600 }}>{r.full_name}{r.nickname ? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> ({r.nickname})</span> : null}</div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{r.employee_code}{r.branch_name ? ` · ${r.branch_name}` : ''}</div>
@@ -295,7 +309,15 @@ function BonusReviewCard() {
                           <td style={cell}>{r.booked}</td>
                           <td style={{ ...cell, color: r.effective_off < r.booked ? '#c2410c' : undefined, fontWeight: r.effective_off < r.booked ? 700 : 400 }} title={r.effective_off < r.booked ? `จองไว้ ${r.booked} แต่มาทำงานในวันหยุด ${r.booked - r.effective_off} วัน` : undefined}>{r.effective_off}</td>
                           <td style={{ ...cell, fontWeight: 800, color: '#15803d' }}>+{r.shortfall} วัน</td>
-                          <td style={cell}>{done ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '2px 9px' }}>ให้แล้ว +{r.granted_days}</span> : <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: 99, padding: '2px 9px' }}>รอตรวจ</span>}</td>
+                          <td style={cell}>{done ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', borderRadius: 99, padding: '2px 9px' }}>ให้แล้ว +{r.granted_days}</span> : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            {skipIds.has(r.employee_id)
+                              ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', borderRadius: 99, padding: '2px 9px' }}>ตั้งไว้ไม่ให้</span>
+                              : <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: 99, padding: '2px 9px' }}>{preview ? 'ประมาณการ' : 'รอตรวจ'}</span>}
+                            {!readOnly && <button disabled={skipMut.isPending} onClick={() => skipMut.mutate({ employee_id: r.employee_id, skip: !skipIds.has(r.employee_id) })}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#2563eb', textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}>
+                              {skipIds.has(r.employee_id) ? 'ยกเลิก (ให้ตามปกติ)' : 'ไม่ให้เดือนนี้'}
+                            </button>}
+                          </div>}</td>
                         </tr>
                       )
                     })}
@@ -304,7 +326,7 @@ function BonusReviewCard() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                 <span style={{ fontSize: '12.5px', color: '#374151' }}>เลือก <b>{selectedRows.length}</b> จาก {pending.length} คนที่รอ · รวม <b>{selectedDays}</b> วัน{data && data.skipped > 0 ? ` · (ข้าม ${data.skipped} คนที่หยุดครบแล้ว)` : ''}</span>
-                {!readOnly && <Button variant="primary" disabled={selectedRows.length === 0} onClick={() => setConfirm(true)}>ให้โบนัส {selectedRows.length} คน</Button>}
+                {!readOnly && !preview && <Button variant="primary" disabled={selectedRows.length === 0} onClick={() => setConfirm(true)}>ให้โบนัส {selectedRows.length} คน</Button>}
               </div>
             </>
           )}

@@ -343,7 +343,7 @@ export default function LeaveRequestsTab() {
       if (!matchesOrgFilter(employeeOrgMap[r.employee_id], orgFilter)) return false
       if (search) {
         const q = search.toLowerCase()
-        if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q)) return false
+        if (!`${r.employee.first_name} ${r.employee.last_name} ${r.employee.nickname ?? ''} ${r.employee.employee_code} ${r.request_no ?? ''}`.toLowerCase().includes(q)) return false
       }
       return true
     })

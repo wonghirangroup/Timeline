@@ -346,17 +346,41 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
 }
 
 // หน้า "ตรวจโบนัสพักร้อนสิ้นเดือน": รายชื่อที่จะได้โบนัส + สถานะว่าให้ไปแล้วหรือยัง
+// เดือน ym จบแล้วหรือยัง (เทียบกับเดือนปัจจุบันตามเวลาไทย) — เดือนที่ยังไม่จบดูประมาณการได้ แต่ให้จริงไม่ได้
+export function isMonthEnded(ym: string): boolean {
+  return ym < bangkokToday().toISOString().slice(0, 7)
+}
+
+export async function setBonusSkip(tenantId: string, employeeId: string, ym: string, skip: boolean, userId?: string) {
+  if (skip) {
+    await prisma.vacationBonusSkip.upsert({
+      where: { employee_id_ym: { employee_id: employeeId, ym } },
+      update: {},
+      create: { tenant_id: tenantId, employee_id: employeeId, ym, created_by: userId ?? null },
+    })
+  } else {
+    await prisma.vacationBonusSkip.deleteMany({ where: { tenant_id: tenantId, employee_id: employeeId, ym } })
+  }
+}
+
 export async function listUnderQuotaBonusReview(tenantId: string, ym: string) {
   const { rows, skipped, ineligible } = await computeUnderQuotaRows(tenantId, ym)
+  const skipRows = await prisma.vacationBonusSkip.findMany({ where: { tenant_id: tenantId, ym }, select: { employee_id: true } })
   const logs = await prisma.vacationGrantLog.findMany({ where: { tenant_id: tenantId, source: 'UNDER_QUOTA_BONUS', ym }, select: { employee_id: true, days: true } })
   const grantedBy = new Map(logs.map(l => [l.employee_id, l.days]))
   const out: BonusReviewRow[] = rows.map(r => ({ ...r, granted_days: grantedBy.get(r.employee_id) ?? null }))
-  return { ym, rows: out, skipped, ineligible, auto: (await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_bonus_auto: true } }))?.vacation_bonus_auto ?? false }
+  return { ym, month_ended: isMonthEnded(ym), skip_ids: skipRows.map(s => s.employee_id), rows: out, skipped, ineligible, auto: (await prisma.tenant.findFirst({ where: { id: tenantId }, select: { vacation_bonus_auto: true } }))?.vacation_bonus_auto ?? false }
 }
 
 export async function grantUnderQuotaBonus(tenantId: string, ym: string, onlyEmployeeIds?: string[]) {
   const [y] = ym.split('-').map(Number)
-  const { rows, skipped, ineligible } = await computeUnderQuotaRows(tenantId, ym, onlyEmployeeIds)
+  const calc = await computeUnderQuotaRows(tenantId, ym, onlyEmployeeIds)
+  let { rows } = calc
+  const { skipped, ineligible } = calc
+  if (!onlyEmployeeIds) {
+    const skipSet = new Set((await prisma.vacationBonusSkip.findMany({ where: { tenant_id: tenantId, ym }, select: { employee_id: true } })).map(s => s.employee_id))
+    rows = rows.filter(r => !skipSet.has(r.employee_id))
+  }
   let granted = 0, totalDays = 0
   for (const r of rows) {
     await writeVacationGrant(tenantId, r.employee_id, y, ym, 'UNDER_QUOTA_BONUS', { incTotal: r.shortfall, note: `หยุดได้จริงไม่ครบโควต้า ${ym} (${r.effective_off}/${r.quota}) ได้รับ +${r.shortfall} วัน` })

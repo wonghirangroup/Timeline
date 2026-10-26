@@ -28,7 +28,7 @@ interface ApiHoliday { id: string; date: string; name: string; target_branches: 
 interface ApiBranch { id: string; name: string }
 
 // ─── Local display types ──────────────────────────────────────────────────────
-interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; photo_url: string | null; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+interface DayOff { id: string; date: string; employee_id: string; name: string; nickname: string; photo_url: string | null; branch_id: string; branch_name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; virtual?: boolean }
 interface LeaveReq { id: string; employee_id: string; name: string; nickname: string; branch_id: string; branch_name: string; leave_type: 'SICK' | 'PERSONAL' | 'VACATION' | 'MATERNITY'; display_label: string; start_date: string; end_date: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; period_label: string; day_fraction: number }
 interface Holiday { date: string; name: string; target_branches: string[] | null }
 
@@ -317,13 +317,13 @@ function DayCell({ day, month, branchFilter, isToday, isSelected, onClick, dayOf
           {shown.map(d => {
             const short = d.nickname || d.name.split(' ')[0]
             return (
-              <div key={d.id} title={`${d.name} · ลากเพื่อย้ายวันหยุด`} draggable
-                onDragStart={e => { e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'dayoff', id: d.id, label: d.name } as DragPayload)); e.dataTransfer.effectAllowed = 'move' }}
+              <div key={d.id} title={d.virtual ? `${d.name} · หยุดเสาร์-อาทิตย์ (ยังไม่ได้จอง)` : `${d.name} · ลากเพื่อย้ายวันหยุด`} draggable={!d.virtual}
+                onDragStart={d.virtual ? undefined : e => { e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'dayoff', id: d.id, label: d.name } as DragPayload)); e.dataTransfer.effectAllowed = 'move' }}
                 style={{
                 fontSize: '0.58rem', fontWeight: 700, lineHeight: 1.5,
-                padding: '0px 5px', borderRadius: 5, cursor: 'grab',
-                background: '#F4F6F9', color: '#131C45',
-                border: d.status === 'PENDING' ? '1px dashed #244B83' : '1px solid #244B8355',
+                padding: '0px 5px', borderRadius: 5, cursor: d.virtual ? 'pointer' : 'grab',
+                background: d.virtual ? '#fff' : '#F4F6F9', color: '#131C45', opacity: d.virtual ? 0.75 : 1,
+                border: d.virtual ? '1px dotted #244B8388' : d.status === 'PENDING' ? '1px dashed #244B83' : '1px solid #244B8355',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {short}
@@ -575,11 +575,11 @@ function DayDetailPanel({ date, branchFilter, onClose, dayOffs, leaves, holidays
                 <AvatarChip name={d.name} photoUrl={d.photo_url} isPending={false} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{d.nickname || d.name}</div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{d.branch_name}{d.virtual ? ' · หยุดเสาร์-อาทิตย์ (ยังไม่ได้จอง)' : ''}</div>
                 </div>
-                <RowActions id={d.id} onDelete={() => onDeleteDayOff(d.id, d.nickname || d.name)} />
+                {!d.virtual && <RowActions id={d.id} onDelete={() => onDeleteDayOff(d.id, d.nickname || d.name)} />}
               </div>
-              <MoveDateRow id={d.id} onMove={newDate => onMoveDayOff(d.id, newDate)} />
+              {!d.virtual && <MoveDateRow id={d.id} onMove={newDate => onMoveDayOff(d.id, newDate)} />}
             </div>
           ))}
         </div>
@@ -909,7 +909,26 @@ export default function TeamCalendarTab() {
   const employeeGroupId: Record<string, string | null> = {}
   for (const e of employeesFull) employeeGroupId[e.id] = e.branch.group_id ?? e.position?.department?.division?.group?.id ?? null
 
-  const dayOffsRaw: DayOff[]  = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
+  const realDayOffsRaw: DayOff[]  = rawWeeklyOff.filter(w => w.status !== 'REJECTED').map(toDisplayDayOff)
+  // สถานะที่โควต้า = เสาร์-อาทิตย์ของเดือน (WEEKENDS_IN_MONTH): ถ้าเดือนนั้นยังไม่ได้จองเลย ให้ขึ้นเสาร์-อาทิตย์เป็นวันหยุดรอไว้ในปฏิทิน (เสมือน — ลบ/ย้ายไม่ได้)
+  // พอจองจริงแม้วันเดียว จะเหลือเฉพาะวันที่จอง (ตรรกะเดียวกับโบนัสพักร้อนสิ้นเดือน) · feedback 2026-10-26
+  const weekendDefaultOffs: DayOff[] = (() => {
+    const out: DayOff[] = []
+    const n = getDaysInMonth(month)
+    for (const e of employeesFull) {
+      if (e.employee_status_type?.off_quota_mode !== 'WEEKENDS_IN_MONTH') continue
+      if (realDayOffsRaw.some(d => d.employee_id === e.id && d.date.startsWith(month))) continue
+      for (let day = 1; day <= n; day++) {
+        const ds = toDateStr(month, day)
+        const wd = new Date(ds + 'T00:00:00').getDay()
+        if (wd !== 0 && wd !== 6) continue
+        if (e.hired_at && e.hired_at.slice(0, 10) > ds) continue
+        out.push({ id: `wk-${e.id}-${ds}`, date: ds, employee_id: e.id, name: `${e.first_name} ${e.last_name}`, nickname: e.nickname ?? '', photo_url: (e as any).photo_url ?? null, branch_id: e.branch.id, branch_name: e.branch.name, status: 'APPROVED', virtual: true })
+      }
+    }
+    return out
+  })()
+  const dayOffsRaw: DayOff[]  = [...realDayOffsRaw, ...weekendDefaultOffs]
   const leavesRaw: LeaveReq[] = rawLeaves.map(toDisplayLeave)
   // กรองด้วยกลุ่ม/แผนก/ตำแหน่งตรงนี้ — ส่วนสาขากรองแยกด้านล่าง (branchFilter ผ่าน
   // getEventsForDate/DayCell/DayDetailPanel อยู่แล้ว ไม่ปนกันเพื่อไม่ต้องแก้ signature)
@@ -1130,13 +1149,7 @@ export default function TeamCalendarTab() {
     if (off) return { label: 'หยุด', pending: off.status === 'PENDING' }
     const leave = leavesRaw.find(l => l.employee_id === employeeId && l.start_date <= dateStr && l.end_date >= dateStr && l.status !== 'REJECTED')
     if (leave) { const cfg = getLeaveCfg(leave); return { label: cfg.label, pending: leave.status === 'PENDING', frac: leave.day_fraction } }
-    // สถานะ "โควต้า = เสาร์-อาทิตย์ของเดือน" (เช่น สถานะพิเศษ): ถ้าเดือนนั้นยังไม่ได้จองวันหยุดเลย ถือว่าหยุดเสาร์-อาทิตย์ทุกวัน — ให้ตารางแยกกลุ่มโชว์วันหยุดของคนนี้ด้วย
-    // (ถ้าจองแล้ว นับเฉพาะวันที่จอง · ตรรกะเดียวกับการนับโบนัสพักร้อนสิ้นเดือน)
-    const emp = employeesFull.find(e => e.id === employeeId)
-    if (emp?.employee_status_type?.off_quota_mode === 'WEEKENDS_IN_MONTH') {
-      const wd = new Date(dateStr + 'T00:00:00').getDay()
-      if ((wd === 0 || wd === 6) && !dayOffsRaw.some(d => d.employee_id === employeeId && d.date.startsWith(dateStr.slice(0, 7)) && d.status !== 'REJECTED')) return { label: 'หยุด', pending: false }
-    }
+    // (วันหยุดเสาร์-อาทิตย์ของสถานะโควต้า=เสาร์-อาทิตย์ที่ยังไม่จอง อยู่ใน dayOffsRaw แบบเสมือนแล้ว — ดู weekendDefaultOffs)
     return null
   }
 

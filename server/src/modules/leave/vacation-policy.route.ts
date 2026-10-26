@@ -6,8 +6,8 @@ import { tenantMiddleware } from '../../common/middleware/tenant'
 import { requireRole }      from '../../common/middleware/rbac'
 import { requirePermission } from '../../common/middleware/permission'
 import { requireFeature }   from '../../common/middleware/feature'
-import { ok }               from '../../common/utils/response'
-import { previewVacationPolicy, grantUnderQuotaBonus, listUnderQuotaBonusReview, runVacationAnnualReset, listVacationRemainingReport } from './vacation-policy.service'
+import { ok, fail }         from '../../common/utils/response'
+import { previewVacationPolicy, grantUnderQuotaBonus, listUnderQuotaBonusReview, setBonusSkip, isMonthEnded, runVacationAnnualReset, listVacationRemainingReport } from './vacation-policy.service'
 
 export async function vacationPolicyRoutes(app: FastifyInstance) {
 
@@ -27,8 +27,9 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
       tags: ['Admin'], summary: 'รันโบนัสพักร้อนตามส่วนต่างจริง (หยุดไม่ครบโควต้า) ของเดือนที่ระบุ', security: [{ oauth2: [] }],
       body: { type: 'object', properties: { ym: { type: 'string', description: 'YYYY-MM (default = เดือนที่แล้ว)' } } },
     },
-  }, async (req: any) => {
+  }, async (req: any, reply) => {
     const ym = req.body?.ym ?? defaultPrevYm()
+    if (!isMonthEnded(ym)) return reply.code(400).send(fail('MONTH_NOT_ENDED', 'เดือนนี้ยังไม่จบ ให้โบนัสได้หลังสิ้นเดือน'))
     const r = await grantUnderQuotaBonus(req.tenantId, ym)
     return ok(r, `เดือน ${r.ym} — ให้โบนัสรวม ${r.totalDays} วัน แก่ ${r.granted} คน (ข้าม ${r.skipped} คนที่หยุดครบแล้ว, ${r.ineligible} คนไม่อยู่ในโปรแกรมพักร้อน)`)
   })
@@ -49,9 +50,22 @@ export async function vacationPolicyRoutes(app: FastifyInstance) {
       tags: ['Admin'], summary: 'ให้โบนัสพักร้อนเฉพาะพนักงานที่เลือก', security: [{ oauth2: [] }],
       body: { type: 'object', required: ['ym', 'employee_ids'], properties: { ym: { type: 'string', pattern: '^\\d{4}-\\d{2}$' }, employee_ids: { type: 'array', minItems: 1, maxItems: 500, items: { type: 'string' } } } },
     },
-  }, async (req: any) => {
+  }, async (req: any, reply) => {
+    if (!isMonthEnded(req.body.ym)) return reply.code(400).send(fail('MONTH_NOT_ENDED', 'เดือนนี้ยังไม่จบ ดูประมาณการได้ แต่ให้โบนัสได้หลังสิ้นเดือน'))
     const r = await grantUnderQuotaBonus(req.tenantId, req.body.ym, req.body.employee_ids)
     return ok(r, `ให้โบนัสพักร้อนเดือน ${r.ym} รวม ${r.totalDays} วัน แก่ ${r.granted} คน`)
+  })
+
+  // กำหนดล่วงหน้าว่า "ไม่ให้" โบนัสของคนนี้ในเดือนนี้ (เดือนไหนก็ตั้งได้ รวมเดือนที่ยังไม่จบ) — cron อัตโนมัติจะข้าม และหน้าตรวจจะไม่ติ๊กให้
+  app.put('/admin/vacation-policy/bonus-review/skip', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), requirePermission('leave', 'edit'), requireFeature('vacation_policy')],
+    schema: {
+      tags: ['Admin'], summary: 'ตั้ง/ยกเลิก "ไม่ให้โบนัสพักร้อน" รายคนต่อเดือน', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['ym', 'employee_id', 'skip'], properties: { ym: { type: 'string', pattern: '^\\d{4}-\\d{2}$' }, employee_id: { type: 'string' }, skip: { type: 'boolean' } } },
+    },
+  }, async (req: any) => {
+    await setBonusSkip(req.tenantId, req.body.employee_id, req.body.ym, req.body.skip, req.userId)
+    return ok({ ok: true })
   })
 
   // รัน reset ประจำปี (default = ปีนี้) ด้วยมือ — ตั้ง total_days ใหม่ตามสูตรอายุงาน
