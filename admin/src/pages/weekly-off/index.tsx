@@ -286,6 +286,79 @@ function BulkModePanel() {
 }
 
 // ─── PeriodManager component ──────────────────────────────────────────────────
+// เปิดจอง "รายคน": พนักงานใหม่เข้ากลางเดือน/ปลายเดือน → เปิดให้เฉพาะคนนี้จองเดือนนั้นได้ ไม่ต้องเปิดทั้งสาขา (ไม่กระทบคนอื่น) และแจ้งพนักงานทาง LINE
+function EmployeeOpenCard({ month }: { month: string }) {
+  const { showToast } = useToast()
+  const isReadOnly = useIsReadOnly()
+  const qc = useQueryClient()
+  const [empId, setEmpId] = useState('')
+  const [note, setNote] = useState('')
+
+  const { data: opens = [] } = useQuery<{ id: string; note: string | null; created_at: string; employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { name: string } } }[]>({
+    queryKey: ['admin', 'weekly-off-employee-opens', month],
+    queryFn: () => api.get('/api/v1/admin/weekly-off/employee-opens', { params: { month } }).then((r: any) => r.data.data),
+  })
+  const { data: employees = [] } = useQuery<{ id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { name: string } }[]>({
+    queryKey: ['admin', 'employees', 'for-weekly-off-open'],
+    queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
+  })
+  const openedIds = new Set(opens.map(o => o.employee.id))
+
+  const addMut = useMutation({
+    mutationFn: () => api.post('/api/v1/admin/weekly-off/employee-opens', { employee_id: empId, month, note: note.trim() || null }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'weekly-off-employee-opens', month] }); showToast('success', 'เปิดจองให้พนักงานแล้ว (แจ้งทาง LINE แล้ว)'); setEmpId(''); setNote('') },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'เปิดจองไม่สำเร็จ'),
+  })
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/weekly-off/employee-opens/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'weekly-off-employee-opens', month] }); showToast('success', 'ยกเลิกแล้ว') },
+    onError: () => showToast('error', 'ไม่สำเร็จ'),
+  })
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <Unlock size={16} color="#244B83" />
+        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>เปิดจองรายคน</div>
+        <InfoTooltip size="md" title="เปิดจองรายคน" width={310} content={
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            <li>ใช้กับพนักงานที่เข้ากลางเดือน/ปลายเดือน หรือคนที่ช่วงจองของสาขาปิดไปแล้ว — เปิดให้เฉพาะคนนี้จองเดือนนั้นได้ <b>ไม่ต้องเปิดทั้งสาขา</b></li>
+            <li>พนักงานได้ข้อความ LINE พร้อมปุ่มจองทันที · ยังจองได้ไม่เกินโควต้าของเดือนตามเดิม</li>
+            <li>ยกเลิกได้ทุกเมื่อ (วันที่จองไปแล้วไม่หาย)</li>
+          </ul>
+        } />
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-muted)' }}>เดือน {fmtYM(month)}</span>
+      </div>
+      {!isReadOnly && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 8 }}>
+          <div style={{ flex: '2 1 240px', minWidth: 200 }}>
+            <SearchSelect value={empId} onChange={setEmpId} placeholder="เลือกพนักงานที่จะเปิดจองให้" searchPlaceholder="ค้นหาชื่อ / รหัส" emptyText="ไม่พบพนักงาน"
+              options={employees.filter(e => !openedIds.has(e.id)).map(e => ({ value: e.id, label: `${e.first_name} ${e.last_name}${e.nickname ? ` (${e.nickname})` : ''} · ${e.branch.name}`, keywords: e.employee_code }))}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.85rem' }} />
+          </div>
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="หมายเหตุถึงพนักงาน (ไม่บังคับ)" maxLength={120}
+            style={{ flex: '2 1 200px', padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.85rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <button onClick={() => addMut.mutate()} disabled={!empId || addMut.isPending}
+            style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: empId ? '#244B83' : '#d1d5db', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: empId ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+            {addMut.isPending ? 'กำลังเปิด...' : 'เปิดจองให้คนนี้'}
+          </button>
+        </div>
+      )}
+      {opens.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          {opens.map(o => (
+            <span key={o.id} title={o.note ?? undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef4ff', border: '1px solid #bfd3f5', color: '#1e3a8a', borderRadius: 99, padding: '4px 6px 4px 12px', fontSize: '0.78rem', fontWeight: 600 }}>
+              {o.employee.first_name} {o.employee.last_name}{o.employee.nickname ? ` (${o.employee.nickname})` : ''} · {o.employee.branch.name}
+              {!isReadOnly && <button onClick={() => delMut.mutate(o.id)} aria-label="ยกเลิกการเปิดจอง" style={{ border: 'none', background: '#fff', color: '#dc2626', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', lineHeight: 1, fontWeight: 800 }}>×</button>}
+            </span>
+          ))}
+        </div>
+      )}
+      {opens.length === 0 && <div style={{ marginTop: 10, fontSize: '0.78rem', color: 'var(--text-muted)' }}>ยังไม่มีพนักงานที่เปิดจองรายคนในเดือนนี้</div>}
+    </div>
+  )
+}
+
 function PeriodManager({ month, requests, onApprove, onReject }: {
   month: string; requests: WeeklyOffRequest[]
   onApprove: (id: string) => void
@@ -345,6 +418,7 @@ function PeriodManager({ month, requests, onApprove, onReject }: {
 
   return (
     <div>
+      <EmployeeOpenCard month={month} />
       {!isMobile && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2 }}>

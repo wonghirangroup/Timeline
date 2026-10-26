@@ -300,6 +300,7 @@ model Employee {
   vacation_grant_logs    VacationGrantLog[]
   swap_requests_sent     WeeklyOffSwapRequest[] @relation("SwapRequester")
   swap_requests_received WeeklyOffSwapRequest[] @relation("SwapTarget")
+  weekly_off_opens       WeeklyOffEmployeeOpen[]
   extra_branches         EmployeeBranch[] // สาขาเสริม/สาขารอง นอกเหนือจาก branch_id (สาขาหลัก) — ดู model EmployeeBranch
 
   @@unique([tenant_id, employee_code])
@@ -1250,6 +1251,24 @@ model WeeklyOffRequest {
 // ─────────────────────────────────────────────
 // WEEKLY OFF PERIOD (เปิด/ปิดการจองต่อสาขาต่อเดือน)
 // ─────────────────────────────────────────────
+
+// เปิดจองวันหยุด "รายคน" — ให้พนักงานคนนี้จองเดือนนั้นได้ แม้ช่วงจองของสาขาปิดอยู่/เลย deadline แล้ว (เช่น พนักงานใหม่เข้าปลายเดือน)
+// ไม่กระทบคนอื่นในสาขา · มีผลถึงสิ้นเดือนที่ระบุ (หรือจนกว่าแอดมินยกเลิก)
+model WeeklyOffEmployeeOpen {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  employee_id String
+  month       String // YYYY-MM
+  note        String?
+  opened_by   String? // user_id ของแอดมินที่เปิดให้
+  created_at  DateTime @default(now())
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, month])
+  @@index([tenant_id, month])
+  @@map("weekly_off_employee_opens")
+}
 
 model WeeklyOffPeriod {
   id         String    @id @default(uuid())

@@ -653,7 +653,7 @@ export async function requestWeeklyOffChange(tenantId: string, employeeId: strin
   if (await prisma.weeklyOffRequest.findFirst({ where: { employee_id: employeeId, week_start: monday, day_of_week: dow }, select: { id: true } })) throw new Error('ALREADY_REQUESTED')
 
   const newMonth = newDate.slice(0, 7)
-  if (!(await checkPeriodOpen(tenantId, old.employee.branch_id, newMonth))) throw new Error('PERIOD_CLOSED')
+  if (!(await checkPeriodOpen(tenantId, old.employee.branch_id, newMonth, old.employee_id))) throw new Error('PERIOD_CLOSED')
   // ย้ายข้ามเดือน = ไปเพิ่มโควต้าของเดือนปลายทาง (เดือนเดิมจะลดลงเมื่ออนุมัติ) — ในเดือนเดียวกันจำนวนวันไม่เปลี่ยน ไม่ต้องเช็ค
   if (newMonth !== oldDate.slice(0, 7)) {
     const quota = await resolveBookingQuota(tenantId, employeeId, newMonth)
@@ -680,7 +680,7 @@ export async function requestWeeklyOffChange(tenantId: string, employeeId: strin
 export async function resetEmployeeMonthBookings(tenantId: string, employeeId: string, month: string): Promise<number> {
   const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { branch_id: true } })
   if (!emp) throw new Error('NOT_FOUND')
-  if (!(await checkPeriodOpen(tenantId, emp.branch_id, month))) throw new Error('PERIOD_CLOSED')
+  if (!(await checkPeriodOpen(tenantId, emp.branch_id, month, employeeId))) throw new Error('PERIOD_CLOSED')
 
   const [y, m] = month.split('-').map(Number)
   const rangeStart = new Date(Date.UTC(y, m - 1, 1)); rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)

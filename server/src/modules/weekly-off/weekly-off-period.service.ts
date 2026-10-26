@@ -179,8 +179,41 @@ export async function updatePeriod(tenantId: string, id: string, data: {
   return count.count > 0
 }
 
+// ── เปิดจองรายคน ─────────────────────────────────────────────
+export async function listEmployeeOpens(tenantId: string, month: string) {
+  return prisma.weeklyOffEmployeeOpen.findMany({
+    where: { tenant_id: tenantId, month },
+    include: { employee: { select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } } } },
+    orderBy: { created_at: 'desc' },
+  })
+}
+
+export async function openForEmployee(tenantId: string, data: { employee_id: string; month: string; note?: string | null; opened_by?: string }) {
+  const emp = await prisma.employee.findFirst({ where: { id: data.employee_id, tenant_id: tenantId, deleted_at: null }, select: { id: true } })
+  if (!emp) throw new Error('NOT_FOUND')
+  const existing = await prisma.weeklyOffEmployeeOpen.findUnique({ where: { employee_id_month: { employee_id: data.employee_id, month: data.month } } })
+  const row = await prisma.weeklyOffEmployeeOpen.upsert({
+    where: { employee_id_month: { employee_id: data.employee_id, month: data.month } },
+    create: { tenant_id: tenantId, employee_id: data.employee_id, month: data.month, note: data.note ?? null, opened_by: data.opened_by },
+    update: { note: data.note ?? null },
+  })
+  return { row, isNew: !existing }
+}
+
+export async function removeEmployeeOpen(tenantId: string, id: string) {
+  const r = await prisma.weeklyOffEmployeeOpen.deleteMany({ where: { id, tenant_id: tenantId } })
+  return r.count > 0
+}
+
+export { fmtMonthTH }
+
 // Employee: เช็คว่า period เปิดอยู่ไหม
-export async function checkPeriodOpen(tenantId: string, branchId: string, month: string): Promise<boolean> {
+export async function checkPeriodOpen(tenantId: string, branchId: string, month: string, employeeId?: string): Promise<boolean> {
+  // เปิดจองให้ "รายคน" (พนักงานเข้าใหม่กลางเดือน ฯลฯ) → จองได้เสมอ ไม่ดูสถานะ/deadline ของสาขา
+  if (employeeId) {
+    const personal = await prisma.weeklyOffEmployeeOpen.findUnique({ where: { employee_id_month: { employee_id: employeeId, month } }, select: { id: true } })
+    if (personal) return true
+  }
   const period = await prisma.weeklyOffPeriod.findUnique({
     where: { tenant_id_branch_id_month: { tenant_id: tenantId, branch_id: branchId, month } },
   })

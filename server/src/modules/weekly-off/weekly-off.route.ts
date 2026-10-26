@@ -11,7 +11,7 @@ import {
   getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, resetEmployeeMonthBookings, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
-import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened } from './weekly-off-period.service'
+import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened, listEmployeeOpens, openForEmployee, removeEmployeeOpen, fmtMonthTH } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
 import { notifyAdminsLine, notifyEmployeeLine } from '../notifications/line-push.service'
 
@@ -431,13 +431,49 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     return ok(null, 'อัปเดตสำเร็จ')
   })
 
+  // ── Admin: เปิดจองวันหยุด "รายคน" (พนักงานเข้าใหม่กลางเดือน — ไม่ต้องเปิดทั้งสาขา) ──────────────
+  app.get('/admin/weekly-off/employee-opens', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'view')],
+    schema: { tags: ['Admin'], summary: 'รายชื่อพนักงานที่แอดมินเปิดจองวันหยุดให้เป็นรายคน (ต่อเดือน)', security: [{ oauth2: [] }],
+      querystring: { type: 'object', required: ['month'], properties: { month: { type: 'string' } } } },
+  }, async (req: any) => ok(await listEmployeeOpens(req.tenantId, req.query.month)))
+
+  app.post('/admin/weekly-off/employee-opens', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'edit')],
+    schema: { tags: ['Admin'], summary: 'เปิดจองวันหยุดให้พนักงาน 1 คน (เดือนที่ระบุ) แม้ช่วงจองของสาขาปิดอยู่ — แจ้งพนักงานทาง LINE', security: [{ oauth2: [] }],
+      body: { type: 'object', required: ['employee_id', 'month'], properties: { employee_id: { type: 'string' }, month: { type: 'string', pattern: '^\\d{4}-\\d{2}$' }, note: { type: ['string', 'null'], maxLength: 180 } } } },
+  }, async (req: any, reply) => {
+    try {
+      const { row, isNew } = await openForEmployee(req.tenantId, { employee_id: req.body.employee_id, month: req.body.month, note: req.body.note, opened_by: req.userId })
+      if (isNew) {
+        notifyEmployeeLine(req.tenantId, req.body.employee_id, 'ระบบ', {
+          title: 'เปิดจองวันหยุดให้คุณแล้ว', detail: `จองวันหยุดเดือน ${fmtMonthTH(req.body.month)} ได้เลย${req.body.note ? ` · ${req.body.note}` : ''}`,
+          color: '#2563EB', path: `/leave?tab=booking&month=${req.body.month}`, buttonLabel: 'จองเลย',
+        })
+      }
+      return reply.code(201).send(ok(row, isNew ? 'เปิดจองให้พนักงานแล้ว' : 'อัปเดตแล้ว'))
+    } catch (e: any) {
+      if (e.message === 'NOT_FOUND') return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน'))
+      throw e
+    }
+  })
+
+  app.delete('/admin/weekly-off/employee-opens/:id', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER'), requirePermission('leave', 'edit')],
+    schema: { tags: ['Admin'], summary: 'ยกเลิกการเปิดจองรายคน', security: [{ oauth2: [] }], params: { type: 'object', properties: { id: { type: 'string' } } } },
+  }, async (req: any, reply) => {
+    if (!(await removeEmployeeOpen(req.tenantId, req.params.id))) return reply.code(404).send(fail('NOT_FOUND', 'ไม่พบรายการ'))
+    return ok(null, 'ยกเลิกแล้ว')
+  })
+
   // ── Employee (LIFF): เช็คว่า period เปิดไหม ────────────────────────────────
   app.get('/employee/weekly-off/period-status', {
     preHandler: [tenantMiddleware],
     schema: { tags: ['Employee'], summary: 'เช็คว่าเปิดจองอยู่ไหม (LIFF)', security: [{ oauth2: [] }],
       querystring: { type: 'object', required: ['branchId', 'month'], properties: { branchId: { type: 'string' }, month: { type: 'string' } } } },
   }, async (req: any) => {
-    const isOpen = await checkPeriodOpen(req.tenantId, req.query.branchId, req.query.month)
+    // req.employeeId = ผู้ที่ล็อกอินอยู่ (จาก token) — เปิดจองรายคนให้คนนี้ไว้ไหมก็นับเป็น "เปิด" ด้วย
+    const isOpen = await checkPeriodOpen(req.tenantId, req.query.branchId, req.query.month, req.employeeId)
     return ok({ is_open: isOpen })
   })
 
