@@ -838,6 +838,13 @@ export default function TeamCalendarTab() {
     else deleteLeaveMutation.mutate(deleteTarget.id)
   }
 
+  // กติกาจัดกลุ่ม export "กลุ่มจริงชนะตำแหน่งที่แยก" ใช้เฉพาะบริษัท วงศ์หิรัญ (feedback 2026-10-26)
+  const { data: tenantNameForRoster = '' } = useQuery<string>({
+    queryKey: ['tenant-name-for-roster'],
+    queryFn: () => api.get('/api/v1/admin/tenant-settings').then(r => r.data.data?.name ?? ''),
+    staleTime: 10 * 60 * 1000,
+  })
+  const realGroupBeatsPosition = /วงศ์หิรัญ|วงษ์หิรัญ/.test(tenantNameForRoster)
   const { data: rawWeeklyOff = [] } = useQuery<ApiWeeklyOff[]>({
     queryKey: ['admin', 'weekly-off', month],
     queryFn: () => api.get('/api/v1/admin/weekly-off', { params: { month } }).then(r => r.data.data),
@@ -1072,9 +1079,11 @@ export default function TeamCalendarTab() {
 
     const byName = new Map<string, ApiEmployeeFull[]>()
     for (const e of candidates) {
-      // ลำดับความสำคัญ: ลากย้ายเอง > ตำแหน่งที่ติ๊กให้แยก (ใช้ชื่อตำแหน่งเป็นชื่อกลุ่ม) > กลุ่มจริง
+      // ลำดับความสำคัญ: ลากย้ายเอง > กลุ่มจริง (ถ้ามี เช่น ในเมือง) > ตำแหน่งที่ติ๊กให้แยก (ใช้ชื่อตำแหน่งเป็นชื่อกลุ่ม
+      // — เฉพาะคนที่ยังไม่มีกลุ่ม; feedback 2026-10-26: พนักงานขายที่อยู่กลุ่มในเมืองต้องไปอยู่กลุ่มในเมือง)
       const posName = e.position?.name
-      const name = rosterGroupOverrides[e.id] || (posName && rosterSplitPositions.includes(posName) ? posName : realRosterGroupName(e))
+      const real = realRosterGroupName(e)
+      const name = rosterGroupOverrides[e.id] || (posName && rosterSplitPositions.includes(posName) && (!realGroupBeatsPosition || real === 'ไม่มีกลุ่ม') ? posName : real)
       if (!byName.has(name)) byName.set(name, [])
       byName.get(name)!.push(e)
     }
@@ -1630,7 +1639,7 @@ export default function TeamCalendarTab() {
                 {/* แยกตำแหน่งออกเป็นกลุ่มของตัวเองอัตโนมัติ — ไม่ต้องลากทีละคน (คนใหม่ที่ตำแหน่งตรงกันเข้ากลุ่มเอง) */}
                 <div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 2 }}>แยกตำแหน่งออกเป็นกลุ่มของตัวเอง</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>ติ๊กตำแหน่งที่อยากให้แยกออกมาเป็นกลุ่มใน export (เช่น พนักงานขนส่ง) — ระบบจัดให้เองตามตำแหน่งในระบบ ไม่ต้องลาก · จะลากย้ายรายคนทับอีกที่ก็ได้</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>ติ๊กตำแหน่งที่อยากให้แยกออกมาเป็นกลุ่มใน export (เช่น พนักงานขนส่ง) — ระบบจัดให้เองตามตำแหน่งในระบบ ไม่ต้องลาก{realGroupBeatsPosition ? ' (คนที่อยู่กลุ่มจริงอยู่แล้ว เช่น ในเมือง จะอยู่กลุ่มนั้นตามเดิม)' : ''} · จะลากย้ายรายคนทับอีกที่ก็ได้</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {(() => {
                       const counts = new Map<string, number>()
