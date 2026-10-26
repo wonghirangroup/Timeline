@@ -8,7 +8,7 @@
 import { MonthlyCapError } from './monthly-cap'
 import { prisma } from '../../common/utils/prisma'
 import { bangkokToday } from '../../common/utils/time'
-import { resolveBookingQuota, usesWeekendPool } from '../group/group.service'
+import { resolveBookingQuota, usesWeekendPool, resolveHolidayPolicy } from '../group/group.service'
 
 // ── Tenure-based vacation entitlement (ข้อ 6) ──────────────────────────────
 // สูตร: base + incDays * floor((years - 1) / incYears) เมื่อ years >= 1
@@ -332,6 +332,8 @@ async function computeUnderQuotaRows(tenantId: string, ym: string, onlyIds?: str
   let skipped = 0
   // ไม่เช็คเงื่อนไขโปรแกรมพักร้อน (อายุงาน ≥ 1 ปี / ตำแหน่งตั้งค่าไว้ / โหมดจอง) — ใครจองไม่ครบโควต้าหรือมาทำงานในวันหยุดที่จอง ได้คืนเป็นพักร้อนหมด (feedback 2026-10-26)
   for (const e of employees) {
+    // คนที่ไม่ได้รับสิทธิ์จองวันหยุด (ปิดสิทธิ์ตามกลุ่ม/สาขา/แผนก/ตำแหน่ง/รายบุคคล) ไม่ต้องแสดง — feedback 2026-10-26
+    if (!(await resolveHolidayPolicy(tenantId, e.id)).booking_enabled) continue
     const quota = await resolveBookingQuota(tenantId, e.id, ym)
     const pool = await usesWeekendPool(tenantId, e.id)
     const booked = await countMonthOffRequests(tenantId, e.id, ym, undefined, ['APPROVED'])
