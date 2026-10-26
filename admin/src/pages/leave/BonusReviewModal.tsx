@@ -29,7 +29,7 @@ function BonusReviewCard() {
   const qc = useQueryClient()
   const { showToast } = useToast()
   const readOnly = useIsReadOnly()
-  const [ym, setYm] = useState(prevMonthYm())
+  const [ym, setYm] = useState(currentYm())   // เปิดมาโฟกัสเดือนปัจจุบัน (ดูประมาณการ) — เปลี่ยนไปเดือนที่แล้วเพื่อให้โบนัสจริงได้
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState(false)
 
@@ -83,7 +83,7 @@ function BonusReviewCard() {
           </ul>
         } />
         <input type="month" value={ym} onChange={e => setYm(e.target.value)} max={currentYm()}
-          style={{ marginLeft: 'auto', padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit' }} />
+          style={{ marginLeft: 'auto', marginRight: 44, padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '13px', fontFamily: 'inherit' }} />
       </div>
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px 42px' }}>
         ใครจองวันหยุดไม่ครบโควต้าของเดือน หรือมาทำงานในวันหยุดที่จองไว้ จะได้พักร้อนสะสมเท่ากับส่วนที่ขาด (ไม่ดูอายุงาน/ตำแหน่ง) · เดือนปัจจุบันดูเป็นประมาณการได้ และกด "ไม่ให้" ไว้ก่อนได้ · ให้จริงได้หลังสิ้นเดือน
