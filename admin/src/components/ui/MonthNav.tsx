@@ -11,6 +11,9 @@ interface MonthNavProps {
   onNext: () => void
   /** ใส่เมื่อกดที่ชื่อเดือนแล้วจะเปิดตัวเลือกเดือน/ปี (ตัว popup ส่งมาเป็น children) */
   onLabelClick?: () => void
+  /** เลขจุดแดงบนลูกศร — จำนวนงานรอในเดือนก่อนหน้า/ถัดไป (ไม่ใส่ = ไม่โชว์) */
+  prevBadge?: number
+  nextBadge?: number
   /** กล่อง popup ตัวเลือกเดือน/ปี — วางเป็น position:absolute ได้ เทียบกับแถบนี้ */
   children?: ReactNode
   className?: string
@@ -22,7 +25,10 @@ const arrowBtn: CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
 }
 
-export default function MonthNav({ label, onPrev, onNext, onLabelClick, children, className, style }: MonthNavProps) {
+// เลขวงกลมแดงมุมลูกศร = มีงานรอจัดการในเดือนข้างๆ (เช่น คำขอรอพิจารณา)
+const dotBadge: CSSProperties = { position: 'absolute', top: -7, right: -7, minWidth: 18, height: 18, padding: '0 4px', borderRadius: 99, background: '#ef4444', color: '#fff', fontSize: '0.66rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, boxShadow: '0 0 0 2px #fff' }
+
+export default function MonthNav({ label, onPrev, onNext, onLabelClick, prevBadge, nextBadge, children, className, style }: MonthNavProps) {
   const isMobile = useIsMobile()
   const labelStyle: CSSProperties = {
     fontSize: isMobile ? '0.9rem' : '1.05rem', fontWeight: 800, color: '#fff', minWidth: isMobile ? 120 : 170,
@@ -31,7 +37,7 @@ export default function MonthNav({ label, onPrev, onNext, onLabelClick, children
   return (
     <div className={className} style={{ position: 'relative', display: 'inline-block', ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: 5, borderRadius: 14, background: 'linear-gradient(135deg, #131C45 0%, #244B83 100%)', boxShadow: '0 4px 14px rgba(19,28,69,0.25)' }}>
-        <button onClick={onPrev} aria-label="เดือนก่อนหน้า" style={arrowBtn}><ChevronLeft size={18} color="#fff" /></button>
+        <button onClick={onPrev} aria-label="เดือนก่อนหน้า" style={{ ...arrowBtn, position: 'relative' }}><ChevronLeft size={18} color="#fff" />{!!prevBadge && <span style={dotBadge}>{prevBadge}</span>}</button>
         {onLabelClick ? (
           <button onClick={onLabelClick} title="เลือกเดือน/ปี"
             style={{ ...labelStyle, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 8, padding: '4px 6px' }}
@@ -42,7 +48,7 @@ export default function MonthNav({ label, onPrev, onNext, onLabelClick, children
         ) : (
           <span style={labelStyle}>{label}</span>
         )}
-        <button onClick={onNext} aria-label="เดือนถัดไป" style={arrowBtn}><ChevronRight size={18} color="#fff" /></button>
+        <button onClick={onNext} aria-label="เดือนถัดไป" style={{ ...arrowBtn, position: 'relative' }}><ChevronRight size={18} color="#fff" />{!!nextBadge && <span style={dotBadge}>{nextBadge}</span>}</button>
       </div>
       {children}
     </div>

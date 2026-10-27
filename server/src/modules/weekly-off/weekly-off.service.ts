@@ -954,3 +954,18 @@ export async function respondWeeklyOffSwap(tenantId: string, swapRequestId: stri
   await prisma.weeklyOffSwapRequest.update({ where: { id: swapReq.id }, data: { status: 'ACCEPTED', responded_at: new Date() } })
   return { swapReq, swapped }
 }
+
+// สรุปคำขอจองวันหยุดที่ "รอพิจารณา" แยกตามเดือนของวันหยุดจริง — ให้หน้าแอดมินชี้ทางว่าเลข badge บนเมนูอยู่เดือนไหน
+// (เดือนที่เปิดอยู่ไม่มีคำขอ แต่ badge โชว์เลข เพราะคำขออยู่เดือนอื่น — feedback 2026-10-27)
+export async function listPendingMonths(tenantId: string, scopedEmployeeIds?: string[]): Promise<{ month: string; count: number }[]> {
+  const rows = await prisma.weeklyOffRequest.findMany({
+    where: { tenant_id: tenantId, status: 'PENDING', ...(scopedEmployeeIds ? { employee_id: { in: scopedEmployeeIds } } : {}) },
+    select: { week_start: true, day_of_week: true },
+  })
+  const byMonth = new Map<string, number>()
+  for (const r of rows) {
+    const m = resolveActualDateStr(r.week_start, r.day_of_week).slice(0, 7)
+    byMonth.set(m, (byMonth.get(m) ?? 0) + 1)
+  }
+  return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count }))
+}

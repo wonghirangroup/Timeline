@@ -8,7 +8,7 @@ import { resolveDeptScope } from '../../common/middleware/deptScope'
 import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
-  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, resetEmployeeMonthBookings, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
+  getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, resetEmployeeMonthBookings, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, listPendingMonths, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
   requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened, listEmployeeOpens, openForEmployee, removeEmployeeOpen, fmtMonthTH } from './weekly-off-period.service'
@@ -309,6 +309,12 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
 
     return ok({ count: pending.length }, `อนุมัติ ${pending.length} รายการสำเร็จ`)
   })
+
+  // ── Admin/DEPT_HEAD: คำขอจองวันหยุดที่รอพิจารณา แยกตามเดือน (ไว้ชี้ทางจากเลข badge ไปหาเดือนที่มีคำขอ) ──
+  app.get('/admin/weekly-off/pending-months', {
+    preHandler: [tenantMiddleware, requireRole('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE', 'DEPT_HEAD'), requirePermission('leave', 'view'), resolveDeptScope],
+    schema: { tags: ['Admin'], summary: 'จำนวนคำขอจองวันหยุดที่รอพิจารณา แยกตามเดือน', security: [{ oauth2: [] }] },
+  }, async (req: any) => ok(await listPendingMonths(req.tenantId, req.scopedEmployeeIds)))
 
   // ── Admin/DEPT_HEAD: Alert "เช็คอินวันที่จองวันหยุดไว้เอง" ──────────────────
   app.get('/admin/weekly-off/worked-alerts', {

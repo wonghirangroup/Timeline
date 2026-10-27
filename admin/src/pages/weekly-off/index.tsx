@@ -812,7 +812,7 @@ export default function WeeklyOffPage() {
     setSplitKey(null); setSplitSel([]); setSplitRejecting(false); setSplitNote('')
   }
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] })
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['admin', 'weekly-off', month] }); qc.invalidateQueries({ queryKey: ['admin', 'weekly-off-pending-months'] }) }
 
   const { data: requests = [], isLoading } = useQuery<WeeklyOffRequest[]>({
     queryKey: ['admin', 'weekly-off', month],
@@ -830,6 +830,13 @@ export default function WeeklyOffPage() {
     queryKey: ['admin', 'employees'],
     queryFn: () => api.get('/api/v1/admin/employees').then((r: any) => r.data.data),
   })
+  // คำขอรอพิจารณาแยกตามเดือน — ชี้ทางจากเลข badge บนแท็บ/เมนู ไปหาเดือนที่มีคำขอจริง (เดือนที่เปิดอยู่ว่าง แต่ badge มีเลข)
+  const { data: pendingMonths = [] } = useQuery<{ month: string; count: number }[]>({
+    queryKey: ['admin', 'weekly-off-pending-months'],
+    queryFn: () => api.get('/api/v1/admin/weekly-off/pending-months').then((r: any) => r.data.data),
+  })
+  const pendingOf = (m: string) => pendingMonths.find(p => p.month === m)?.count ?? 0
+  const otherPendingMonths = pendingMonths.filter(p => p.month !== month)
   const { data: workedAlerts = [] } = useQuery<WorkedOffAlert[]>({
     queryKey: ['admin', 'weekly-off-worked-alerts'],
     queryFn: () => api.get('/api/v1/admin/weekly-off/worked-alerts').then((r: any) => r.data.data),
@@ -1021,11 +1028,23 @@ export default function WeeklyOffPage() {
 
   return (
     <div>
+      {otherPendingMonths.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '9px 14px', marginBottom: 12, fontSize: '0.82rem', color: '#92400e' }}>
+          <Clock size={14} />
+          <span>{pendingOf(month) === 0 ? <>เดือน <b>{fmtYM(month)}</b> ไม่มีคำขอรอพิจารณา — แต่ยังมีคำขอรออยู่เดือนอื่น:</> : <>ยังมีคำขอรอพิจารณาในเดือนอื่นด้วย:</>}</span>
+          {otherPendingMonths.map(p => (
+            <button key={p.month} onClick={() => { setMonth(p.month); setTab('requests'); setStatus('PENDING') }}
+              style={{ border: '1px solid #f59e0b', background: '#fff', color: '#b45309', borderRadius: 99, padding: '3px 12px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {fmtYM(p.month)} · {p.count} รายการ →
+            </button>
+          ))}
+        </div>
+      )}
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 10, flexWrap: 'wrap' }}>
         {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <MonthNav label={fmtYM(month)} onPrev={() => setMonth(m => addMonths(m, -1))} onNext={() => setMonth(m => addMonths(m, 1))} />
+          <MonthNav label={fmtYM(month)} prevBadge={pendingOf(addMonths(month, -1))} nextBadge={pendingOf(addMonths(month, 1))} onPrev={() => setMonth(m => addMonths(m, -1))} onNext={() => setMonth(m => addMonths(m, 1))} />
           <InfoTooltip title="จองวันหยุดประจำเดือน" width={310} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
               <li><b>เปิด/ปิดการจอง</b> — เปิด/ปิดสิทธิ์จองวันหยุดของแต่ละสาขา/กลุ่มต่อเดือน ตั้ง deadline ได้</li>
