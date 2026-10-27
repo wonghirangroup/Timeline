@@ -553,6 +553,25 @@ export default function LeaveRequestsTab() {
               </span>
             ) : null
           })()}
+          {/* ชี้ทางไปเดือนที่มีใบลารอพิจารณา — เลขบนแท็บ "วันลา" นับทุกเดือน แต่เดือนที่เปิดอยู่อาจว่าง (feedback 2026-10-27) */}
+          {(() => {
+            const byMonth = new Map<string, number>()
+            for (const r of requests) if (r.status === 'PENDING') { const m = r.start_date.slice(0, 7); byMonth.set(m, (byMonth.get(m) ?? 0) + 1) }
+            const others = [...byMonth.entries()].filter(([m]) => m !== monthFilter).sort(([a], [b]) => a.localeCompare(b))
+            if (others.length === 0) return null
+            const thMonth = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${MONTHS_FULL[m - 1]} ${y + 543}` }
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '6px 12px', fontSize: '0.8rem', color: '#92400e' }}>
+                <span>{monthFilter && !requests.some(r => r.start_date.slice(0, 7) === monthFilter && r.status === 'PENDING') ? 'เดือนนี้ไม่มีใบลารอพิจารณา — แต่ยังมีรออยู่เดือนอื่น:' : 'ยังมีใบลารอพิจารณาเดือนอื่น:'}</span>
+                {others.map(([m, n]) => (
+                  <button key={m} onClick={() => { setMonth(m); setStatus('PENDING') }}
+                    style={{ border: '1px solid #f59e0b', background: '#fff', color: '#b45309', borderRadius: 99, padding: '3px 12px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {thMonth(m)} · {n} รายการ →
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       )}
 
