@@ -358,18 +358,34 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
     ? (data.check_out_at ? buildDateTime(dateStr, data.check_out_at) : null)
     : record.check_out_at
 
-  return prisma.attendanceRecord.update({
-    where: { id },
-    data: {
-      ...(shiftChanged ? { shift_id: shift!.id } : {}),
-      check_in_at:  checkInAt,
-      check_out_at: checkOutAt,
-      is_late,
-      late_minutes,
-      is_absent,
-      fine,
-      ...(data.note !== undefined ? { note: data.note } : {}),
-    },
+  // ค่าปรับขาดที่ยกไปหักวันถัดไป (pending_fine) ต้องตามสถานะ "ขาด" ของ record นี้เสมอ — เดิมแก้เวลา/กะจากขาดเป็นไม่ขาด
+  // แล้วยอดค้างไม่ถูกคืน ไปโผล่เป็น "รวมยกมา" ในวันถัดไปทั้งที่ไม่ได้ขาดจริง (feedback 2026-10-27: มิลล์ยกมา 50 บาท)
+  return prisma.$transaction(async (tx) => {
+    if (record.is_absent !== is_absent) {
+      if (record.is_absent && !is_absent) {
+        const refund = record.shift?.absent_fine ? Number(record.shift.absent_fine) : 0
+        if (refund > 0) {
+          const emp = await tx.employee.findUnique({ where: { id: record.employee_id }, select: { pending_fine: true } })
+          const current = emp?.pending_fine ? Number(emp.pending_fine) : 0
+          await tx.employee.update({ where: { id: record.employee_id }, data: { pending_fine: Math.max(0, current - refund) } })
+        }
+      } else if (!record.is_absent && is_absent && shift?.absent_fine) {
+        await schedulePendingFine(tx, record.employee_id, Number(shift.absent_fine))
+      }
+    }
+    return tx.attendanceRecord.update({
+      where: { id },
+      data: {
+        ...(shiftChanged ? { shift_id: shift!.id } : {}),
+        check_in_at:  checkInAt,
+        check_out_at: checkOutAt,
+        is_late,
+        late_minutes,
+        is_absent,
+        fine,
+        ...(data.note !== undefined ? { note: data.note } : {}),
+      },
+    })
   })
 }
 
