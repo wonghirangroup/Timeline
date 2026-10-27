@@ -24,6 +24,11 @@ const FOCUSABLE = 'a[href],button:not([disabled]),textarea:not([disabled]),input
 export default function Modal({ onClose, children, dismissable = true, width = 400, labelledBy, describedBy }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  // เก็บ onClose ไว้ใน ref — ผู้เรียกส่ง arrow function ใหม่ทุก render; ถ้าให้อยู่ใน deps ของ effect ด้านล่าง
+  // ทุกครั้งที่พิมพ์ (state เปลี่ยน → render ใหม่) effect จะรันซ้ำแล้วดึงโฟกัสกลับไปช่องแรกของ dialog
+  // (feedback 2026-10-27: พิมพ์ช่องเหตุผลแล้วเด้งกลับไปช่องเลือกพนักงาน)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     returnFocusRef.current = document.activeElement as HTMLElement | null
@@ -34,7 +39,7 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
     ;(first ?? cardRef.current)?.focus()
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && dismissable) { e.stopPropagation(); onClose(); return }
+      if (e.key === 'Escape' && dismissable) { e.stopPropagation(); onCloseRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = cardRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
       if (!nodes || nodes.length === 0) { e.preventDefault(); return }
@@ -49,7 +54,7 @@ export default function Modal({ onClose, children, dismissable = true, width = 4
       unlock()
       returnFocusRef.current?.focus?.()
     }
-  }, [onClose, dismissable])
+  }, [dismissable])
 
   // portal ไป document.body — modal ไม่โดนซ่อนถ้า ancestor เป็น display:none
   // (เช่น แท็บที่ไม่ได้ active ในหน้าการลา ที่ mount ไว้ตลอดด้วย display:none)

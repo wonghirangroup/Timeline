@@ -364,6 +364,11 @@ export default function AttendancePage() {
     queryFn: () => api.get('/api/v1/admin/shifts').then(r => r.data.data),
   })
 
+  // พนักงาน 1 คนอยู่ได้หลายกะ (employee_shifts) — ใช้เช็ค "ไม่ตรงกะตัวเอง": ถ้ากะที่เช็คอินเป็นหนึ่งในกะที่พนักงานสังกัดอยู่ ถือว่าตรงกะ (feedback 2026-10-27: มิลล์เช็คอินกะเช้าที่สังกัดอยู่แต่ถูกเตือน)
+  const { data: employeeShiftLinks = [] } = useQuery<{ employee_id: string; shift_id: string }[]>({
+    queryKey: ['employee-shifts'],
+    queryFn: () => api.get('/api/v1/admin/employee-shifts').then(r => r.data.data),
+  })
   const { data: employees = [], isLoading: empLoading } = useQuery<ApiEmployee[]>({
     queryKey: ['admin', 'employees', branchFilter],
     // เฉพาะพนักงานที่ยังใช้งานอยู่ — คนที่ลาออก/เลิกจ้างไปแล้วไม่ต้องขึ้นในหน้านี้
@@ -574,6 +579,7 @@ export default function AttendancePage() {
   function ownShiftMismatchName(row: Row): string | null {
     const ownId = row.employee.default_shift_id
     if (!row.record || !ownId || ownId === row.record.shift_id) return null
+    if (employeeShiftLinks.some(l => l.employee_id === row.employee.id && l.shift_id === row.record!.shift_id)) return null
     return shiftNameById[ownId] ?? null
   }
 
