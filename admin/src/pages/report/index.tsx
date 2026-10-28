@@ -268,7 +268,7 @@ export default function ReportPage() {
 
   // employee_id → date → { label, fraction } (fraction = 0.5 ถ้าลาครึ่งวัน/ระบุเวลาน้อยกว่าเต็มวัน)
   const leaveMap = useMemo(() => {
-    const m = new Map<string, Map<string, { label: string; fraction: number; period?: string }>>()
+    const m = new Map<string, Map<string, { label: string; fraction: number; period?: string; fill?: boolean }>>()
     for (const l of leaveRecords) {
       if (l.status !== 'APPROVED') continue
       const start = new Date(l.start_date)
@@ -279,11 +279,14 @@ export default function ReportPage() {
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         // ข้ามเสาร์-อาทิตย์ — countDays() ตอนขอลาไม่นับวันหยุดสุดสัปดาห์เข้าจำนวนวันลา
         // อยู่แล้ว (เช่น ลาศุกร์-จันทร์ = 2 วันลา ไม่ใช่ 4) ไม่ควร label ทับเสาร์/อาทิตย์
-        // ยกเว้นวันแรก/วันสุดท้ายของใบลา: ลงพักร้อน/ลาตรงเสาร์-อาทิตย์โดยตรง (เช่น พักร้อนวันเสาร์ที่ 24) ต้องโชว์ — feedback 2026-10-28
+        // เสาร์-อาทิตย์ที่คั่นกลางใบลาหลายวัน: โชว์เป็นช่องลาให้เห็นต่อเนื่อง (fill) แต่ไม่นับเป็นวันลา (countDays ไม่นับเสาร์-อาทิตย์)
+        // เสาร์-อาทิตย์ที่เป็นวันแรก/วันสุดท้าย/ใบลาวันเดียว นับตามปกติ (เช่น พักร้อนวันเสาร์ที่ 24) — feedback 2026-10-28
         const key = d.toISOString().slice(0, 10)
-        if ((d.getDay() === 0 || d.getDay() === 6) && key !== l.start_date.slice(0, 10) && key !== l.end_date.slice(0, 10)) continue
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6
+        const inside = isWeekend && key !== l.start_date.slice(0, 10) && key !== l.end_date.slice(0, 10)
         if (!m.has(l.employee_id)) m.set(l.employee_id, new Map())
-        m.get(l.employee_id)!.set(key, { label: orig, fraction, period: l.leave_period })
+        if (inside && m.get(l.employee_id)!.has(key)) continue   // มีใบลาจริงของวันนั้นอยู่แล้ว ไม่ทับ
+        m.get(l.employee_id)!.set(key, { label: orig, fraction, period: l.leave_period, ...(inside ? { fill: true } : {}) })
       }
     }
     return m
@@ -423,7 +426,8 @@ export default function ReportPage() {
   // แต่ติดแท็ก "มาทำงานวันหยุด/วันลา" ไว้ให้เห็น (คืนค่า null ถ้าเป็นวันทำงานปกติ)
   function workedOffKind(recs: AttendanceRecord[] | undefined, empId: string, dateKey: string): 'วันหยุด' | 'วันลา' | null {
     if (!recs?.some(r => r.check_in_at) || recs.some(r => r.is_absent)) return null
-    const leaveType = leaveMap.get(empId)?.get(dateKey)?.label
+    const leaveE = leaveMap.get(empId)?.get(dateKey)
+    const leaveType = leaveE?.fill ? undefined : leaveE?.label
     if (leaveType) return ['หยุด', 'หยุดนักขัตฤกษ์', 'COMPENSATE'].includes(leaveType) ? 'วันหยุด' : 'วันลา'
     if (dayoffMap.get(empId)?.has(dateKey)) return 'วันหยุด'
     if (holidayFor(empId, dateKey)) return 'วันหยุด'
@@ -441,6 +445,7 @@ export default function ReportPage() {
       const dateKey = toYMD(year, month, d)
       if (dateKey > todayStr) continue
       const ci = cellInfo(byDate.get(dateKey), info.employee_code, info.id, dateKey, startBoundOf(info))
+      if (leaveMap.get(info.id)?.get(dateKey)?.fill && !byDate.get(dateKey)?.some(r => r.check_in_at)) continue   // เสาร์-อาทิตย์คั่นกลางใบลา: โชว์อย่างเดียว ไม่นับ
       const st = ci.status as string
       if (st === 'ok') t.ok++
       else if (st === 'late' || st === 'late2') t.late++
@@ -555,6 +560,7 @@ export default function ReportPage() {
         const recs    = byDate.get(dateKey)
         const leaveEntry = leaveMap.get(info.id)?.get(dateKey)
         const hasRealCheckin = !!recs?.some(r => r.check_in_at)
+        if (leaveEntry && leaveEntry.fill && !hasRealCheckin) continue
         if (leaveEntry && !hasRealCheckin) {
           const half = leaveEntry.fraction < 1
           rows.push([info.employee_code, info.first_name, info.last_name, info.nickname ?? '', info.branch.name,

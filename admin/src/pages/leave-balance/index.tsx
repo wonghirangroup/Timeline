@@ -41,7 +41,6 @@ const LEAVE_TYPES: { key: LeaveKey; label: string; short: string; icon: ReactNod
   { key: 'sick',        label: 'ลาป่วย',      short: 'ป่วย',    icon: <Thermometer  size={16}/>, color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
   { key: 'personal',    label: 'ลากิจ',       short: 'กิจ',     icon: <ClipboardList size={16}/>, color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
   { key: 'vacation',    label: 'พักร้อน',      short: 'พักร้อน', icon: <Sun           size={16}/>, color: '#059669', bg: '#d1fae5', border: '#a7f3d0' },
-  { key: 'compensate',  label: 'ลาชดเชย',     short: 'ชดเชย',   icon: <RefreshCw     size={16}/>, color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe' },
 ]
 
 const DEFAULT_QUOTAS: Quotas = { sick: 30, personal: 3, vacation: 6, compensate: 0 }
@@ -57,6 +56,9 @@ function statusColor(used: number, quota: number): string {
   if (pct >= 0.8) return '#d97706'
   return '#059669'
 }
+
+// รับค่าโควต้าเป็นทศนิยมครึ่งวัน (เช่น 3.5) — ปัดเป็นทวีคูณของ 0.5 กันพิมพ์ 3.27
+const parseQuota = (v: string) => Math.max(0, Math.round((parseFloat(v) || 0) * 2) / 2)
 
 function MiniBar({ used, quota, color }: { used: number; quota: number; color: string }) {
   const pct = quota === 0 ? 0 : Math.min(100, Math.round((used / quota) * 100))
@@ -224,9 +226,9 @@ function EditModal({ balance, year, onSave, onClose }: EditModalProps) {
                     >−</button>
                     <input
                       type="number"
-                      min={0}
+                      min={0} step={0.5}
                       value={q}
-                      onChange={e => setQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      onChange={e => setQuotas(p => ({ ...p, [lt.key]: parseQuota(e.target.value) }))}
                       style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: `1.5px solid ${overUsed ? '#fca5a5' : '#e2e8f0'}`, fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit', color: overUsed ? '#dc2626' : '#0f172a' }}
                     />
                     <button
@@ -338,9 +340,9 @@ function DefaultPanel({ defaults, onChange, onApplyAll, onApplyNew, totalCount }
               >−</button>
               <input
                 type="number"
-                min={0}
+                min={0} step={0.5}
                 value={defaults[lt.key]}
-                onChange={e => onChange({ ...defaults, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) })}
+                onChange={e => onChange({ ...defaults, [lt.key]: parseQuota(e.target.value) })}
                 style={{ flex: 1, padding: '4px 4px', borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', fontSize: '0.95rem', fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', background: 'rgba(255,255,255,0.7)', color: lt.color, minWidth: 0 }}
               />
               <button
@@ -490,7 +492,6 @@ export default function LeaveBalancePage() {
         { employee_id: employeeId, leave_type: 'SICK',       total_days: quotas.sick },
         { employee_id: employeeId, leave_type: 'PERSONAL',   total_days: quotas.personal },
         { employee_id: employeeId, leave_type: 'VACATION',   total_days: quotas.vacation },
-        { employee_id: employeeId, leave_type: 'COMPENSATE', total_days: quotas.compensate },
       ])
       setEditTarget(null)
       showToast('success', 'บันทึกโควต้าเรียบร้อยแล้ว')
@@ -503,7 +504,6 @@ export default function LeaveBalancePage() {
         { employee_id: b.employee_id, leave_type: 'SICK',       total_days: defaults.sick },
         { employee_id: b.employee_id, leave_type: 'PERSONAL',   total_days: defaults.personal },
         { employee_id: b.employee_id, leave_type: 'VACATION',   total_days: defaults.vacation },
-        { employee_id: b.employee_id, leave_type: 'COMPENSATE', total_days: defaults.compensate },
       ])
       await saveBatch(items)
       showToast('success', `ตั้งโควต้า Default ให้พนักงานทั้งหมด ${totalEmployees} คนแล้ว`)
@@ -517,7 +517,6 @@ export default function LeaveBalancePage() {
         { employee_id: b.employee_id, leave_type: 'SICK',       total_days: defaults.sick },
         { employee_id: b.employee_id, leave_type: 'PERSONAL',   total_days: defaults.personal },
         { employee_id: b.employee_id, leave_type: 'VACATION',   total_days: defaults.vacation },
-        { employee_id: b.employee_id, leave_type: 'COMPENSATE', total_days: defaults.compensate },
       ])
       await saveBatch(items)
       showToast('success', `ตั้งโควต้าให้พนักงานใหม่ ${newEmps.length} คนแล้ว`)
@@ -530,7 +529,6 @@ export default function LeaveBalancePage() {
         { employee_id: empId, leave_type: 'SICK',       total_days: bulkQuotas.sick },
         { employee_id: empId, leave_type: 'PERSONAL',   total_days: bulkQuotas.personal },
         { employee_id: empId, leave_type: 'VACATION',   total_days: bulkQuotas.vacation },
-        { employee_id: empId, leave_type: 'COMPENSATE', total_days: bulkQuotas.compensate },
       ])
       await saveBatch(items)
       showToast('success', `แก้ไขโควต้าพนักงาน ${selectedIds.size} คนเรียบร้อยแล้ว`)
@@ -987,7 +985,7 @@ export default function LeaveBalancePage() {
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: lt.color, flex: 1 }}>{lt.label}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <button onClick={() => setBulkQuotas(p => ({ ...p, [lt.key]: Math.max(0, p[lt.key] - 1) }))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                    <input type="number" min={0} value={bulkQuotas[lt.key]} onChange={e => setBulkQuotas(p => ({ ...p, [lt.key]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit' }} />
+                    <input type="number" min={0} step={0.5} value={bulkQuotas[lt.key]} onChange={e => setBulkQuotas(p => ({ ...p, [lt.key]: parseQuota(e.target.value) }))} style={{ width: 52, padding: '5px 6px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.95rem', fontWeight: 700, textAlign: 'center', fontFamily: 'inherit' }} />
                     <button onClick={() => setBulkQuotas(p => ({ ...p, [lt.key]: p[lt.key] + 1 }))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                     <span style={{ fontSize: '0.72rem', color: '#94a3b8', width: 24 }}>วัน</span>
                   </div>
@@ -1062,9 +1060,9 @@ export default function LeaveBalancePage() {
                             <td key={lt.key} style={{ padding: '6px 8px', borderBottom: '1px solid #f1f5f9', background: rowBg, textAlign: 'center' }}>
                               <input
                                 ref={el => { gridCellRefs.current[`${b.employee_id}_${lt.key}`] = el }}
-                                type="number" min={0}
+                                type="number" min={0} step={0.5}
                                 value={draftVal}
-                                onChange={e => setGridCell(b.employee_id, lt.key, Math.max(0, parseInt(e.target.value) || 0))}
+                                onChange={e => setGridCell(b.employee_id, lt.key, parseQuota(e.target.value))}
                                 onKeyDown={e => handleGridKeyDown(e, rowIdx, colIdx)}
                                 onFocus={e => e.target.select()}
                                 style={{
