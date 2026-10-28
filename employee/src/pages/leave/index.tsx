@@ -2074,7 +2074,7 @@ export default function LeavePage() {
   const leaveRestricted = employee?.leave_enabled === false
   const availableLeaveTypes = leaveRestricted
     ? LEAVE_TYPES.filter(lt => lt.code === 'SICK' || lt.code === 'MATERNITY')
-    : LEAVE_TYPES
+    : LEAVE_TYPES.filter(lt => lt.code !== 'COMPENSATE')   // ไม่ให้เลือก "วันหยุดชดเชย" ในฟอร์มขอลา (ใบลาชดเชยเดิมยังแสดงชื่อได้จาก LEAVE_TYPES)
   useEffect(() => {
     if (leaveRestricted && !availableLeaveTypes.some(lt => lt.code === form.leaveType)) {
       setForm(f => ({ ...f, leaveType: 'SICK' }))
@@ -2132,7 +2132,8 @@ export default function LeavePage() {
 
         {/* ── วันลาคงเหลือ (แถบฟ้าแก้ว) ─────────────────────────── */}
         <div style={{ display: 'flex', marginTop: 14, borderRadius: 26, padding: '16px 6px', background: 'linear-gradient(180deg, #3CB4FF, #1479E0)', boxShadow: '0 10px 24px rgba(20,121,224,0.32), inset 0 1px 0 rgba(255,255,255,0.45)' }}>
-          {balances.map((b, i) => {
+          {/* ไม่โชว์วันหยุดชดเชยในแถบนี้ (feedback 2026-10-28) */}
+          {balances.filter(b => b.leave_type !== 'COMPENSATE').map((b, i) => {
             const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === b.leave_type)
             return (
               <div key={b.leave_type} style={{ flex: 1, minWidth: 0, textAlign: 'center', padding: '0 4px', borderLeft: i ? '1px solid rgba(255,255,255,0.28)' : 'none' }}>
