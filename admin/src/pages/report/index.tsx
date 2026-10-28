@@ -279,8 +279,9 @@ export default function ReportPage() {
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         // ข้ามเสาร์-อาทิตย์ — countDays() ตอนขอลาไม่นับวันหยุดสุดสัปดาห์เข้าจำนวนวันลา
         // อยู่แล้ว (เช่น ลาศุกร์-จันทร์ = 2 วันลา ไม่ใช่ 4) ไม่ควร label ทับเสาร์/อาทิตย์
-        if (d.getDay() === 0 || d.getDay() === 6) continue
+        // ยกเว้นวันแรก/วันสุดท้ายของใบลา: ลงพักร้อน/ลาตรงเสาร์-อาทิตย์โดยตรง (เช่น พักร้อนวันเสาร์ที่ 24) ต้องโชว์ — feedback 2026-10-28
         const key = d.toISOString().slice(0, 10)
+        if ((d.getDay() === 0 || d.getDay() === 6) && key !== l.start_date.slice(0, 10) && key !== l.end_date.slice(0, 10)) continue
         if (!m.has(l.employee_id)) m.set(l.employee_id, new Map())
         m.get(l.employee_id)!.set(key, { label: orig, fraction, period: l.leave_period })
       }
