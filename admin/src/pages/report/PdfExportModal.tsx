@@ -8,7 +8,7 @@ import Button from '../../components/ui/Button'
 
 export interface PdfEmployee {
   id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string
-  branch: { name: string }; status?: string
+  branch: { name: string }; employee_status_type?: { name: string } | null
 }
 export interface PdfRow { info: PdfEmployee }
 export interface PdfCell { status: string; tip: string; fill: boolean }
@@ -21,15 +21,13 @@ const CATS: { key: Cat; label: string; short: string; bg: string; defaultOn: boo
   { key: 'personal',   label: 'ลากิจ',                    short: 'กิจ',     bg: '#ddd6fe', defaultOn: true },
   { key: 'vacation',   label: 'พักร้อน',                  short: 'พักร้อน', bg: '#fde68a', defaultOn: true },
   { key: 'leaveOther', label: 'ลาอื่นๆ (คลอด/บวช ฯลฯ)',   short: 'ลา',      bg: '#fbcfe8', defaultOn: true },
-  { key: 'late',       label: 'มาสาย',                    short: 'สาย',     bg: '#fed7aa', defaultOn: false },
-  { key: 'absent',     label: 'ขาด',                      short: 'ขาด',     bg: '#fca5a5', defaultOn: false },
-  { key: 'offsite',    label: 'นอกสถานที่',               short: 'นอก',     bg: '#e9d5ff', defaultOn: false },
+  { key: 'late',       label: 'มาสาย',                    short: 'สาย',     bg: '#fed7aa', defaultOn: true },
+  { key: 'absent',     label: 'ขาด',                      short: 'ขาด',     bg: '#fca5a5', defaultOn: true },
+  { key: 'offsite',    label: 'นอกสถานที่',               short: 'นอก',     bg: '#e9d5ff', defaultOn: true },
 ]
 
-const STATUS_OPTIONS: { key: string; label: string }[] = [
-  { key: 'ACTIVE', label: 'ใช้งานอยู่' }, { key: 'RESIGNED', label: 'ลาออก' },
-  { key: 'TERMINATED', label: 'เลิกจ้าง' }, { key: 'INACTIVE', label: 'ไม่ใช้งาน' },
-]
+const NO_TYPE = 'ไม่ระบุ'
+const typeOf = (e: PdfEmployee) => e.employee_status_type?.name || NO_TYPE
 
 // สถานะช่องในรายงาน (จาก cellInfo) → หมวดที่พิมพ์ (null = ไม่ใช่วันหยุด/ลา/สาย/ขาด/นอกสถานที่ → ช่องธรรมดา)
 function catOf(c: PdfCell): Cat | null {
@@ -57,7 +55,9 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
 }) {
   const branches = useMemo(() => [...new Set(rows.map(r => r.info.branch.name))].sort((a, b) => a.localeCompare(b, 'th')), [rows])
   const [branchOn, setBranchOn] = useState<Set<string>>(() => new Set(branches))
-  const [statusOn, setStatusOn] = useState<Set<string>>(() => new Set(STATUS_OPTIONS.map(s => s.key)))
+  // สถานะพนักงาน = ประเภทการจ้างที่ตั้งไว้ (ทำงานประจำ / พาร์ทไทม์ / ...) ตามข้อมูลจริงของพนักงานที่มี
+  const types = useMemo(() => [...new Set(rows.map(r => typeOf(r.info)))].sort((x, y) => x.localeCompare(y, 'th')), [rows])
+  const [statusOn, setStatusOn] = useState<Set<string>>(() => new Set(types))
   const [catOn, setCatOn] = useState<Set<Cat>>(() => new Set(CATS.filter(c => c.defaultOn).map(c => c.key)))
   const [excluded, setExcluded] = useState<Set<string>>(new Set())   // คนที่เอาติ๊กออก
   const [q, setQ] = useState('')
@@ -67,7 +67,7 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
   // คนที่ผ่านตัวกรองสถานะ + สาขา (แสดงในรายการติ๊ก)
   const shown = useMemo(() => rows.filter(r => {
     if (!branchOn.has(r.info.branch.name)) return false
-    if (!statusOn.has(r.info.status ?? 'ACTIVE')) return false
+    if (!statusOn.has(typeOf(r.info))) return false
     if (q.trim()) {
       const t = `${r.info.first_name} ${r.info.last_name} ${r.info.nickname ?? ''} ${r.info.employee_code}`.toLowerCase()
       if (!t.includes(q.trim().toLowerCase())) return false
@@ -158,7 +158,7 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
   const label: React.CSSProperties = { fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 6 }
 
   return (
-    <Modal onClose={onClose} width={860}>
+    <Modal onClose={onClose} width={1180}>
       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>พิมพ์ / PDF — ตารางวันหยุด + วันลา</div>
@@ -178,9 +178,9 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
 
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
           <div>
-            <div style={label}>สถานะพนักงาน</div>
+            <div style={label}>สถานะพนักงาน (ประเภทการจ้าง)</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {STATUS_OPTIONS.map(s => <button key={s.key} onClick={() => toggle(statusOn, s.key, setStatusOn)} style={chip(statusOn.has(s.key))}>{s.label}</button>)}
+              {types.map(t => <button key={t} onClick={() => toggle(statusOn, t, setStatusOn)} style={chip(statusOn.has(t))}>{t}</button>)}
             </div>
           </div>
           {branches.length > 1 && (
@@ -208,7 +208,7 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
             <button onClick={() => setAll(true)} style={{ border: 'none', background: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline', fontFamily: 'inherit' }}>ติ๊กทั้งหมด</button>
             <button onClick={() => setAll(false)} style={{ border: 'none', background: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline', fontFamily: 'inherit' }}>เอาติ๊กออกทั้งหมด</button>
           </div>
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, maxHeight: 260, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, maxHeight: 300, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
             {shown.length === 0 && <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: '0.82rem' }}>ไม่มีพนักงานตามตัวกรองนี้</div>}
             {shown.map(r => (
               <label key={r.info.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: '0.82rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}>
