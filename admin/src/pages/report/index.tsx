@@ -12,6 +12,7 @@ import { fmtThaiDate } from '../../lib/format'
 import { OrgFilterBar, EMPTY_ORG_FILTER, buildEmployeeOrgMap, matchesOrgFilter } from '../../components/shared/OrgFilterBar'
 import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 import ReportExportBar from '../../components/shared/ReportExportBar'
+import PdfExportModal from './PdfExportModal'
 import PageLinks from '../../components/ui/PageLinks'
 import { downloadCsv } from '../../lib/exportCsv'
 import MonthNav from '../../components/ui/MonthNav'
@@ -592,6 +593,20 @@ export default function ReportPage() {
     return [header, ...rows]
   }
 
+  // พิมพ์ / PDF แบบตารางวันหยุด+วันลา (เลือกคน/สถานะ/สาขา/ประเภทได้) — รายชื่อตั้งต้น = พนักงานตามตัวกรองกลุ่ม/แผนก (ไม่ผูกกับช่องค้นหา)
+  const [showPdf, setShowPdf] = useState(false)
+  const pdfList = useMemo(() => allEmployees
+    .filter(emp => matchesOrgFilter(employeeOrgMap[emp.id], orgFilterNoBranch))
+    .map(emp => ({ info: emp, byDate: empMap.get(emp.id)?.byDate ?? new Map<string, AttendanceRecord[]>() })), [allEmployees, empMap, employeeOrgMap, orgFilterNoBranch])
+  const pdfByEmp = useMemo(() => new Map(pdfList.map(e => [e.info.id, e])), [pdfList])
+  function pdfCell(empId: string, dateKey: string) {
+    const e = pdfByEmp.get(empId)
+    if (!e) return { status: 'weekend', tip: '', fill: false }
+    const ci = cellInfo(e.byDate.get(dateKey), e.info.employee_code, e.info.id, dateKey, startBoundOf(e.info))
+    const fill = !!leaveMap.get(e.info.id)?.get(dateKey)?.fill && !e.byDate.get(dateKey)?.some(r => r.check_in_at)
+    return { status: String(ci.status), tip: String(ci.tip), fill }
+  }
+
   function exportAll() {
     if (viewMode === 'range') downloadCsv(buildCsvRows(filteredEmployees, rangeDateKeys), `รายงาน_${rangeStart}_ถึง_${rangeEnd}.csv`)
     else downloadCsv(buildCsvRows(filteredEmployees), `รายงาน_${MONTHS_TH[month-1]}_${year+543}.csv`)
@@ -769,8 +784,18 @@ export default function ReportPage() {
             </span>
           )}
           <span style={{ background: '#f3f4f6', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{filteredEmployees.length} คน</span>
-          <ReportExportBar onExportCsv={exportAll} disabled={filteredEmployees.length === 0} mobile={isMobile} />
+          <ReportExportBar onExportCsv={exportAll} onPrint={() => setShowPdf(true)} disabled={filteredEmployees.length === 0} mobile={isMobile} />
         </div>
+      )}
+
+      {showPdf && (
+        <PdfExportModal
+          rows={pdfList.map(e => ({ info: e.info as any }))}
+          dateKeys={activeDateKeys}
+          title={viewMode === 'range' ? `ตารางวันหยุด/วันลา ${fmtThaiDate(rangeStart)} – ${fmtThaiDate(rangeEnd)}` : `ตารางวันหยุด/วันลา ${MONTHS_TH[month - 1]} ${year + 543}`}
+          cellOf={pdfCell}
+          onClose={() => setShowPdf(false)}
+        />
       )}
 
       {isLoading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>กำลังโหลด...</div>}

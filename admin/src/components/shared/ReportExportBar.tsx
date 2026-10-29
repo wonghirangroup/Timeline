@@ -7,7 +7,8 @@
 import type { CSSProperties } from 'react'
 import { Download, Printer } from 'lucide-react'
 
-export default function ReportExportBar({ onExportCsv, disabled, mobile }: { onExportCsv: () => void; disabled?: boolean; mobile?: boolean }) {
+// onPrint: ถ้าส่งมา ปุ่ม PDF จะเรียกฟังก์ชันนี้แทน window.print() (เช่น หน้ารายงานการเข้างานที่เปิดหน้าต่างเลือกคน/ประเภทก่อนพิมพ์)
+export default function ReportExportBar({ onExportCsv, onPrint, disabled, mobile }: { onExportCsv: () => void; onPrint?: () => void; disabled?: boolean; mobile?: boolean }) {
   const btnStyle: CSSProperties = {
     padding: mobile ? '5px 12px' : '6px 14px',
     borderRadius: 8,
@@ -30,7 +31,7 @@ export default function ReportExportBar({ onExportCsv, disabled, mobile }: { onE
       <button onClick={onExportCsv} disabled={disabled} style={btnStyle}>
         <Download size={iconSize} /> {mobile ? 'CSV' : 'Export CSV'}
       </button>
-      <button onClick={() => window.print()} disabled={disabled} style={btnStyle}>
+      <button onClick={() => (onPrint ? onPrint() : window.print())} disabled={disabled} style={btnStyle}>
         <Printer size={iconSize} /> {mobile ? 'PDF' : 'พิมพ์ / PDF'}
       </button>
     </div>
