@@ -13,8 +13,9 @@ export interface PdfEmployee {
 export interface PdfRow { info: PdfEmployee }
 export interface PdfCell { status: string; tip: string; fill: boolean }
 
-type Cat = 'dayoff' | 'holiday' | 'sick' | 'personal' | 'vacation' | 'leaveOther' | 'late' | 'absent' | 'offsite'
+type Cat = 'ok' | 'dayoff' | 'holiday' | 'sick' | 'personal' | 'vacation' | 'leaveOther' | 'late' | 'absent' | 'offsite'
 const CATS: { key: Cat; label: string; short: string; bg: string; defaultOn: boolean }[] = [
+  { key: 'ok',         label: 'มาทำงาน (ปกติ)',            short: 'มา',      bg: '#bbf7d0', defaultOn: true },
   { key: 'dayoff',     label: 'หยุดประจำ (จองไว้)',        short: 'หยุด',    bg: '#bae6fd', defaultOn: true },
   { key: 'holiday',    label: 'นักขัตฤกษ์ / ชดเชย / บริษัท', short: 'นักขัตฯ', bg: '#99f6e4', defaultOn: true },
   { key: 'sick',       label: 'ลาป่วย',                   short: 'ป่วย',    bg: '#fecaca', defaultOn: true },
@@ -32,6 +33,7 @@ const typeOf = (e: PdfEmployee) => e.employee_status_type?.name || NO_TYPE
 // สถานะช่องในรายงาน (จาก cellInfo) → หมวดที่พิมพ์ (null = ไม่ใช่วันหยุด/ลา/สาย/ขาด/นอกสถานที่ → ช่องธรรมดา)
 function catOf(c: PdfCell): Cat | null {
   const st = c.status, tip = c.tip
+  if (st === 'ok') return 'ok'
   if (st === 'sick') return 'sick'
   if (st === 'vacation') return 'vacation'
   if (st === 'personal') return 'personal'
@@ -87,10 +89,11 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
     const groups = new Map<string, PdfRow[]>()
     for (const r of selected) { const k = r.info.branch.name; groups.set(k, [...(groups.get(k) ?? []), r]) }
     // คอลัมน์สรุปท้ายแถว: หยุด / ลา / พักร้อน / สาย / ขาด / นอก (เฉพาะประเภทที่เลือกแสดง)
+    // "มาทำงาน" = มาปกติ + มาสาย (นับเสมอเมื่อเปิดประเภท "มาทำงาน" แม้จะซ่อนช่องสาย)
     const sums: { label: string; cats: Cat[] }[] = ([
-      { label: 'หยุด', cats: ['dayoff', 'holiday'] }, { label: 'ลา', cats: ['sick', 'personal', 'leaveOther'] },
+      { label: 'มาทำงาน', cats: ['ok', 'late'] }, { label: 'หยุด', cats: ['dayoff', 'holiday'] }, { label: 'ลา', cats: ['sick', 'personal', 'leaveOther'] },
       { label: 'พักร้อน', cats: ['vacation'] }, { label: 'สาย', cats: ['late'] }, { label: 'ขาด', cats: ['absent'] }, { label: 'นอก', cats: ['offsite'] },
-    ] as { label: string; cats: Cat[] }[]).filter(s => s.cats.some(c => catOn.has(c)))
+    ] as { label: string; cats: Cat[] }[]).filter(s => s.label === 'มาทำงาน' ? catOn.has('ok') : s.cats.some(c => catOn.has(c)))
 
     const dayHead = dateKeys.map(k => {
       const d = new Date(k + 'T00:00:00'); const w = d.getDay()
@@ -104,12 +107,13 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
         const cells = dateKeys.map(k => {
           const c = cellOf(r.info.id, k)
           const cat = catOf(c)
+          // นับ มา/สาย เสมอ (ไว้รวมเป็น "มาทำงาน") · ประเภทอื่นนับเฉพาะที่เลือกแสดง · เสาร์-อาทิตย์คั่นกลางใบลา: โชว์อย่างเดียว ไม่นับ
+          if (cat && !c.fill && (cat === 'ok' || cat === 'late' || on(cat))) counts[cat] = (counts[cat] ?? 0) + 1
           if (!on(cat)) return `<td class="daynum">${Number(k.slice(8))}</td>`
           const meta = CATS.find(x => x.key === cat)!
-          if (!c.fill) counts[cat!] = (counts[cat!] ?? 0) + 1   // เสาร์-อาทิตย์คั่นกลางใบลา: โชว์อย่างเดียว ไม่นับ
           return `<td class="mark" style="background:${meta.bg}">${meta.short}</td>`
         }).join('')
-        const sumCells = sums.map(s => { const n = s.cats.reduce((a, c) => a + (counts[c] ?? 0), 0); return `<td class="sumv">${n || ''}</td>` }).join('')
+        const sumCells = sums.map(s => { const n = s.cats.reduce((a, c) => a + (counts[c] ?? 0), 0); return `<td class="sumv${s.label === 'มาทำงาน' ? ' work' : ''}">${n || ''}</td>` }).join('')
         const name = esc(r.info.nickname || r.info.first_name)
         return `<tr><td class="name">${name} <span class="code">${esc(r.info.employee_code)}</span></td>${cells}${sumCells}</tr>`
       }).join('')
@@ -136,8 +140,9 @@ export default function PdfExportModal({ rows, dateKeys, title, cellOf, onClose 
         .namecol,td.name{width:92px;text-align:left;padding-left:5px;text-overflow:ellipsis}
         td.name{font-weight:700;font-size:9.5px}
         td.name .code{font-weight:400;color:#6b7280;font-size:7.5px}
-        th.sum{width:30px}
+        th.sum{width:34px}
         td.sumv{font-weight:700;background:#f9fafb}
+        td.sumv.work{background:#dcfce7;color:#15803d}
         td.mark{font-weight:700;color:#111827;font-size:7.5px}
         td.daynum{color:#cbd5e1}
         .legend{margin-top:12px;font-size:10px;color:#4b5563;display:flex;flex-wrap:wrap;gap:4px 14px}
