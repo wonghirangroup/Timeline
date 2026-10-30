@@ -778,7 +778,7 @@ export default function LeaveRequestsTab() {
                           <span style={{ background: sc.bg, color: sc.color, borderRadius: 99, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 600, alignSelf: 'flex-start' }}>{sc.label}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: r.status === 'PENDING' ? 10 : 0 }}>
-                          <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 600 }}>{tc.displayLabel}</span>
+                          <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{tc.displayLabel}</span>
                           <span style={{ fontSize: '0.78rem', color: '#374151' }}>{fmtDate(r.start_date)}{r.end_date !== r.start_date ? ` – ${fmtDate(r.end_date)}` : ''}</span>
                           {periodBadge(r) && <span style={{ fontSize: '0.7rem', color: '#0369a1', background: '#e0f2fe', borderRadius: 99, padding: '2px 8px', fontWeight: 700 }}>{periodBadge(r)}</span>}
                           <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>{r.days} วัน</span>
@@ -862,7 +862,7 @@ export default function LeaveRequestsTab() {
                           </td>
                           <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.employee.branch.name}</td>
                           <td style={{ padding: '11px 14px' }}>
-                            <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600 }}>{tc.displayLabel}</span>
+                            <span style={{ background: tc.bg, color: tc.color, borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{tc.displayLabel}</span>
                           </td>
                           <td style={{ padding: '11px 14px', fontSize: '0.82rem', color: '#374151', whiteSpace: 'nowrap' }}>
                             {fmtDate(r.start_date)}{r.end_date !== r.start_date ? ` – ${fmtDate(r.end_date)}` : ''}
