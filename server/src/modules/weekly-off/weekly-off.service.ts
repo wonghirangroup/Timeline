@@ -653,7 +653,8 @@ export async function requestWeeklyOffChange(tenantId: string, employeeId: strin
   if (await prisma.weeklyOffRequest.findFirst({ where: { employee_id: employeeId, week_start: monday, day_of_week: dow }, select: { id: true } })) throw new Error('ALREADY_REQUESTED')
 
   const newMonth = newDate.slice(0, 7)
-  if (!(await checkPeriodOpen(tenantId, old.employee.branch_id, newMonth, old.employee_id))) throw new Error('PERIOD_CLOSED')
+  // ขอเปลี่ยนวัน "ไม่ผูกกับช่วงเปิดรับจอง" — วันเดิมอนุมัติแล้ว และคำขอนี้ต้องให้แอดมินอนุมัติก่อนถึงเปลี่ยนจริง จึงไม่เช็ค checkPeriodOpen
+  // (feedback 2026-11-03: ปิดจองแล้วพนักงานยังต้องขอเปลี่ยนวัน/สลับวันได้)
   // ย้ายข้ามเดือน = ไปเพิ่มโควต้าของเดือนปลายทาง (เดือนเดิมจะลดลงเมื่ออนุมัติ) — ในเดือนเดียวกันจำนวนวันไม่เปลี่ยน ไม่ต้องเช็ค
   if (newMonth !== oldDate.slice(0, 7)) {
     const quota = await resolveBookingQuota(tenantId, employeeId, newMonth)

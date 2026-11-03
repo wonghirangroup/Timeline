@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, ChevronRight, Calendar, CalendarDays, Palmtree, FileText,
-  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check, BookOpen,
+  Flag, Users, ClipboardList, Lock, Send, Loader2, CheckCircle2, AlertTriangle, Repeat, X, Check, BookOpen, Pencil,
 } from 'lucide-react'
 import { COLOR } from '../../components/ui/tokens'
 import { showResult } from '../../components/ui/ResultDialog'
@@ -659,12 +659,13 @@ function getWeeksOfMonth(month: string, todayStr: string): string[] {
 // ── ขอเปลี่ยนวันหยุดที่อนุมัติแล้ว ─────────────────────────────────────────────
 // วันที่แอดมินอนุมัติแล้วพนักงานแก้/ลบเองไม่ได้ (เดิมกด "แก้ไขวันที่จอง" แล้วลบวันที่อนุมัติทิ้งหมดเดือน) — ต้องขอเปลี่ยนให้แอดมินอนุมัติ:
 //   ขั้น 1 แสดงวันที่เคยจองและอนุมัติแล้ว ให้เลือกว่าจะเปลี่ยนวันไหน → ขั้น 2 เลือกวันใหม่ → ส่งคำขอ (วันเดิมยังอยู่จนกว่าแอดมินจะอนุมัติ)
-function ChangeDaySheet({ employeeId, items, bookedDates, startMonth, todayStr, onClose }: {
-  employeeId: string; items: WeeklyOffRecord[]; bookedDates: Set<string>; startMonth: string; todayStr: string; onClose: () => void
+function ChangeDaySheet({ employeeId, items, bookedDates, startMonth, todayStr, preselect, onClose }: {
+  employeeId: string; items: WeeklyOffRecord[]; bookedDates: Set<string>; startMonth: string; todayStr: string; preselect?: WeeklyOffRecord; onClose: () => void
 }) {
   const qc = useQueryClient()
-  const [target, setTarget] = useState<WeeklyOffRecord | null>(null)
-  const [vMonth, setVMonth] = useState(startMonth)
+  // preselect = กดมาจากปุ่มของวันนั้นโดยตรง (ข้ามขั้นเลือกวันที่จะเปลี่ยน)
+  const [target, setTarget] = useState<WeeklyOffRecord | null>(preselect ?? null)
+  const [vMonth, setVMonth] = useState(preselect ? resolveDate(preselect.week_start, preselect.day_of_week).slice(0, 7) : startMonth)
   const [newDate, setNewDate] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -1170,7 +1171,7 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
               {cancelAllMutation.isPending ? '...' : 'ยกเลิกคำขอทั้งเดือน'}
             </button>
           )}
-          {changeable.length > 0 && isOpen && (
+          {changeable.length > 0 && (
             <button onClick={() => setChangeSheet(true)}
               style={{ width: '100%', padding: '11px', borderRadius: 12, border: `1px solid ${COLOR.primary}`, background: 'transparent', color: COLOR.primary, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: allSubmittedPending ? 8 : 0 }}>
               แก้ไขวันที่จอง (ขอเปลี่ยนวัน)
@@ -1338,6 +1339,7 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
   const [errorMsg,  setErrorMsg]  = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [swapPickerFor, setSwapPickerFor] = useState<string | null>(null)
+  const [changeFor, setChangeFor] = useState<WeeklyOffRecord | null>(null)   // กด "ขอเปลี่ยนวัน" ของวันที่อนุมัติแล้ว
 
   const isCurrentWeek = weekStart === thisMonday
   const isPastWeek    = weekStart < thisMonday
@@ -1386,6 +1388,9 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
   // จองได้หลายวัน/สัปดาห์แล้ว (feedback 2026-09-14) — เดิมมีได้แค่ 1 record/สัปดาห์
   const thisWeekOwns = allOwn.filter(r => r.week_start.slice(0, 10) === weekStart).sort((a, b) => DISPLAY_TO_DOW.indexOf(a.day_of_week) - DISPLAY_TO_DOW.indexOf(b.day_of_week))
   const bookedDows   = new Set(thisWeekOwns.map(r => r.day_of_week))
+  // คำขอเปลี่ยนวันที่ยังรออนุมัติ (แถวใหม่ชี้ไปหาวันเดิม) + วันที่มีอยู่แล้วทั้งหมด ไว้กันเลือกวันซ้ำในหน้าเปลี่ยนวัน
+  const pendingChangeOf = new Map(allOwn.filter(r => r.replaces_request_id && r.status === 'PENDING').map(r => [r.replaces_request_id as string, r]))
+  const bookedDateSet    = new Set(allOwn.filter(r => r.status !== 'REJECTED').map(r => resolveDate(r.week_start, r.day_of_week)))
   const colleagues   = (colleagueQ.data?.colleagues ?? []).filter(c => c.week_start.slice(0, 10) === weekStart)
   const weekLeaveOn = (dow: number) => (colleagueQ.data?.colleagueLeaves ?? []).filter(l => { const d = resolveDate(weekStart, dow); return l.start_date.slice(0, 10) <= d && l.end_date.slice(0, 10) >= d })
   // โควต้าจอง/เดือน — นับวันที่จองไว้แล้ว (จริง) ในเดือนของสัปดาห์นี้ + วันที่กำลังเลือกเพิ่ม
@@ -1501,12 +1506,25 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
                   </div>
                 </div>
                 {r.status === 'APPROVED' && (
-                  <button onClick={() => setSwapPickerFor(r.id)}
-                    style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                    <Repeat size={12} /> ขอสลับ
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => setSwapPickerFor(r.id)}
+                      style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <Repeat size={12} /> ขอสลับ
+                    </button>
+                    {!pendingChangeOf.has(r.id) && (
+                      <button onClick={() => setChangeFor(r)}
+                        style={{ padding: '6px 11px', borderRadius: 10, border: `1px solid ${COLOR.primary}44`, background: '#fff', color: COLOR.primary, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Pencil size={12} /> ขอเปลี่ยนวัน
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
+              {pendingChangeOf.get(r.id) && (
+                <div style={{ marginTop: 8, padding: '6px 9px', borderRadius: 8, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '0.72rem', color: '#92400E', fontWeight: 600, lineHeight: 1.5 }}>
+                  ขอเปลี่ยนเป็น <b>{fmtDateFull(resolveDate(pendingChangeOf.get(r.id)!.week_start, pendingChangeOf.get(r.id)!.day_of_week))}</b> · รอแอดมินอนุมัติ (วันเดิมยังใช้ได้)
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1517,6 +1535,10 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
           employeeId={employeeId} month={month} requesterOffId={swapPickerFor}
           onClose={() => setSwapPickerFor(null)}
         />
+      )}
+
+      {changeFor && (
+        <ChangeDaySheet employeeId={employeeId} items={[changeFor]} preselect={changeFor} bookedDates={bookedDateSet} startMonth={month} todayStr={getTodayStr()} onClose={() => setChangeFor(null)} />
       )}
 
       {/* ── Period closed banner (current week, no booking) ────── */}
