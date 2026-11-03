@@ -36,6 +36,8 @@ interface ColleagueOff {
 }
 interface ColleagueLeave {
   id: string; leave_type: string; start_date: string; end_date: string
+  label?: string | null; custom_type?: { name: string; color: string } | null
+  leave_period?: 'FULL' | 'MORNING' | 'AFTERNOON' | 'CUSTOM'; days?: number
   employee: { id: string; first_name: string; last_name: string; nickname: string | null; photo_url?: string | null; branch?: { name: string } | null }
   same_branch?: boolean; same_position?: boolean
 }
@@ -80,6 +82,16 @@ const LEAVE_TYPES = [
   { code: 'COMPENSATE', label: 'วันหยุดชดเชย', color: '#10B981' },
 ]
 const DISPLAY_LEAVE_TYPES = LEAVE_TYPES
+// ป้าย/สีลาของเพื่อนร่วมงาน — ลำดับเดียวกับปฏิทินรวมของแอดมิน: ป้าย [..] ใน reason > ประเภทที่ tenant กำหนดเอง > ประเภทมาตรฐาน (ทุกประเภทแสดง รวมชดเชย/อื่นๆ)
+function colleagueLeaveCfg(l: ColleagueLeave) {
+  const std = DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)
+  const period = l.leave_period === 'MORNING' ? 'ครึ่งเช้า' : l.leave_period === 'AFTERNOON' ? 'ครึ่งบ่าย' : l.leave_period === 'CUSTOM' ? 'ระบุเวลา' : ''
+  return {
+    label: l.label || l.custom_type?.name || std?.label || 'ลา',
+    color: l.custom_type?.color || std?.color || '#64748B',
+    period,
+  }
+}
 const MONTHS_TH   = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
 const MONTHS_LONG = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
 const DAYS_SHORT  = ['อา','จ','อ','พ','พฤ','ศ','ส']
@@ -280,7 +292,9 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
             const myOff     = getMyOff(dateStr)
             const myLeaves  = getMyLeaves(dateStr)
             const holiday   = getHoliday(dateStr)
-            const colCount  = getColleaguesOff(dateStr).length + getColleagueLeaves(dateStr).length
+            const colOffN   = getColleaguesOff(dateStr).length
+            const colLeaveN = getColleagueLeaves(dateStr).length
+            const colCount  = colOffN + colLeaveN
             const isToday   = dateStr === today
             const isSel     = selDay === dateStr
             const isApprOff = myOff?.status === 'APPROVED'
@@ -356,8 +370,13 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
                 {/* เพื่อนร่วมงานหยุด/ลา — คนละสีกับของเรา (เตา/teal) กันสับสนว่าใครหยุด
                     (feedback 2026-09-30: "แยกสีไว้ว่าอันไหนเป็นของเพื่อน อันของเรา") */}
                 {!mine && colCount > 0 && (
-                  <div style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 2, background: '#DDF7EC', border: '1px solid #A7E8CC', borderRadius: 99, padding: '2px 9px' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F9D6B', lineHeight: 1.3 }}>ล.{colCount}</span>
+                  <div style={{ position: 'absolute', bottom: 4, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 2 }}>
+                    {colOffN > 0 && (
+                      <span style={{ background: '#DDF7EC', border: '1px solid #A7E8CC', borderRadius: 99, padding: '1px 6px', fontSize: '0.72rem', fontWeight: 800, color: '#0F9D6B', lineHeight: 1.3 }}>หยุด{colOffN}</span>
+                    )}
+                    {colLeaveN > 0 && (
+                      <span style={{ background: '#FFEDD5', border: '1px solid #FDBA74', borderRadius: 99, padding: '1px 6px', fontSize: '0.72rem', fontWeight: 800, color: '#C2410C', lineHeight: 1.3 }}>ลา{colLeaveN}</span>
+                    )}
                   </div>
                 )}
               </button>
@@ -412,7 +431,10 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
             { bg: '#FFFBEB', border: '1.5px dashed #FCD34D', label: 'รออนุมัติ' },
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
-            ...(mode === 'all' ? [{ bg: '#F0FDFA', border: '1.5px solid #99F6E4', label: 'เพื่อนร่วมงานหยุด/ลา' }] : []),
+            ...(mode === 'all' ? [
+              { bg: '#DDF7EC', border: '1.5px solid #A7E8CC', label: 'เพื่อนร่วมงานหยุด' },
+              { bg: '#FFEDD5', border: '1.5px solid #FDBA74', label: 'เพื่อนร่วมงานลา' },
+            ] : []),
             ...(mode === 'mine' ? [{ bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดสุดสัปดาห์' }] : []),
             ...(mode === 'all' && statusType ? [
               { bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดประจำ (ตามสถานะ)' },
@@ -516,10 +538,10 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
 
           {/* เพื่อนร่วมงาน — สีเตา (teal) แยกจากโทนน้ำเงิน/สีประเภทลาของเราด้านบน
               ไม่โชว์เหตุผลการลาของเพื่อน (เรื่องส่วนตัวของแต่ละคน) */}
-          {(selColOff.length > 0 || selColLeaves.length > 0) && (
+          {selColOff.length > 0 && (
             <div style={{ marginTop: selMyOff || selLeaves.length ? 12 : 0 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0D9488', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Users size={15} /> เพื่อนร่วมงานหยุด/ลาวันนี้
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0D9488', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Users size={15} /> เพื่อนร่วมงานหยุดวันนี้ ({selColOff.length})
               </div>
               {selColOff.map((o, i) => (
                 <div key={o.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
@@ -528,13 +550,21 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
                   <span style={{ fontSize: '0.8rem', color: '#0F9D6B', fontWeight: 800, background: '#DDF7EC', padding: '6px 12px', borderRadius: 99 }}>วันหยุดประจำ</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {selColLeaves.length > 0 && (
+            <div style={{ marginTop: selMyOff || selLeaves.length || selColOff.length ? 12 : 0 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#C2410C', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <CalendarDays size={15} /> เพื่อนร่วมงานลาวันนี้ ({selColLeaves.length})
+              </div>
               {selColLeaves.map((l, i) => {
-                const cfg = DISPLAY_LEAVE_TYPES.find(t => t.code === l.leave_type)
+                const cfg = colleagueLeaveCfg(l)
                 return (
-                  <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#F4FBF8', border: '1px solid #CBEFE0' }}>
-                    <ColleagueAvatar name={l.employee.nickname || l.employee.first_name} photoUrl={l.employee.photo_url} seed={selColOff.length + i} />
-                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#134E4A' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}{l.same_branch === false && l.employee.branch?.name && <small style={{ display: 'block', fontWeight: 500, color: '#5B7F7B' }}>{l.employee.branch.name}</small>}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#0D9488', fontWeight: 700 }}>{cfg?.label ?? l.leave_type}</span>
+                  <div key={l.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+                    <ColleagueAvatar name={l.employee.nickname || l.employee.first_name} photoUrl={l.employee.photo_url} seed={i} />
+                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#7C2D12' }}>{l.employee.nickname || `${l.employee.first_name} ${l.employee.last_name}`}{l.same_branch === false && l.employee.branch?.name && <small style={{ display: 'block', fontWeight: 500, color: '#9A6A4F' }}>{l.employee.branch.name}</small>}</span>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: cfg.color, background: `${cfg.color}1F`, border: `1px solid ${cfg.color}55`, padding: '4px 10px', borderRadius: 99, whiteSpace: 'nowrap' }}>{cfg.label}{cfg.period ? ` · ${cfg.period}` : ''}</span>
                   </div>
                 )
               })}

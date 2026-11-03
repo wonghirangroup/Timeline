@@ -610,7 +610,10 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       end_date: { gte: monthStart },
     },
     select: {
-      id: true, leave_type: true, start_date: true, end_date: true,
+      id: true, leave_type: true, start_date: true, end_date: true, leave_period: true, days: true,
+      // reason ใช้ดึงเฉพาะป้ายชื่อในวงเล็บ "[...]" (เหมือนปฏิทินรวมของแอดมิน เช่น ลาที่ import มา) — ไม่ส่งตัว reason ออกไป
+      reason: true,
+      custom_type: { select: { name: true, color: true } },
       employee: { select: { id: true, first_name: true, last_name: true, nickname: true, photo_url: true, position_id: true, branch_id: true, branch: { select: { name: true } }, extra_branches: { select: { branch_id: true } } } },
     },
   })
@@ -623,8 +626,9 @@ export async function getMonthView(tenantId: string, employeeId: string, month: 
       same_branch: isSameBranch(r.employee),
       same_position: isSameBranch(r.employee) && !!employee?.position_id && r.employee.position_id === employee.position_id,
     })),
-    colleagueLeaves: colleagueLeavesRaw.map(l => ({
+    colleagueLeaves: colleagueLeavesRaw.map(({ reason, ...l }) => ({
       ...l,
+      label: reason?.match(/^\[(.+?)\]/)?.[1] ?? null,
       same_branch: isSameBranch(l.employee),
       same_position: isSameBranch(l.employee) && !!employee?.position_id && l.employee.position_id === employee.position_id,
     })),
