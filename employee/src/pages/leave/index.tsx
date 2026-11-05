@@ -371,12 +371,12 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
                 {/* เพื่อนร่วมงานหยุด/ลา — คนละสีกับของเรา (เตา/teal) กันสับสนว่าใครหยุด
                     (feedback 2026-09-30: "แยกสีไว้ว่าอันไหนเป็นของเพื่อน อันของเรา") */}
                 {!mine && colCount > 0 && (
-                  <div style={{ position: 'absolute', bottom: 4, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 2 }}>
+                  <div style={{ position: 'absolute', bottom: 4, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 3 }}>
                     {colOffN > 0 && (
-                      <span style={{ background: '#DDF7EC', border: '1px solid #A7E8CC', borderRadius: 99, padding: '1px 6px', fontSize: '0.72rem', fontWeight: 800, color: '#0F9D6B', lineHeight: 1.3 }}>หยุด{colOffN}</span>
+                      <span style={{ minWidth: 19, height: 19, borderRadius: 99, background: '#10B981', color: '#fff', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{colOffN}</span>
                     )}
                     {colLeaveN > 0 && (
-                      <span style={{ background: '#FFEDD5', border: '1px solid #FDBA74', borderRadius: 99, padding: '1px 6px', fontSize: '0.72rem', fontWeight: 800, color: '#C2410C', lineHeight: 1.3 }}>ลา{colLeaveN}</span>
+                      <span style={{ minWidth: 19, height: 19, borderRadius: 99, background: '#F97316', color: '#fff', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{colLeaveN}</span>
                     )}
                   </div>
                 )}
@@ -433,8 +433,8 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
             { bg: '#fff', border: '1.5px solid #e5e7eb', label: 'วันทำงาน', dot: '#3B82F6' },
             { bg: '#FFF1F2', border: '1px solid #fecdd3', label: 'วันหยุดราชการ' },
             ...(mode === 'all' ? [
-              { bg: '#DDF7EC', border: '1.5px solid #A7E8CC', label: 'เพื่อนร่วมงานหยุด' },
-              { bg: '#FFEDD5', border: '1.5px solid #FDBA74', label: 'เพื่อนร่วมงานลา' },
+              { bg: '#10B981', border: '1.5px solid #10B981', label: 'เพื่อนร่วมงานหยุด (จำนวนคน)' },
+              { bg: '#F97316', border: '1.5px solid #F97316', label: 'เพื่อนร่วมงานลา (จำนวนคน)' },
             ] : []),
             ...(mode === 'mine' ? [{ bg: '#F0F9FF', border: '1.5px solid #BAE6FD', label: 'หยุดสุดสัปดาห์' }] : []),
             ...(mode === 'all' && statusType ? [
