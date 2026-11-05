@@ -212,10 +212,11 @@ function PersonalCalendar({ employeeId, requests, holidays, statusType, myRules,
   const colleagueLeaves  = offQ.data?.colleagueLeaves ?? []
 
   const getMyOff    = (d: string) => own.find(o => o.status !== 'REJECTED' && resolveDate(o.week_start, o.day_of_week) === d) ?? null
-  const getMyLeaves = (d: string) => requests.filter(r => r.start_date <= d && r.end_date >= d && r.status !== 'REJECTED')
+  const getMyLeaves = (d: string) => requests.filter(r => r.start_date.slice(0, 10) <= d && r.end_date.slice(0, 10) >= d && r.status !== 'REJECTED')
   const getHoliday  = (d: string) => holidays.find(h => h.date === d) ?? null
   const getColleaguesOff   = (d: string) => colleaguesOff.filter(o => o.status === 'APPROVED' && resolveDate(o.week_start, o.day_of_week) === d)
-  const getColleagueLeaves = (d: string) => colleagueLeaves.filter(l => l.start_date <= d && l.end_date >= d)
+  // start_date/end_date จาก server เป็น ISO เต็ม (2026-11-05T00:00:00.000Z) ต้องตัดเหลือวันที่ก่อนเทียบ ไม่งั้นลาที่เริ่ม/วันเดียวไม่ขึ้นในปฏิทิน
+  const getColleagueLeaves = (d: string) => colleagueLeaves.filter(l => l.start_date.slice(0, 10) <= d && l.end_date.slice(0, 10) >= d)
 
   const myOffThisMonth = own.filter(o => o.status === 'APPROVED').length
 
@@ -1788,12 +1789,8 @@ function LeaveQuotaBooking({ employeeId, balances, ownRequests }: {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
-  // ชดเชยเปิดให้เลือกเองได้เฉพาะตอนมีโควต้าอยู่แล้วเท่านั้น (แอดมิน grant ไว้ก่อน)
-  const availableTypes = LEAVE_QUOTA_TYPES.filter(t => {
-    if (t.code === 'VACATION') return true
-    const bal = balances.find(b => b.leave_type === t.code)
-    return !!bal && bal.total_days > 0
-  })
+  // ไม่ให้พนักงานเลือก "ชดเชย" เอง (feedback 2026-11-05 ตามที่เอาวันหยุดชดเชยออกจากหน้าลาแล้ว) — เหลือพักร้อนอย่างเดียว
+  const availableTypes = LEAVE_QUOTA_TYPES.filter(t => t.code === 'VACATION')
   const [leaveType, setLeaveType] = useState<'VACATION' | 'COMPENSATE'>('VACATION')
   const activeType = availableTypes.find(t => t.code === leaveType) ?? availableTypes[0]
 
