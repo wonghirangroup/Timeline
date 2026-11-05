@@ -1231,8 +1231,14 @@ function MonthlyBatchBooking({ employeeId, branchId, initialMonth }: { employeeI
 
       {/* ── Month grid picker — โชว์ต่อได้แม้จองไปแล้วบางวัน ถ้าโควต้ายังเหลือ
           (ไม่ต้องกด "ยกเลิกคำขอทั้งเดือน" ก่อนถึงจะจองเพิ่มได้) ───────────── */}
-      {isOpen && !noDaysLeft && (hasQuota ? remainingQuota > 0 : ownThisMonth.length === 0) && (
+      {/* ปิดรับจองแล้วแต่ตัวเองมีวันจองอยู่ และโควต้ายังเหลือ → ยื่นคำขอจองเพิ่มได้ (feedback 2026-11-05) */}
+      {(isOpen || (hasQuota && ownThisMonth.length > 0 && remainingQuota > 0)) && !noDaysLeft && (hasQuota ? remainingQuota > 0 : ownThisMonth.length === 0) && (
         <>
+          {!isOpen && (
+            <div style={{ marginBottom: 10, padding: '9px 12px', borderRadius: 12, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '0.74rem', color: '#92400E', fontWeight: 600, lineHeight: 1.5 }}>
+              เดือนนี้ปิดรับจองแล้ว แต่คุณยังเหลือโควต้า {remainingQuota} วัน — ยื่นคำขอจองเพิ่มได้ รอแอดมินอนุมัติ
+            </div>
+          )}
           <div style={{ fontSize: '0.78rem', color: '#6B7D90', fontWeight: 600, marginBottom: 10 }}>
             {hasQuota
               ? (ownThisMonth.length > 0
@@ -1474,7 +1480,8 @@ function WeeklyBooking({ employeeId, branchId, initialMonth }: { employeeId: str
     },
   })
 
-  const canBook = isCurrentWeek && isOpen && !submitted && !quotaFull
+  // ปิดรับจองแล้วแต่เดือนนี้ตัวเองมีวันจองอยู่และโควต้ายังเหลือ → ยื่นคำขอจองเพิ่มได้ (feedback 2026-11-05)
+  const canBook = isCurrentWeek && (isOpen || monthUsed > 0) && !submitted && !quotaFull
 
   return (
     <div>

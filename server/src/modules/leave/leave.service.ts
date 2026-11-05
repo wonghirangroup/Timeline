@@ -195,11 +195,9 @@ export async function createLeaveRequest(
     },
   }) : null
 
-  // แอดมินลงให้ (autoApprove) ข้ามการเช็คโควต้า — เป็นการบันทึกตามจริงที่เกิดขึ้นแล้ว ไม่ควรถูกบล็อก ยอดคงเหลือจะติดลบให้เห็น (เช่น -1)
-  // ส่วนพนักงานยื่นเองยังโดนบล็อกเมื่อวันลาไม่พอเหมือนเดิม
-  if (balance && !data.autoApprove && (balance.used_days + days) > balance.total_days) {
-    throw new Error('INSUFFICIENT_BALANCE')
-  }
+  // ไม่บล็อกเมื่อโควต้าไม่พออีกต่อไป ทั้งแอดมินลงให้และพนักงานยื่นเอง — ยื่นได้แม้ไม่มีโควต้า (feedback 2026-11-05)
+  // ถ้าอนุมัติ ยอดคงเหลือจะติดลบ (approveLeaveRequest สร้างแถวโควต้า 0 วันให้ถ้ายังไม่มี) แอดมินเป็นคนตัดสินตอนอนุมัติ
+  void balance
 
   let overLimitNote: string | null = null
   // รวม (วันหยุดจอง + พักร้อนที่ใช้) ต้องไม่เกิน 10 วัน/เดือน — feedback 2026-09-15 ข้อ 5
@@ -329,7 +327,7 @@ export async function approveLeaveRequest(
   const year = new Date(req.start_date).getFullYear()
 
   // หักวันลา
-  await prisma.leaveBalance.updateMany({
+  const deducted = await prisma.leaveBalance.updateMany({
     where: {
       tenant_id: tenantId,
       employee_id: req.employee_id,
@@ -339,6 +337,16 @@ export async function approveLeaveRequest(
     },
     data: { used_days: { increment: req.days } },
   })
+  // ยังไม่มีแถวโควต้าของประเภท/ปีนี้ (พนักงานยื่นลาโดยไม่มีโควต้า) → สร้างแถว total 0 แล้วหักเลย ยอดคงเหลือติดลบ
+  // ประเภทที่ tenant กำหนดเองและไม่หักโควต้า (deducts_quota=false) ไม่สร้าง
+  if (deducted.count === 0) {
+    const ct = req.custom_type_id ? await prisma.tenantLeaveType.findFirst({ where: { id: req.custom_type_id, tenant_id: tenantId }, select: { deducts_quota: true } }) : null
+    if (!req.custom_type_id || ct?.deducts_quota) {
+      await prisma.leaveBalance.create({
+        data: { tenant_id: tenantId, employee_id: req.employee_id, leave_type: req.leave_type, custom_type_id: req.custom_type_id, year, total_days: 0, used_days: req.days },
+      })
+    }
+  }
 
   const shouldDeduct = req.has_conflict && !!conflictDeductType && conflictDeductType !== req.leave_type && !req.conflict_deduct_type
   if (shouldDeduct) {
