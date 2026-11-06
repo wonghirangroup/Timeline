@@ -157,6 +157,7 @@ export async function employeeRoutes(app: FastifyInstance) {
           employee_status_type_id: { type: ['string', 'null'] },
           booking_enabled_override: { type: ['boolean', 'null'], description: 'override สิทธิ์จองวันหยุดรายคน — null = inherit จากตำแหน่ง/แผนก/…/กลุ่ม' },
           leave_enabled_override:   { type: ['boolean', 'null'], description: 'override สิทธิ์การลารายคน — null = inherit' },
+          late_fine_enabled_override: { type: ['boolean', 'null'], description: 'override การปรับเงินเมื่อเช็คอินสายรายคน — null = inherit' },
           checkin_exempt:           { type: 'boolean', description: 'ไม่ต้องเช็คอิน (เช่น ผู้บริหาร) — ไม่นับ ยังไม่เช็ค/ขาด/สาย' },
           offsite_checkin_enabled:  { type: 'boolean', description: 'สิทธิ์เช็คอินนอกสถานที่รายคน — default false ต้องแอดมินเปิดให้เอง (ไม่มี cascade)' },
           photo_url:    { type: ['string', 'null'], description: 'URL รูปโปรไฟล์ (อัปโหลดผ่าน Cloudinary ฝั่ง client)' },

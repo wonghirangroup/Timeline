@@ -8,12 +8,13 @@ import { prisma } from '../../common/utils/prisma'
 // นโยบายที่ทุกชั้น (ฝ่าย/แผนก/ตำแหน่ง) รับได้ — null = inherit จากชั้นบน
 type DR = 'WORK' | 'OFF' | 'OFFSITE'
 type OrgPolicyInput = {
-  booking_enabled?: boolean | null; leave_enabled?: boolean | null
+  booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null
   saturday_rule?: DR | null; sunday_rule?: DR | null; booking_quota?: number | null
 }
 const orgPolicyData = (d: OrgPolicyInput) => ({
   booking_enabled: d.booking_enabled ?? null,
   leave_enabled: d.leave_enabled ?? null,
+  late_fine_enabled: d.late_fine_enabled ?? null,
   saturday_rule: d.saturday_rule ?? null,
   sunday_rule: d.sunday_rule ?? null,
   booking_quota: d.booking_quota ?? null,

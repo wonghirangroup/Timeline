@@ -9,7 +9,7 @@ import { seedPermissionsFromTemplate } from '../permissions/permission.service'
 import { encryptField, decryptField } from '../../common/utils/encryption'
 
 // ตำแหน่งผูก parent ชัดเจนเสมอ: Position → Department → Division → Group (ดู org-structure.service.ts)
-const POLICY_FIELDS = { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } as const
+const POLICY_FIELDS = { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } as const
 const POSITION_INCLUDE = {
   select: {
     id: true, name: true, ...POLICY_FIELDS,
@@ -101,7 +101,7 @@ export async function listEmployees(tenantId: string, branchId?: string, include
       ...(scopedEmployeeIds ? { id: { in: scopedEmployeeIds } } : {}),
     },
     include: {
-      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
+      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: { select: { role: true, is_active: true } },
@@ -123,7 +123,7 @@ export async function getEmployee(tenantId: string, id: string) {
   const row = await prisma.employee.findFirst({
     where: { id, tenant_id: tenantId, deleted_at: null },
     include: {
-      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
+      branch: { select: { id: true, name: true, group_id: true, ...POLICY_FIELDS, group: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } } } },
       position: POSITION_INCLUDE,
       employee_status_type: STATUS_TYPE_INCLUDE,
       admin_user: ADMIN_USER_INCLUDE,
@@ -315,6 +315,7 @@ export async function updateEmployee(
     employee_status_type_id?: string | null
     booking_enabled_override?: boolean | null
     leave_enabled_override?: boolean | null
+    late_fine_enabled_override?: boolean | null
     offsite_checkin_enabled?: boolean
     checkin_exempt?: boolean
     photo_url?: string | null

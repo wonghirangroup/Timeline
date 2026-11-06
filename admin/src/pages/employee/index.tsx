@@ -60,6 +60,7 @@ interface ApiEmployee {
   employee_status_type?: { id: string; name: string; monthly_off_quota: number } | null
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
+  late_fine_enabled_override?: boolean | null
   offsite_checkin_enabled?: boolean
   checkin_exempt?: boolean
   photo_url?: string | null
@@ -138,7 +139,7 @@ const EMPTY_FORM = {
   branch_id: '', full_name: '', nickname: '', department: '',
   phone: '', hired_at: '', weekly_off_mode: 'WEEKLY' as 'WEEKLY' | 'MONTHLY_BATCH',
   position_id: '', employee_status_type_id: '',
-  booking_override: '' as OverrideVal, leave_override: '' as OverrideVal,
+  booking_override: '' as OverrideVal, leave_override: '' as OverrideVal, late_fine_override: '' as OverrideVal,
   checkin_exempt: false,           // ไม่ต้องเช็คอิน (เช่น ผู้บริหาร)
   offsite_checkin_enabled: false, // สิทธิ์เช็คอินนอกสถานที่รายคน — default ปิด ต้องเปิดเอง
   extra_branch_ids: [] as string[], // สาขาเสริม นอกเหนือจากสาขาหลัก — เช็คอิน/ขึ้นในรายงานของสาขานี้ได้ด้วย
@@ -339,6 +340,7 @@ export default function EmployeePage() {
       employee_status_type_id: e.employee_status_type_id ?? '',
       booking_override: toOverrideVal(e.booking_enabled_override),
       leave_override: toOverrideVal(e.leave_enabled_override),
+      late_fine_override: toOverrideVal(e.late_fine_enabled_override),
       checkin_exempt: e.checkin_exempt ?? false,
       offsite_checkin_enabled: e.offsite_checkin_enabled ?? false,
       extra_branch_ids: (e.extra_branches ?? []).map(b => b.branch.id),
@@ -475,6 +477,7 @@ export default function EmployeePage() {
         employee_status_type_id: form.employee_status_type_id || null,
         booking_enabled_override: fromOverrideVal(form.booking_override),
         leave_enabled_override: fromOverrideVal(form.leave_override),
+        late_fine_enabled_override: fromOverrideVal(form.late_fine_override),
         offsite_checkin_enabled: form.offsite_checkin_enabled,
         checkin_exempt: form.checkin_exempt,
         extra_branch_ids: form.extra_branch_ids,
@@ -1444,6 +1447,14 @@ export default function EmployeePage() {
                       <option value="">ใช้ค่าจากผังองค์กร</option>
                       <option value="on">เปิด — ลาได้</option>
                       <option value="off">ปิด — ลาไม่ได้</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={label}>ปรับเงินเมื่อเช็คอินสาย (รายคน)</label>
+                    <select value={form.late_fine_override} onChange={e => setForm(f => ({ ...f, late_fine_override: e.target.value as OverrideVal }))} style={input}>
+                      <option value="">ใช้ค่าจากผังองค์กร/สาขา</option>
+                      <option value="on">ปรับเงิน</option>
+                      <option value="off">ไม่ปรับเงิน</option>
                     </select>
                   </div>
                 </div>

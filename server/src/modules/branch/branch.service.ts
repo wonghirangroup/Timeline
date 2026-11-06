@@ -70,6 +70,7 @@ export async function createBranch(tenantId: string, data: {
   geo_mode?: 'WARN' | 'BLOCK'
   booking_enabled?: boolean | null
   leave_enabled?: boolean | null
+  late_fine_enabled?: boolean | null
   saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
   sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
   booking_quota?: number | null
@@ -101,6 +102,7 @@ async function buildCreateData(tenantId: string, data: Parameters<typeof createB
       geo_mode: data.geo_mode ?? 'WARN',
       booking_enabled: data.booking_enabled ?? null,
       leave_enabled: data.leave_enabled ?? null,
+      late_fine_enabled: data.late_fine_enabled ?? null,
       saturday_rule: data.saturday_rule ?? null,
       sunday_rule: data.sunday_rule ?? null,
       booking_quota: data.booking_quota ?? null,
@@ -121,7 +123,7 @@ export async function getBranchQrUrl(tenantId: string, branchId: string): Promis
 export async function updateBranch(
   tenantId: string,
   id: string,
-  data: { name?: string; branch_code?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null; saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null },
+  data: { name?: string; branch_code?: string; location?: string; lat?: number | null; lng?: number | null; gps_radius?: number; geo_mode?: 'WARN' | 'BLOCK'; is_active?: boolean; booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null; saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null },
 ) {
   const patch = { ...data }
   if ('branch_code' in patch) {

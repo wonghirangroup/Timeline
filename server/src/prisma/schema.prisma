@@ -247,6 +247,7 @@ model Employee {
   employee_status_type_id  String? // สถานะพนักงาน (ประจำ/ชั่วคราว/...) กำหนดโควต้าวันหยุดต่อเดือน — nullable = ยังไม่ผูก ใช้ fallback เดิม
   booking_enabled_override Boolean? // override สิทธิ์จองวันหยุดรายบุคคล — null = inherit จาก Position→Department→Division→Branch→Group (ดู resolvePolicyFlag())
   leave_enabled_override   Boolean? // override สิทธิ์ยื่นคำขอลารายบุคคล — null = inherit ลำดับเดียวกับ booking (ดู resolvePolicyFlag())
+  late_fine_enabled_override Boolean? // override การปรับเงินเมื่อเช็คอินสายรายบุคคล — null = inherit ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม (ไม่มีใครตั้ง = ปรับตามกะ)
   checkin_exempt           Boolean          @default(false) // ไม่ต้องเช็คอิน (เช่น ผู้บริหาร) — ไม่นับเป็น ยังไม่เช็ค/ขาด/สาย ใน Dashboard/เช็คอิน/รายงาน; เช็คอินเองได้ตามปกติ
   offsite_checkin_enabled  Boolean          @default(false) // สิทธิ์เช็คอินนอกสถานที่ — ตั้งรายบุคคลเท่านั้น ไม่ cascade (feedback 2026-09-15: "ใช้ได้สำหรับคนที่มีสิทธิเท่านั้น") default false = ต้องให้แอดมินเปิดให้ทีละคน
   probation_end_date       DateTime?        @db.Date // วันครบทดลองงาน — null = ผ่านโปรแล้ว/ไม่ระบุ (feature: probation)
@@ -522,6 +523,7 @@ model Group {
   name            String
   booking_enabled Boolean   @default(true)
   leave_enabled   Boolean   @default(true) // ค่าเริ่มต้นของสิทธิ์ยื่นคำขอลาสำหรับทุกอย่างในกลุ่มนี้
+  late_fine_enabled Boolean? // ปรับเงินเมื่อเช็คอินสายไหม — null = inherit จากชั้นบน (ดู resolveLateFineEnabled())
   saturday_rule   DayRule   @default(OFF) // ค่าเริ่มต้นวันเสาร์ของทุกอย่างในกลุ่ม (ชั้นล่าง/สถานะพนักงาน override ได้)
   sunday_rule     DayRule   @default(OFF) // ค่าเริ่มต้นวันอาทิตย์
   booking_quota   Int       @default(5) // จองวันหยุดได้กี่วัน/เดือน (ทั้ง 2 โหมด) — ชั้นล่าง override ได้
@@ -558,6 +560,7 @@ model Division {
   name            String
   booking_enabled Boolean? // null = inherit จาก Group.booking_enabled
   leave_enabled   Boolean? // null = inherit จาก Group.leave_enabled
+  late_fine_enabled Boolean? // ปรับเงินเมื่อเช็คอินสายไหม — null = inherit จากชั้นบน (ดู resolveLateFineEnabled())
   saturday_rule   DayRule? // null = inherit จาก Group
   sunday_rule     DayRule? // null = inherit จาก Group
   booking_quota   Int? // null = inherit จาก Group
@@ -582,6 +585,7 @@ model Department {
   name            String
   booking_enabled Boolean? // null = inherit จาก Division.booking_enabled (หรือต่อไปที่ Group ถ้า Division ก็ null)
   leave_enabled   Boolean? // null = inherit จาก Division.leave_enabled
+  late_fine_enabled Boolean? // ปรับเงินเมื่อเช็คอินสายไหม — null = inherit จากชั้นบน (ดู resolveLateFineEnabled())
   saturday_rule   DayRule? // null = inherit
   sunday_rule     DayRule? // null = inherit
   booking_quota   Int? // null = inherit
@@ -607,6 +611,7 @@ model Position {
   name                     String
   booking_enabled          Boolean? // null = inherit จาก Department.booking_enabled
   leave_enabled            Boolean? // null = inherit จาก Department.leave_enabled
+  late_fine_enabled Boolean? // ปรับเงินเมื่อเช็คอินสายไหม — null = inherit จากชั้นบน (ดู resolveLateFineEnabled())
   saturday_rule            DayRule? // null = inherit
   sunday_rule              DayRule? // null = inherit
   booking_quota            Int? // null = inherit
@@ -685,6 +690,7 @@ model Branch {
   name            String
   booking_enabled Boolean? // null = inherit จาก Group ของสาขานี้ (ดู resolvePolicyFlag())
   leave_enabled   Boolean? // null = inherit จาก Group ของสาขานี้
+  late_fine_enabled Boolean? // ปรับเงินเมื่อเช็คอินสายไหม — null = inherit จากชั้นบน (ดู resolveLateFineEnabled())
   saturday_rule   DayRule? // null = inherit จาก Group
   sunday_rule     DayRule? // null = inherit จาก Group
   booking_quota   Int? // null = inherit จาก Group

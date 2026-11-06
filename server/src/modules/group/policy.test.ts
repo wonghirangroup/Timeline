@@ -46,3 +46,20 @@ describe('resolvePolicyFromChain — booking แยกแกนจาก leave',
     expect(resolvePolicyFromChain(e, 'leave')).toBe(true)
   })
 })
+
+describe('resolvePolicyFromChain — late_fine (ปรับเงินเมื่อสาย)', () => {
+  it('ไม่มีใครตั้ง → true (ปรับตามกะ)', () => {
+    expect(resolvePolicyFromChain({}, 'late_fine')).toBe(true)
+  })
+  it('แผนกปิด → ไม่ปรับ, แต่ override บุคคลเปิดทับ → ปรับ', () => {
+    const e: PolicyEmployeeShape = { position: { department: { late_fine_enabled: false } } }
+    expect(resolvePolicyFromChain(e, 'late_fine')).toBe(false)
+    expect(resolvePolicyFromChain({ ...e, late_fine_enabled_override: true }, 'late_fine')).toBe(true)
+  })
+  it('สาขาปิดแกน late_fine ไม่กระทบ leave/booking', () => {
+    const e: PolicyEmployeeShape = { branch: { late_fine_enabled: false } }
+    expect(resolvePolicyFromChain(e, 'late_fine')).toBe(false)
+    expect(resolvePolicyFromChain(e, 'leave')).toBe(true)
+    expect(resolvePolicyFromChain(e, 'booking')).toBe(true)
+  })
+})

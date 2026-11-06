@@ -2,11 +2,19 @@
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 import { getEmployeeWeeklyOff, hasApprovedBookingInMonth } from '../weekly-off/weekly-off.service'
-import { resolveWeekendRule } from '../group/group.service'
+import { resolveWeekendRule, resolveLateFineEnabled } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn, isGpsRequiredButMissing } from './checkin-rules'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
 import { employeeBranchWhere } from '../employee/employee.service'
+
+// ค่าปรับสายตามกะ แต่ถ้าสิทธิ์ "ปรับเงินเมื่อเช็คอินสาย" ของคนนี้ปิด (cascade บุคคล→ตำแหน่ง→แผนก→ฝ่าย→สาขา→กลุ่ม) = 0
+// เช็ค cascade เฉพาะตอนมีค่าปรับ > 0 เพื่อไม่เพิ่ม query ให้เช็คอินปกติ — ใช้กับค่าปรับ "สาย" เท่านั้น ไม่รวมค่าปรับขาด (absent_fine)
+async function lateFineFor(tenantId: string, employeeId: string, shift: Parameters<typeof computeFine>[0], late: LateStatus): Promise<number> {
+  const fine = computeFine(shift, late)
+  if (fine <= 0) return 0
+  return (await resolveLateFineEnabled(tenantId, employeeId)) ? fine : 0
+}
 
 // ── Day rule (สถานะพนักงาน: เสาร์/อาทิตย์/นักขัตฤกษ์/วันหยุดที่จองไว้เอง) ─────
 // เช็คอินยังทำได้เสมอไม่ว่าวันนี้จะเป็นวันหยุดหรือไม่ (ไม่บล็อค) แต่ผลลัพธ์
@@ -239,7 +247,7 @@ export async function createManualAttendance(tenantId: string, data: {
   let levelFine = 0
   if (shift && checkInAt) {
     late = computeLateStatus(shift, dateToBangkokMins(checkInAt))
-    levelFine = computeFine(shift, late)
+    levelFine = await lateFineFor(tenantId, data.employee_id, shift, late)
   }
 
   // เริ่มจากผล auto-calc แล้วให้แอดมิน override ด้วยมือได้ (เหมือน updateAttendanceTime)
@@ -341,7 +349,7 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
     is_late      = late.is_late
     late_minutes = late.late_minutes
     is_absent    = late.is_absent
-    fine         = computeFine(shift, late)
+    fine         = await lateFineFor(tenantId, record.employee_id, shift, late)
   } else if (data.check_in_at !== undefined && !checkInAt) {
     is_late = false; late_minutes = 0; is_absent = false; fine = 0
   }
@@ -567,7 +575,7 @@ export async function checkInAuto(tenantId: string, data: {
   const lateCheckMins = dateToBangkokMins(now) + (fromPreviousDay ? 1440 : 0)
   const dayRule = await resolveDayRule(tenantId, data.employee_id, attendanceDate)
   const { late, dayRuleNote } = applyDayRule(computeLateStatus(shift, lateCheckMins, overnightShift), dayRule)
-  const levelFine = computeFine(shift, late)
+  const levelFine = await lateFineFor(tenantId, data.employee_id, shift, late)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -650,7 +658,7 @@ export async function checkIn(tenantId: string, data: {
   const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
   const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
   const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
-  const levelFine = shift ? computeFine(shift, late) : 0
+  const levelFine = shift ? await lateFineFor(tenantId, data.employee_id, shift, late) : 0
 
   // ตรวจสอบ GPS vs geo_mode ของสาขา
   let is_outside_area = false
@@ -744,7 +752,7 @@ export async function checkInQR(tenantId: string, data: {
   const dayRule = await resolveDayRule(tenantId, data.employee_id, today)
   const rawLate = shift ? computeLateStatus(shift, dateToBangkokMins(now)) : { is_late: false, late_level: 0 as const, late_minutes: 0, is_absent: false }
   const { late, dayRuleNote } = applyDayRule(rawLate, dayRule)
-  const levelFine = shift ? computeFine(shift, late) : 0
+  const levelFine = shift ? await lateFineFor(tenantId, data.employee_id, shift, late) : 0
 
   const record = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -816,7 +824,7 @@ export async function checkInScan(tenantId: string, data: {
 
   const now = new Date()
   const late = computeLateStatus(shift, dateToBangkokMins(now))
-  const levelFine = computeFine(shift, late)
+  const levelFine = await lateFineFor(tenantId, data.employee_id, shift, late)
 
   const { record, carried } = await prisma.$transaction(async (tx) => {
     const carried = await settlePendingFine(tx, data.employee_id)
@@ -862,7 +870,7 @@ export async function checkInOffsite(tenantId: string, data: {
 
   const now = new Date()
   const late = computeLateStatus(shift, dateToBangkokMins(now))
-  const levelFine = computeFine(shift, late)
+  const levelFine = await lateFineFor(tenantId, data.employee_id, shift, late)
 
   const today = getTodayBangkok()
   const { record, carried } = await prisma.$transaction(async (tx) => {

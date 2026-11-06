@@ -15,6 +15,7 @@ const READ_ROLES  = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EXECUTIVE'] as const
 const POLICY_PROPS = {
   booking_enabled: { type: ['boolean', 'null'] },
   leave_enabled:   { type: ['boolean', 'null'] },
+  late_fine_enabled: { type: ['boolean', 'null'] },
   saturday_rule:   { type: ['string', 'null'], enum: ['WORK', 'OFF', 'OFFSITE', null] },
   sunday_rule:     { type: ['string', 'null'], enum: ['WORK', 'OFF', 'OFFSITE', null] },
   booking_quota:   { type: ['integer', 'null'], minimum: 0, maximum: 31 },
