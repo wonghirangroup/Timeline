@@ -112,7 +112,7 @@ function Avatar({ url, name }: { url?: string | null; name: string }) {
 
 const cellSel: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: '0.78rem', padding: '4px 6px', borderRadius: 7,
-  border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', maxWidth: 168,
+  border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', maxWidth: 140,
 }
 
 export default function PolicyOverview() {
@@ -220,8 +220,8 @@ export default function PolicyOverview() {
   }
 
   const filterInput: React.CSSProperties = { padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.875rem', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const th: React.CSSProperties = { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.76rem', whiteSpace: 'nowrap' }
-  const td: React.CSSProperties = { padding: '9px 12px', fontSize: '0.82rem', verticalAlign: 'middle' }
+  const th: React.CSSProperties = { padding: '10px 8px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.76rem', whiteSpace: 'nowrap' }
+  const td: React.CSSProperties = { padding: '9px 8px', fontSize: '0.82rem', verticalAlign: 'middle' }
 
   // เซลล์ override 3 สถานะ (ตามลำดับชั้น / บังคับเปิด / บังคับปิด)
   const OverrideSelect = ({ value, inherit, onChange, labels }: { value: boolean | null | undefined; inherit: boolean; onChange: (v: boolean | null) => void; labels?: { on: string; off: string } }) => (
