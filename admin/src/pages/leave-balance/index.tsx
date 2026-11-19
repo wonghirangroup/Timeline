@@ -933,6 +933,14 @@ export default function LeaveBalancePage() {
                     {quota === 0 && (
                       <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 2 }}>ยังไม่กำหนด</div>
                     )}
+                    {lt.key === 'vacation' && quota > 0 && (() => {
+                      const left = Number((quota - used).toFixed(2))
+                      return (
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 3, color: left < 0 ? '#dc2626' : left === 0 ? '#d97706' : '#059669' }}>
+                          {left >= 0 ? `เหลือ ${left} วัน` : `เกินมา ${-left} วัน`}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}
