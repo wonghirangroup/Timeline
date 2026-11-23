@@ -41,11 +41,11 @@ export async function getDashboardSummary(tenantId: string, filters: {
   }
   const lateList = [...lateByEmployee.values()].sort((a, b) => b.count - a.count)
 
-  // ── ลาออก/เลิกจ้าง: จาก EmployeeStatusLog (dedupe รายคน เอาครั้งล่าสุดในช่วงนี้) ──
+  // ── ลาออก/เลิกจ้าง/ไม่ใช้งาน (ปิดใช้งานทุกประเภท) พร้อมหมายเหตุ: จาก EmployeeStatusLog (dedupe รายคน เอาครั้งล่าสุดในช่วงนี้) ──
   const resignLogs = await prisma.employeeStatusLog.findMany({
     where: {
       tenant_id: tenantId,
-      to_status: { in: ['RESIGNED', 'TERMINATED'] },
+      to_status: { in: ['RESIGNED', 'TERMINATED', 'INACTIVE'] },
       created_at: { gte: start, lte: end },
       ...(filters.branchId ? { employee: employeeBranchWhere(filters.branchId) } : {}),
       ...(filters.scopedEmployeeIds ? { employee_id: { in: filters.scopedEmployeeIds } } : {}),
@@ -55,9 +55,9 @@ export async function getDashboardSummary(tenantId: string, filters: {
     },
     orderBy: { created_at: 'desc' },
   })
-  const resignedByEmployee = new Map<string, (typeof resignLogs)[number]['employee']>()
+  const resignedByEmployee = new Map<string, (typeof resignLogs)[number]['employee'] & { status_to: string; reason: string | null; effective_date: Date | null }>()
   for (const log of resignLogs) {
-    if (!resignedByEmployee.has(log.employee_id)) resignedByEmployee.set(log.employee_id, log.employee)
+    if (!resignedByEmployee.has(log.employee_id)) resignedByEmployee.set(log.employee_id, { ...log.employee, status_to: log.to_status, reason: log.reason || null, effective_date: log.effective_date ?? null })
   }
   const resignedList = [...resignedByEmployee.values()]
 

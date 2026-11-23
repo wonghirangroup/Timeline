@@ -624,7 +624,7 @@ export default function LeaveBalancePage() {
               } />
             </h1>
             <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-              กำหนดจำนวนวันลาสูงสุดต่อปีของพนักงานแต่ละคน — พนักงานลาเกินโควต้าไม่ได้
+              กำหนดจำนวนวันลาต่อปีของพนักงานแต่ละคน — ยื่นลาเกินโควต้าได้ ถ้าอนุมัติยอดจะติดลบ
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

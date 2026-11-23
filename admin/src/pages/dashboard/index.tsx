@@ -24,7 +24,7 @@ import { buildMapData } from '../attendance/mapData'
 // ─── Range KPI types ────────────────────────────────────────────────────────
 type RangePreset = 'today' | '7d' | '1m' | '3m' | '6m' | 'year' | 'custom'
 
-interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; photo_url?: string | null; branch: { id: string; name: string } | null; late_count?: number }
+interface RangePerson { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; photo_url?: string | null; branch: { id: string; name: string } | null; late_count?: number; status_to?: string; reason?: string | null; effective_date?: string | null }
 interface OffTodayPerson extends RangePerson { label: string }
 interface OffTodayResult { count: number; employees: OffTodayPerson[] }
 interface DashboardSummary {
@@ -65,15 +65,17 @@ function resolveRange(preset: RangePreset, customMonth: string): { startDate: st
   return { startDate: isoDate(start), endDate }
 }
 
+const STATUS_TO_TH: Record<string, string> = { RESIGNED: 'ลาออก', TERMINATED: 'เลิกจ้าง', INACTIVE: 'ไม่ใช้งาน' }
+
 function personLabel(p: RangePerson) {
   const full = `${p.first_name} ${p.last_name}`.trim()
   return p.nickname ? `${full} (${p.nickname})` : full
 }
 
 // ─── Range KPI card — คลิกแล้วเปิด popup รายชื่อ (เดิมขยายการ์ดในหน้า ทำให้การ์ดสูงไม่เท่ากัน ดันเลย์เอาต์) ────────────────────────────────────
-function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel, extraLine }: {
+function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel, extraLine, noteLine }: {
   label: string; count: number; unit: string; color: string; bg: string; icon: React.ReactNode
-  people: RangePerson[]; emptyLabel: string; extraLine?: (p: RangePerson) => string | null
+  people: RangePerson[]; emptyLabel: string; extraLine?: (p: RangePerson) => string | null; noteLine?: (p: RangePerson) => string | null
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -111,12 +113,14 @@ function RangeKpiCard({ label, count, unit, color, bg, icon, people, emptyLabel,
                 </div>
                 {g.items.map((p, i) => {
                   const extra = extraLine?.(p)
+                  const note = noteLine?.(p)
                   return (
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px', borderBottom: i < g.items.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                       <PersonAvatar name={p.first_name || p.nickname || '?'} photoUrl={p.photo_url} size={38} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>{personLabel(p)}</div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: 1 }}>{p.employee_code}</div>
+                        {note && <div style={{ fontSize: '11.5px', color: '#475569', marginTop: 3, lineHeight: 1.4, wordBreak: 'break-word' }}>{note}</div>}
                       </div>
                       {extra && <span style={{ fontSize: '11.5px', fontWeight: 700, color, background: bg, borderRadius: 99, padding: '3px 10px', flexShrink: 0 }}>{extra}</span>}
                     </div>
@@ -160,7 +164,7 @@ function RangeKpiSection({ branchFilter, offToday }: { branchFilter: string; off
           ภาพรวมตามช่วงเวลา
           <InfoTooltip title="ภาพรวมแดชบอร์ด" width={300} content={
             <ul style={{ margin: 0, paddingLeft: 16 }}>
-              <li>สรุปข้อมูลพนักงานทั้งบริษัท แบ่งเป็นการ์ด KPI ตามช่วงเวลาที่เลือกด้านนี้ (มาสาย/ลาออก/เข้าใหม่) และสถานะเช็คอินวันนี้แบบเรียลไทม์ด้านล่าง</li>
+              <li>สรุปข้อมูลพนักงานทั้งบริษัท แบ่งเป็นการ์ด KPI ตามช่วงเวลาที่เลือกด้านนี้ (มาสาย/ลาออก-เลิกจ้าง-ไม่ใช้งาน/เข้าใหม่) และสถานะเช็คอินวันนี้แบบเรียลไทม์ด้านล่าง</li>
               <li>กดการ์ดไหนก็ได้เพื่อดูรายชื่อแบบละเอียด</li>
               <li>เลือกมุมมอง "ปีนี้" เพื่อดูเปอร์เซ็นต์อัตราลาออก/เข้าใหม่เทียบกับพนักงานทั้งหมดด้วย</li>
             </ul>
@@ -198,8 +202,14 @@ function RangeKpiSection({ branchFilter, offToday }: { branchFilter: string; off
             <RangeKpiCard label="มาสาย" unit="คน" count={summary.late.count} color="#d97706" bg="var(--warning-bg)"
               icon={<AlertTriangle size={18} />} people={summary.late.employees} emptyLabel="ไม่มีใครมาสายในช่วงนี้"
               extraLine={p => p.late_count ? `${p.late_count} ครั้ง` : null} />
-            <RangeKpiCard label="ลาออก / เลิกจ้าง" unit="คน" count={summary.resigned.count} color="#dc2626" bg="#fef2f2"
-              icon={<UserMinus size={18} />} people={summary.resigned.employees} emptyLabel="ไม่มีใครลาออกในช่วงนี้" />
+            <RangeKpiCard label="ลาออก / เลิกจ้าง / ไม่ใช้งาน" unit="คน" count={summary.resigned.count} color="#dc2626" bg="#fef2f2"
+              icon={<UserMinus size={18} />} people={summary.resigned.employees} emptyLabel="ไม่มีใครลาออกหรือถูกปิดใช้งานในช่วงนี้"
+              extraLine={p => STATUS_TO_TH[p.status_to ?? ''] ?? null}
+              noteLine={p => {
+                const d = p.effective_date ? `มีผล ${new Date(p.effective_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}` : null
+                const parts = [d, p.reason ? `หมายเหตุ: ${p.reason}` : null].filter(Boolean)
+                return parts.length ? parts.join(' · ') : null
+              }} />
             <RangeKpiCard label="เข้าใหม่" unit="คน" count={summary.newHires.count} color="#16a34a" bg="var(--success-bg)"
               icon={<UserPlus size={18} />} people={summary.newHires.employees} emptyLabel="ไม่มีคนเข้าใหม่ในช่วงนี้" />
             {/* หยุดวันนี้ = ข้อมูลของ "วันนี้" เสมอ ไม่ตามช่วงเวลาที่เลือกด้านบน (ลา + วันหยุดประจำที่อนุมัติแล้ว) */}
@@ -214,7 +224,7 @@ function RangeKpiSection({ branchFilter, offToday }: { branchFilter: string; off
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}><TrendingDown size={18} /></div>
                 <div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>{resignPct?.toFixed(1)}%</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>อัตราลาออก/เลิกจ้าง (จากพนักงานทั้งหมด {total} คน)</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>อัตราลาออก/เลิกจ้าง/ไม่ใช้งาน (จากพนักงานทั้งหมด {total} คน)</div>
                 </div>
               </div>
               <div className="premium-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
