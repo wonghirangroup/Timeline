@@ -693,10 +693,15 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
     if (!requireOwnEmployeeId(req, reply)) return
     try {
       const created = await requestWeeklyOffChange(req.tenantId, req.employeeId, req.body.request_id, req.body.new_date)
+      // วันเดิมที่ขอเปลี่ยนจาก — ไว้ใส่ในการ์ดแจ้งเตือนว่า "จากวันไหนเป็นวันไหน"
+      const oldReq = await prisma.weeklyOffRequest.findFirst({ where: { id: req.body.request_id, tenant_id: req.tenantId }, select: { week_start: true, day_of_week: true } })
+      const oldDate = oldReq ? resolveActualDateStr(oldReq.week_start, oldReq.day_of_week) : null
       notifyAdminsLine(req.tenantId, req.employeeId, {
         type: 'weekly_off',
         title: 'ขอเปลี่ยนวันหยุด รออนุมัติ',
-        detail: `ขอเปลี่ยนวันหยุดเป็น ${thaiDayList([req.body.new_date])}`,
+        detail: oldDate
+          ? `ขอเปลี่ยนวันหยุดจาก ${thaiDayList([oldDate])} เป็น ${thaiDayList([req.body.new_date])}`
+          : `ขอเปลี่ยนวันหยุดเป็น ${thaiDayList([req.body.new_date])}`,
         color: '#2563EB',
         path: `/leave?tab=time-off&month=${req.body.new_date.slice(0, 7)}&focus=${created.id}`,
         buttonLabel: 'เปิดดู',
