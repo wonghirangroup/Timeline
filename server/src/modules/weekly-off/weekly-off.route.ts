@@ -9,7 +9,7 @@ import { ok, fail }         from '../../common/utils/response'
 import {
   listWeeklyOff, createWeeklyOff, updateWeeklyOff, deleteWeeklyOff, createMonthlyOff, createMonthlyBatchOff,
   getMonthView, getMonthQuotaSummary, createWeeklyOffBatch, requestWeeklyOffChange, resetEmployeeMonthBookings, deleteMonthlyOff, listWorkedOnOwnDayOffAlerts, listPendingMonths, resolveWorkedOnOwnDayOffAlert, swapWeeklyOff,
-  requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr,
+  requestWeeklyOffSwap, listMyWeeklyOffSwapRequests, respondWeeklyOffSwap, resolveActualDateStr, countMonthOffRequests,
 } from './weekly-off.service'
 import { listPeriods, openPeriod, closePeriod, updatePeriod, checkPeriodOpen, notifyPeriodOpened, listEmployeeOpens, openForEmployee, removeEmployeeOpen, fmtMonthTH } from './weekly-off-period.service'
 import { prisma } from '../../common/utils/prisma'
@@ -28,6 +28,17 @@ function thaiDayList(dates: string[]): string {
   const sameMonth = ds.every(d => d.slice(0, 7) === ds[0].slice(0, 7))
   if (sameMonth) { const f = p(ds[0]); return `${ds.map(d => { const x = p(d); return `${DOW_ABBR[x.dow]} ${x.d}` }).join(', ')} ${MONTH_ABBR[f.m]} ${f.y}` }
   return ds.map(d => { const x = p(d); return `${DOW_ABBR[x.dow]} ${x.d} ${MONTH_ABBR[x.m]} ${x.y}` }).join(', ')
+}
+
+// พนักงานจองวันหยุดเดือนที่ "ปิดรับจองแล้ว" ได้เฉพาะคนที่มีวันจองของตัวเอง (รอพิจารณา/อนุมัติ) ในเดือนนั้นอยู่แล้ว
+// (โควต้าที่เหลือเช็คใน service อยู่แล้ว OVER_QUOTA) — ตรงกับกติกาหน้าจอพนักงาน · แอดมินลงให้ใช้ endpoint /admin ไม่ผ่านด่านนี้
+async function assertEmployeeBookingWindow(req: any, reply: any, month: string): Promise<boolean> {
+  const emp = await prisma.employee.findFirst({ where: { id: req.employeeId, tenant_id: req.tenantId }, select: { branch_id: true } })
+  if (!emp) { reply.code(404).send(fail('NOT_FOUND', 'ไม่พบพนักงาน')); return false }
+  if (await checkPeriodOpen(req.tenantId, emp.branch_id, month, req.employeeId)) return true
+  if (await countMonthOffRequests(req.tenantId, req.employeeId, month) > 0) return true
+  reply.code(409).send(fail('PERIOD_CLOSED', 'เดือนนี้ปิดรับจองแล้ว — เพิ่มวันจองได้เฉพาะคนที่มีวันจองของตัวเองในเดือนนี้อยู่แล้ว ติดต่อแอดมินเพื่อเปิดจองให้'))
+  return false
 }
 
 // endpoint ฝั่ง LIFF ต้องใช้ req.employeeId (จาก JWT ที่ verify แล้วใน
@@ -503,6 +514,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     if (!requireOwnEmployeeId(req, reply)) return
     req.body.employee_id = req.employeeId
+    if (!(await assertEmployeeBookingWindow(req, reply, resolveActualDateStr(new Date(req.body.week_start.slice(0, 10) + 'T00:00:00Z'), req.body.day_of_week).slice(0, 7)))) return
     try {
       const result = await createWeeklyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
@@ -564,6 +576,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     if (!requireOwnEmployeeId(req, reply)) return
     req.body.employee_id = req.employeeId
+    if (!(await assertEmployeeBookingWindow(req, reply, req.body.date.slice(0, 7)))) return
     try {
       const result = await createMonthlyOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {
@@ -602,6 +615,7 @@ export async function weeklyOffRoutes(app: FastifyInstance) {
   }, async (req: any, reply) => {
     if (!requireOwnEmployeeId(req, reply)) return
     req.body.employee_id = req.employeeId
+    if (!(await assertEmployeeBookingWindow(req, reply, req.body.month))) return
     try {
       const result = await createMonthlyBatchOff(req.tenantId, req.body)
       notifyAdminsLine(req.tenantId, req.body.employee_id, {

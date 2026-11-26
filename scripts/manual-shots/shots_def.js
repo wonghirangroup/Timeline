@@ -189,7 +189,8 @@ module.exports = [
       { selector: 'tbody select, table select', nth: 0, n: 5 },
       { selector: 'tbody select, table select', nth: 1, n: 6 },
       { selector: 'tbody select, table select', nth: 2, n: 7 },
-      { selector: 'tbody select, table select', nth: 3, n: 8, side: 'tr' },
+      { selector: 'tbody select, table select', nth: 3, n: 8 },
+      { selector: 'tbody select, table select', nth: 4, n: 9, side: 'tr' },
     ] },
   { id: 'employee-tab-groups', path: 'employee?tab=groups',
     marks: [

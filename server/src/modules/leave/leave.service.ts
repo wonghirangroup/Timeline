@@ -71,7 +71,7 @@ export async function listLeaveRequests(tenantId: string, filters: {
   // แต่มีวันลาเก่าติดอยู่ ยังโผล่ในปฏิทินรวม/รายงานอยู่ ดูเหมือนคนซ้ำกับ record
   // ใหม่ที่ใช้ชื่อเดียวกัน (feedback 2026-09-30: "ใน 1 วันมันมีซ้ำกันด้วย" —
   // เจอ "เน็ต" ขึ้น 2 ครั้งเพราะมี record เก่าที่ลบไปแล้วติดค้างอยู่)
-  return prisma.leaveRequest.findMany({
+  const rows = await prisma.leaveRequest.findMany({
     where: {
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...employeeFilter,
@@ -82,9 +82,29 @@ export async function listLeaveRequests(tenantId: string, filters: {
       employee: {
         select: { id: true, first_name: true, last_name: true, nickname: true, employee_code: true, branch: { select: { id: true, name: true } } },
       },
-      custom_type: { select: { id: true, name: true, color: true } },
+      custom_type: { select: { id: true, name: true, color: true, deducts_quota: true } },
     },
     orderBy: { created_at: 'desc' },
+  })
+
+  // ป้าย "เกินโควต้า" ให้แอดมินเห็นก่อนกดอนุมัติ: เฉพาะคำขอที่รออนุมัติ เทียบวันที่ขอกับยอดคงเหลือ (ปีของวันเริ่มลา)
+  // — ลาได้แม้ไม่มีโควต้า (อนุมัติแล้วยอดติดลบ) จึงแค่เตือน ไม่บล็อก · ประเภทที่ไม่หักโควต้า (custom deducts_quota=false) ไม่เตือน
+  const pending = rows.filter(r => r.status === 'PENDING')
+  if (pending.length === 0) return rows.map(r => ({ ...r, quota_remaining: null as number | null, over_quota: false }))
+  const balances = await prisma.leaveBalance.findMany({
+    where: {
+      ...(tenantId ? { tenant_id: tenantId } : {}),
+      employee_id: { in: [...new Set(pending.map(r => r.employee_id))] },
+      year: { in: [...new Set(pending.map(r => new Date(r.start_date).getUTCFullYear()))] },
+    },
+    select: { employee_id: true, leave_type: true, custom_type_id: true, year: true, total_days: true, used_days: true },
+  })
+  return rows.map(r => {
+    if (r.status !== 'PENDING' || r.custom_type?.deducts_quota === false) return { ...r, quota_remaining: null as number | null, over_quota: false }
+    const year = new Date(r.start_date).getUTCFullYear()
+    const b = balances.find(x => x.employee_id === r.employee_id && x.leave_type === r.leave_type && (x.custom_type_id ?? null) === (r.custom_type_id ?? null) && x.year === year)
+    const remaining = b ? Number((b.total_days - b.used_days).toFixed(2)) : 0
+    return { ...r, quota_remaining: remaining, over_quota: remaining < r.days }
   })
 }
 

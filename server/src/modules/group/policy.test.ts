@@ -63,3 +63,19 @@ describe('resolvePolicyFromChain — late_fine (ปรับเงินเม�
     expect(resolvePolicyFromChain(e, 'booking')).toBe(true)
   })
 })
+
+describe('resolvePolicyFromChain — absent_fine (ปรับเงินเมื่อขาดงาน แยกจากสาย)', () => {
+  it('ไม่มีใครตั้ง → true (ปรับตามกะ)', () => {
+    expect(resolvePolicyFromChain({}, 'absent_fine')).toBe(true)
+  })
+  it('ตำแหน่งปิด → ไม่ปรับ, override บุคคลเปิดทับ → ปรับ', () => {
+    const e: PolicyEmployeeShape = { position: { absent_fine_enabled: false } }
+    expect(resolvePolicyFromChain(e, 'absent_fine')).toBe(false)
+    expect(resolvePolicyFromChain({ ...e, absent_fine_enabled_override: true }, 'absent_fine')).toBe(true)
+  })
+  it('ปิดค่าปรับสายไม่ทำให้ค่าปรับขาดปิดตาม (สวิตช์แยกกัน)', () => {
+    const e: PolicyEmployeeShape = { branch: { late_fine_enabled: false } }
+    expect(resolvePolicyFromChain(e, 'late_fine')).toBe(false)
+    expect(resolvePolicyFromChain(e, 'absent_fine')).toBe(true)
+  })
+})

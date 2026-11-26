@@ -41,11 +41,11 @@ const label: React.CSSProperties = { fontSize: '12px', fontWeight: 600, color: '
 
 type WeekendQuota = { saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null; booking_quota?: number | null }
 type CompanyIdentity = { company_name: string | null; address: string | null; tax_id: string | null; logo_url: string | null; signer_name: string | null; signer_title: string | null }
-interface GroupT extends WeekendQuota, CompanyIdentity { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; late_fine_enabled?: boolean | null; is_active: boolean; _count: { branches: number; divisions: number } }
+interface GroupT extends WeekendQuota, CompanyIdentity { id: string; name: string; booking_enabled: boolean; leave_enabled: boolean; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null; is_active: boolean; _count: { branches: number; divisions: number } }
 interface BranchT { id: string; name: string; group_id: string | null }
-interface Div  extends WeekendQuota { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; is_active: boolean; _count: { departments: number } }
-interface Dept extends WeekendQuota { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; is_active: boolean; _count: { positions: number } }
-interface Pos  extends WeekendQuota { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; is_active: boolean; _count: { employees: number }
+interface Div  extends WeekendQuota { id: string; name: string; group_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null; is_active: boolean; _count: { departments: number } }
+interface Dept extends WeekendQuota { id: string; name: string; division_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null; is_active: boolean; _count: { positions: number } }
+interface Pos  extends WeekendQuota { id: string; name: string; department_id: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null; is_active: boolean; _count: { employees: number }
   vacation_base_days?: number | null; vacation_increment_days?: number | null; vacation_increment_years?: number | null }
 
 interface TreePos extends Pos {}
@@ -67,8 +67,9 @@ const POLICY_TXT = {
   booking: { on: 'เปิด (จองได้)', off: 'ปิด (จองไม่ได้)' },
   leave:   { on: 'เปิด (ลาได้)',  off: 'ปิด (ลาไม่ได้)' },
   late_fine: { on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' },
+  absent_fine: { on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' },
 } as const
-const PolicyToggle = ({ value, onChange, inheritLabel, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; inheritLabel: string; kind: 'booking' | 'leave' | 'late_fine' }) => (
+const PolicyToggle = ({ value, onChange, inheritLabel, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; inheritLabel: string; kind: 'booking' | 'leave' | 'late_fine' | 'absent_fine' }) => (
   <div style={{ display: 'flex', gap: 4 }}>
     {([
       { v: null,  label: inheritLabel,        color: '#6b7280', bg: '#f9fafb' },
@@ -140,7 +141,7 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
   const isMobile = useIsMobile()
   const [view, setView] = useState<'card' | 'table'>('card')
   const [modal, setModal] = useState<{ edit?: GroupT } | null>(null)
-  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, late_fine_enabled: null as boolean | null, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5',
+  const [form, setForm] = useState({ name: '', booking_enabled: true, leave_enabled: true, late_fine_enabled: null as boolean | null, absent_fine_enabled: null as boolean | null, saturday_rule: 'OFF' as DayRule, sunday_rule: 'OFF' as DayRule, booking_quota: '5',
     company_name: '', address: '', tax_id: '', logo_url: '', signer_name: '', signer_title: '' })
   const [deleteTarget, setDeleteTarget] = useState<GroupT | null>(null)
   const [assignBranchGroup, setAssignBranchGroup] = useState<Record<string, string>>({})
@@ -176,9 +177,9 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
     onError: () => showToast('error', 'ผูกไม่สำเร็จ'),
   })
 
-  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true, late_fine_enabled: null, saturday_rule: 'OFF', sunday_rule: 'OFF', booking_quota: '5', company_name: '', address: '', tax_id: '', logo_url: '', signer_name: '', signer_title: '' }); setModal({}) }
+  const openAdd = () => { setForm({ name: '', booking_enabled: true, leave_enabled: true, late_fine_enabled: null, absent_fine_enabled: null, saturday_rule: 'OFF', sunday_rule: 'OFF', booking_quota: '5', company_name: '', address: '', tax_id: '', logo_url: '', signer_name: '', signer_title: '' }); setModal({}) }
   const openEdit = (g: GroupT) => { setForm({
-    name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled, late_fine_enabled: g.late_fine_enabled ?? null, saturday_rule: g.saturday_rule ?? 'OFF', sunday_rule: g.sunday_rule ?? 'OFF', booking_quota: String(g.booking_quota ?? 5),
+    name: g.name, booking_enabled: g.booking_enabled, leave_enabled: g.leave_enabled, late_fine_enabled: g.late_fine_enabled ?? null, absent_fine_enabled: g.absent_fine_enabled ?? null, saturday_rule: g.saturday_rule ?? 'OFF', sunday_rule: g.sunday_rule ?? 'OFF', booking_quota: String(g.booking_quota ?? 5),
     company_name: g.company_name ?? '', address: g.address ?? '', tax_id: g.tax_id ?? '', logo_url: g.logo_url ?? '', signer_name: g.signer_name ?? '', signer_title: g.signer_title ?? '',
   }); setModal({ edit: g }) }
   const handleSave = () => {
@@ -395,6 +396,10 @@ function GroupsTab({ onViewTree }: { onViewTree: () => void }) {
               <div>
                 <label style={{ ...label, margin: '0 0 6px' }}>ปรับเงินเมื่อเช็คอินสาย</label>
                 <PolicyToggle kind="late_fine" value={form.late_fine_enabled} onChange={v => setForm(f => ({ ...f, late_fine_enabled: v }))} inheritLabel="ตามกะ" />
+              </div>
+              <div>
+                <label style={{ ...label, margin: '0 0 6px' }}>ปรับเงินเมื่อขาดงาน</label>
+                <PolicyToggle kind="absent_fine" value={form.absent_fine_enabled} onChange={v => setForm(f => ({ ...f, absent_fine_enabled: v }))} inheritLabel="ตามกะ" />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 120px', gap: 12, marginTop: 12, alignItems: 'end' }}>
@@ -781,9 +786,9 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
   const [addModal, setAddModal] = useState<{ level: Level; groupId: string } | null>(null)
   const [viewTarget, setViewTarget] = useState<{ level: Level; row: any; groupId: string } | null>(null)
   const [editModal, setEditModal] = useState<{ level: Level; row: any } | null>(null)
-  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string
+  const [editForm, setEditForm] = useState<{ name: string; booking_enabled: boolean | null; leave_enabled: boolean | null; late_fine_enabled: boolean | null; absent_fine_enabled: boolean | null; saturday_rule: DayRule | null; sunday_rule: DayRule | null; booking_quota: string
     vacation_base_days: string; vacation_increment_days: string; vacation_increment_years: string }>({
-    name: '', booking_enabled: null, leave_enabled: null, late_fine_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '',
+    name: '', booking_enabled: null, leave_enabled: null, late_fine_enabled: null, absent_fine_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '',
     vacation_base_days: '', vacation_increment_days: '', vacation_increment_years: '',
   })
   const [deleteTarget, setDeleteTarget] = useState<{ level: Level; id: string; name: string } | null>(null)
@@ -853,7 +858,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
   })
 
   const openEdit = (level: Level, row: any) => { setEditForm({
-    name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, late_fine_enabled: row.late_fine_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota),
+    name: row.name, booking_enabled: row.booking_enabled ?? null, leave_enabled: row.leave_enabled ?? null, late_fine_enabled: row.late_fine_enabled ?? null, absent_fine_enabled: row.absent_fine_enabled ?? null, saturday_rule: row.saturday_rule ?? null, sunday_rule: row.sunday_rule ?? null, booking_quota: row.booking_quota == null ? '' : String(row.booking_quota),
     vacation_base_days: row.vacation_base_days == null ? '' : String(row.vacation_base_days),
     vacation_increment_days: row.vacation_increment_days == null ? '' : String(row.vacation_increment_days),
     vacation_increment_years: row.vacation_increment_years == null ? '' : String(row.vacation_increment_years),
@@ -862,7 +867,7 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
     if (!editModal || !editForm.name.trim()) return
     // ทุกชั้น (รวมตำแหน่ง) รับ policy fields แล้ว — null/'' = inherit
     updateMutation.mutate({ level: editModal.level, id: editModal.row.id, body: {
-      name: editForm.name, booking_enabled: editForm.booking_enabled, leave_enabled: editForm.leave_enabled, late_fine_enabled: editForm.late_fine_enabled,
+      name: editForm.name, booking_enabled: editForm.booking_enabled, leave_enabled: editForm.leave_enabled, late_fine_enabled: editForm.late_fine_enabled, absent_fine_enabled: editForm.absent_fine_enabled,
       saturday_rule: editForm.saturday_rule, sunday_rule: editForm.sunday_rule,
       booking_quota: editForm.booking_quota.trim() === '' ? null : (parseInt(editForm.booking_quota) || 0),
       // สิทธิ์พักร้อนตามอายุงาน — เฉพาะตำแหน่งเท่านั้น (feedback 2026-09-15 ข้อ 6)
@@ -1073,6 +1078,10 @@ function OrgTreeTab({ groups, companyName }: { groups: GroupT[]; companyName: st
                     <div>
                       <label style={{ ...label, margin: '0 0 6px' }}>ปรับเงินเมื่อเช็คอินสาย</label>
                       <PolicyToggle kind="late_fine" value={editForm.late_fine_enabled} onChange={v => setEditForm(f => ({ ...f, late_fine_enabled: v }))} inheritLabel={inheritLabel} />
+                    </div>
+                    <div>
+                      <label style={{ ...label, margin: '0 0 6px' }}>ปรับเงินเมื่อขาดงาน</label>
+                      <PolicyToggle kind="absent_fine" value={editForm.absent_fine_enabled} onChange={v => setEditForm(f => ({ ...f, absent_fine_enabled: v }))} inheritLabel={inheritLabel} />
                     </div>
                   </div>
                   <div style={{ ...{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }, marginTop: 12 }}>

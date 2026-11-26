@@ -16,7 +16,7 @@ import type { OrgFilterValue } from '../../components/shared/OrgFilterBar'
 
 type DayRule = 'WORK' | 'OFF' | 'OFFSITE'
 type PolicyNode = {
-  booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null
+  booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null
   saturday_rule?: DayRule | null; sunday_rule?: DayRule | null; booking_quota?: number | null
 }
 
@@ -34,6 +34,7 @@ interface PolicyEmployee {
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
   late_fine_enabled_override?: boolean | null
+  absent_fine_enabled_override?: boolean | null
   branch: { id: string; name: string; group_id?: string | null } & PolicyNode & { group?: PolicyNode | null }
   position?: (PolicyNode & { id: string; name: string; department?: (PolicyNode & { id: string; name: string; division?: (PolicyNode & { group_id?: string }) | null }) | null }) | null
   employee_status_type?: {
@@ -49,11 +50,11 @@ const pick = (v: boolean | null | undefined) => (v === null || v === undefined ?
 
 // port ของ resolvePolicyFromChain ฝั่ง server (group.service.ts) — เจาะจงกว่าชนะ, null ทั้งสาย → true
 // ignoreOverride: ข้ามชั้น "บุคคล" เพื่อดูว่าถ้าไม่ override แล้วจะได้ค่าอะไร (ใช้โชว์ label)
-function resolvePolicy(e: PolicyEmployee, flag: 'booking' | 'leave' | 'late_fine', ignoreOverride = false): boolean {
-  const k = flag === 'booking' ? 'booking_enabled' : flag === 'leave' ? 'leave_enabled' : 'late_fine_enabled'
+function resolvePolicy(e: PolicyEmployee, flag: 'booking' | 'leave' | 'late_fine' | 'absent_fine', ignoreOverride = false): boolean {
+  const k = flag === 'booking' ? 'booking_enabled' : flag === 'leave' ? 'leave_enabled' : flag === 'late_fine' ? 'late_fine_enabled' : 'absent_fine_enabled'
   const pos = e.position, dept = pos?.department, div = dept?.division, br = e.branch
   const chain: (boolean | null)[] = [
-    ignoreOverride ? null : pick(e[(k + '_override') as 'booking_enabled_override' | 'leave_enabled_override' | 'late_fine_enabled_override']),
+    ignoreOverride ? null : pick(e[(k + '_override') as 'booking_enabled_override' | 'leave_enabled_override' | 'late_fine_enabled_override' | 'absent_fine_enabled_override']),
     pick(pos?.[k]),
     pick(dept?.[k]),
     pick(div?.[k]),
@@ -112,7 +113,7 @@ function Avatar({ url, name }: { url?: string | null; name: string }) {
 
 const cellSel: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: '0.78rem', padding: '4px 6px', borderRadius: 7,
-  border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', maxWidth: 140,
+  border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', maxWidth: 100,
 }
 
 export default function PolicyOverview() {
@@ -179,6 +180,8 @@ export default function PolicyOverview() {
           leaveInherit: resolvePolicy(e, 'leave', true),
           lateFine: resolvePolicy(e, 'late_fine'),
           lateFineInherit: resolvePolicy(e, 'late_fine', true),
+          absentFine: resolvePolicy(e, 'absent_fine'),
+          absentFineInherit: resolvePolicy(e, 'absent_fine', true),
           role: e.admin_user?.is_active ? e.admin_user.role : null,
         }
       })
@@ -193,6 +196,7 @@ export default function PolicyOverview() {
     bookingOff: rows.filter(r => !r.booking).length,
     leaveOff: rows.filter(r => !r.leave).length,
     lateFineOff: rows.filter(r => !r.lateFine).length,
+    absentFineOff: rows.filter(r => !r.absentFine).length,
   }), [rows])
 
   const noStatusRows = useMemo(() => rows.filter(r => !r.e.employee_status_type_id), [rows])
@@ -206,11 +210,11 @@ export default function PolicyOverview() {
   }
 
   function exportCsv() {
-    const head = ['รหัส', 'ชื่อ', 'สาขา', 'แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้าจอง/เดือน', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'ปรับเงินเมื่อสาย', 'บทบาทแอดมิน']
+    const head = ['รหัส', 'ชื่อ', 'สาขา', 'แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้าจอง/เดือน', 'โหมดจอง', 'สิทธิ์จองวันหยุด', 'สิทธิ์ยื่นลา', 'ปรับเงินเมื่อสาย', 'ปรับเงินเมื่อขาด', 'บทบาทแอดมิน']
     const lines = rows.map(r => [
       r.e.employee_code, `${r.e.first_name} ${r.e.last_name}`, r.e.branch.name, deptName(r.e.department) || '-',
       r.statusName, RULE_CFG[r.sat].label, RULE_CFG[r.sun].label, r.pubHoliday ? 'หยุด' : 'ไม่หยุด',
-      r.quota ?? '-', MODE_TH[r.e.weekly_off_mode], r.booking ? 'เปิด' : 'ปิด', r.leave ? 'เปิด' : 'ปิด', r.lateFine ? 'ปรับ' : 'ไม่ปรับ', r.role ? ROLE_TH[r.role] : '-',
+      r.quota ?? '-', MODE_TH[r.e.weekly_off_mode], r.booking ? 'เปิด' : 'ปิด', r.leave ? 'เปิด' : 'ปิด', r.lateFine ? 'ปรับ' : 'ไม่ปรับ', r.absentFine ? 'ปรับ' : 'ไม่ปรับ', r.role ? ROLE_TH[r.role] : '-',
     ])
     const csv = '﻿' + [head, ...lines].map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -228,7 +232,7 @@ export default function PolicyOverview() {
     <select value={value == null ? '' : value ? 'on' : 'off'} disabled={isReadOnly}
       onChange={e => onChange(e.target.value === '' ? null : e.target.value === 'on')}
       style={{ ...cellSel, color: value == null ? '#64748b' : value ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
-      <option value="">ตามลำดับชั้น ({inherit ? (labels?.on ?? 'เปิด') : (labels?.off ?? 'ปิด')})</option>
+      <option value="">ตามชั้น ({inherit ? (labels?.on ?? 'เปิด') : (labels?.off ?? 'ปิด')})</option>
       <option value="on">{labels?.on ? `บังคับ${labels.on}` : 'บังคับเปิด'}</option>
       <option value="off">{labels?.off ? `บังคับ${labels.off}` : 'บังคับปิด'}</option>
     </select>
@@ -263,6 +267,7 @@ export default function PolicyOverview() {
           { label: 'ปิดสิทธิ์จอง', value: summary.bookingOff, color: '#b91c1c', bg: '#fee2e2' },
           { label: 'ปิดสิทธิ์ลา', value: summary.leaveOff, color: '#b91c1c', bg: '#fee2e2' },
           { label: 'ไม่ปรับเงินเมื่อสาย', value: summary.lateFineOff, color: '#b45309', bg: '#fef3c7' },
+          { label: 'ไม่ปรับเงินเมื่อขาด', value: summary.absentFineOff, color: '#b45309', bg: '#fef3c7' },
         ].map(s => (
           <span key={s.label} style={{ fontSize: '0.76rem', fontWeight: 700, color: s.color, background: s.bg, padding: '5px 11px', borderRadius: 99 }}>{s.label} {s.value}</span>
         ))}
@@ -307,7 +312,7 @@ export default function PolicyOverview() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F4F6F9' }}>
-                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'การจองวันหยุด', 'สิทธิ์ยื่นลา', 'ปรับเงินเมื่อสาย', 'บทบาทแอดมิน'].map(h => (
+                {['พนักงาน', 'สาขา / แผนก', 'สถานะพนักงาน', 'เสาร์', 'อาทิตย์', 'นักขัตฤกษ์', 'โควต้า/ด', 'การจองวันหยุด', 'สิทธิ์ยื่นลา', 'ปรับเงินเมื่อสาย', 'ปรับเงินเมื่อขาด', 'บทบาทแอดมิน'].map(h => (
                   <th key={h} style={th}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       {h}
@@ -319,7 +324,7 @@ export default function PolicyOverview() {
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={11} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</td></tr>
+                <tr><td colSpan={12} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่พบพนักงานที่ตรงกับเงื่อนไข</td></tr>
               )}
               {rows.map((r, i) => (
                 <tr key={r.e.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
@@ -356,7 +361,8 @@ export default function PolicyOverview() {
                     </select>
                   </td>
                   <td style={td}><OverrideSelect value={r.e.leave_enabled_override} inherit={r.leaveInherit} onChange={v => patch(r.e.id, { leave_enabled_override: v })} /></td>
-                  <td style={td}><OverrideSelect labels={{ on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' }} value={r.e.late_fine_enabled_override} inherit={r.lateFineInherit} onChange={v => patch(r.e.id, { late_fine_enabled_override: v })} /></td>
+                  <td style={td}><OverrideSelect labels={{ on: 'ปรับ', off: 'ไม่ปรับ' }} value={r.e.late_fine_enabled_override} inherit={r.lateFineInherit} onChange={v => patch(r.e.id, { late_fine_enabled_override: v })} /></td>
+                  <td style={td}><OverrideSelect labels={{ on: 'ปรับ', off: 'ไม่ปรับ' }} value={r.e.absent_fine_enabled_override} inherit={r.absentFineInherit} onChange={v => patch(r.e.id, { absent_fine_enabled_override: v })} /></td>
                   <td style={td}>{r.role ? <Pill label={ROLE_TH[r.role]} color="#4338ca" bg="#eef2ff" /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>
                 </tr>
               ))}
@@ -409,7 +415,11 @@ export default function PolicyOverview() {
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                   ปรับเงินเมื่อสาย
-                  <div style={{ flex: 1 }}><OverrideSelect labels={{ on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' }} value={r.e.late_fine_enabled_override} inherit={r.lateFineInherit} onChange={v => patch(r.e.id, { late_fine_enabled_override: v })} /></div>
+                  <div style={{ flex: 1 }}><OverrideSelect labels={{ on: 'ปรับ', off: 'ไม่ปรับ' }} value={r.e.late_fine_enabled_override} inherit={r.lateFineInherit} onChange={v => patch(r.e.id, { late_fine_enabled_override: v })} /></div>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  ปรับเงินเมื่อขาด
+                  <div style={{ flex: 1 }}><OverrideSelect labels={{ on: 'ปรับ', off: 'ไม่ปรับ' }} value={r.e.absent_fine_enabled_override} inherit={r.absentFineInherit} onChange={v => patch(r.e.id, { absent_fine_enabled_override: v })} /></div>
                 </label>
               </div>
             </div>

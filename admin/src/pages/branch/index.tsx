@@ -35,6 +35,8 @@ interface ApiBranch {
   booking_enabled?: boolean | null
   leave_enabled?: boolean | null
   late_fine_enabled?: boolean | null
+  absent_fine_enabled?: boolean | null
+  monthly_total_cap?: number | null
   saturday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
   sunday_rule?: 'WORK' | 'OFF' | 'OFFSITE' | null
   booking_quota?: number | null
@@ -142,8 +144,9 @@ const BRANCH_POLICY_TXT = {
   booking: { on: 'เปิด (จองได้)', off: 'ปิด (จองไม่ได้)' },
   leave:   { on: 'เปิด (ลาได้)',  off: 'ปิด (ลาไม่ได้)' },
   late_fine: { on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' },
+  absent_fine: { on: 'ปรับเงิน', off: 'ไม่ปรับเงิน' },
 } as const
-const BranchPolicyToggle = ({ value, onChange, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; kind: 'booking' | 'leave' | 'late_fine' }) => (
+const BranchPolicyToggle = ({ value, onChange, kind }: { value: boolean | null; onChange: (v: boolean | null) => void; kind: 'booking' | 'leave' | 'late_fine' | 'absent_fine' }) => (
   <div style={{ display: 'flex', gap: 4 }}>
     {([
       { v: null,  label: 'ใช้ค่าจากกลุ่ม',           color: '#6b7280', bg: '#f9fafb' },
@@ -342,7 +345,7 @@ export default function BranchPage() {
   const [qrTarget, setQrTarget]   = useState<ApiBranch | null>(null)
   const [editTarget, setEditTarget] = useState<ApiBranch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiBranch | null>(null)
-  const [form, setForm]           = useState({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null, late_fine_enabled: null as boolean | null, saturday_rule: null as BrDayRule | null, sunday_rule: null as BrDayRule | null, booking_quota: '' })
+  const [form, setForm]           = useState({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN' as 'WARN' | 'BLOCK', booking_enabled: null as boolean | null, leave_enabled: null as boolean | null, late_fine_enabled: null as boolean | null, absent_fine_enabled: null as boolean | null, monthly_total_cap: '', saturday_rule: null as BrDayRule | null, sunday_rule: null as BrDayRule | null, booking_quota: '' })
 
   const [tourActive, setTourActive] = React.useState(false)
   useEffect(() => { if (tourActive) setPage(1) }, [tourActive])
@@ -455,7 +458,7 @@ export default function BranchPage() {
   }
 
   const openAdd = () => {
-    setForm({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null, late_fine_enabled: null, saturday_rule: null, sunday_rule: null, booking_quota: '' })
+    setForm({ name: '', branch_code: '', location: '', lat: '', lng: '', gps_radius: '200', geo_mode: 'WARN', booking_enabled: null, leave_enabled: null, late_fine_enabled: null, absent_fine_enabled: null, monthly_total_cap: '', saturday_rule: null, sunday_rule: null, booking_quota: '' })
     setEditTarget(null)
     setStep(1)
     setShowInfo(false)
@@ -465,7 +468,7 @@ export default function BranchPage() {
   }
 
   const openEdit = (b: ApiBranch) => {
-    setForm({ name: b.name, branch_code: b.branch_code ?? '', location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null, late_fine_enabled: b.late_fine_enabled ?? null, saturday_rule: b.saturday_rule ?? null, sunday_rule: b.sunday_rule ?? null, booking_quota: b.booking_quota == null ? '' : String(b.booking_quota) })
+    setForm({ name: b.name, branch_code: b.branch_code ?? '', location: b.location ?? '', lat: b.lat ?? '', lng: b.lng ?? '', gps_radius: String(b.gps_radius ?? 200), geo_mode: b.geo_mode ?? 'WARN', booking_enabled: b.booking_enabled ?? null, leave_enabled: b.leave_enabled ?? null, late_fine_enabled: b.late_fine_enabled ?? null, absent_fine_enabled: b.absent_fine_enabled ?? null, monthly_total_cap: b.monthly_total_cap != null ? String(b.monthly_total_cap) : '', saturday_rule: b.saturday_rule ?? null, sunday_rule: b.sunday_rule ?? null, booking_quota: b.booking_quota == null ? '' : String(b.booking_quota) })
     setEditTarget(b)
     setStep(1)
     setShowInfo(false)
@@ -567,6 +570,8 @@ export default function BranchPage() {
       booking_enabled: form.booking_enabled,
       leave_enabled: form.leave_enabled,
       late_fine_enabled: form.late_fine_enabled,
+      absent_fine_enabled: form.absent_fine_enabled,
+      monthly_total_cap: form.monthly_total_cap.trim() === '' ? null : Math.max(1, Math.min(62, Number(form.monthly_total_cap))),
       saturday_rule: form.saturday_rule,
       sunday_rule: form.sunday_rule,
       booking_quota: form.booking_quota.trim() === '' ? null : (parseInt(form.booking_quota) || 0),
@@ -1004,6 +1009,16 @@ export default function BranchPage() {
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>ปรับเงินเมื่อเช็คอินสาย</label>
                       <BranchPolicyToggle kind="late_fine" value={form.late_fine_enabled} onChange={v => setForm(f => ({ ...f, late_fine_enabled: v }))} />
                       <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>ไม่ปรับเงิน = เช็คอินสายแล้วไม่โดนค่าปรับสายของกะ (ค่าปรับขาดยังคิดตามเดิม)</p>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>ปรับเงินเมื่อขาดงาน</label>
+                      <BranchPolicyToggle kind="absent_fine" value={form.absent_fine_enabled} onChange={v => setForm(f => ({ ...f, absent_fine_enabled: v }))} />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>ไม่ปรับเงิน = ขาดงานแล้วไม่มีค่าปรับขาดไปหักวันถัดไป (แยกจากค่าปรับสาย)</p>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: 6 }}>เพดานรวมหยุดจอง + พักร้อน (วัน/เดือน/คน)</label>
+                      <input type="number" min="1" max="62" value={form.monthly_total_cap} onChange={e => setForm(f => ({ ...f, monthly_total_cap: e.target.value }))} placeholder="เว้นว่าง = ใช้ค่าของบริษัท" style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '5px 0 0' }}>เกินเพดานแล้วพนักงานยังยื่นได้ แต่แอดมินจะเห็นป้ายเตือนตอนอนุมัติ</p>
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1 }}>

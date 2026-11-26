@@ -47,6 +47,8 @@ interface ApiLeaveRequest {
   reject_note: string | null
   created_at: string
   over_limit_note?: string | null   // พนักงานยื่นพักร้อนเกินเพดานรวม หยุด+พักร้อน/เดือน — ส่งได้ ให้แอดมินตัดสินใจ
+  over_quota?: boolean            // วันที่ขอมากกว่ายอดคงเหลือ — ลาได้ แต่ถ้าอนุมัติยอดจะติดลบ (เฉพาะคำขอที่รออนุมัติ)
+  quota_remaining?: number | null // ยอดคงเหลือของประเภทนี้ตอนนี้ (ก่อนอนุมัติ)
   has_conflict?: boolean   // มีพนักงานตำแหน่งเดียวกันลาวันที่ทับซ้อนกันไว้แล้ว — ให้แอดมินตัดสินใจ
   conflict_fee?: number    // ยอดหักเป็นเงิน (บาท) จากการลาทับวันหยุด/วันลาคนตำแหน่งเดียวกัน (0 = ไม่หัก)
   employee: { id: string; first_name: string; last_name: string; nickname: string | null; employee_code: string; branch: { id: string; name: string } }
@@ -761,6 +763,11 @@ export default function LeaveRequestsTab() {
                             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
                               {r.employee.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({r.employee.nickname})</span>}
+                              {r.over_quota && (
+                                <span title={`ยอดคงเหลือ ${r.quota_remaining ?? 0} วัน แต่ขอ ${r.days} วัน — ถ้าอนุมัติยอดจะติดลบ`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#fee2e2', color: '#b91c1c', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> เกินโควต้า (เหลือ {r.quota_remaining ?? 0})
+                                </span>
+                              )}
                               {r.over_limit_note && (
                                 <span title={r.over_limit_note} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.68rem', fontWeight: 700 }}>
                                   <AlertTriangle size={10} /> เกินเพดานพักร้อน
@@ -847,6 +854,11 @@ export default function LeaveRequestsTab() {
                             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                               {r.employee.first_name} {r.employee.last_name}
                               {r.employee.nickname && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({r.employee.nickname})</span>}
+                              {r.over_quota && (
+                                <span title={`ยอดคงเหลือ ${r.quota_remaining ?? 0} วัน แต่ขอ ${r.days} วัน — ถ้าอนุมัติยอดจะติดลบ`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#fee2e2', color: '#b91c1c', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  <AlertTriangle size={10} /> เกินโควต้า (เหลือ {r.quota_remaining ?? 0})
+                                </span>
+                              )}
                               {r.over_limit_note && (
                                 <span title={r.over_limit_note} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 99, background: '#ffedd5', color: '#c2410c', fontSize: '0.68rem', fontWeight: 700 }}>
                                   <AlertTriangle size={10} /> เกินเพดานพักร้อน
@@ -1070,9 +1082,9 @@ export default function LeaveRequestsTab() {
 
       {forcePrompt && (
         <ConfirmDialog
-          title={forcePromptReason === 'MONTHLY_CAP_EXCEEDED' ? 'เกินโควต้ารวม 10 วัน/เดือน' : 'สาขา/กลุ่มปิดการลาประเภทนี้'}
+          title={forcePromptReason === 'MONTHLY_CAP_EXCEEDED' ? 'เกินเพดานรวมหยุด+พักร้อน/เดือน' : 'สาขา/กลุ่มปิดการลาประเภทนี้'}
           message={forcePromptReason === 'MONTHLY_CAP_EXCEEDED'
-            ? 'รวมวันหยุดที่จอง + วันลาพักร้อนของพนักงานคนนี้เดือนนี้เกิน 10 วันแล้ว ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'
+            ? 'รวมวันหยุดที่จอง + วันลาพักร้อนของพนักงานคนนี้เดือนนี้เกินเพดานรวมที่ตั้งไว้แล้ว ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'
             : 'พนักงานคนนี้อยู่ในสาขา/กลุ่มที่ปิดการลาประเภทนี้ (ลาป่วย/ลาคลอดยังยื่นได้) ยืนยันบันทึกให้อยู่ดีหรือไม่? (ระบบจะบันทึกว่าคุณเป็นผู้ยืนยัน)'}
           confirmLabel="ยืนยันเพิ่มให้"
           variant="warning"
@@ -1117,6 +1129,11 @@ export default function LeaveRequestsTab() {
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px', marginBottom: 16, fontSize: '12.5px', color: '#b91c1c', lineHeight: 1.6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><AlertTriangle size={13} /> ลาทับวันหยุด/วันลาของคนตำแหน่งเดียวกัน — หักเงิน {approveTarget.conflict_fee!.toLocaleString()} บาท</div>
                 ยอดนี้คำนวณตอนพนักงานยื่น (จันทร์–ศุกร์/เสาร์–อาทิตย์ตามอัตราในนโยบายการลา) และบันทึกไว้ที่คำขอแล้ว
+              </div>
+            )}
+            {approveTarget.over_quota && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px', marginBottom: 16, fontSize: '12.5px', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <AlertTriangle size={13} /> เกินโควต้า — ยอดคงเหลือ {approveTarget.quota_remaining ?? 0} วัน แต่ขอ {approveTarget.days} วัน ถ้าอนุมัติยอดจะติดลบ
               </div>
             )}
             {approveTarget.has_conflict && !((approveTarget.conflict_fee ?? 0) > 0) && (

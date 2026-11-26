@@ -14,6 +14,7 @@ const HOLIDAY_POLICY_PROPS = {
   saturday_rule: DAY_RULE, sunday_rule: DAY_RULE,
   booking_quota: { type: 'integer', minimum: 0, maximum: 31 },
   late_fine_enabled: { type: ['boolean', 'null'], description: 'ปรับเงินเมื่อเช็คอินสายไหม — null = ปรับตามกะ' },
+  absent_fine_enabled: { type: ['boolean', 'null'], description: 'ปรับเงินเมื่อขาดงานไหม — null = ปรับตามกะ' },
 }
 // ข้อมูลบริษัทระดับกลุ่ม (override ของ Tenant ต่อกลุ่ม) — nullable ทุกช่อง, null = เคลียร์กลับไป
 // ใช้ของ Tenant (feedback 2026-10-01 "สาขาที่โลโก้ต่างกัน")

@@ -2,7 +2,7 @@
 import { prisma } from '../../common/utils/prisma'
 import { holidayAppliesTo, grantHolidayCompensation } from '../tenant/holiday.service'
 import { getEmployeeWeeklyOff, hasApprovedBookingInMonth } from '../weekly-off/weekly-off.service'
-import { resolveWeekendRule, resolveLateFineEnabled } from '../group/group.service'
+import { resolveWeekendRule, resolveLateFineEnabled, resolveAbsentFineEnabled } from '../group/group.service'
 import { toMins, computeLateStatus, computeFine, type LateStatus } from './late'
 import { isAllowedBranch, pickShiftForCheckIn, isOvernightShift, haversineMeters, resolveGeoCheckIn, isGpsRequiredButMissing } from './checkin-rules'
 import { bangkokToday, bangkokAddDays } from '../../common/utils/time'
@@ -203,8 +203,16 @@ async function settlePendingFine(tx: any, employeeId: string): Promise<number> {
 }
 
 // ยกค่าปรับขาดไปหักในวันที่มาเช็คอินถัดไป
+// ถ้าสิทธิ์ "ปรับเงินเมื่อขาดงาน" ของคนนี้ปิด (cascade) = ไม่ยกยอดไปหัก
+async function absentFineAllowed(tx: any, employeeId: string): Promise<boolean> {
+  const emp = await tx.employee.findUnique({ where: { id: employeeId }, select: { tenant_id: true } })
+  return emp ? resolveAbsentFineEnabled(emp.tenant_id, employeeId) : true
+}
+
 async function schedulePendingFine(tx: any, employeeId: string, amount: number): Promise<void> {
-  if (amount > 0) await tx.employee.update({ where: { id: employeeId }, data: { pending_fine: { increment: amount } } })
+  if (amount <= 0) return
+  if (!(await absentFineAllowed(tx, employeeId))) return
+  await tx.employee.update({ where: { id: employeeId }, data: { pending_fine: { increment: amount } } })
 }
 
 function absentNote(checkInAt: Date): string {
@@ -371,7 +379,7 @@ export async function updateAttendanceTime(tenantId: string, id: string, data: {
   return prisma.$transaction(async (tx) => {
     if (record.is_absent !== is_absent) {
       if (record.is_absent && !is_absent) {
-        const refund = record.shift?.absent_fine ? Number(record.shift.absent_fine) : 0
+        const refund = record.shift?.absent_fine && await absentFineAllowed(tx, record.employee_id) ? Number(record.shift.absent_fine) : 0
         if (refund > 0) {
           const emp = await tx.employee.findUnique({ where: { id: record.employee_id }, select: { pending_fine: true } })
           const current = emp?.pending_fine ? Number(emp.pending_fine) : 0
@@ -408,7 +416,7 @@ export async function deleteAttendanceRecord(tenantId: string, id: string): Prom
   await prisma.$transaction(async (tx) => {
     if (record.is_absent) {
       const shift = await tx.shift.findUnique({ where: { id: record.shift_id }, select: { absent_fine: true } })
-      const refund = shift?.absent_fine ? Number(shift.absent_fine) : 0
+      const refund = shift?.absent_fine && await absentFineAllowed(tx, record.employee_id) ? Number(shift.absent_fine) : 0
       if (refund > 0) {
         const emp = await tx.employee.findUnique({ where: { id: record.employee_id }, select: { pending_fine: true } })
         const current = emp?.pending_fine ? Number(emp.pending_fine) : 0

@@ -151,7 +151,12 @@ export async function resolveVacationEntitlementBulk(
 // ── โควต้ารวม 10 วัน/เดือน (ข้อ 5) ─────────────────────────────────────────
 export const MONTHLY_TOTAL_CAP = 10 // ค่าเริ่มต้น — ใช้จริงคือ Tenant.monthly_total_cap (ปรับได้ใน นโยบายการลา)
 
-export async function getMonthlyTotalCap(tenantId: string): Promise<number> {
+// เพดานของสาขาพนักงาน (Branch.monthly_total_cap) ชนะค่าของบริษัท — ไม่ระบุสาขา/สาขาไม่ตั้ง = ใช้ค่าบริษัท
+export async function getMonthlyTotalCap(tenantId: string, employeeId?: string): Promise<number> {
+  if (employeeId) {
+    const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenant_id: tenantId }, select: { branch: { select: { monthly_total_cap: true } } } })
+    if (emp?.branch?.monthly_total_cap != null) return emp.branch.monthly_total_cap
+  }
   const t = await prisma.tenant.findFirst({ where: { id: tenantId }, select: { monthly_total_cap: true } })
   return t?.monthly_total_cap ?? MONTHLY_TOTAL_CAP
 }
@@ -187,7 +192,7 @@ export async function assertMonthlyCap(
   tenantId: string, employeeId: string, ym: string, adding: number,
   opts: { excludeWeeklyOffId?: string; excludeLeaveId?: string } = {},
 ) {
-  const [{ dayOff, vacation, total }, cap] = await Promise.all([countMonthlyCommitment(tenantId, employeeId, ym, opts), getMonthlyTotalCap(tenantId)])
+  const [{ dayOff, vacation, total }, cap] = await Promise.all([countMonthlyCommitment(tenantId, employeeId, ym, opts), getMonthlyTotalCap(tenantId, employeeId)])
   if (total + adding > cap) throw new MonthlyCapError({ dayOff, vacation, total, cap, adding })
 }
 

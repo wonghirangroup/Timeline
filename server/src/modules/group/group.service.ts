@@ -15,7 +15,7 @@ export async function listGroups(tenantId: string) {
 
 type GroupDayRule = 'WORK' | 'OFF' | 'OFFSITE'
 interface GroupPolicyInput {
-  booking_enabled?: boolean; leave_enabled?: boolean; late_fine_enabled?: boolean | null
+  booking_enabled?: boolean; leave_enabled?: boolean; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null
   saturday_rule?: GroupDayRule; sunday_rule?: GroupDayRule; booking_quota?: number
 }
 // ข้อมูลบริษัทระดับกลุ่ม — undefined = ไม่แตะ, null = เคลียร์กลับไปใช้ของ Tenant, string = override
@@ -38,6 +38,7 @@ export async function createGroup(tenantId: string, data: { name: string } & Gro
       booking_enabled: data.booking_enabled ?? true,
       leave_enabled: data.leave_enabled ?? true,
       late_fine_enabled: data.late_fine_enabled ?? null,
+      absent_fine_enabled: data.absent_fine_enabled ?? null,
       ...(data.saturday_rule !== undefined ? { saturday_rule: data.saturday_rule } : {}),
       ...(data.sunday_rule   !== undefined ? { sunday_rule: data.sunday_rule } : {}),
       ...(data.booking_quota !== undefined ? { booking_quota: data.booking_quota } : {}),
@@ -99,17 +100,18 @@ export async function assignBranchToGroup(tenantId: string, branchId: string, gr
 //   บุคคล(override) → ตำแหน่ง → แผนก → ฝ่าย → สาขา → กลุ่ม(ของสาขา) → true
 // ชั้น "กลุ่ม" อ้างจาก branch.group เสมอ (ตรงกับ mental model กลุ่ม→สาขา และ branch_id มีทุกคน)
 // มี 2 แกนอิสระ: 'booking' (จองวันหยุด weekly-off) และ 'leave' (ยื่นคำขอลา)
-// + 'late_fine' = ปรับเงินเมื่อเช็คอินสายไหม (null ทั้ง chain = ปรับตามกะ)
-export type PolicyFlag = 'booking' | 'leave' | 'late_fine'
+// + 'late_fine' = ปรับเงินเมื่อเช็คอินสายไหม · 'absent_fine' = ปรับเงินเมื่อขาดงานไหม (null ทั้ง chain = ปรับตามกะ)
+export type PolicyFlag = 'booking' | 'leave' | 'late_fine' | 'absent_fine'
 
 const pick = (v: boolean | null | undefined): boolean | null => (v === null || v === undefined ? null : v)
 
 // รูปร่างข้อมูลที่ resolvePolicyFromChain ต้องใช้ (subset ของ employee ที่ query มา)
-export interface PolicyNode { booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null }
+export interface PolicyNode { booking_enabled?: boolean | null; leave_enabled?: boolean | null; late_fine_enabled?: boolean | null; absent_fine_enabled?: boolean | null }
 export interface PolicyEmployeeShape {
   booking_enabled_override?: boolean | null
   leave_enabled_override?: boolean | null
   late_fine_enabled_override?: boolean | null
+  absent_fine_enabled_override?: boolean | null
   branch?: (PolicyNode & { group?: PolicyNode | null }) | null
   position?: (PolicyNode & { department?: (PolicyNode & { division?: PolicyNode | null }) | null }) | null
 }
@@ -117,13 +119,13 @@ export interface PolicyEmployeeShape {
 // pure — "เจาะจงกว่าชนะ" first non-null; null ทั้ง chain → true (แยกไว้ unit test ได้ไม่ต้องแตะ DB)
 export function resolvePolicyFromChain(employee: PolicyEmployeeShape | null, flag: PolicyFlag): boolean {
   if (!employee) return true
-  const k = flag === 'booking' ? 'booking_enabled' : flag === 'leave' ? 'leave_enabled' : 'late_fine_enabled'
+  const k = flag === 'booking' ? 'booking_enabled' : flag === 'leave' ? 'leave_enabled' : flag === 'late_fine' ? 'late_fine_enabled' : 'absent_fine_enabled'
   const pos  = employee.position
   const dept = pos?.department
   const div  = dept?.division
   const br   = employee.branch
   const chain: (boolean | null)[] = [
-    pick(employee[(k + '_override') as 'booking_enabled_override' | 'leave_enabled_override' | 'late_fine_enabled_override']),
+    pick(employee[(k + '_override') as 'booking_enabled_override' | 'leave_enabled_override' | 'late_fine_enabled_override' | 'absent_fine_enabled_override']),
     pick(pos?.[k]),
     pick(dept?.[k]),
     pick(div?.[k]),
@@ -184,20 +186,21 @@ const POLICY_SELECT = {
   booking_enabled_override: true,
   leave_enabled_override: true,
   late_fine_enabled_override: true,
+  absent_fine_enabled_override: true,
   employee_status_type: { select: { saturday_rule: true, sunday_rule: true, monthly_off_quota: true, off_quota_mode: true } },
   branch: {
     select: {
-      booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
-      group: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } },
+      booking_enabled: true, leave_enabled: true, late_fine_enabled: true, absent_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
+      group: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, absent_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } },
     },
   },
   position: {
     select: {
-      booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
+      booking_enabled: true, leave_enabled: true, late_fine_enabled: true, absent_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
       department: {
         select: {
-          booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
-          division: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } },
+          booking_enabled: true, leave_enabled: true, late_fine_enabled: true, absent_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true,
+          division: { select: { booking_enabled: true, leave_enabled: true, late_fine_enabled: true, absent_fine_enabled: true, saturday_rule: true, sunday_rule: true, booking_quota: true } },
         },
       },
     },
@@ -217,6 +220,8 @@ export const resolveBookingEnabled = (tenantId: string, employeeId: string) => r
 export const resolveLeaveEnabled   = (tenantId: string, employeeId: string) => resolvePolicyFlag(tenantId, employeeId, 'leave')
 // ปรับเงินเมื่อเช็คอินสาย — true = ปรับตามกะ (ค่าเริ่มต้น), false = ไม่ปรับ
 export const resolveLateFineEnabled = (tenantId: string, employeeId: string) => resolvePolicyFlag(tenantId, employeeId, 'late_fine')
+// ปรับเงินเมื่อขาดงาน (absent_fine) — true = ปรับตามกะ (ค่าเริ่มต้น), false = ไม่ปรับ
+export const resolveAbsentFineEnabled = (tenantId: string, employeeId: string) => resolvePolicyFlag(tenantId, employeeId, 'absent_fine')
 
 export async function resolveWeekendRule(tenantId: string, employeeId: string, day: 'saturday' | 'sunday'): Promise<DayRule> {
   return resolveWeekendRuleFromChain(await loadPolicyEmployee(tenantId, employeeId) as any, day)
