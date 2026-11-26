@@ -15,6 +15,7 @@ import HolidayReportPage    from './pages/report/holiday'
 import LeaveReportPage      from './pages/report/leave'
 import ExecutiveReportPage  from './pages/report/executive'
 import LineMessagesReportPage from './pages/report/line-messages'
+import PolicyReportPage       from './pages/report/policy'
 import AttendancePage       from './pages/attendance'
 import SettingsPage         from './pages/settings'
 import OtPage               from './pages/ot'
@@ -68,6 +69,7 @@ function AdminRoutes() {
         <Route path="/report/holiday"       element={<HolidayReportPage />} />
         <Route path="/report/leave"         element={<LeaveReportPage />} />
         <Route path="/report/line-messages" element={<LineMessagesReportPage />} />
+        <Route path="/report/policy"        element={<PolicyReportPage />} />
         <Route path="/announcement"  element={<AnnouncementPage />} />
         <Route path="/employee/:id"  element={<EmployeeDetailPage />} />
         <Route path="/master-data"   element={<MasterDataPage />} />

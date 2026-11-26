@@ -4,7 +4,7 @@ import {
   ClipboardCheck, CalendarDays, FileClock, BarChart2,
   Megaphone, Settings, LogOut, X, ChevronLeft, ChevronRight,
   Pencil, Trash2, CheckCircle2, XCircle, MoreHorizontal, MapPin, Table2, DoorOpen, FileText,
-  TrendingUp, CalendarOff, MessageCircle, BookOpen,
+  TrendingUp, CalendarOff, MessageCircle, BookOpen, ShieldCheck,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -72,6 +72,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/report/branch',        label: 'รายงานสาขา',             permKey: 'report_branch',         icon: <Building2    size={16}/> },
       { path: '/report/holiday',       label: 'รายงานวันหยุด',          permKey: 'report_holiday',        icon: <CalendarOff  size={16}/> },
       { path: '/report/leave',         label: 'รายงานวันลา',            permKey: 'report_leave',          icon: <CalendarDays size={16}/> },
+      { path: '/report/policy',        label: 'รายงานนโยบาย',           permKey: 'report_employee',       icon: <ShieldCheck  size={16}/> },
       { path: '/report/line-messages', label: 'รายงานการส่งข้อความไลน์', permKey: 'report_line_messages', icon: <MessageCircle size={16}/> },
       { path: '/audit-log',            label: 'บันทึกกิจกรรมพนักงาน',    icon: <FileClock size={16}/> },
     ],
