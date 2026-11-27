@@ -112,11 +112,19 @@ function fmtDateShort(s: string) {
   const d = new Date(s.slice(0, 10) + 'T00:00:00')
   return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`
 }
-function countDays(start: string, end: string) {
+// นับวันทำงานในช่วงที่เลือก — เสาร์/อาทิตย์นับเป็นวันทำงานถ้ากติกาของพนักงานคนนั้นไม่ใช่ 'OFF'
+// (WORK = ทำงาน, OFFSITE = ทำงานนอกสถานที่ ก็ยังเป็นวันทำงาน) · ไม่ส่งกติกา = ถือว่าหยุดเสาร์-อาทิตย์เหมือนเดิม
+type WeekendRule = 'WORK' | 'OFF' | 'OFFSITE' | null | undefined
+function countDays(start: string, end: string, rules?: { sat?: WeekendRule; sun?: WeekendRule }) {
   if (!start || !end) return 0
   const s = new Date(start), e = new Date(end)
+  const satWork = !!rules?.sat && rules.sat !== 'OFF', sunWork = !!rules?.sun && rules.sun !== 'OFF'
   let n = 0; const c = new Date(s)
-  while (c <= e) { if (c.getDay() !== 0 && c.getDay() !== 6) n++; c.setDate(c.getDate() + 1) }
+  while (c <= e) {
+    const dow = c.getDay()
+    if ((dow !== 0 && dow !== 6) || (dow === 6 && satWork) || (dow === 0 && sunWork)) n++
+    c.setDate(c.getDate() + 1)
+  }
   return n
 }
 function getMonthStr(d: Date) { return d.toISOString().slice(0, 7) }
@@ -2060,6 +2068,9 @@ export default function LeavePage() {
     enabled: !!employee?.id,
   })
 
+  // เสาร์/อาทิตย์ของพนักงานคนนี้ (server resolve จากสถานะ→ตำแหน่ง→…→กลุ่ม) — ใช้นับวันทำงานตอนขอลา
+  const weekendRules = { sat: employee?.saturday_rule, sun: employee?.sunday_rule }
+
   const submitMutation = useMutation({
     mutationFn: (payload: object) =>
       api.post('/employee/leave-requests', payload).then(r => r.data.data),
@@ -2074,7 +2085,7 @@ export default function LeavePage() {
           details: [
             ...(over ? [{ label: 'หมายเหตุ', value: over }] : []),
             { label: 'ช่วงวันที่', value: sd === ed ? fmtDateShort(sd) : `${fmtDateShort(sd)} – ${fmtDateShort(ed)}` },
-            { label: 'จำนวน', value: `${countDays(sd, ed)} วัน` },
+            { label: 'จำนวน', value: `${countDays(sd, ed, weekendRules)} วัน` },
             ...(form.reason ? [{ label: 'เหตุผล', value: form.reason }] : []),
           ] })
       }
@@ -2101,7 +2112,7 @@ export default function LeavePage() {
       const mins = m(form.endTime) - m(form.startTime)
       return Number.isFinite(mins) && mins > 0 ? Math.max(0.5, Math.round(mins / 60 / 8 * 2) / 2) : 0
     }
-    return countDays(form.startDate, form.endDate)
+    return countDays(form.startDate, form.endDate, weekendRules)
   }
 
   const handleSubmitLeave = useCallback(() => {
@@ -2354,6 +2365,12 @@ export default function LeavePage() {
                   </div>
                 )}
               </div>
+              {form.period === 'FULL' && form.startDate && form.endDate && days === 0 && (
+                <div role="alert" style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: '0.8rem', lineHeight: 1.6, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>วันที่เลือกเป็นวันหยุดเสาร์-อาทิตย์ของคุณ ไม่มีวันทำงานให้ลา — เลือกวันอื่น หรือถ้าคุณทำงานวันนี้ ให้แจ้ง HR ตั้งค่าวันทำงานเสาร์-อาทิตย์ให้ถูกต้อง</span>
+                </div>
+              )}
               {days > 0 && (
                 <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: `${COLOR.primary}08`, fontSize: '0.82rem', color: COLOR.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Calendar size={14} /> {form.period === 'FULL' ? `รวม ${days} วันทำงาน` : `หักโควต้า ${days} วัน`}
