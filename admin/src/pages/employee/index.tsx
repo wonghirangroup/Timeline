@@ -14,7 +14,7 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSwipePage } from '../../hooks/useSwipePage'
 import { useIsReadOnly } from '../../stores/authStore'
 import { api } from '../../lib/axios'
-import { deptName, fmtThaiDate } from '../../lib/format'
+import { deptName, fmtThaiDate, tenureText } from '../../lib/format'
 import { avatarUrl } from '../../lib/upload'
 import OrgStructurePage from '../org-structure'
 import PolicyOverview from './PolicyOverview'
@@ -732,7 +732,7 @@ export default function EmployeePage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#F4F6F9' }}>
-                {['รหัส', 'ชื่อ-นามสกุล', 'แผนก', 'สาขา', 'เบอร์โทร', 'Line', 'สถานะ', 'จัดการ'].map(h => (
+                {['รหัส', 'ชื่อ-นามสกุล', 'แผนก', 'สาขา', 'เบอร์โทร', 'อายุงาน', 'Line', 'สถานะ', 'จัดการ'].map(h => (
                   <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: '#131C45', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                     {h === 'สถานะ' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -746,7 +746,7 @@ export default function EmployeePage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: 0 }}>
+                <tr><td colSpan={9} style={{ padding: 0 }}>
                   {employees.length === 0 ? (
                     <EmptyState icon={<Users size={22} />} title="ยังไม่มีพนักงาน"
                       hint="เพิ่มพนักงานทีละคน หรือนำเข้าหลายคนพร้อมกันจากไฟล์ Excel"
@@ -776,6 +776,10 @@ export default function EmployeePage() {
                   <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{deptName(e.department)}</td>
                   <td style={{ padding: '11px 14px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{e.branch.name}</td>
                   <td style={{ padding: '11px 14px', color: '#374151', fontSize: '0.82rem' }}>{e.phone ?? '—'}</td>
+                  <td style={{ padding: '11px 14px', color: '#374151', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                    title={e.hired_at ? `เริ่มงาน ${fmtThaiDate(e.hired_at)}${e.status !== 'ACTIVE' && e.status_effective_date ? ` · ถึง ${fmtThaiDate(e.status_effective_date)}` : ''}` : 'ยังไม่ได้ระบุวันเริ่มงาน'}>
+                    {tenureText(e.hired_at, e.status !== 'ACTIVE' ? e.status_effective_date : null)}
+                  </td>
                   <td style={{ padding: '11px 14px' }}>
                     {e.line_user_id
                       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}><CheckCircle2 size={11} /> ผูกแล้ว</span>

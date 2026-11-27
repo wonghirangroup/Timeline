@@ -30,6 +30,23 @@ export function fmtThaiDate(date?: string | Date | null): string {
   return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// อายุงาน "2 ปี 3 เดือน" (ย่อ ไม่แสดงวัน) — นับจากวันเริ่มงานถึง `until` (ไม่ส่ง = วันนี้)
+// พนักงานที่ออกแล้วให้ส่งวันสุดท้ายมา จะได้ไม่นับต่อไปเรื่อยๆ · ไม่มีวันเริ่มงาน = '—' · ไม่ถึงเดือน = 'ไม่ถึง 1 เดือน'
+export function tenureText(hiredAt?: string | null, until?: string | null): string {
+  if (!hiredAt) return '—'
+  const start = new Date(hiredAt.slice(0, 10) + 'T00:00:00')
+  const end = until ? new Date(until.slice(0, 10) + 'T00:00:00') : new Date()
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return '—'
+  let years = end.getFullYear() - start.getFullYear()
+  let months = end.getMonth() - start.getMonth()
+  if (end.getDate() < start.getDate()) months--
+  if (months < 0) { years--; months += 12 }
+  const parts: string[] = []
+  if (years > 0) parts.push(`${years} ปี`)
+  if (months > 0) parts.push(`${months} เดือน`)
+  return parts.length ? parts.join(' ') : 'ไม่ถึง 1 เดือน'
+}
+
 // ป้ายกำกับ "กันยายน 2569" — สำหรับ context ที่เลือกทั้งเดือน (ไม่มีวันที่เจาะจง)
 export function fmtThaiMonth(date?: string | Date | null): string {
   if (!date) return '—'
