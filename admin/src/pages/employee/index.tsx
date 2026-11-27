@@ -313,8 +313,26 @@ export default function EmployeePage() {
   // รวมข้อมูลอ่อนไหว (เลขบัตร, เงินเดือน, ที่อยู่) → มีหน้าต่างเตือนก่อน และไม่แสดงให้บทบาทอ่านอย่างเดียว
   // (ปุ่ม Export CSV ธรรมดายังตัดข้อมูลอ่อนไหวออกเหมือนเดิม)
   const [fullExportOpen, setFullExportOpen] = useState(false)
+  // ขอบเขต: 'filtered' = ตามตัวกรองบนหน้า (สาขา/แผนก/สถานะ/Line/ค้นหา) · 'all' = ทุกคนไม่สนตัวกรอง
+  const [fullExportScope, setFullExportScope] = useState<'filtered' | 'all'>('filtered')
+  // สรุปตัวกรองที่ใช้อยู่ ไว้โชว์ในหน้าต่างยืนยัน (กันส่งออกผิดชุดโดยไม่รู้ตัว)
+  const activeFilterLabels = [
+    orgFilter.groupId && `กลุ่ม: ${groups.find(g => g.id === orgFilter.groupId)?.name ?? ''}`,
+    orgFilter.branchId && `สาขา: ${branches.find(b => b.id === orgFilter.branchId)?.name ?? ''}`,
+    orgFilter.departmentId && `แผนก: ${positions.find(p => p.department?.id === orgFilter.departmentId)?.department?.name ?? ''}`,
+    orgFilter.positionId && `ตำแหน่ง: ${positions.find(p => p.id === orgFilter.positionId)?.name ?? ''}`,
+    statusFilter && `สถานะ: ${STATUS_CFG[statusFilter as EmployeeStatusValue]?.label ?? statusFilter}`,
+    lineFilter === 'linked' && 'Line: ผูกแล้ว',
+    lineFilter === 'unlinked' && 'Line: ยังไม่ผูก',
+    search && `ค้นหา: "${search}"`,
+  ].filter(Boolean) as string[]
+  function openFullExport() {
+    setFullExportScope(activeFilterLabels.length > 0 ? 'filtered' : 'all')
+    setFullExportOpen(true)
+  }
   function exportFullCsv() {
     setFullExportOpen(false)
+    const source = fullExportScope === 'filtered' ? filtered : employees
     // กัน Excel ตีความเป็นสูตร (ขึ้นต้นด้วย = + - @) → เว้นวรรคนำหน้า · เลขที่ขึ้นต้นด้วย 0 (เบอร์/บัตร/ไปรษณีย์) ใช้ ="..." กันเลขศูนย์หาย
     const safe = (v: unknown) => { const s = v == null ? '' : String(v); return /^[=+\-@\t\r]/.test(s) ? ' ' + s : s }
     const txt = (v: unknown) => { const s = v == null ? '' : String(v); return s ? `="${s.replace(/"/g, '""')}"` : '' }
@@ -334,7 +352,7 @@ export default function EmployeePage() {
       'โหมดจองวันหยุด', 'สิทธิ์จองวันหยุด (รายคน)', 'สิทธิ์ยื่นลา (รายคน)', 'ปรับเมื่อสาย (รายคน)', 'ปรับเมื่อขาด (รายคน)',
       'เช็คอินนอกสถานที่ได้', 'ไม่ต้องเช็คอิน', 'ค่าปรับขาดค้างหัก', 'หมายเหตุ', 'วันที่สร้างข้อมูล',
     ]
-    const body = employees.map(e => {
+    const body = source.map(e => {
       const pos = e.position as any
       const dept = pos?.department
       const division = dept?.division
@@ -355,8 +373,8 @@ export default function EmployeePage() {
         yn(e.offsite_checkin_enabled), yn(e.checkin_exempt), e.pending_fine ?? '', e.notes ?? '', d10(e.created_at),
       ].map(c => (typeof c === 'string' && c.startsWith('="') ? c : safe(c)))
     })
-    downloadCsv([header, ...body], `ข้อมูลพนักงานทั้งหมด_${new Date().toISOString().slice(0, 10)}.csv`)
-    showToast('success', `ส่งออกข้อมูลพนักงาน ${employees.length} คนแล้ว`)
+    downloadCsv([header, ...body], `ข้อมูลพนักงาน${fullExportScope === 'filtered' ? 'ตามตัวกรอง' : 'ทั้งหมด'}_${new Date().toISOString().slice(0, 10)}.csv`)
+    showToast('success', `ส่งออกข้อมูลพนักงาน ${source.length} คนแล้ว`)
   }
 
   function openAdd() {
@@ -708,7 +726,7 @@ export default function EmployeePage() {
               <Download size={13} /> Export CSV
             </button>
             {!isReadOnly && (
-              <button onClick={() => setFullExportOpen(true)} disabled={employees.length === 0} title="Export ข้อมูลพนักงานทุกคนทุกฟิลด์ (รวมเลขบัตร เงินเดือน ที่อยู่ และคนที่ลาออก)"
+              <button onClick={openFullExport} disabled={employees.length === 0} title="Export ข้อมูลพนักงานทุกฟิลด์ (รวมเลขบัตร เงินเดือน ที่อยู่) — เลือกตามตัวกรองหรือทุกคนได้"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, border: '1px solid #fdba74', background: '#fff7ed', color: '#9a3412', fontWeight: 600, fontSize: '0.78rem', cursor: employees.length === 0 ? 'not-allowed' : 'pointer', opacity: employees.length === 0 ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
                 <Download size={13} /> Export ทั้งหมด
               </button>
@@ -732,7 +750,7 @@ export default function EmployeePage() {
                 <Download size={15} />
               </button>
               {!isReadOnly && (
-                <button onClick={() => setFullExportOpen(true)} disabled={employees.length === 0} title="Export ข้อมูลทั้งหมด" aria-label="Export ข้อมูลพนักงานทั้งหมด"
+                <button onClick={openFullExport} disabled={employees.length === 0} title="Export ข้อมูลทั้งหมด" aria-label="Export ข้อมูลพนักงานทั้งหมด"
                   style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 10, border: '1.5px solid #fdba74', background: '#fff7ed', color: '#9a3412', cursor: 'pointer', flexShrink: 0 }}>
                   <Download size={15} />
                 </button>
@@ -1761,8 +1779,22 @@ export default function EmployeePage() {
 
       {fullExportOpen && (
         <ConfirmDialog
-          title="Export ข้อมูลพนักงานทั้งหมด?"
-          message={`จะดาวน์โหลดไฟล์ CSV ของพนักงานทุกคน ${employees.length} คน (รวมคนที่ลาออก/ไม่ใช้งาน ไม่ขึ้นกับตัวกรอง) พร้อมข้อมูลส่วนบุคคลครบทุกช่อง เช่น เลขบัตรประชาชน เงินเดือน ที่อยู่ และผู้ติดต่อฉุกเฉิน — เก็บไฟล์ไว้ในที่ปลอดภัยและอย่าส่งต่อโดยไม่จำเป็น (PDPA)`}
+          title="Export ข้อมูลพนักงาน"
+          message={
+            <span style={{ display: 'block', textAlign: 'left' }}>
+              <span style={{ display: 'block', marginBottom: 8 }}>เลือกว่าจะส่งออกใคร (ตัวกรองตั้งได้ที่แถบกรองบนหน้ารายชื่อ — สาขา แผนก สถานะ ฯลฯ):</span>
+              {([
+                ['filtered', `ตามตัวกรองที่เลือกอยู่ — ${filtered.length} คน`, activeFilterLabels.length ? activeFilterLabels.join(' · ') : 'ยังไม่ได้ตั้งตัวกรอง (เท่ากับทุกคน)'],
+                ['all', `ทุกคน ไม่สนตัวกรอง — ${employees.length} คน`, 'รวมคนที่ลาออก/ไม่ใช้งาน'],
+              ] as const).map(([v, label, sub]) => (
+                <label key={v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 9px', marginBottom: 6, borderRadius: 9, border: `1.5px solid ${fullExportScope === v ? '#244B83' : '#e2e8f0'}`, background: fullExportScope === v ? '#F4F6F9' : '#fff', cursor: 'pointer' }}>
+                  <input type="radio" name="full-export-scope" checked={fullExportScope === v} onChange={() => setFullExportScope(v)} style={{ marginTop: 3 }} />
+                  <span><b style={{ color: '#1e293b' }}>{label}</b><span style={{ display: 'block', fontSize: '12px', color: '#64748b' }}>{sub}</span></span>
+                </label>
+              ))}
+              <span style={{ display: 'block', marginTop: 8 }}>ไฟล์มีข้อมูลส่วนบุคคลครบทุกช่อง เช่น เลขบัตรประชาชน เงินเดือน ที่อยู่ และผู้ติดต่อฉุกเฉิน — เก็บไว้ในที่ปลอดภัยและอย่าส่งต่อโดยไม่จำเป็น (PDPA)</span>
+            </span>
+          }
           confirmLabel="ดาวน์โหลดไฟล์"
           variant="warning"
           onConfirm={exportFullCsv}
