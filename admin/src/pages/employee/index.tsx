@@ -64,6 +64,11 @@ interface ApiEmployee {
   absent_fine_enabled_override?: boolean | null
   offsite_checkin_enabled?: boolean
   checkin_exempt?: boolean
+  probation_end_date?: string | null
+  probation_result?: string | null
+  probation_note?: string | null
+  pending_fine?: string | number | null
+  admin_user?: { role: string; is_active: boolean } | null
   photo_url?: string | null
   // ── ข้อมูลส่วนตัวเพิ่มเติม (feedback 2026-09-23) ──
   prefix?: string | null
@@ -302,6 +307,56 @@ export default function EmployeePage() {
       STATUS_CFG[e.status]?.label ?? e.status, e.line_user_id ? 'ผูกแล้ว' : 'ยังไม่ผูก',
     ])
     downloadCsv([header, ...body], `รายชื่อพนักงาน_${new Date().toISOString().slice(0, 10)}.csv`)
+  }
+
+  // Export "ข้อมูลทั้งหมด" — ทุกคน (รวมลาออก/ไม่ใช้งาน ไม่สนตัวกรอง) ทุกฟิลด์ของแฟ้มพนักงาน
+  // รวมข้อมูลอ่อนไหว (เลขบัตร, เงินเดือน, ที่อยู่) → มีหน้าต่างเตือนก่อน และไม่แสดงให้บทบาทอ่านอย่างเดียว
+  // (ปุ่ม Export CSV ธรรมดายังตัดข้อมูลอ่อนไหวออกเหมือนเดิม)
+  const [fullExportOpen, setFullExportOpen] = useState(false)
+  function exportFullCsv() {
+    setFullExportOpen(false)
+    // กัน Excel ตีความเป็นสูตร (ขึ้นต้นด้วย = + - @) → เว้นวรรคนำหน้า · เลขที่ขึ้นต้นด้วย 0 (เบอร์/บัตร/ไปรษณีย์) ใช้ ="..." กันเลขศูนย์หาย
+    const safe = (v: unknown) => { const s = v == null ? '' : String(v); return /^[=+\-@\t\r]/.test(s) ? ' ' + s : s }
+    const txt = (v: unknown) => { const s = v == null ? '' : String(v); return s ? `="${s.replace(/"/g, '""')}"` : '' }
+    const d10 = (v?: string | null) => (v ? String(v).slice(0, 10) : '')
+    const yn = (v?: boolean | null) => (v ? 'ใช่' : 'ไม่')
+    const addr = (a?: AddressValue | null) => a ? [
+      a.house && `เลขที่ ${a.house}`, a.moo && `หมู่ ${a.moo}`, a.soi && `ซอย ${a.soi}`, a.road && `ถนน ${a.road}`,
+      a.sub && `ตำบล/แขวง ${a.sub}`, a.district && `อำเภอ/เขต ${a.district}`, a.province && `จังหวัด ${a.province}`, a.zip,
+    ].filter(Boolean).join(' ') : ''
+    const policy = (v?: boolean | null, on = 'ใช่', off = 'ไม่') => v === true ? on : v === false ? off : 'ตามชั้น'
+    const header = [
+      'รหัสพนักงาน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'เลขบัตรประชาชน', 'วันเกิด', 'หมู่เลือด', 'อีเมล', 'เบอร์โทร', 'เบอร์สำรอง',
+      'ผู้ติดต่อฉุกเฉิน', 'ที่อยู่ตามบัตรประชาชน', 'ที่อยู่ปัจจุบัน', 'การศึกษา', 'ทักษะ',
+      'กลุ่ม', 'สาขาหลัก', 'สาขาเสริม', 'ฝ่าย', 'แผนก', 'ตำแหน่ง', 'ประเภทการจ้าง', 'สถานะพนักงาน (โควต้าวันหยุด)', 'เงินเดือน',
+      'วันที่เข้าทำงาน', 'อายุงาน', 'วันครบทดลองงาน', 'ผลทดลองงาน', 'หมายเหตุทดลองงาน',
+      'สถานะ', 'วันที่สถานะมีผล', 'เหตุผลสถานะ', 'ผูก Line', 'บทบาทแอดมิน',
+      'โหมดจองวันหยุด', 'สิทธิ์จองวันหยุด (รายคน)', 'สิทธิ์ยื่นลา (รายคน)', 'ปรับเมื่อสาย (รายคน)', 'ปรับเมื่อขาด (รายคน)',
+      'เช็คอินนอกสถานที่ได้', 'ไม่ต้องเช็คอิน', 'ค่าปรับขาดค้างหัก', 'หมายเหตุ', 'วันที่สร้างข้อมูล',
+    ]
+    const body = employees.map(e => {
+      const pos = e.position as any
+      const dept = pos?.department
+      const division = dept?.division
+      const groupName = groups.find(g => g.id === e.branch?.group_id)?.name ?? ''
+      return [
+        e.employee_code, e.prefix ?? '', e.first_name, e.last_name, e.nickname ?? '', txt(e.id_card), d10(e.birthdate), e.blood_type ?? '', e.email ?? '', txt(e.phone), txt(e.phone_alt),
+        (e.emergency_contacts ?? []).map(c => `${c.name} (${c.relation}) ${c.phone}`).join(' | '),
+        addr(e.address_id), addr(e.address_current ?? e.address_id),
+        (e.educations ?? []).map(x => [x.level, x.institution, x.field, x.year].filter(Boolean).join(' ')).join(' | '),
+        (e.skills ?? []).map(x => x.level ? `${x.name} (${x.level})` : x.name).join(' | '),
+        groupName, e.branch?.name ?? '', (e.extra_branches ?? []).map(b => b.branch.name).join(' | '),
+        division?.name ?? '', dept?.name ?? deptName(e.department) ?? '', pos?.name ?? '', e.emp_type ?? '', e.employee_status_type?.name ?? '', e.salary ?? '',
+        d10(e.hired_at), e.hired_at ? tenureText(e.hired_at, e.status !== 'ACTIVE' ? e.status_effective_date : null) : '', d10(e.probation_end_date), e.probation_result ?? '', e.probation_note ?? '',
+        STATUS_CFG[e.status]?.label ?? e.status, d10(e.status_effective_date), e.status_reason ?? '', e.line_user_id ? 'ผูกแล้ว' : 'ยังไม่ผูก', e.admin_user?.is_active ? e.admin_user.role : '',
+        e.weekly_off_mode === 'MONTHLY_BATCH' ? 'รวมทั้งเดือน' : 'รายสัปดาห์',
+        policy(e.booking_enabled_override, 'จองได้', 'จองไม่ได้'), policy(e.leave_enabled_override, 'ลาได้', 'ลาไม่ได้'),
+        policy(e.late_fine_enabled_override, 'ปรับ', 'ไม่ปรับ'), policy(e.absent_fine_enabled_override, 'ปรับ', 'ไม่ปรับ'),
+        yn(e.offsite_checkin_enabled), yn(e.checkin_exempt), e.pending_fine ?? '', e.notes ?? '', d10(e.created_at),
+      ].map(c => (typeof c === 'string' && c.startsWith('="') ? c : safe(c)))
+    })
+    downloadCsv([header, ...body], `ข้อมูลพนักงานทั้งหมด_${new Date().toISOString().slice(0, 10)}.csv`)
+    showToast('success', `ส่งออกข้อมูลพนักงาน ${employees.length} คนแล้ว`)
   }
 
   function openAdd() {
@@ -652,6 +707,12 @@ export default function EmployeePage() {
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.78rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', opacity: filtered.length === 0 ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
               <Download size={13} /> Export CSV
             </button>
+            {!isReadOnly && (
+              <button onClick={() => setFullExportOpen(true)} disabled={employees.length === 0} title="Export ข้อมูลพนักงานทุกคนทุกฟิลด์ (รวมเลขบัตร เงินเดือน ที่อยู่ และคนที่ลาออก)"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, border: '1px solid #fdba74', background: '#fff7ed', color: '#9a3412', fontWeight: 600, fontSize: '0.78rem', cursor: employees.length === 0 ? 'not-allowed' : 'pointer', opacity: employees.length === 0 ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
+                <Download size={13} /> Export ทั้งหมด
+              </button>
+            )}
           </>)}
 
           {/* Mobile filter button */}
@@ -670,6 +731,12 @@ export default function EmployeePage() {
                 style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#374151', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', opacity: filtered.length === 0 ? 0.6 : 1, flexShrink: 0 }}>
                 <Download size={15} />
               </button>
+              {!isReadOnly && (
+                <button onClick={() => setFullExportOpen(true)} disabled={employees.length === 0} title="Export ข้อมูลทั้งหมด" aria-label="Export ข้อมูลพนักงานทั้งหมด"
+                  style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 10, border: '1.5px solid #fdba74', background: '#fff7ed', color: '#9a3412', cursor: 'pointer', flexShrink: 0 }}>
+                  <Download size={15} />
+                </button>
+              )}
               </>
             )
           })()}
@@ -1690,6 +1757,17 @@ export default function EmployeePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {fullExportOpen && (
+        <ConfirmDialog
+          title="Export ข้อมูลพนักงานทั้งหมด?"
+          message={`จะดาวน์โหลดไฟล์ CSV ของพนักงานทุกคน ${employees.length} คน (รวมคนที่ลาออก/ไม่ใช้งาน ไม่ขึ้นกับตัวกรอง) พร้อมข้อมูลส่วนบุคคลครบทุกช่อง เช่น เลขบัตรประชาชน เงินเดือน ที่อยู่ และผู้ติดต่อฉุกเฉิน — เก็บไฟล์ไว้ในที่ปลอดภัยและอย่าส่งต่อโดยไม่จำเป็น (PDPA)`}
+          confirmLabel="ดาวน์โหลดไฟล์"
+          variant="warning"
+          onConfirm={exportFullCsv}
+          onCancel={() => setFullExportOpen(false)}
+        />
       )}
 
       {deleteTarget && (
