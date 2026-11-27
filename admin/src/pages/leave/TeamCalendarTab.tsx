@@ -125,6 +125,25 @@ function saveRosterHidden(v: string[]) {
   try { localStorage.setItem(ROSTER_HIDDEN_KEY, JSON.stringify(v)) } catch { /* ignore เช่น private mode */ }
 }
 
+// ── เทมเพลต Export ตารางแยกกลุ่ม — บันทึกการจัดทั้งหมด (สี/กลุ่มที่ลากย้าย/กลุ่มที่สร้างเอง/คนที่ซ่อน/ตำแหน่งที่แยก/
+// คอลัมน์/ตัวกรอง) ไว้ใช้ซ้ำโดยตั้งชื่อ จะได้ไม่ต้องจัดใหม่ทุกครั้ง · เก็บที่ server เป็นของทั้งบริษัท (ทุกแอดมินเห็นร่วมกัน)
+// ไม่หายเวลาเปลี่ยนเครื่อง/ล้างเบราว์เซอร์ (feedback 2026-11-27 "เก็บใน browser มันชอบหาย") — API: /admin/roster-templates
+// ส่วนการจัดที่ "กำลังใช้อยู่" (สี/กลุ่ม ฯลฯ) ยังจำใน localStorage ตามเดิม เทมเพลตคือชุดที่ตั้งชื่อเก็บถาวร
+interface RosterTemplateData {
+  cols: { code: boolean; branch: boolean }
+  colors: Record<string, string>
+  groupOverrides: Record<string, string>
+  customGroups: string[]
+  hidden: string[]
+  splitPositions: string[]
+  groupId: string
+  deptId: string
+}
+interface RosterTemplate {
+  id: string; name: string; data: Partial<RosterTemplateData>
+  created_by?: string | null; updated_by?: string | null; updated_at?: string
+}
+
 // week_start = Monday, day_of_week = 0 (Sun) – 6 (Sat) as JS getUTCDay()
 function weeklyOffToDate(weekStart: string, dayOfWeek: number): string {
   const monday = new Date(weekStart.slice(0, 10) + 'T00:00:00Z')
@@ -703,6 +722,65 @@ export default function TeamCalendarTab() {
   const [rosterSplitPositions, setRosterSplitPositions] = useState<string[]>(() => loadRosterSplitPositions())
   function toggleRosterSplitPosition(name: string) {
     setRosterSplitPositions(prev => { const next = prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]; saveRosterSplitPositions(next); return next })
+  }
+  // ── เทมเพลต: บันทึก/ใช้/ลบ การจัดทั้งชุดตามชื่อ ──
+  const [tplName, setTplName] = useState('')
+  const [tplPick, setTplPick] = useState('')
+  const [tplDeleteTarget, setTplDeleteTarget] = useState<string | null>(null)
+  const { data: rosterTemplates = [], isLoading: tplLoading, isError: tplError } = useQuery<RosterTemplate[]>({
+    queryKey: ['admin', 'roster-templates'],
+    queryFn: () => api.get('/api/v1/admin/roster-templates').then(r => r.data.data),
+    enabled: showRosterSettings,
+  })
+  const saveTemplateMutation = useMutation({
+    mutationFn: (vars: { name: string; data: RosterTemplateData; existed: boolean }) =>
+      api.put('/api/v1/admin/roster-templates', { name: vars.name, data: vars.data }).then(r => r.data.data),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'roster-templates'] })
+      setTplPick(vars.name); setTplName('')
+      showToast('success', vars.existed ? `อัปเดตเทมเพลต "${vars.name}" แล้ว` : `บันทึกเทมเพลต "${vars.name}" แล้ว`)
+    },
+    onError: (e: any) => showToast('error', e?.response?.data?.error?.message ?? 'บันทึกเทมเพลตไม่สำเร็จ'),
+  })
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (t: RosterTemplate) => api.delete(`/api/v1/admin/roster-templates/${t.id}`).then(() => t.name),
+    onSuccess: (name) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'roster-templates'] })
+      if (tplPick === name) setTplPick('')
+      setTplDeleteTarget(null)
+      showToast('success', `ลบเทมเพลต "${name}" แล้ว`)
+    },
+    onError: () => { setTplDeleteTarget(null); showToast('error', 'ลบเทมเพลตไม่สำเร็จ') },
+  })
+  function saveRosterTemplate() {
+    const name = tplName.trim()
+    if (!name || isReadOnly) return
+    saveTemplateMutation.mutate({
+      name, existed: rosterTemplates.some(t => t.name === name),
+      data: {
+        cols: rosterCols, colors: rosterColors, groupOverrides: rosterGroupOverrides, customGroups: rosterCustomGroups,
+        hidden: rosterHidden, splitPositions: rosterSplitPositions, groupId: rosterGroupId, deptId: rosterDeptId,
+      },
+    })
+  }
+  function applyRosterTemplate(name: string) {
+    const t = rosterTemplates.find(x => x.name === name)
+    if (!t) return
+    const d = t.data ?? {}
+    setRosterCols({ code: d.cols?.code ?? true, branch: d.cols?.branch ?? true })
+    setRosterColors(d.colors ?? {}); saveRosterColors(d.colors ?? {})
+    setRosterGroupOverrides(d.groupOverrides ?? {}); saveRosterGroupOverrides(d.groupOverrides ?? {})
+    setRosterCustomGroups(d.customGroups ?? []); saveRosterCustomGroups(d.customGroups ?? [])
+    setRosterHidden(d.hidden ?? []); saveRosterHidden(d.hidden ?? [])
+    setRosterSplitPositions(d.splitPositions ?? []); saveRosterSplitPositions(d.splitPositions ?? [])
+    setRosterGroupId(d.groupId ?? ''); setRosterDeptId(d.deptId ?? '')
+    setTplPick(name)
+    showToast('success', `ใช้เทมเพลต "${name}" แล้ว`)
+  }
+  function deleteRosterTemplate(name: string) {
+    const t = rosterTemplates.find(x => x.name === name)
+    if (t) deleteTemplateMutation.mutate(t)
+    else setTplDeleteTarget(null)
   }
   const [newGroupName, setNewGroupName] = useState('')
   const [dragOverGroupName, setDragOverGroupName] = useState<string | null>(null)
@@ -1642,6 +1720,49 @@ export default function TeamCalendarTab() {
               </div>
 
               <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* เทมเพลตของฉัน — บันทึกการจัดทั้งชุดไว้ใช้ซ้ำ */}
+                <div data-tour="roster-templates" style={{ border: '1px solid #B2C0D4', background: '#F4F6F9', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#244B83', marginBottom: 2 }}>เทมเพลต Export</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 10 }}>จัดสี กลุ่ม คนที่ซ่อน ตำแหน่งที่แยก และคอลัมน์ตามต้องการแล้ว ตั้งชื่อกดบันทึก — ครั้งหน้าเลือกเทมเพลตเดียวก็ได้การจัดเดิมกลับมา · เก็บไว้ที่ระบบ <b>ใช้ร่วมกันทั้งบริษัท</b> (แอดมินทุกคนเห็น ไม่หายเวลาเปลี่ยนเครื่อง) · ตั้งชื่อซ้ำ = อัปเดตทับของเดิม</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                    <select value={tplPick} onChange={e => { const v = e.target.value; setTplPick(v); if (v) applyRosterTemplate(v) }}
+                      style={{ flex: '1 1 200px', minWidth: 0, padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <option value="">{tplLoading ? 'กำลังโหลดเทมเพลต…' : tplError ? 'โหลดเทมเพลตไม่สำเร็จ' : rosterTemplates.length ? 'เลือกเทมเพลตที่บันทึกไว้…' : 'ยังไม่มีเทมเพลตที่บันทึกไว้'}</option>
+                      {rosterTemplates.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    </select>
+                    {tplPick && !isReadOnly && (
+                      <button onClick={() => setTplDeleteTarget(tplPick)} title="ลบเทมเพลตนี้"
+                        style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+                        <Trash2 size={12} /> ลบ
+                      </button>
+                    )}
+                  </div>
+                  {!isReadOnly && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input value={tplName} onChange={e => setTplName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveRosterTemplate() }}
+                      placeholder={tplPick ? `ชื่อเทมเพลต (พิมพ์ "${tplPick}" เพื่ออัปเดตอันเดิม)` : 'ตั้งชื่อเทมเพลต เช่น ตารางประจำเดือน'}
+                      maxLength={40}
+                      style={{ flex: '1 1 200px', minWidth: 0, padding: '7px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.82rem', fontFamily: 'inherit' }} />
+                    <button onClick={saveRosterTemplate} disabled={!tplName.trim() || saveTemplateMutation.isPending}
+                      style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #244B83', background: '#244B83', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: tplName.trim() ? 'pointer' : 'default', opacity: tplName.trim() && !saveTemplateMutation.isPending ? 1 : 0.5, fontFamily: 'inherit' }}>
+                      {saveTemplateMutation.isPending ? 'กำลังบันทึก…' : 'บันทึกเป็นเทมเพลต'}
+                    </button>
+                    {tplPick && (
+                      <button onClick={() => { setTplName(tplPick) }} title="เติมชื่อเทมเพลตที่เลือกลงช่อง เพื่อบันทึกทับด้วยการจัดปัจจุบัน"
+                        style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #B2C0D4', background: '#fff', color: '#244B83', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        อัปเดตอันที่เลือก
+                      </button>
+                    )}
+                  </div>
+                  )}
+                  {(() => {
+                    const sel = rosterTemplates.find(t => t.name === tplPick)
+                    if (!sel?.updated_by) return null
+                    return <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 8 }}>บันทึกล่าสุดโดย {sel.updated_by}{sel.updated_at ? ` · ${new Date(sel.updated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}` : ''}</div>
+                  })()}
+                </div>
+
                 {/* เลือกกลุ่ม/แผนก — ค่าเริ่มต้น = ทุกกลุ่มทุกแผนก (ก้อนทุกกลุ่มเหมือนเดิม) */}
                 {(groups.length > 1 || allDepartments.length > 0) && (
                   <div data-tour="roster-filter">
@@ -1836,6 +1957,16 @@ export default function TeamCalendarTab() {
               </div>
             </div>
             {rosterTourActive && <GuidedTour steps={ROSTER_TOUR_STEPS} onClose={() => setRosterTourActive(false)} />}
+            {tplDeleteTarget && (
+              <ConfirmDialog
+                title="ลบเทมเพลต?"
+                message={`เทมเพลต "${tplDeleteTarget}" จะถูกลบ (การจัดที่ใช้อยู่ตอนนี้ไม่เปลี่ยน)`}
+                confirmLabel="ลบเทมเพลต"
+                variant="danger"
+                onConfirm={() => deleteRosterTemplate(tplDeleteTarget)}
+                onCancel={() => setTplDeleteTarget(null)}
+              />
+            )}
           </div>
         )
       })()}

@@ -29,6 +29,7 @@ import { offsiteRoutes }      from './modules/offsite/offsite.route'
 import { orgStructureRoutes } from './modules/org-structure/org-structure.route'
 import { employeeStatusTypeRoutes } from './modules/employee-status-type/employee-status-type.route'
 import { groupRoutes } from './modules/group/group.route'
+import { rosterTemplateRoutes } from './modules/roster-template/roster-template.route'
 import { dashboardRoutes } from './modules/dashboard/dashboard.route'
 import { notificationRoutes } from './modules/notifications/notifications.route'
 import { settingsRoutes } from './modules/settings/settings.route'
@@ -152,6 +153,7 @@ app.register(activityRoutes,    { prefix: '/api/v1/super-admin' })   // SUPER_AD
 app.register(offsiteRoutes,     { prefix: '/api/v1' })               // ADMIN view + EMPLOYEE ปักหมุดเช็คอิน-เอาต์นอกสถานที่ (LIFF)
 app.register(auditLogRoutes, { prefix: '/api/v1/admin' })            // ADMIN: บันทึกกิจกรรมพนักงาน (เพิ่ม/ลบ/แก้ไข/แจ้งเตือน) — feedback 2026-09-28
 app.register(groupRoutes, { prefix: '/api/v1/admin' })               // ADMIN: กลุ่ม(บริษัท) — ชั้นนโยบายเหนือสาขา
+app.register(rosterTemplateRoutes, { prefix: '/api/v1/admin' })      // ADMIN: เทมเพลต Export ตารางแยกกลุ่ม (ปฏิทินรวม) ใช้ร่วมกันทั้งบริษัท
 app.register(orgStructureRoutes, { prefix: '/api/v1/admin' })        // ADMIN: ผังองค์กร Division→Department→Position (ใต้กลุ่ม)
 app.register(employeeStatusTypeRoutes, { prefix: '/api/v1/admin' })  // ADMIN: สถานะพนักงาน + โควต้าวันหยุดต่อเดือน
 app.register(dashboardRoutes,    { prefix: '/api/v1/admin' })        // ADMIN: KPI สรุปตามช่วงวันที่ (Dashboard)

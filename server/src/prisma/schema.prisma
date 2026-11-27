@@ -64,6 +64,7 @@ model Tenant {
   employee_status_types EmployeeStatusType[]
   line_message_logs     LineMessageLog[]
   feature_permissions   FeaturePermission[]
+  roster_templates      RosterTemplate[]
 
   @@map("tenants")
 }
@@ -1625,6 +1626,27 @@ model LoginAd {
 // ตอบไม่ได้ว่า "ส่งไปหาใครบ้าง สำเร็จไหม" ย้อนหลัง (feedback 2026-09-22
 // "รายงานการส่งข้อความไลน์" — หมวดสุดท้ายของ 7 หมวดรายงานที่จัดกลุ่มไว้)
 // best-effort เขียนเสมอ ไม่ทำให้การส่งจริงพังตาม (ดู logLineSend())
+// เทมเพลต "Export ตารางแยกกลุ่ม" (ปฏิทินรวม) — บันทึกการจัดทั้งชุด (สี/กลุ่มที่ลากย้าย/กลุ่มที่สร้างเอง/คนที่ซ่อน/
+// ตำแหน่งที่แยก/คอลัมน์/ตัวกรอง) ไว้ใช้ซ้ำ · เป็นของทั้งบริษัท (ทุกแอดมินเห็นร่วมกัน) · ชื่อไม่ซ้ำในบริษัทเดียวกัน
+// (เดิมเก็บใน localStorage ของเบราว์เซอร์ → หายบ่อย feedback 2026-11-27) · soft delete (ชื่อเดิมใช้ซ้ำได้ — upsert คืนชีพแถวเดิม)
+model RosterTemplate {
+  id         String    @id @default(uuid())
+  tenant_id  String
+  name       String
+  data       Json
+  created_by String? // อีเมลผู้สร้าง (snapshot)
+  updated_by String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id])
+  @@map("roster_templates")
+}
+
 model LineMessageLog {
   id               String   @id @default(uuid())
   tenant_id        String
